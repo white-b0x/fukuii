@@ -2,24 +2,22 @@ package com.chipprbots.ethereum.utils
 
 import org.apache.pekko.util.ByteString
 
+import boopickle.DefaultBasic.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import boopickle.DefaultBasic._
-
-import com.chipprbots.ethereum.domain._
+import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields._
-import com.chipprbots.ethereum.testing.Tags._
-import com.chipprbots.ethereum.utils.Picklers._
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.*
+import com.chipprbots.ethereum.testing.Tags.*
+import com.chipprbots.ethereum.utils.Picklers.given
 
 /** Verify boopickle roundtrip for Olympia-specific types. */
-class PicklerOlympiaSpec extends AnyFlatSpec with Matchers {
+class PicklerOlympiaSpec extends AnyFlatSpec with Matchers:
 
-  def roundtrip[T: Pickler](value: T): T = {
+  def roundtrip[T: Pickler](value: T): T =
     val buf = Pickle.intoBytes(value)
     Unpickle[T].fromBytes(buf)
-  }
 
   "TransactionWithDynamicFee" should "roundtrip through boopickle" taggedAs (OlympiaTest, UnitTest) in {
     val tx: Transaction = TransactionWithDynamicFee(
@@ -27,7 +25,7 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers {
       nonce = BigInt(42),
       maxPriorityFeePerGas = BigInt(1000000000),
       maxFeePerGas = BigInt(2000000000),
-      gasLimit = BigInt(21000),
+      gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(1)),
       value = BigInt(1000),
       payload = ByteString.empty,
@@ -51,7 +49,7 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers {
       nonce = BigInt(1),
       maxPriorityFeePerGas = BigInt(1000000000),
       maxFeePerGas = BigInt(2000000000),
-      gasLimit = BigInt(50000),
+      gasLimit = GasAmount(50000),
       receivingAddress = Some(Address(3)),
       value = BigInt(0),
       payload = ByteString(Array(0x01.toByte, 0x02.toByte)),
@@ -77,8 +75,8 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers {
   "Mixed transaction types" should "roundtrip in sequence" taggedAs (OlympiaTest, UnitTest) in {
     val legacy: Transaction = LegacyTransaction(
       nonce = BigInt(0),
-      gasPrice = BigInt(20000000000L),
-      gasLimit = BigInt(21000),
+      gasPrice = GasPrice(BigInt(20000000000L)),
+      gasLimit = GasAmount(21000),
       receivingAddress = Address(1),
       value = BigInt(1000),
       payload = ByteString.empty
@@ -88,7 +86,7 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers {
       nonce = BigInt(1),
       maxPriorityFeePerGas = BigInt(1000000000),
       maxFeePerGas = BigInt(2000000000),
-      gasLimit = BigInt(21000),
+      gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(2)),
       value = BigInt(0),
       payload = ByteString.empty,
@@ -98,4 +96,3 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers {
     roundtrip(legacy) shouldBe legacy
     roundtrip(dynamic) shouldBe dynamic
   }
-}

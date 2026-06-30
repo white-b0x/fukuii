@@ -76,12 +76,37 @@ End each skill run with a short, structured result:
 - **Actions taken** — every 🟡/🔴 call actually executed.
 - **Recommended next steps** — exact commands, ready to run.
 
-## 5. ETC reality check
+## 5. Network reality check
 
-Fukuii's primary network is **Ethereum Classic** (PoW/Ethash, chain id 61,
-ECIP-1017 emission). It is **not** ETH mainnet: no Proof-of-Stake/merge, no
-EIP-1559, no blobs. Mining is real and relevant here. See `CLAUDE.md`. Don't
-recommend ETH-mainnet-only procedures for ETC networks.
+Fukuii is a **multi-network EVM client** supporting two independent chain families:
+
+- **ETC/Mordor** (chain-ID 61/63): Proof-of-Work, Ethash, ECIP-1017 fixed-supply
+  emission. Mining is real and relevant here. No PoS, no Merge, no EIP-1559
+  base-fee burn. Fork dispatch: `forBlock()` (block-number based).
+- **ETH/Sepolia** (chain-ID 1/11155111): Proof-of-Stake (post-Merge), Engine API
+  driven, EIP-1559, EIP-4844 blobs, timestamp fork dispatch. No mining.
+
+See `CLAUDE.md` for the authoritative code-path rules (OlympiaOpCodes vs OsakaOpCodes).
+Do NOT recommend ETH-mainnet procedures for ETC networks, or ETC/PoW procedures for
+ETH/Sepolia networks. Always identify the target chain before advising on consensus,
+mining, fee, or fork-related operations.
+
+## 6. Reference repos for Spec Kit skills
+
+All `speckit-*` skills should sync the upstream Spec Kit repo before starting a
+spec, plan, or implement session. New releases add templates, workflow patterns,
+and integration architecture changes.
+
+```bash
+REFS=$(git rev-parse --show-toplevel)/.claude/repo-references
+git -C "$REFS/spec-kit" pull --ff-only 2>/dev/null | grep -v "Already up to date" || true
+```
+
+| Repo | GitHub | What to check |
+|------|--------|---------------|
+| spec-kit | https://github.com/github/spec-kit | `CHANGELOG.md` before starting a new spec or plan; `templates/` for the latest spec templates; `AGENTS.md` for integration architecture changes; `docs/` for workflow guidance |
+
+Full index: [`.claude/skills/REFERENCES.md`](REFERENCES.md)
 
 ## Skill authoring template
 

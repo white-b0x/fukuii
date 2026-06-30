@@ -10,8 +10,8 @@ import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.domain.SignedTransaction
-import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.SignedTransactions._
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.SignedTransactions.*
+import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.utils.Hex
@@ -23,15 +23,15 @@ import com.chipprbots.ethereum.utils.Hex
   *      includes chainId 4. Signature verification works for all chain IDs 5. No silent truncation in the pipeline 6.
   *      RLP encoding/decoding handles BigInt chain IDs correctly 7. Pre-EIP-155 transactions (v=27/28) still work
   */
-class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers {
+class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers:
 
   "EIP-155 BigInt chain ID" should "handle ETC mainnet (chain ID 61)" taggedAs (UnitTest) in {
-    implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = 61)
+    implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = ChainId(61))
 
     val tx = LegacyTransaction(
       nonce = 0,
-      gasPrice = BigInt(20000000000L),
-      gasLimit = 21000,
+      gasPrice = GasPrice(BigInt(20000000000L)),
+      gasLimit = GasAmount(21000),
       receivingAddress = Address("0x3535353535353535353535353535353535353535"),
       value = BigInt("1000000000000000000"),
       payload = ByteString.empty
@@ -63,12 +63,12 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "handle Gorgoroth testnet (chain ID 1337)" taggedAs (UnitTest) in {
-    implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = 1337)
+    implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = ChainId(1337))
 
     val tx = LegacyTransaction(
       nonce = 5,
-      gasPrice = BigInt(30000000000L),
-      gasLimit = 21000,
+      gasPrice = GasPrice(BigInt(30000000000L)),
+      gasLimit = GasAmount(21000),
       receivingAddress = Address("0x1234567890123456789012345678901234567890"),
       value = BigInt("2000000000000000000"),
       payload = ByteString.empty
@@ -106,12 +106,12 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "handle Arbitrum One (chain ID 42161)" taggedAs (UnitTest) in {
-    implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = 42161)
+    implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = ChainId(42161))
 
     val tx = LegacyTransaction(
       nonce = 10,
-      gasPrice = BigInt(100000000),
-      gasLimit = 21000,
+      gasPrice = GasPrice(BigInt(100000000)),
+      gasLimit = GasAmount(21000),
       receivingAddress = Address("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"),
       value = BigInt("5000000000000000"),
       payload = ByteString.empty
@@ -146,12 +146,12 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "still support pre-EIP-155 transactions (v=27/28)" taggedAs (UnitTest) in {
-    implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = 61)
+    implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = ChainId(61))
 
     val tx = LegacyTransaction(
       nonce = 0,
-      gasPrice = BigInt(20000000000L),
-      gasLimit = 21000,
+      gasPrice = GasPrice(BigInt(20000000000L)),
+      gasLimit = GasAmount(21000),
       receivingAddress = Address("0x3535353535353535353535353535353535353535"),
       value = BigInt("1000000000000000000"),
       payload = ByteString.empty
@@ -196,8 +196,8 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers {
   it should "handle transaction hash calculation with large chain IDs" taggedAs (UnitTest) in {
     val tx = LegacyTransaction(
       nonce = 9,
-      gasPrice = BigInt(20000000000L),
-      gasLimit = 21000,
+      gasPrice = GasPrice(BigInt(20000000000L)),
+      gasLimit = GasAmount(21000),
       receivingAddress = Address("0x3535353535353535353535353535353535353535"),
       value = BigInt("1000000000000000000"),
       payload = ByteString.empty
@@ -218,4 +218,3 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers {
     // Each chain ID should produce a different hash
     hashes.distinct.length shouldEqual chainIds.length
   }
-}

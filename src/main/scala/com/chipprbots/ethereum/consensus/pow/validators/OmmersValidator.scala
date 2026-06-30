@@ -8,11 +8,13 @@ import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator.OmmersEr
 import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator.OmmersValid
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError
 import com.chipprbots.ethereum.domain.Block
+import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
-trait OmmersValidator {
+trait OmmersValidator:
 
   def validate(
       parentHash: ByteString,
@@ -27,14 +29,15 @@ trait OmmersValidator {
       blockNumber: BigInt,
       ommers: Seq[BlockHeader],
       blockchainReader: BlockchainReader
-  )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid] = {
+  )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid] =
 
-    val getBlockHeaderByHash: ByteString => Option[BlockHeader] = blockchainReader.getBlockHeaderByHash
+    val getBlockHeaderByHash: ByteString => Option[BlockHeader] =
+      (h: ByteString) => blockchainReader.getBlockHeaderByHash(BlockHash(h))
     val getNBlocksBack: (ByteString, Int) => List[Block] =
       (tailBlockHash, n) =>
         Iterator
-          .iterate(blockchainReader.getBlockByHash(tailBlockHash))(
-            _.filter(_.number > 0) // avoid trying to fetch parent of genesis
+          .iterate(blockchainReader.getBlockByHash(BlockHash(tailBlockHash)))(
+            _.filter(_.number != BlockNumber.Zero) // avoid trying to fetch parent of genesis
               .flatMap(block => blockchainReader.getBlockByHash(block.header.parentHash))
           )
           .collect { case Some(block) => block }
@@ -43,22 +46,17 @@ trait OmmersValidator {
           .reverse
 
     validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
-  }
 
-}
-
-object OmmersValidator {
+object OmmersValidator:
   sealed trait OmmersError
 
-  object OmmersError {
+  object OmmersError:
     case object OmmersLengthError extends OmmersError
     case class OmmersHeaderError(errors: List[BlockHeaderError]) extends OmmersError
     case object OmmersUsedBeforeError extends OmmersError
     case object OmmerIsAncestorError extends OmmersError
     case object OmmerParentIsNotAncestorError extends OmmersError
     case object OmmersDuplicatedError extends OmmersError
-  }
 
   sealed trait OmmersValid
   case object OmmersValid extends OmmersValid
-}

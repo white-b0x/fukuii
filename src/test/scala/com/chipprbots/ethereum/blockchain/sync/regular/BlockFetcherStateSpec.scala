@@ -1,8 +1,6 @@
 package com.chipprbots.ethereum.blockchain.sync.regular
 
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.testkit.TestKit
-import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 
 import scala.collection.immutable.Queue
 
@@ -11,20 +9,17 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 import com.chipprbots.ethereum.BlockHelpers
 import com.chipprbots.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import com.chipprbots.ethereum.WithActorSystemShutDown
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.blockchain.sync.regular.BlockFetcherState.HeadersNotMatchingReadyBlocks
+import com.chipprbots.ethereum.blockchain.sync.regular.BlockImporter
 import com.chipprbots.ethereum.network.PeerId
+import com.chipprbots.ethereum.testing.Tags.*
 
-class BlockFetcherStateSpec
-    extends TestKit(ActorSystem("BlockFetcherStateSpec_System"))
-    with AnyWordSpecLike
-    with WithActorSystemShutDown
-    with Matchers {
+class BlockFetcherStateSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers:
 
   lazy val validators = new MockValidatorsAlwaysSucceed
 
-  private val importer = TestProbe().ref
+  private val importer = testKit.createTestProbe[BlockImporter.Command]().ref
 
   private val blocks = BlockHelpers.generateChain(5, BlockHelpers.genesis)
 
@@ -61,9 +56,9 @@ class BlockFetcherStateSpec
 
         assert(result.map(_.waitingHeaders) === Right(Queue.empty))
         blocks.foreach { block =>
-          assert(result.map(_.blockProviders(block.number)) === Right(peer))
+          assert(result.map(_.blockProviders(block.number.value)) === Right(peer))
         }
-        assert(result.map(_.knownTop) === Right(blocks.last.number))
+        assert(result.map(_.knownTop) === Right(blocks.last.number.value))
       }
 
       "enqueue requested blocks fails when ready blocks is not forming a sequence with given headers" taggedAs (
@@ -123,4 +118,3 @@ class BlockFetcherStateSpec
       }
     }
   }
-}

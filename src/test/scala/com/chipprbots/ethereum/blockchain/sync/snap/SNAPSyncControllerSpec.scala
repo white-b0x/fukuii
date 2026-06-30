@@ -2,16 +2,33 @@ package com.chipprbots.ethereum.blockchain.sync.snap
 
 import org.apache.pekko.util.ByteString
 
-import scala.concurrent.duration._
+import java.util.concurrent.CountDownLatch
+
+import scala.concurrent.duration.*
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import com.chipprbots.ethereum.consensus.engine.PoSBlockHeaderValidator
 import com.chipprbots.ethereum.db.storage.MptStorage
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.testing.TestMptStorage
+import com.chipprbots.ethereum.utils.BlockchainConfig
+import com.chipprbots.ethereum.utils.ForkBlockNumbers
+import com.chipprbots.ethereum.utils.ForkTimestamps
+import com.chipprbots.ethereum.utils.MonetaryPolicyConfig
+import com.chipprbots.ethereum.utils.NetworkType
+import com.chipprbots.ethereum.domain.Difficulty
+import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.BlockHash
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.Timestamp
+import com.chipprbots.ethereum.domain.TrieRoot
+import com.chipprbots.ethereum.domain.ChainId
 
-class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
+class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
+  import SNAPSyncController.SyncPhase.*
 
   "SNAPSyncConfig" should "load from config correctly" taggedAs UnitTest in {
     // Test that the config case class works properly
@@ -70,8 +87,6 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   "SyncProgress" should "format progress string correctly" taggedAs UnitTest in {
-    import SNAPSyncController._
-
     val progress = SyncProgress(
       phase = AccountRangeSync,
       accountsSynced = 1000,
@@ -103,7 +118,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "handle different phases correctly" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
 
     val phases = Seq(Idle, AccountRangeSync, ByteCodeAndStorageSync, StateHealing, StateValidation, Completed)
 
@@ -137,7 +152,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   "SNAPSyncController messages" should "be defined correctly" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
 
     // Test that all message types are defined
     val start = Start
@@ -170,12 +185,37 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
     ) shouldBe true
   }
 
-  it should "run healing when storage was force-completed even with deferred merkleization" taggedAs UnitTest in {
+  it should "skip healing (lazy on-demand fetch) under deferred merkleization regardless of force-complete" taggedAs UnitTest in {
     val config = SNAPSyncConfig(deferredMerkleization = true)
 
+    // root-cause w98gfx4wn: force-completed previously forced the healing walk "to fill the known
+    // holes", but under deferred merkleization the walk root's bytes are absent locally AND
+    // unservable by peers (aged pivot). The heal seeds the walk root as its sole frontier task and
+    // stalls at "exactly 1 node, healed=0" forever. The holes are filled by BlockImporter's
+    // on-demand GetTrieNodes fetch during block execution — so skip healing and hand off. The
+    // force-completed flag is therefore no longer a routing input (the caller keeps it for logging).
     SNAPSyncController.shouldSkipHealingAfterDownloads(
       snapSyncConfig = config,
-      storagePhaseForceCompleted = true,
+      storagePhaseForceCompleted = false,
+      resumedStaleCursors = false
+    ) shouldBe true
+  }
+
+  it should "run healing when deferred merkleization is OFF" taggedAs UnitTest in {
+    // spec 009 T013: the non-deferred path ALWAYS runs healing (returns false). The historical rationale was FALSE —
+    // the non-deferred path writes per-task FRAGMENT roots, NOT the pivot/heal root, so that root node is typically
+    // ABSENT locally. Healing still works because under movingRootDeltaHeal the coordinator SEEDS the absent served
+    // root and FETCHES it (it does not need a local coherent root). The routing decision here is unchanged on BOTH
+    // flag states; assert both.
+    SNAPSyncController.shouldSkipHealingAfterDownloads(
+      snapSyncConfig = SNAPSyncConfig(deferredMerkleization = false, movingRootDeltaHeal = false),
+      storagePhaseForceCompleted = false,
+      resumedStaleCursors = false
+    ) shouldBe false
+
+    SNAPSyncController.shouldSkipHealingAfterDownloads(
+      snapSyncConfig = SNAPSyncConfig(deferredMerkleization = false, movingRootDeltaHeal = true),
+      storagePhaseForceCompleted = false,
       resumedStaleCursors = false
     ) shouldBe false
   }
@@ -197,9 +237,10 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   // consensus layer via engine_forkchoiceUpdated; SNAP must support a hint message and a
   // by-hash bootstrap variant.
   "SNAPSyncController.CLPivotHint" should "carry the head hash and optional header" taggedAs UnitTest in {
-    import SNAPSyncController._
-    import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields._
+    import SNAPSyncController.*
+    import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.*
     import com.chipprbots.ethereum.domain.BlockHeader
+    import com.chipprbots.ethereum.domain.BloomFilter
 
     val headHash = ByteString(Array.fill(32)(0x42.toByte))
     val withoutHeader = CLPivotHint(headHash, None)
@@ -207,20 +248,20 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
     withoutHeader.knownHeader shouldBe None
 
     val header = BlockHeader(
-      parentHash = ByteString(new Array[Byte](32)),
-      ommersHash = BlockHeader.EmptyOmmers,
+      parentHash = BlockHash(ByteString(new Array[Byte](32))),
+      ommersHash = BlockHash(BlockHeader.EmptyOmmers),
       beneficiary = ByteString(new Array[Byte](20)),
-      stateRoot = ByteString(Array.fill(32)(0x77.toByte)),
-      transactionsRoot = BlockHeader.EmptyMpt,
-      receiptsRoot = BlockHeader.EmptyMpt,
-      logsBloom = ByteString(new Array[Byte](256)),
-      difficulty = 0,
-      number = 9876543,
-      gasLimit = 30000000,
-      gasUsed = 0,
-      unixTimestamp = 1700000000,
+      stateRoot = TrieRoot(ByteString(Array.fill(32)(0x77.toByte))),
+      transactionsRoot = TrieRoot(BlockHeader.EmptyMpt),
+      receiptsRoot = TrieRoot(BlockHeader.EmptyMpt),
+      logsBloom = BloomFilter.Empty,
+      difficulty = Difficulty.Zero,
+      number = BlockNumber(9876543),
+      gasLimit = GasAmount(30000000),
+      gasUsed = GasAmount(0),
+      unixTimestamp = Timestamp(1700000000),
       extraData = ByteString.empty,
-      mixHash = ByteString(new Array[Byte](32)),
+      mixHash = BlockHash(ByteString(new Array[Byte](32))),
       nonce = ByteString(new Array[Byte](8)),
       extraFields = HefPostOlympia(BigInt("1000000000"))
     )
@@ -229,7 +270,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   "SNAPSyncController.StartRegularSyncBootstrapByHash" should "carry the head hash" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
     val headHash = ByteString(Array.fill(32)(0xaa.toByte))
     val msg = StartRegularSyncBootstrapByHash(headHash)
     msg.headHash shouldBe headHash
@@ -237,14 +278,14 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   "PivotSelectionSource.CLDrivenPivot" should "be a distinct value from NetworkPivot/LocalPivot" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
     val sources: Seq[PivotSelectionSource] = Seq(NetworkPivot, LocalPivot, CLDrivenPivot)
     sources.distinct.size shouldBe 3
     CLDrivenPivot.name shouldBe "cl-driven"
   }
 
   it should "have bootstrap message with target block" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
 
     // Test bootstrap message
     val targetBlock = BigInt(1025)
@@ -255,7 +296,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "have correct phase types" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
 
     // Test phase hierarchy
     val idle: SyncPhase = Idle
@@ -275,7 +316,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   "SNAPSyncController" should "provide status for eth_syncing RPC" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
 
     // Verify that SNAP sync phases can be converted to state node progress
     // This is tested indirectly through the currentSyncStatus method
@@ -333,8 +374,6 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   "SyncProgress formatCount" should "format large numbers with K/M suffixes" taggedAs UnitTest in {
-    import SNAPSyncController._
-
     val progress = SyncProgress(
       phase = AccountRangeSync,
       accountsSynced = 13200000,
@@ -367,7 +406,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   // ---- J8: State machine — phase ordering and restart detection -------------------
 
   "SyncPhase" should "enumerate all 6 phases as distinct values" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
 
     val allPhases: Seq[SyncPhase] = Seq(
       Idle,
@@ -381,7 +420,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "declare Idle before AccountRangeSync in canonical declaration order" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
 
     // The canonical SNAP sync pipeline order.  We can't enforce ordering via sealed trait alone,
     // but locking the set of phases here means adding a new phase forces updating this test.
@@ -402,7 +441,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "include ChainDownloadCompletion as a valid intermediate phase" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
     val phase: SyncPhase = ChainDownloadCompletion
     phase shouldBe a[SyncPhase]
     phase should not be Completed
@@ -417,7 +456,8 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
     // Simulate the counter behaviour extracted from SNAPSyncController.
     var generation: Long = 0L
 
-    def invalidate(): Long = { generation += 1; generation }
+    def invalidate(): Long =
+      generation += 1; generation
     def isStale(gen: Long): Boolean = gen != generation
 
     // Initial state: generation=0, any message with gen=0 is current
@@ -467,7 +507,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
     shouldSkip shouldBe true
 
     // Consume on use (one-shot semantics).
-    if (shouldSkip) healingValidatedRoot = None
+    if shouldSkip then healingValidatedRoot = None
     healingValidatedRoot shouldBe None
   }
 
@@ -490,7 +530,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
     val rootA = ByteString("root-a".getBytes)
 
     val totalFound = 87901 // round-1 healing case: not yet clean
-    if (totalFound == 0) healingValidatedRoot = Some(rootA)
+    if totalFound == 0 then healingValidatedRoot = Some(rootA)
     // else: signal NOT set; another healing round will run.
 
     healingValidatedRoot shouldBe None
@@ -519,7 +559,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
     // First call: matches, skip, consume.
     val first = healingValidatedRoot.contains(rootA)
     first shouldBe true
-    if (first) healingValidatedRoot = None
+    if first then healingValidatedRoot = None
 
     // Second call (e.g. validation retry path) — signal already consumed, full validation must run.
     val second = healingValidatedRoot.contains(rootA)
@@ -589,8 +629,6 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "show ByteCode phase with total and percentage" taggedAs UnitTest in {
-    import SNAPSyncController._
-
     val progress = SyncProgress(
       phase = ByteCodeAndStorageSync,
       accountsSynced = 2700000,
@@ -628,7 +666,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   // even on failure, causing healing to start with a corrupt trie.
 
   "AccountTrieFinalizationFailed message" should "exist and carry an error string" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
     val msg = AccountTrieFinalizationFailed("root mismatch: computed 8f5d92fe != expected b8c5a89e")
     msg.error should include("root mismatch")
     msg.error should include("8f5d92fe")
@@ -636,7 +674,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be distinct from AccountTrieFinalized (success path)" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
     import org.apache.pekko.util.ByteString
     val failed = AccountTrieFinalizationFailed("some error")
     val succeeded = AccountTrieFinalized(ByteString(Array.fill(32)(0.toByte)))
@@ -644,7 +682,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
   }
 
   "SNAPSyncController message set" should "include AccountTrieFinalizationFailed alongside AccountTrieFinalized" taggedAs UnitTest in {
-    import SNAPSyncController._
+    import SNAPSyncController.*
     // Both success and failure finalization messages must exist so the controller
     // can distinguish "proceed to healing" from "restart with fresh pivot".
     val successMsg: AnyRef = AccountTrieFinalized(org.apache.pekko.util.ByteString.empty)
@@ -815,7 +853,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
 
     // nodeId-based selection (the fix): finds the peer regardless of remotePort
     val foundByNodeId =
-      if (snapServerNodeIds.nonEmpty)
+      if snapServerNodeIds.nonEmpty then
         Seq(besuPeer).find(p => p.supportsSnap && p.nodeId.exists(snapServerNodeIds.contains))
       else None
 
@@ -880,16 +918,14 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
     val MaxConsecutivePivotRefreshes = 3
     var criticalFailureCount = 0
 
-    for (_ <- 1 to MaxConsecutivePivotRefreshes)
-      consecutivePivotRefreshes += 1
+    for _ <- 1 to MaxConsecutivePivotRefreshes do consecutivePivotRefreshes += 1
 
     (consecutivePivotRefreshes >= MaxConsecutivePivotRefreshes) shouldBe true
 
     // Each time threshold is reached, record a critical failure and reset
-    if (consecutivePivotRefreshes >= MaxConsecutivePivotRefreshes) {
+    if consecutivePivotRefreshes >= MaxConsecutivePivotRefreshes then
       criticalFailureCount += 1
       consecutivePivotRefreshes = 0
-    }
 
     criticalFailureCount shouldBe 1
     consecutivePivotRefreshes shouldBe 0 // reset after escalation
@@ -906,7 +942,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
 
     // ...then a successful refresh (count > 0 means some peer served the root)
     val peerCount = 1
-    if (peerCount > 0) consecutivePivotRefreshes = 0
+    if peerCount > 0 then consecutivePivotRefreshes = 0
 
     consecutivePivotRefreshes shouldBe 0
     // The next 3 stateless refreshes would again be needed to reach the threshold
@@ -917,11 +953,10 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
     var criticalFailureCount = 0
     val maxSnapSyncFailures = 5
 
-    for (_ <- 1 until maxSnapSyncFailures) {
+    for _ <- 1 until maxSnapSyncFailures do
       criticalFailureCount += 1
       // recordCriticalFailure returns false (not yet at threshold)
       (criticalFailureCount >= maxSnapSyncFailures) shouldBe false
-    }
 
     // Final failure tips over threshold
     criticalFailureCount += 1
@@ -964,7 +999,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
 
     // Controller passes savedProgress to the new coordinator unchanged
     val resumeProgress =
-      if (drift <= MaxPreservedPivotDistance) savedProgress
+      if drift <= MaxPreservedPivotDistance then savedProgress
       else Map.empty[ByteString, ByteString]
     resumeProgress shouldBe savedProgress
   }
@@ -983,7 +1018,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
 
     // Controller discards progress — coordinator restarts each range from its start
     val resumeProgress =
-      if (drift <= MaxPreservedPivotDistance) savedProgress
+      if drift <= MaxPreservedPivotDistance then savedProgress
       else Map.empty[ByteString, ByteString]
     resumeProgress shouldBe Map.empty[ByteString, ByteString]
   }
@@ -1191,7 +1226,90 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers {
       maxStaleness = 4096L
     ) shouldBe Right(())
   }
-}
+
+  // ── §ETH-T9-A: Pivot header post-merge validation ─────────────────────────────────────────────
+  // Tests for the gate added to BootstrapComplete and completePivotRefreshWithStateRoot that
+  // rejects malformed post-merge pivot headers on ETH/Sepolia before any state is committed.
+  // The gate delegates to PoSBlockHeaderValidator.validateHeaderOnly so we test that
+  // validator directly with headers representative of what SNAP sync may receive from peers.
+  "PoSBlockHeaderValidator (pivot header gate)" should
+    "reject an ETH/Sepolia pivot header with difficulty > 0 (not a PoS block)" taggedAs UnitTest in {
+      given bc: BlockchainConfig = sepoliaTestConfig
+      val badHeader = validSepoliaHeader.copy(difficulty = Difficulty(BigInt(1)))
+      PoSBlockHeaderValidator.validateHeaderOnly(badHeader).isLeft shouldBe true
+    }
+
+  it should "reject an ETH/Sepolia Shanghai-era pivot header with withdrawalsRoot = None" taggedAs UnitTest in {
+    import com.chipprbots.ethereum.domain.BlockHeader
+    given bc: BlockchainConfig = sepoliaTestConfig
+    // A header with HefEmpty on a Shanghai-timestamp block has withdrawalsRoot = None — rejected.
+    val badHeader = validSepoliaHeader.copy(extraFields = BlockHeader.HeaderExtraFields.HefEmpty)
+    PoSBlockHeaderValidator.validateHeaderOnly(badHeader).isLeft shouldBe true
+  }
+
+  it should "accept a valid ETH/Sepolia post-merge pivot header" taggedAs UnitTest in {
+    given bc: BlockchainConfig = sepoliaTestConfig
+    PoSBlockHeaderValidator.validateHeaderOnly(validSepoliaHeader).isRight shouldBe true
+  }
+
+  it should "confirm the ETH validator rejects PoW headers (ETC gate avoids calling it)" taggedAs UnitTest in {
+    // On ETC the gate is skipped (isPoSChain = false). We verify the validator itself
+    // would reject this header, confirming that the ETC gate correctly avoids calling it.
+    given bc: BlockchainConfig = sepoliaTestConfig
+    val etcStyleHeader = validSepoliaHeader.copy(difficulty = Difficulty(BigInt("10000000000000000")))
+    PoSBlockHeaderValidator.validateHeaderOnly(etcStyleHeader).isLeft shouldBe true
+  }
+
+  private val sepoliaTestConfig: BlockchainConfig = BlockchainConfig(
+    forkBlockNumbers = ForkBlockNumbers.Empty,
+    maxCodeSize = None,
+    customGenesisFileOpt = None,
+    customGenesisJsonOpt = None,
+    daoForkConfig = None,
+    accountStartNonce = UInt256.Zero,
+    chainId = ChainId(11155111),
+    networkId = 11155111L,
+    monetaryPolicyConfig = MonetaryPolicyConfig(
+      eraDuration = 0,
+      rewardReductionRate = 0.0,
+      firstEraBlockReward = BigInt(0),
+      firstEraReducedBlockReward = BigInt(0)
+    ),
+    gasTieBreaker = false,
+    ethCompatibleStorage = true,
+    bootstrapNodes = Set.empty,
+    networkType = NetworkType.ETH,
+    terminalTotalDifficulty = Some(BigInt("17000000000000000")),
+    forkTimestamps = ForkTimestamps(
+      shanghaiTimestamp = Some(1677557088L)
+    )
+  )
+
+  private val validSepoliaHeader: com.chipprbots.ethereum.domain.BlockHeader =
+    import com.chipprbots.ethereum.domain.BlockHeader
+    import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostShanghai
+    import com.chipprbots.ethereum.domain.BloomFilter
+    BlockHeader(
+      parentHash = BlockHash(ByteString(Array.fill(32)(0xab.toByte))),
+      ommersHash = BlockHash(BlockHeader.EmptyOmmers),
+      beneficiary = ByteString(new Array[Byte](20)),
+      stateRoot = TrieRoot(ByteString(Array.fill(32)(0x77.toByte))),
+      transactionsRoot = TrieRoot(BlockHeader.EmptyMpt),
+      receiptsRoot = TrieRoot(BlockHeader.EmptyMpt),
+      logsBloom = BloomFilter.Empty,
+      difficulty = Difficulty.Zero,
+      number = BlockNumber(BigInt(5187023)),
+      gasLimit = GasAmount(BigInt(30000000)),
+      gasUsed = GasAmount(BigInt(0)),
+      unixTimestamp = Timestamp(1700000000L), // well above shanghaiTimestamp=1677557088
+      extraData = ByteString.empty,
+      mixHash = BlockHash(ByteString(new Array[Byte](32))),
+      nonce = ByteString(new Array[Byte](8)),
+      extraFields = HefPostShanghai(
+        baseFee = BigInt(7),
+        withdrawalsRoot = ByteString(Array.fill(32)(0x56.toByte))
+      )
+    )
 
 /** Test helper: a `StateValidator` subclass that returns canned results without traversing the trie. Used in
   * orchestration tests to drive the controller's validation handlers without paying the cost of a real walk.
@@ -1205,24 +1323,21 @@ class FakeStateValidator(
     storageResult: Either[String, Seq[ByteString]],
     throwOnAccount: Option[Throwable] = None,
     throwOnStorage: Option[Throwable] = None,
-    accountSleepMs: Long = 0L,
-    storageSleepMs: Long = 0L
-) extends StateValidator(storage) {
+    accountGate: Option[CountDownLatch] = None,
+    storageGate: Option[CountDownLatch] = None
+) extends StateValidator(storage):
 
   @volatile var accountCallCount: Int = 0
   @volatile var storageCallCount: Int = 0
 
-  override def validateAccountTrie(stateRoot: ByteString): Either[String, Seq[ByteString]] = {
+  override def validateAccountTrie(stateRoot: ByteString): Either[String, Seq[ByteString]] =
     accountCallCount += 1
-    if (accountSleepMs > 0) Thread.sleep(accountSleepMs)
+    accountGate.foreach(_.countDown())
     throwOnAccount.foreach(t => throw t)
     accountResult
-  }
 
-  override def validateAllStorageTries(stateRoot: ByteString): Either[String, Seq[ByteString]] = {
+  override def validateAllStorageTries(stateRoot: ByteString): Either[String, Seq[ByteString]] =
     storageCallCount += 1
-    if (storageSleepMs > 0) Thread.sleep(storageSleepMs)
+    storageGate.foreach(_.countDown())
     throwOnStorage.foreach(t => throw t)
     storageResult
-  }
-}

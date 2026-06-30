@@ -5,13 +5,14 @@ import org.apache.pekko.util.ByteString
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import com.chipprbots.ethereum.Fixtures.{Blocks => BlockFixtures}
+import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.UInt256
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.testing.Tags.*
 
 import Fixtures.blockchainConfig
 
@@ -23,7 +24,7 @@ import Fixtures.blockchainConfig
   * Fixtures.blockchainConfig uses chainId=0x3d=61 (ETC mainnet). Fork blocks: Atlantis=0, Agharta=0, Phoenix=600,
   * Mystique=800, Spiral=900, Olympia=1000.
   */
-class ETCForkEVMSpec extends AnyWordSpec with Matchers {
+class ETCForkEVMSpec extends AnyWordSpec with Matchers:
 
   // ── EVM configs at representative block heights ───────────────────────────
 
@@ -36,13 +37,14 @@ class ETCForkEVMSpec extends AnyWordSpec with Matchers {
 
   // ── Block headers at representative heights ───────────────────────────────
 
-  val hdrAtlantis: BlockHeader = BlockFixtures.ValidBlock.header.copy(number = 0)
-  val hdrPhoenix: BlockHeader = BlockFixtures.ValidBlock.header.copy(number = Fixtures.PhoenixBlockNumber)
-  val hdrMystique: BlockHeader = BlockFixtures.ValidBlock.header.copy(number = Fixtures.MystiqueBlockNumber)
-  val hdrSpiral: BlockHeader = BlockFixtures.ValidBlock.header.copy(number = Fixtures.SpiralBlockNumber)
+  val hdrAtlantis: BlockHeader = BlockFixtures.ValidBlock.header.copy(number = BlockNumber(0))
+  val hdrPhoenix: BlockHeader = BlockFixtures.ValidBlock.header.copy(number = BlockNumber(Fixtures.PhoenixBlockNumber))
+  val hdrMystique: BlockHeader =
+    BlockFixtures.ValidBlock.header.copy(number = BlockNumber(Fixtures.MystiqueBlockNumber))
+  val hdrSpiral: BlockHeader = BlockFixtures.ValidBlock.header.copy(number = BlockNumber(Fixtures.SpiralBlockNumber))
   val hdrOlympia: BlockHeader =
     BlockFixtures.ValidBlock.header.copy(
-      number = Fixtures.OlympiaBlockNumber,
+      number = BlockNumber(Fixtures.OlympiaBlockNumber),
       extraFields = HefPostOlympia(BigInt("1000000000")) // 1 Gwei base fee
     )
 
@@ -63,7 +65,7 @@ class ETCForkEVMSpec extends AnyWordSpec with Matchers {
       config: EvmConfig,
       startGas: BigInt = 1_000_000,
       contractBalance: UInt256 = UInt256(500)
-  ): ProgramResult[MockWorldState, MockStorage] = {
+  ): ProgramResult[MockWorldState, MockStorage] =
     val world = baseWorld(contractBalance).saveCode(contractAddr, code.code)
     val ctx = ProgramContext(
       callerAddr = callerAddr,
@@ -85,13 +87,11 @@ class ETCForkEVMSpec extends AnyWordSpec with Matchers {
       warmStorage = Set.empty
     )
     new VM[MockWorldState, MockStorage].run(ctx)
-  }
 
   // Encode a 32-byte value into ByteString (big-endian, zero-padded)
-  def bytes32(n: BigInt): ByteString = {
+  def bytes32(n: BigInt): ByteString =
     val bytes = n.toByteArray.takeRight(32)
     ByteString(Array.fill(32 - bytes.length)(0.toByte) ++ bytes)
-  }
 
   // ── Atlantis (≈ Byzantium): REVERT ───────────────────────────────────────
 
@@ -358,5 +358,4 @@ class ETCForkEVMSpec extends AnyWordSpec with Matchers {
       }
     }
   }
-}
 // scalastyle:on magic.number

@@ -1,7 +1,8 @@
 package com.chipprbots.ethereum.jsonrpc
 
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.testkit.TestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
 
 import cats.effect.IO
@@ -11,8 +12,8 @@ import org.bouncycastle.util.encoders.Hex
 import org.json4s.DefaultFormats
 import org.json4s.Extraction
 import org.json4s.Formats
-import org.json4s.JsonAST._
-import org.json4s.JsonDSL._
+import org.json4s.JsonAST.*
+import org.json4s.JsonDSL.*
 import org.scalatest.concurrent.Eventually
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -20,36 +21,34 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import com.chipprbots.ethereum.Fixtures
-import com.chipprbots.ethereum.LongPatience
-import com.chipprbots.ethereum.WithActorSystemShutDown
 import com.chipprbots.ethereum.crypto.ECDSASignature
-import com.chipprbots.ethereum.domain._
+import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.jsonrpc.EthBlocksService.GetBlockTransactionCountByNumberResponse
-import com.chipprbots.ethereum.jsonrpc.EthTxService._
-import com.chipprbots.ethereum.jsonrpc.EthUserService._
+import com.chipprbots.ethereum.jsonrpc.EthTxService.*
+import com.chipprbots.ethereum.jsonrpc.EthUserService.*
 import com.chipprbots.ethereum.jsonrpc.FilterManager.TxLog
-import com.chipprbots.ethereum.jsonrpc.PersonalService._
+import com.chipprbots.ethereum.jsonrpc.PersonalService.*
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
+import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import com.chipprbots.ethereum.testing.Tags._
 
 // scalastyle:off magic.number
 class JsonRpcControllerEthLegacyTransactionSpec
-    extends TestKit(ActorSystem("JsonRpcControllerEthTransactionSpec_System"))
+    extends ScalaTestWithActorTestKit
     with AnyFlatSpecLike
-    with WithActorSystemShutDown
     with Matchers
     with JRCMatchers
     with org.scalamock.scalatest.MockFactory
     with JsonRpcControllerTestSupport
     with ScalaCheckPropertyChecks
     with ScalaFutures
-    with LongPatience
-    with Eventually {
+    with Eventually:
 
   implicit val runtime: IORuntime = IORuntime.global
+  implicit private val classicActorSystem: ActorSystem = system.toClassic
+  implicit private val actorTestKitImpl: org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit = testKit
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer
@@ -57,12 +56,12 @@ class JsonRpcControllerEthLegacyTransactionSpec
   it should "handle eth_getTransactionByBlockHashAndIndex request" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
+  ) in new JsonRpcControllerFixture:
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndexToRequest: Int = blockToRequest.body.transactionList.size / 2
 
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number.value)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getTransactionByBlockHashAndIndex",
@@ -78,17 +77,16 @@ class JsonRpcControllerEthLegacyTransactionSpec
     )
 
     response should haveResult(expectedTxResponse)
-  }
 
   it should "handle eth_getRawTransactionByBlockHashAndIndex request" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
+  ) in new JsonRpcControllerFixture:
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndexToRequest: Int = blockToRequest.body.transactionList.size / 2
 
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number.value)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getRawTransactionByBlockHashAndIndex",
@@ -101,14 +99,13 @@ class JsonRpcControllerEthLegacyTransactionSpec
     val expectedTxResponse: Option[JString] = rawTrnHex(blockToRequest.body.transactionList, txIndexToRequest)
 
     response should haveResult(expectedTxResponse)
-  }
 
-  it should "handle eth_getRawTransactionByHash request" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture {
-    val mockEthTxService = mock[EthTxService]
+  it should "handle eth_getRawTransactionByHash request" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture:
+    val mockEthTxService: EthTxService = mock[EthTxService]
     override val jsonRpcController: JsonRpcController = super.jsonRpcController.copy(ethTxService = mockEthTxService)
 
     val txResponse: SignedTransaction = Fixtures.Blocks.Block3125369.body.transactionList.head
-    (mockEthTxService.getRawTransactionByHash _)
+    mockEthTxService.getRawTransactionByHash
       .expects(*)
       .returning(IO.pure(Right(RawTransactionResponse(Some(txResponse)))))
 
@@ -121,9 +118,8 @@ class JsonRpcControllerEthLegacyTransactionSpec
 
     val response: JsonRpcResponse = jsonRpcController.handleRequest(request).unsafeRunSync()
     response should haveResult(encodeSignedTrx(txResponse))
-  }
 
-  it should "eth_sendTransaction" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture {
+  it should "eth_sendTransaction" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture:
     val params: List[JObject] = JObject(
       "from" -> Address(42).toString,
       "to" -> Address(123).toString,
@@ -138,17 +134,16 @@ class JsonRpcControllerEthLegacyTransactionSpec
     val response: JsonRpcResponse = jsonRpcController.handleRequest(rpcRequest).unsafeRunSync()
 
     response should haveResult(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
-  }
 
   it should "eth_getTransactionByBlockNumberAndIndex by tag" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
+  ) in new JsonRpcControllerFixture:
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number.value)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getTransactionByBlockNumberAndIndex",
@@ -164,18 +159,20 @@ class JsonRpcControllerEthLegacyTransactionSpec
     )
 
     response should haveResult(expectedTxResponse)
-  }
 
   it should "eth_getTransactionByBlockNumberAndIndex by hex number" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
+  ) in new JsonRpcControllerFixture:
     val blockToRequest: Block =
-      Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
+      Block(
+        Fixtures.Blocks.Block3125369.header.copy(number = BlockNumber(BigInt(0xc005))),
+        Fixtures.Blocks.Block3125369.body
+      )
     val txIndex = 1
 
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number.value)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getTransactionByBlockNumberAndIndex",
@@ -191,22 +188,21 @@ class JsonRpcControllerEthLegacyTransactionSpec
     )
 
     response should haveResult(expectedTxResponse)
-  }
 
   it should "eth_getTransactionByBlockNumberAndIndex by number" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
+  ) in new JsonRpcControllerFixture:
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number.value)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getTransactionByBlockNumberAndIndex",
       List(
-        JInt(Fixtures.Blocks.Block3125369.header.number),
+        JInt(Fixtures.Blocks.Block3125369.header.number.value),
         JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
       )
     )
@@ -217,18 +213,17 @@ class JsonRpcControllerEthLegacyTransactionSpec
     )
 
     response should haveResult(expectedTxResponse)
-  }
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by tag" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
+  ) in new JsonRpcControllerFixture:
     // given
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number.value)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getRawTransactionByBlockNumberAndIndex",
@@ -245,19 +240,21 @@ class JsonRpcControllerEthLegacyTransactionSpec
     val expectedTxResponse: Option[JString] = rawTrnHex(blockToRequest.body.transactionList, txIndex)
 
     response should haveResult(expectedTxResponse)
-  }
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by hex number" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
+  ) in new JsonRpcControllerFixture:
     // given
     val blockToRequest: Block =
-      Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
+      Block(
+        Fixtures.Blocks.Block3125369.header.copy(number = BlockNumber(BigInt(0xc005))),
+        Fixtures.Blocks.Block3125369.body
+      )
     val txIndex = 1
 
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number.value)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getRawTransactionByBlockNumberAndIndex",
@@ -274,22 +271,21 @@ class JsonRpcControllerEthLegacyTransactionSpec
     val expectedTxResponse: Option[JString] = rawTrnHex(blockToRequest.body.transactionList, txIndex)
 
     response should haveResult(expectedTxResponse)
-  }
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by number" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
+  ) in new JsonRpcControllerFixture:
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number.value)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getRawTransactionByBlockNumberAndIndex",
       List(
-        JInt(Fixtures.Blocks.Block3125369.header.number),
+        JInt(Fixtures.Blocks.Block3125369.header.number.value),
         JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
       )
     )
@@ -297,14 +293,13 @@ class JsonRpcControllerEthLegacyTransactionSpec
     val expectedTxResponse: Option[JString] = rawTrnHex(blockToRequest.body.transactionList, txIndex)
 
     response should haveResult(expectedTxResponse)
-  }
 
-  it should "eth_getTransactionByHash" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture {
-    val mockEthTxService = mock[EthTxService]
+  it should "eth_getTransactionByHash" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture:
+    val mockEthTxService: EthTxService = mock[EthTxService]
     override val jsonRpcController: JsonRpcController = super.jsonRpcController.copy(ethTxService = mockEthTxService)
 
     val txResponse: TransactionResponse = TransactionResponse(Fixtures.Blocks.Block3125369.body.transactionList.head)
-    (mockEthTxService.getTransactionByHash _)
+    mockEthTxService.getTransactionByHash
       .expects(*)
       .returning(IO.pure(Right(GetTransactionByHashResponse(Some(txResponse)))))
 
@@ -317,14 +312,13 @@ class JsonRpcControllerEthLegacyTransactionSpec
 
     val response: JsonRpcResponse = jsonRpcController.handleRequest(request).unsafeRunSync()
     response should haveResult(Extraction.decompose(txResponse))
-  }
 
-  it should "eth_getTransactionCount" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture {
-    val mockEthUserService = mock[EthUserService]
+  it should "eth_getTransactionCount" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture:
+    val mockEthUserService: EthUserService = mock[EthUserService]
     override val jsonRpcController: JsonRpcController =
       super.jsonRpcController.copy(ethUserService = mockEthUserService)
 
-    (mockEthUserService.getTransactionCount _)
+    mockEthUserService.getTransactionCount
       .expects(*)
       .returning(IO.pure(Right(GetTransactionCountResponse(123))))
 
@@ -338,14 +332,14 @@ class JsonRpcControllerEthLegacyTransactionSpec
 
     val response: JsonRpcResponse = jsonRpcController.handleRequest(request).unsafeRunSync()
     response should haveStringResult("0x7b")
-  }
 
-  it should "eth_getBlockTransactionCountByNumber " taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture {
+  it should "eth_getBlockTransactionCountByNumber " taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture:
     // MIGRATION: Scala 3 scalamock macro drops Option[ForkChoiceManager] type arg — use concrete stub
-    val mockEthBlocksService = new EthBlocksService(null, null, null, null) {
-      override def getBlockTransactionCountByNumber(req: EthBlocksService.GetBlockTransactionCountByNumberRequest) =
+    val mockEthBlocksService: EthBlocksService = new EthBlocksService(null, null, null, null):
+      override def getBlockTransactionCountByNumber(
+          req: EthBlocksService.GetBlockTransactionCountByNumberRequest
+      ): ServiceResponse[GetBlockTransactionCountByNumberResponse] =
         IO.pure(Right(GetBlockTransactionCountByNumberResponse(17)))
-    }
     override val jsonRpcController: JsonRpcController =
       super.jsonRpcController.copy(ethBlocksService = mockEthBlocksService)
 
@@ -358,16 +352,15 @@ class JsonRpcControllerEthLegacyTransactionSpec
 
     val response: JsonRpcResponse = jsonRpcController.handleRequest(request).unsafeRunSync()
     response should haveStringResult("0x11")
-  }
 
   it should "handle eth_getBlockTransactionCountByHash request" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
+  ) in new JsonRpcControllerFixture:
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
 
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number.value)
 
     val rpcRequest: JsonRpcRequest = newJsonRpcRequest(
       "eth_getBlockTransactionCountByHash",
@@ -377,10 +370,9 @@ class JsonRpcControllerEthLegacyTransactionSpec
 
     val expectedTxCount: JValue = Extraction.decompose(BigInt(blockToRequest.body.transactionList.size))
     response should haveResult(expectedTxCount)
-  }
 
-  it should "eth_getTransactionReceipt post byzantium" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture {
-    val mockEthTxService = mock[EthTxService]
+  it should "eth_getTransactionReceipt post byzantium" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture:
+    val mockEthTxService: EthTxService = mock[EthTxService]
     override val jsonRpcController: JsonRpcController = super.jsonRpcController.copy(ethTxService = mockEthTxService)
 
     val arbitraryValue = 42
@@ -392,8 +384,8 @@ class JsonRpcControllerEthLegacyTransactionSpec
           TransactionReceiptResponse(
             transactionHash = ByteString(Hex.decode("23" * 32)),
             transactionIndex = 1,
-            blockNumber = Fixtures.Blocks.Block3125369.header.number,
-            blockHash = Fixtures.Blocks.Block3125369.header.hash,
+            blockNumber = Fixtures.Blocks.Block3125369.header.number.value,
+            blockHash = Fixtures.Blocks.Block3125369.header.hash.value,
             from = Address(arbitraryValue1),
             to = None,
             cumulativeGasUsed = arbitraryValue * 10,
@@ -404,8 +396,8 @@ class JsonRpcControllerEthLegacyTransactionSpec
                 logIndex = 0,
                 transactionIndex = 1,
                 transactionHash = ByteString(Hex.decode("23" * 32)),
-                blockHash = Fixtures.Blocks.Block3125369.header.hash,
-                blockNumber = Fixtures.Blocks.Block3125369.header.number,
+                blockHash = Fixtures.Blocks.Block3125369.header.hash.value,
+                blockNumber = Fixtures.Blocks.Block3125369.header.number.value,
                 address = Address(arbitraryValue),
                 data = ByteString(Hex.decode("43" * 32)),
                 topics = Seq(ByteString(Hex.decode("44" * 32)), ByteString(Hex.decode("45" * 32)))
@@ -419,7 +411,7 @@ class JsonRpcControllerEthLegacyTransactionSpec
       )
     )
 
-    (mockEthTxService.getTransactionReceipt _).expects(*).returning(IO.pure(mockResponse))
+    mockEthTxService.getTransactionReceipt.expects(*).returning(IO.pure(mockResponse))
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getTransactionReceipt",
@@ -436,7 +428,10 @@ class JsonRpcControllerEthLegacyTransactionSpec
         JField("transactionHash", JString("0x" + "23" * 32)),
         JField("transactionIndex", JString("0x1")),
         JField("blockNumber", JString("0x2fb079")),
-        JField("blockHash", JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.toArray[Byte]))),
+        JField(
+          "blockHash",
+          JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.value.toArray[Byte]))
+        ),
         JField("from", JString("0x0000000000000000000000000000000000000001")),
         JField("to", JNull),
         JField("cumulativeGasUsed", JString("0x1a4")),
@@ -452,7 +447,7 @@ class JsonRpcControllerEthLegacyTransactionSpec
                 JField("transactionHash", JString("0x" + "23" * 32)),
                 JField(
                   "blockHash",
-                  JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.toArray[Byte]))
+                  JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.value.toArray[Byte]))
                 ),
                 JField("blockNumber", JString("0x2fb079")),
                 JField("address", JString("0x000000000000000000000000000000000000002a")),
@@ -467,10 +462,9 @@ class JsonRpcControllerEthLegacyTransactionSpec
         JField("status", JString("0x1"))
       )
     )
-  }
 
-  it should "eth_getTransactionReceipt pre byzantium" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture {
-    val mockEthTxService = mock[EthTxService]
+  it should "eth_getTransactionReceipt pre byzantium" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture:
+    val mockEthTxService: EthTxService = mock[EthTxService]
     override val jsonRpcController: JsonRpcController = super.jsonRpcController.copy(ethTxService = mockEthTxService)
 
     val arbitraryValue = 42
@@ -482,8 +476,8 @@ class JsonRpcControllerEthLegacyTransactionSpec
           TransactionReceiptResponse(
             transactionHash = ByteString(Hex.decode("23" * 32)),
             transactionIndex = 1,
-            blockNumber = Fixtures.Blocks.Block3125369.header.number,
-            blockHash = Fixtures.Blocks.Block3125369.header.hash,
+            blockNumber = Fixtures.Blocks.Block3125369.header.number.value,
+            blockHash = Fixtures.Blocks.Block3125369.header.hash.value,
             from = Address(arbitraryValue1),
             to = None,
             cumulativeGasUsed = arbitraryValue * 10,
@@ -494,8 +488,8 @@ class JsonRpcControllerEthLegacyTransactionSpec
                 logIndex = 0,
                 transactionIndex = 1,
                 transactionHash = ByteString(Hex.decode("23" * 32)),
-                blockHash = Fixtures.Blocks.Block3125369.header.hash,
-                blockNumber = Fixtures.Blocks.Block3125369.header.number,
+                blockHash = Fixtures.Blocks.Block3125369.header.hash.value,
+                blockNumber = Fixtures.Blocks.Block3125369.header.number.value,
                 address = Address(arbitraryValue),
                 data = ByteString(Hex.decode("43" * 32)),
                 topics = Seq(ByteString(Hex.decode("44" * 32)), ByteString(Hex.decode("45" * 32)))
@@ -509,7 +503,7 @@ class JsonRpcControllerEthLegacyTransactionSpec
       )
     )
 
-    (mockEthTxService.getTransactionReceipt _).expects(*).returning(IO.pure(mockResponse))
+    mockEthTxService.getTransactionReceipt.expects(*).returning(IO.pure(mockResponse))
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getTransactionReceipt",
@@ -525,7 +519,10 @@ class JsonRpcControllerEthLegacyTransactionSpec
         JField("transactionHash", JString("0x" + "23" * 32)),
         JField("transactionIndex", JString("0x1")),
         JField("blockNumber", JString("0x2fb079")),
-        JField("blockHash", JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.toArray[Byte]))),
+        JField(
+          "blockHash",
+          JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.value.toArray[Byte]))
+        ),
         JField("from", JString("0x0000000000000000000000000000000000000001")),
         JField("to", JNull),
         JField("cumulativeGasUsed", JString("0x1a4")),
@@ -541,7 +538,7 @@ class JsonRpcControllerEthLegacyTransactionSpec
                 JField("transactionHash", JString("0x" + "23" * 32)),
                 JField(
                   "blockHash",
-                  JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.toArray[Byte]))
+                  JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.value.toArray[Byte]))
                 ),
                 JField("blockNumber", JString("0x2fb079")),
                 JField("address", JString("0x000000000000000000000000000000000000002a")),
@@ -556,14 +553,13 @@ class JsonRpcControllerEthLegacyTransactionSpec
         JField("root", JString("0x" + "23" * 32))
       )
     )
-  }
 
   "eth_pendingTransactions" should "request pending transactions and return valid response when mempool is empty" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
-    val mockEthTxService = mock[EthTxService]
-    (mockEthTxService.ethPendingTransactions _)
+  ) in new JsonRpcControllerFixture:
+    val mockEthTxService: EthTxService = mock[EthTxService]
+    mockEthTxService.ethPendingTransactions
       .expects(*)
       .returning(IO.pure(Right(EthPendingTransactionsResponse(List()))))
     val jRpcController: JsonRpcController = jsonRpcController.copy(ethTxService = mockEthTxService)
@@ -582,18 +578,17 @@ class JsonRpcControllerEthLegacyTransactionSpec
     val response: JsonRpcResponse = jRpcController.handleRequest(request).unsafeRunSync()
 
     response should haveResult(JArray(List()))
-  }
 
   it should "request pending transactions and return valid response when mempool has transactions" taggedAs (
     UnitTest,
     RPCTest
-  ) in new JsonRpcControllerFixture {
+  ) in new JsonRpcControllerFixture:
     val transactions: IndexedSeq[PendingTransaction] = (0 to 1).map { _ =>
       val fakeTransaction = SignedTransactionWithSender(
         LegacyTransaction(
           nonce = 0,
-          gasPrice = 123,
-          gasLimit = 123,
+          gasPrice = GasPrice(123),
+          gasLimit = GasAmount(123),
           receivingAddress = Address("0x1234"),
           value = 0,
           payload = ByteString()
@@ -604,8 +599,8 @@ class JsonRpcControllerEthLegacyTransactionSpec
       PendingTransaction(fakeTransaction, System.currentTimeMillis)
     }
 
-    val mockEthTxService = mock[EthTxService]
-    (mockEthTxService.ethPendingTransactions _)
+    val mockEthTxService: EthTxService = mock[EthTxService]
+    mockEthTxService.ethPendingTransactions
       .expects(*)
       .returning(IO.pure(Right(EthPendingTransactionsResponse(transactions))))
     val jRpcController: JsonRpcController = jsonRpcController.copy(ethTxService = mockEthTxService)
@@ -625,10 +620,8 @@ class JsonRpcControllerEthLegacyTransactionSpec
 
     val result: JArray = JArray(
       transactions.map { tx =>
-        encodeAsHex(tx.stx.tx.hash)
+        encodeAsHex(tx.stx.tx.hash.value)
       }.toList
     )
 
     response should haveResult(result)
-  }
-}

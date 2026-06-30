@@ -15,8 +15,8 @@ import com.chipprbots.ethereum.nodebuilder.TestNode
 import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.utils.Logger
 
-object Fukuii extends Logger {
-  def main(args: Array[String]): Unit = {
+object Fukuii extends Logger:
+  def main(args: Array[String]): Unit =
     LogManager.getLogManager().reset(); // disable java.util.logging, ie. in legacy parts of jupnp
 
     // Redirect all JVM temp files to the configured tmpdir (defaults to <datadir>/tmp).
@@ -35,22 +35,16 @@ object Fukuii extends Logger {
     val enableConsoleUI = args.contains("--tui")
 
     // Initialize TUI if enabled (using new TUI module)
-    val tui = if (enableConsoleUI) {
+    val tui = if enableConsoleUI then
       val tuiInstance = Tui.getInstance(TuiConfig.default)
-      if (tuiInstance.initialize()) {
-        Some(tuiInstance)
-      } else {
-        None
-      }
-    } else {
+      if tuiInstance.initialize() then Some(tuiInstance)
+      else None
+    else
       log.info("TUI disabled (use --tui flag to enable)")
       None
-    }
 
     // Display Fukuii ASCII art on startup (only if TUI is not enabled)
-    if (tui.isEmpty) {
-      printBanner()
-    }
+    if tui.isEmpty then printBanner()
 
     log.info("Fukuii app {}", Config.clientVersion)
     log.info("Using network {}", Config.blockchains.network)
@@ -59,17 +53,45 @@ object Fukuii extends Logger {
     MilestoneLog.logMilestones(Config.blockchains.blockchainConfig.forkBlockNumbers)
 
     val configErrors = ConfigValidator.validate(Config.config)
-    if (configErrors.nonEmpty) {
+    if configErrors.nonEmpty then
       configErrors.foreach(err => log.error("Configuration error: {}", err))
       System.exit(1)
-    }
+
+    if Config.blockchains.blockchainConfig.forkTimestamps.cancunTimestamp.isDefined then
+      log.info("Cancun fork detected — loading KZG trusted setup for EIP-4844 point-evaluation precompile")
+      // A malformed/wrong-format trusted setup makes the native c-kzg loader over-read and
+      // double-free, crashing the JVM with an UNCATCHABLE SIGSEGV (the try/catch below cannot
+      // save us). Pre-validate the resource in pure JVM-land — the only place we can guard —
+      // and refuse the native call if the layout does not match the c-kzg-4844 v2 (PeerDAS)
+      // format. On failure the node still boots; precompile 0x0A simply reverts every call.
+      if !kzgTrustedSetupIsValid(KzgTrustedSetupResource) then
+        log.error(
+          "KZG trusted setup {} failed format pre-validation — skipping native load. " +
+            "Point-evaluation precompile (0x0A) will revert all calls.",
+          KzgTrustedSetupResource
+        )
+      else
+        try
+          ethereum.ckzg4844.CKZG4844JNI.loadNativeLibrary()
+          ethereum.ckzg4844.CKZG4844JNI.loadTrustedSetupFromResource(
+            KzgTrustedSetupResource,
+            classOf[ethereum.ckzg4844.CKZG4844JNI],
+            0L
+          )
+          log.info("KZG trusted setup loaded successfully")
+        catch
+          case e: Exception =>
+            log.error(
+              "Failed to load KZG trusted setup — point-evaluation precompile (0x0A) will revert all calls: {}",
+              e.getMessage
+            )
 
     val node =
-      if (Config.testmode) {
+      if Config.testmode then
         log.info("Starting Fukuii in test mode")
         deleteRocksDBFiles()
         new TestNode
-      } else new StdNode
+      else new StdNode
 
     // Update TUI with network info
     tui.foreach { ui =>
@@ -82,9 +104,8 @@ object Fukuii extends Logger {
     Runtime.getRuntime.addShutdownHook(new Thread(() => tui.foreach(_.shutdown())))
 
     node.start()
-  }
 
-  private def truncateLogs(): Unit = {
+  private def truncateLogs(): Unit =
     import scala.util.Try
     val fullConfig = ConfigFactory.load()
     val logsDir = Try(fullConfig.getString("logging.logs-dir")).getOrElse("./logs")
@@ -96,21 +117,70 @@ object Fukuii extends Logger {
     )
 
     paths.foreach { path =>
-      if (Files.exists(path)) {
+      if Files.exists(path) then
         Try(Files.write(path, Array.emptyByteArray, StandardOpenOption.TRUNCATE_EXISTING)).failed.foreach(e =>
           log.warn("Failed to truncate log file {}: {}", path, e.getMessage)
         )
-      }
     }
     log.info("Log files truncated on startup")
-  }
 
-  private def deleteRocksDBFiles(): Unit = {
+  private def deleteRocksDBFiles(): Unit =
     log.warn("Deleting previous database {}", Config.Db.RocksDb.path)
     rocksdb.RocksDB.destroyDB(Config.Db.RocksDb.path, new rocksdb.Options())
-  }
 
-  private def printBanner(): Unit = {
+  /** Classpath resource holding the EIP-4844/7594 KZG trusted setup (c-kzg-4844 v2 / PeerDAS layout). */
+  private val KzgTrustedSetupResource = "/trusted_setup.txt"
+
+  /** Validate the bundled KZG trusted setup against the c-kzg-4844 v2 (PeerDAS) text format BEFORE it reaches the
+    * native loader. c-kzg-4844 2.0.0 expects an extra G1 monomial section that the legacy EIP-4844 (v1) file lacks;
+    * feeding the native `load_trusted_setup` a short/legacy file makes it over-read and free uninitialised pointers
+    * (`free_trusted_setup` → `__libc_free`), killing the JVM with a SIGSEGV that no try/catch can intercept. This
+    * pure-JVM structural check is the only safe gate.
+    *
+    * Expected layout (FIELD_ELEMENTS_PER_BLOB = feb, NUM_G2_POINTS = numG2): line 1: feb (4096) line 2: numG2 (65) feb
+    * lines: G1 Lagrange points (96 hex chars each) numG2 lines: G2 monomial points (192 hex chars each) feb lines: G1
+    * monomial points (96 hex chars each) ← added in c-kzg v2 / EIP-7594
+    *
+    * Total non-empty lines = 2 + feb + numG2 + feb. We deliberately reject the legacy (2 + feb + numG2) layout: loading
+    * it natively is exactly what SIGSEGV-crashes the node.
+    */
+  private def kzgTrustedSetupIsValid(resource: String): Boolean =
+    Option(getClass.getResourceAsStream(resource)) match
+      case None =>
+        log.error("KZG trusted setup resource {} not found on classpath", resource)
+        false
+      case Some(in) =>
+        try
+          val lines = scala.io.Source.fromInputStream(in).getLines().map(_.trim).filter(_.nonEmpty).toVector
+          if lines.sizeIs < 2 then
+            log.error("KZG trusted setup {} is truncated ({} non-empty lines)", resource, lines.size)
+            false
+          else
+            (lines(0).toIntOption, lines(1).toIntOption) match
+              case (Some(feb), Some(numG2)) if feb > 0 && numG2 > 0 =>
+                val expected = 2 + feb + numG2 + feb // c-kzg v2 / PeerDAS layout
+                if lines.sizeIs == expected then true
+                else
+                  log.error(
+                    "KZG trusted setup {} has {} non-empty lines; expected {} for the c-kzg-4844 v2 (PeerDAS) " +
+                      "format (FIELD_ELEMENTS_PER_BLOB={}, NUM_G2_POINTS={}). Refusing native load to avoid SIGSEGV.",
+                    resource,
+                    lines.size,
+                    expected,
+                    feb,
+                    numG2
+                  )
+                  false
+              case _ =>
+                log.error(
+                  "KZG trusted setup {} has an unparseable header (lines 1-2 must be integer point counts); " +
+                    "refusing native load",
+                  resource
+                )
+                false
+        finally in.close()
+
+  private def printBanner(): Unit =
     val banner = """
                                                                                                                                  
                                                                                                                                  
@@ -183,6 +253,4 @@ object Fukuii extends Logger {
                                                                                                                                  
                                                                                                                                  """
 
-    println(banner)
-  }
-}
+    log.info(banner)

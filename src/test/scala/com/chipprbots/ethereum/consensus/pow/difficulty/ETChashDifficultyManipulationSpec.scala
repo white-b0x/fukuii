@@ -9,11 +9,19 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import com.chipprbots.ethereum.consensus.mess.ArtificialFinality
 import com.chipprbots.ethereum.consensus.mess.MESSConfig
 import com.chipprbots.ethereum.domain.BlockHeader
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.domain.BloomFilter
+import com.chipprbots.ethereum.domain.BlockHash
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.Difficulty
+import com.chipprbots.ethereum.domain.Timestamp
+import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.TrieRoot
+import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.ForkBlockNumbers
+import com.chipprbots.ethereum.domain.ChainId
 
-import OscillationFixtures._
+import OscillationFixtures.*
 
 // scalastyle:off magic.number
 /** Tests for ETChash difficulty adjustment behaviour across three mining eras:
@@ -29,7 +37,7 @@ import OscillationFixtures._
   *
   * All on-chain block data is from OscillationFixtures (core-geth verified).
   */
-class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
+class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
   // -------------------------------------------------------------------------
   // Shared infrastructure
@@ -69,7 +77,7 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
     customGenesisJsonOpt = None,
     daoForkConfig = None,
     accountStartNonce = com.chipprbots.ethereum.domain.UInt256.Zero,
-    chainId = 61,
+    chainId = ChainId(61),
     networkId = 1,
     monetaryPolicyConfig = com.chipprbots.ethereum.utils.MonetaryPolicyConfig(
       5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L
@@ -86,20 +94,20 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
       hasUncles: Boolean = false
   ): BlockHeader =
     BlockHeader(
-      parentHash = ByteString(new Array[Byte](32)),
-      ommersHash = if (hasUncles) ByteString(new Array[Byte](32)) else BlockHeader.EmptyOmmers,
+      parentHash = BlockHash(ByteString(new Array[Byte](32))),
+      ommersHash = BlockHash(if hasUncles then ByteString(new Array[Byte](32)) else BlockHeader.EmptyOmmers),
       beneficiary = ByteString(new Array[Byte](20)),
-      stateRoot = ByteString(new Array[Byte](32)),
-      transactionsRoot = ByteString(new Array[Byte](32)),
-      receiptsRoot = ByteString(new Array[Byte](32)),
-      logsBloom = ByteString(new Array[Byte](256)),
-      difficulty = difficulty,
-      number = number,
-      gasLimit = BigInt(8000000),
-      gasUsed = BigInt(0),
-      unixTimestamp = timestamp,
+      stateRoot = TrieRoot(ByteString(new Array[Byte](32))),
+      transactionsRoot = TrieRoot(ByteString(new Array[Byte](32))),
+      receiptsRoot = TrieRoot(ByteString(new Array[Byte](32))),
+      logsBloom = BloomFilter.Empty,
+      difficulty = Difficulty(difficulty),
+      number = BlockNumber(number),
+      gasLimit = GasAmount(BigInt(8000000)),
+      gasUsed = GasAmount.Zero,
+      unixTimestamp = Timestamp(timestamp),
       extraData = ByteString.empty,
-      mixHash = ByteString(new Array[Byte](32)),
+      mixHash = BlockHash(ByteString(new Array[Byte](32))),
       nonce = ByteString(new Array[Byte](8))
     )
 
@@ -107,21 +115,20 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
     header(s.number, s.difficulty, s.timestamp)
 
   /** For each consecutive (parent, child) pair verify that the DAA produces child.difficulty. */
-  private def verifyDifficultyChain(blocks: Seq[BlockSnapshot]): Unit = {
+  private def verifyDifficultyChain(blocks: Seq[BlockSnapshot]): Unit =
     require(blocks.size >= 2, "need at least parent + one child")
     blocks.sliding(2).foreach {
       case Seq(parent, child) =>
         val computed = EthashDifficultyCalculator.calculateDifficulty(
           child.number,
-          child.timestamp,
+          Timestamp(child.timestamp),
           fromSnapshot(parent)
         )
         withClue(s"block ${child.number} (gap=${child.timestamp - parent.timestamp}s)") {
-          computed shouldBe child.difficulty
+          computed.value shouldBe child.difficulty
         }
       case _ => // sliding(2) on Seq of 1 — can't happen given the require above
     }
-  }
 
   /** Simulate `count` blocks, each `gapSecs` apart, starting from `parentDiff`/`parentTs`. Returns (blockNumber,
     * difficulty) pairs for the synthetic chain.
@@ -132,21 +139,19 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
       parentTs: Long,
       gapSecs: Long,
       count: Int
-  ): Seq[(BigInt, BigInt)] = {
+  ): Seq[(BigInt, BigInt)] =
     val results = scala.collection.mutable.ArrayBuffer.empty[(BigInt, BigInt)]
     var prevDiff = parentDiff
     var prevTs = parentTs
-    for (i <- 1 to count) {
+    for i <- 1 to count do
       val num = startBlock + i
       val childTs = prevTs + gapSecs
       val parentHdr = header(num - 1, prevDiff, prevTs)
-      val newDiff = EthashDifficultyCalculator.calculateDifficulty(num, childTs, parentHdr)
-      results += ((num, newDiff))
-      prevDiff = newDiff
+      val newDiff = EthashDifficultyCalculator.calculateDifficulty(num, Timestamp(childTs), parentHdr)
+      results += ((num, newDiff.value))
+      prevDiff = newDiff.value
       prevTs = childTs
-    }
     results.toSeq
-  }
 
   // -------------------------------------------------------------------------
   // Group A — S1: Ethereum Merge spike (Sept 2022)
@@ -167,12 +172,11 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
     (Seq(mergeSpikeParent) ++ mergeSpike).sliding(2).foreach {
       case Seq(parent, child) =>
         val gap = child.timestamp - parent.timestamp
-        if (gap < 9) {
+        if gap < 9 then
           val expectedDelta = parent.difficulty / 2048
           withClue(s"block ${child.number} gap=${gap}s") {
             child.difficulty shouldBe parent.difficulty + expectedDelta
           }
-        }
       case _ =>
     }
   }
@@ -390,14 +394,13 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
       val chain = syntheticChain(cycleStart.number, startDiff, startTs, gapSecs, count = 500)
       val endDiff = chain.last._2
 
-      if (cCoeff(gapSecs) == 0L) {
+      if cCoeff(gapSecs) == 0L then
         // Below threshold — no trough; difficulty stays approximately flat
         val drift = (endDiff - startDiff).abs
         drift should be < startDiff / 20 // < 5% movement
-      } else {
+      else
         // Above threshold — measurable trough
         endDiff should be < startDiff
-      }
     }
   }
 
@@ -556,5 +559,4 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
     messConfig.isActiveAtBlock(olympiaActivation) shouldBe true
     messConfig.isActiveAtBlock(olympiaActivation + 1) shouldBe true
   }
-}
 // scalastyle:on magic.number

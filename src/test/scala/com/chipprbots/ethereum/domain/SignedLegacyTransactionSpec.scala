@@ -8,13 +8,13 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import com.chipprbots.ethereum.crypto
 import com.chipprbots.ethereum.domain.SignedTransaction.getSender
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.SignedTransactions
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.testing.Tags.*
+import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.utils.Hex
 import com.chipprbots.ethereum.vm.Generators
-import com.chipprbots.ethereum.utils.BlockchainConfig
 
-class SignedLegacyTransactionSpec extends AnyFlatSpec with SignedTransactionBehavior with ScalaCheckPropertyChecks {
+class SignedLegacyTransactionSpec extends AnyFlatSpec with SignedTransactionBehavior with ScalaCheckPropertyChecks:
 
   private def allowedPointSigns(chainId: BigInt) = Set(chainId * 2 + 35, chainId * 2 + 36)
 
@@ -24,7 +24,7 @@ class SignedLegacyTransactionSpec extends AnyFlatSpec with SignedTransactionBeha
 
   "Legacy transaction sender" should "be properly recoverable from rlp encoded values" taggedAs (UnitTest) in {
 
-    implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = 1)
+    implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = ChainId(1))
 
     // values are taken from https://github.com/ethereum/go-ethereum/blob/90987db7334c1d10eb866ca550efedb66dea8a20/core/types/transaction_signing_test.go#L79-L94
     val testValues = Table(
@@ -72,7 +72,7 @@ class SignedLegacyTransactionSpec extends AnyFlatSpec with SignedTransactionBeha
     )
 
     forAll(testValues) { (binaryRLP: String, expectedSender: String) =>
-      import SignedTransactions.SignedTransactionDec
+      import SignedTransactions.*
       val decodedSignedTransaction = Hex.decode(binaryRLP).toSignedTransaction
 
       val expectedSenderAddress = Address(expectedSender)
@@ -86,8 +86,8 @@ class SignedLegacyTransactionSpec extends AnyFlatSpec with SignedTransactionBeha
     // https://eips.ethereum.org/EIPS/eip-155
     val legacyTransaction = LegacyTransaction(
       nonce = 9,
-      gasPrice = 20 * BigInt(10).pow(9),
-      gasLimit = 21000,
+      gasPrice = GasPrice(20 * BigInt(10).pow(9)),
+      gasLimit = GasAmount(21000),
       receivingAddress = Address("0x3535353535353535353535353535353535353535"),
       value = BigInt(10).pow(18),
       payload = ByteString.empty
@@ -118,4 +118,3 @@ class SignedLegacyTransactionSpec extends AnyFlatSpec with SignedTransactionBeha
 
     Hex.toHexString(encodedSignedTransaction) shouldEqual expectedSignedTransaction
   }
-}

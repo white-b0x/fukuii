@@ -10,10 +10,10 @@ import org.scalatest.matchers.should.Matchers
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.consensus.validators.SignedTransactionError.TransactionSyntaxError
 import com.chipprbots.ethereum.crypto
-import com.chipprbots.ethereum.domain._
+import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
 /** L9 — EIP-1559 fee market validation at the transaction validator layer.
@@ -25,7 +25,7 @@ class EIP1559FeeMarketSpec
     extends AnyFlatSpec
     with Matchers
     with BlockchainConfigBuilder
-    with com.chipprbots.ethereum.TestInstanceConfigProvider {
+    with com.chipprbots.ethereum.TestInstanceConfigProvider:
 
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
     _.copy(
@@ -44,9 +44,9 @@ class EIP1559FeeMarketSpec
   private val priorityFee = BigInt("2000000000") // 2 gwei
 
   private val postMystiqueHeader = Fixtures.Blocks.ValidBlock.header.copy(
-    number = BigInt(20_000_000),
-    gasLimit = BigInt(8_000_000),
-    gasUsed = 0,
+    number = BlockNumber(BigInt(20_000_000)),
+    gasLimit = GasAmount(BigInt(8_000_000)),
+    gasUsed = GasAmount.Zero,
     extraFields = HefPostOlympia(baseFee)
   )
 
@@ -62,32 +62,30 @@ class EIP1559FeeMarketSpec
   private def signType2(
       maxPriority: BigInt = priorityFee,
       maxFeePerGas: BigInt = maxFee
-  ): SignedTransaction = {
+  ): SignedTransaction =
     val tx = TransactionWithDynamicFee(
-      chainId = config.chainId,
+      chainId = config.chainId.value,
       nonce = 0,
       maxPriorityFeePerGas = maxPriority,
       maxFeePerGas = maxFeePerGas,
-      gasLimit = 21000,
+      gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(1)),
       value = BigInt(0),
       payload = ByteString.empty,
       accessList = Nil
     )
-    SignedTransaction.sign(tx, senderKeys, Some(config.chainId))
-  }
+    SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))
 
-  private def signLegacy(gasPrice: BigInt): SignedTransaction = {
+  private def signLegacy(gasPrice: BigInt): SignedTransaction =
     val tx = LegacyTransaction(
       nonce = 0,
-      gasPrice = gasPrice,
-      gasLimit = 21000,
+      gasPrice = GasPrice(gasPrice),
+      gasLimit = GasAmount(21000),
       receivingAddress = Address(1),
       value = BigInt(0),
       payload = ByteString.empty
     )
-    SignedTransaction.sign(tx, senderKeys, Some(config.chainId))
-  }
+    SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))
 
   // ── Type-2 happy path ──────────────────────────────────────────────────────
 
@@ -152,19 +150,17 @@ class EIP1559FeeMarketSpec
   ) in {
     // Legacy tx with gasPrice below baseFee — fee market check does NOT apply to legacy
     val lowGasPrice = baseFee / 2
-    validate(signLegacy(gasPrice = lowGasPrice)) match {
+    validate(signLegacy(gasPrice = lowGasPrice)) match
       case Left(TransactionSyntaxError(reason)) if reason.contains("INSUFFICIENT_MAX_FEE_PER_GAS") =>
         fail("Legacy tx should not be checked against baseFee")
       case _ => succeed
-    }
   }
 
   it should "not apply priority fee inversion check to legacy transactions" taggedAs (UnitTest, ConsensusTest) in {
-    validate(signLegacy(gasPrice = maxFee)) match {
+    validate(signLegacy(gasPrice = maxFee)) match
       case Left(TransactionSyntaxError(reason)) if reason.contains("maxPriorityFeePerGas") =>
         fail("Legacy tx should not be checked for priority fee inversion")
       case _ => succeed
-    }
   }
 
   // ── Zero baseFee block (pre-Mystique / no extraFields) ────────────────────
@@ -175,10 +171,8 @@ class EIP1559FeeMarketSpec
   ) in {
     val preMystiqueHeader = postMystiqueHeader.copy(extraFields = BlockHeader.HeaderExtraFields.HefEmpty)
     // baseFee defaults to 0 when not in extraFields — any maxFee >= 0 passes
-    validate(signType2(), preMystiqueHeader) match {
+    validate(signType2(), preMystiqueHeader) match
       case Left(TransactionSyntaxError(reason)) if reason.contains("INSUFFICIENT_MAX_FEE_PER_GAS") =>
         fail("Type-2 tx should not be rejected for baseFee when block has no baseFee")
       case _ => succeed
-    }
   }
-}

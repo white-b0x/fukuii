@@ -1,5 +1,7 @@
 package com.chipprbots.ethereum.vm
 
+import com.chipprbots.ethereum.domain.ChainId
+import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks.Agharta
@@ -8,8 +10,8 @@ import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks.BeforeAtlantis
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks.Magneto
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks.Mystique
-import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks.Phoenix
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks.Olympia
+import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks.Phoenix
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks.Spiral
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EthForks.BeforeByzantium
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EthForks.Berlin
@@ -43,29 +45,39 @@ case class BlockchainConfigForEvm(
     mystiqueBlockNumber: BigInt,
     spiralBlockNumber: BigInt,
     olympiaBlockNumber: BigInt,
-    chainId: BigInt,
+    chainId: ChainId,
     // Timestamp-based ETH forks (post-merge)
     pragueTimestamp: Option[Long] = None,
     osakaTimestamp: Option[Long] = None,
+    bpo1Timestamp: Option[Long] = None,
+    bpo2Timestamp: Option[Long] = None,
     // Network type — true for Ethereum chains, false for Ethereum Classic.
     // Needed to distinguish ECIP Olympia (enables EIP-7883 MODEXP gas) from ETH London
     // which hive also maps to olympiaBlockNumber but must NOT enable EIP-7883 before Osaka.
     isEthereum: Boolean = false
-) {
+):
 
   /** EIP-7623 calldata cost floor — activates at Prague on ETH chains. Note: EIP-7883/EIP-7823 MODEXP changes activate
     * at Osaka, not Prague (per execution-specs).
     */
-  def isPragueTimestamp(timestamp: Long): Boolean =
-    pragueTimestamp.exists(ts => timestamp >= ts)
+  def isPragueTimestamp(timestamp: Timestamp): Boolean =
+    pragueTimestamp.exists(ts => timestamp.toLong >= ts)
 
   /** EIP-7883 MODEXP gas increase, EIP-7823 MODEXP input bounds, EIP-7951 P256VERIFY, EIP-7939 CLZ, EIP-7825 tx gas
     * cap, EIP-7934 block RLP size — gated by Osaka timestamp on ETH chains.
     */
-  def isOsakaTimestamp(timestamp: Long): Boolean =
-    osakaTimestamp.exists(ts => timestamp >= ts)
+  def isOsakaTimestamp(timestamp: Timestamp): Boolean =
+    osakaTimestamp.exists(ts => timestamp.toLong >= ts)
 
-  def etcForkForBlockNumber(blockNumber: BigInt): EtcFork = blockNumber match {
+  /** BPO1 (Blob Parameter Override 1) — changes blob update fraction to 8346193. */
+  def isBpo1Timestamp(timestamp: Timestamp): Boolean =
+    bpo1Timestamp.exists(ts => timestamp.toLong >= ts)
+
+  /** BPO2 (Blob Parameter Override 2) — changes blob update fraction to 11684671. */
+  def isBpo2Timestamp(timestamp: Timestamp): Boolean =
+    bpo2Timestamp.exists(ts => timestamp.toLong >= ts)
+
+  def etcForkForBlockNumber(blockNumber: BigInt): EtcFork = blockNumber match
     case _ if blockNumber < atlantisBlockNumber => BeforeAtlantis
     case _ if blockNumber < aghartaBlockNumber  => Atlantis
     case _ if blockNumber < phoenixBlockNumber  => Agharta
@@ -74,29 +86,24 @@ case class BlockchainConfigForEvm(
     case _ if blockNumber < spiralBlockNumber   => Mystique
     case _ if blockNumber < olympiaBlockNumber  => Spiral
     case _ if blockNumber >= olympiaBlockNumber => Olympia
-  }
 
-  def ethForkForBlockNumber(blockNumber: BigInt): BlockchainConfigForEvm.EthForks.Value = blockNumber match {
+  def ethForkForBlockNumber(blockNumber: BigInt): BlockchainConfigForEvm.EthForks.Value = blockNumber match
     case _ if blockNumber < byzantiumBlockNumber      => BeforeByzantium
     case _ if blockNumber < constantinopleBlockNumber => Byzantium
     case _ if blockNumber < petersburgBlockNumber     => Constantinople
     case _ if blockNumber < istanbulBlockNumber       => Petersburg
     case _ if blockNumber < berlinBlockNumber         => Istanbul
     case _ if blockNumber >= berlinBlockNumber        => Berlin
-  }
-}
 
-object BlockchainConfigForEvm {
+object BlockchainConfigForEvm:
 
-  object EtcForks extends Enumeration {
+  object EtcForks extends Enumeration:
     type EtcFork = Value
     val BeforeAtlantis, Atlantis, Agharta, Phoenix, Magneto, Mystique, Spiral, Olympia = Value
-  }
 
-  object EthForks extends Enumeration {
+  object EthForks extends Enumeration:
     type EthFork = Value
     val BeforeByzantium, Byzantium, Constantinople, Petersburg, Istanbul, Berlin = Value
-  }
 
   def isEip2929Enabled(etcFork: EtcFork, ethFork: BlockchainConfigForEvm.EthForks.Value): Boolean =
     etcFork >= EtcForks.Magneto || ethFork >= EthForks.Berlin
@@ -144,8 +151,8 @@ object BlockchainConfigForEvm {
   def isEip7951Enabled(etcFork: EtcFork): Boolean =
     etcFork >= EtcForks.Olympia
 
-  def apply(blockchainConfig: BlockchainConfig): BlockchainConfigForEvm = {
-    import blockchainConfig._
+  def apply(blockchainConfig: BlockchainConfig): BlockchainConfigForEvm =
+    import blockchainConfig.*
     val isEth = networkType == com.chipprbots.ethereum.utils.NetworkType.ETH
     BlockchainConfigForEvm(
       frontierBlockNumber = forkBlockNumbers.frontierBlockNumber,
@@ -170,8 +177,7 @@ object BlockchainConfigForEvm {
       chainId = chainId,
       pragueTimestamp = forkTimestamps.pragueTimestamp,
       osakaTimestamp = forkTimestamps.osakaTimestamp,
+      bpo1Timestamp = forkTimestamps.bpo1Timestamp,
+      bpo2Timestamp = forkTimestamps.bpo2Timestamp,
       isEthereum = isEth
     )
-  }
-
-}

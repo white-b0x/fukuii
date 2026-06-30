@@ -2,7 +2,7 @@ package com.chipprbots.ethereum.consensus.blocks
 
 import org.apache.pekko.util.ByteString
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -12,12 +12,14 @@ import com.chipprbots.ethereum.consensus.mining.MiningConfig
 import com.chipprbots.ethereum.consensus.mining.Protocol
 import com.chipprbots.ethereum.consensus.pow.blocks.Ommers
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValidator
+import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
 // scalastyle:off magic.number
@@ -30,7 +32,7 @@ class GasLimitCalculationSpec
     extends AnyFlatSpec
     with Matchers
     with BlockchainConfigBuilder
-    with com.chipprbots.ethereum.TestInstanceConfigProvider {
+    with com.chipprbots.ethereum.TestInstanceConfigProvider:
 
   // Use sentinel olympiaBlockNumber (1e18) from test-chain.conf so all block-0 calls are pre-Olympia.
   implicit val config: BlockchainConfig = blockchainConfig
@@ -41,12 +43,11 @@ class GasLimitCalculationSpec
   private class TestableBlockGenerator(config: MiningConfig)
       extends BlockGeneratorSkeleton(
         config,
-        new DifficultyCalculator {
-          def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parent: BlockHeader)(implicit
+        new DifficultyCalculator:
+          def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Timestamp, parent: BlockHeader)(implicit
               blockchainConfig: BlockchainConfig
-          ): BigInt = BigInt(1)
-        }
-      ) {
+          ): Difficulty = Difficulty(BigInt(1))
+      ):
     type X = Ommers
     override protected def newBlockBody(transactions: Seq[SignedTransaction], x: Ommers): BlockBody =
       BlockBody(transactions, Nil)
@@ -54,7 +55,7 @@ class GasLimitCalculationSpec
         blockNumber: BigInt,
         parent: com.chipprbots.ethereum.domain.Block,
         beneficiary: Address,
-        blockTimestamp: Long,
+        blockTimestamp: Timestamp,
         x: Ommers
     )(implicit blockchainConfig: BlockchainConfig): BlockHeader =
       defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
@@ -74,7 +75,6 @@ class GasLimitCalculationSpec
     // Expose the protected method for testing; blockNumber=0 keeps all existing tests pre-Olympia.
     def calcGasLimit(parentGas: BigInt)(implicit bc: BlockchainConfig): BigInt =
       calculateGasLimit(parentGas, BigInt(0))
-  }
 
   private def makeGenerator(target: BigInt): TestableBlockGenerator =
     new TestableBlockGenerator(
@@ -103,10 +103,9 @@ class GasLimitCalculationSpec
 
     // Run until convergence
     var blocks = 0
-    while (limit < target * 99 / 100 && blocks < 100_000) {
+    while limit < target * 99 / 100 && blocks < 100_000 do
       limit = gen.calcGasLimit(limit)
       blocks += 1
-    }
     limit should be >= target * BigInt(99) / BigInt(100)
     info(s"converged from 1M to 99% of 8M in $blocks blocks")
   }
@@ -128,10 +127,9 @@ class GasLimitCalculationSpec
 
     // Run until convergence
     var blocks = 0
-    while (limit > target * 101 / 100 && blocks < 100_000) {
+    while limit > target * 101 / 100 && blocks < 100_000 do
       limit = gen.calcGasLimit(limit)
       blocks += 1
-    }
     limit should be <= target * BigInt(101) / BigInt(100)
     info(s"converged from 10M to 101% of 8M in $blocks blocks")
   }
@@ -160,10 +158,9 @@ class GasLimitCalculationSpec
     val threshold = target * 99 / 100
 
     var blocks = 0
-    while (limit < threshold && blocks < 200_000) {
+    while limit < threshold && blocks < 200_000 do
       limit = gen.calcGasLimit(limit)
       blocks += 1
-    }
     limit should be >= threshold
     // Should match core-geth's convergence: ~2,055 blocks
     blocks should be < 3000
@@ -179,5 +176,4 @@ class GasLimitCalculationSpec
     // Delta = nearTarget/1024 - 1 = ~7811, which is > 100, so it should snap to target
     next shouldBe target
   }
-}
 // scalastyle:on magic.number

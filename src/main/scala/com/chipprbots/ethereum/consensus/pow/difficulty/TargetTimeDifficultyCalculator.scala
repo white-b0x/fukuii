@@ -2,11 +2,13 @@ package com.chipprbots.ethereum.consensus.pow.difficulty
 
 import com.chipprbots.ethereum.consensus.difficulty.DifficultyCalculator
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.Difficulty
+import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
-class TargetTimeDifficultyCalculator(powTargetTime: Long) extends DifficultyCalculator {
+class TargetTimeDifficultyCalculator(powTargetTime: Long) extends DifficultyCalculator:
 
-  import DifficultyCalculator._
+  import DifficultyCalculator.*
 
   /** The lowerBoundExpectedRatio (l for abbreviation below) divides the timestamp diff into ranges: [0, l) => c = 1,
     * difficulty increases [l, 2*l) => c = 0. difficulty stays the same ... [l*i, l*(i+1) ) => c = 1-i, difficulty
@@ -17,14 +19,13 @@ class TargetTimeDifficultyCalculator(powTargetTime: Long) extends DifficultyCalc
     */
   private val lowerBoundExpectedRatio: Long = (powTargetTime / 1.5).toLong
 
-  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader)(implicit
+  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Timestamp, parentHeader: BlockHeader)(implicit
       blockchainConfig: BlockchainConfig
-  ): BigInt = {
-    val timestampDiff = blockTimestamp - parentHeader.unixTimestamp
+  ): Difficulty =
+    val timestampDiff: Long = blockTimestamp - parentHeader.unixTimestamp
 
-    val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
+    val parentDiff: BigInt = parentHeader.difficulty.value
+    val x: BigInt = parentDiff / DifficultyBoundDivision
     val c: BigInt = math.max(1 - (timestampDiff / lowerBoundExpectedRatio), FrontierTimestampDiffLimit)
 
-    MinimumDifficulty.max(parentHeader.difficulty + x * c)
-  }
-}
+    MinimumDifficulty.max(Difficulty(parentDiff + x * c))

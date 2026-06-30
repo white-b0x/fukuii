@@ -36,7 +36,7 @@ class RestrictedPoWBlockGeneratorImpl(
       blockPreparator,
       difficultyCalc,
       blockTimestampProvider
-    ) {
+    ):
 
   override def generateBlock(
       parent: Block,
@@ -51,16 +51,15 @@ class RestrictedPoWBlockGeneratorImpl(
       val parentHash = pHeader.hash
 
       val validatedOmmers =
-        validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchainReader) match {
+        validators.ommersValidator.validate(parentHash.value, blockNumber.value, ommers, blockchainReader) match
           case Left(_)  => emptyX
           case Right(_) => ommers
-        }
       val prepared = prepareBlock(
         evmCodeStorage,
         parent,
         transactions,
         beneficiary,
-        blockNumber,
+        blockNumber.value,
         blockPreparator,
         validatedOmmers,
         initialWorldStateBeforeExecution
@@ -77,5 +76,3 @@ class RestrictedPoWBlockGeneratorImpl(
 
       modifiedPrepared
     }
-
-}

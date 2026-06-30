@@ -3,35 +3,38 @@ package com.chipprbots.ethereum.blockchain.sync.fast
 import java.net.InetSocketAddress
 
 import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
 
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.ParallelTestExecution
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.ParallelTestExecution
 
 import com.chipprbots.ethereum.BlockHelpers
 import com.chipprbots.ethereum.Fixtures
-import com.chipprbots.ethereum.blockchain.sync.fast.BinarySearchSupport._
+import com.chipprbots.ethereum.network.PeerActor
+import com.chipprbots.ethereum.blockchain.sync.fast.BinarySearchSupport.*
 import com.chipprbots.ethereum.blockchain.sync.fast.FastSyncBranchResolver.SearchState
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.network.Peer
 import com.chipprbots.ethereum.network.PeerId
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.testing.Tags.*
 
-class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFactory with ParallelTestExecution {
+class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFactory with ParallelTestExecution:
 
   import Fixtures.Blocks.ValidBlock
 
   private def blocksMap(amount: Int, parent: Block): Map[BigInt, Block] =
-    BlockHelpers.generateChain(amount, parent).map(b => (b.number, b)).toMap
+    BlockHelpers.generateChain(amount, parent).map(b => (b.number.value, b)).toMap
 
   private def headersMap(amount: Int, parent: Block): Map[BigInt, BlockHeader] =
-    BlockHelpers.generateChain(amount, parent).map(b => (b.number, b.header)).toMap
+    BlockHelpers.generateChain(amount, parent).map(b => (b.number.value, b.header)).toMap
 
   private def headersList(blocksMap: Map[BigInt, Block]): List[BlockHeader] =
     blocksMap.values.map(_.header).toList
@@ -50,22 +53,22 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       val mockedBlockchain = mock[BlockchainImpl]
       val mockedBlockchainReader = mock[BlockchainReader]
 
-      val headers = headersMap(amount = 3, parent = Block(ValidBlock.header.copy(number = 97), ValidBlock.body))
+      val headers =
+        headersMap(amount = 3, parent = Block(ValidBlock.header.copy(number = BlockNumber(97)), ValidBlock.body))
 
       inSequence {
-        (mockedBlockchainReader.getBestBlockNumber _).expects().returning(BigInt(100)).once()
-        (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(100)).returning(headers.get(100))
-        (mockedBlockchain.removeBlock _).expects(headers(100).hash).returning(())
-        (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(99)).returning(headers.get(99))
-        (mockedBlockchain.removeBlock _).expects(headers(99).hash).returning(())
-        (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(98)).returning(headers.get(98))
-        (mockedBlockchain.removeBlock _).expects(headers(98).hash).returning(())
+        (() => mockedBlockchainReader.getBestBlockNumber).expects().returning(BigInt(100)).once()
+        mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(100)).returning(headers.get(100))
+        mockedBlockchain.removeBlock.expects(headers(100).hash).returning(())
+        mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(99)).returning(headers.get(99))
+        mockedBlockchain.removeBlock.expects(headers(99).hash).returning(())
+        mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(98)).returning(headers.get(98))
+        mockedBlockchain.removeBlock.expects(headers(98).hash).returning(())
       }
 
-      val resolver = new FastSyncBranchResolver {
+      val resolver = new FastSyncBranchResolver:
         override val blockchain: Blockchain = mockedBlockchain
         override val blockchainReader: BlockchainReader = mockedBlockchainReader
-      }
       resolver.discardBlocksAfter(97)
     }
   }
@@ -77,11 +80,11 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
 
         // our: [..., 97, 98, 99, *100*]
         // peer: [..., 97, 98, 99, *100*, 101, 102]
-        val startBlock = Block(ValidBlock.header.copy(number = 97), ValidBlock.body)
+        val startBlock = Block(ValidBlock.header.copy(number = BlockNumber(97)), ValidBlock.body)
         val ourBlocks = blocksMap(amount = 3, parent = startBlock)
         val peerBlocks = ourBlocks ++ blocksMap(amount = 1, parent = ourBlocks(100))
 
-        (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
+        mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
 
         val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchainReader)
         assert(
@@ -96,17 +99,17 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
 
         // our: [..., *97*, 98, 99, 100]
         // peer: [..., *97*, 98x, 99x, 100, 101x]
-        val startBlock = Block(ValidBlock.header.copy(number = 96), ValidBlock.body)
+        val startBlock = Block(ValidBlock.header.copy(number = BlockNumber(96)), ValidBlock.body)
         val ourBlocks = blocksMap(amount = 4, parent = startBlock) // 97, 98, 99, 100
         val peerBlocks = blocksMap(amount = 4, parent = ourBlocks(97)) // 98, 99, 100, 101
 
         inSequence {
-          (mockedBlockchainReader.getBlockHeaderByNumber _)
+          mockedBlockchainReader.getBlockHeaderByNumber
             .expects(BigInt(100))
             .returns(ourBlocks.get(100).map(_.header))
-          (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
-          (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
-          (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(97)).returns(ourBlocks.get(97).map(_.header))
+          mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
+          mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
+          mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(97)).returns(ourBlocks.get(97).map(_.header))
         }
 
         val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchainReader)
@@ -124,17 +127,17 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
 
         // our: [..., 95, 96, 97, *98*, 99, 100]
         // peer: [..., 95, 96, 97, *98*, 99x, 100x, 101x]
-        val startBlock = Block(ValidBlock.header.copy(number = 95), ValidBlock.body)
+        val startBlock = Block(ValidBlock.header.copy(number = BlockNumber(95)), ValidBlock.body)
         val commonBlocks = blocksMap(amount = 3, parent = startBlock)
         val ourBlocks = commonBlocks ++ blocksMap(amount = 2, parent = commonBlocks(highestCommonBlock))
         val peerBlocks = blocksMap(amount = 3, parent = commonBlocks(highestCommonBlock))
 
         inSequence {
-          (mockedBlockchainReader.getBlockHeaderByNumber _)
+          mockedBlockchainReader.getBlockHeaderByNumber
             .expects(BigInt(100))
             .returns(ourBlocks.get(100).map(_.header))
-          (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
-          (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
+          mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
+          mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
         }
 
         val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchainReader)
@@ -148,16 +151,17 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
 
       // our: [..., 95, 96, 97, 98, 99, 100]
       // peer: [..., 95x, 96x, 97x, 98x, 99x, 100x]
-      val startBlock = Block(ValidBlock.header.copy(number = 95), ValidBlock.body)
-      val divergedStartBlock = Block(ValidBlock.header.copy(number = 95, nonce = ByteString("foo")), ValidBlock.body)
+      val startBlock = Block(ValidBlock.header.copy(number = BlockNumber(95)), ValidBlock.body)
+      val divergedStartBlock =
+        Block(ValidBlock.header.copy(number = BlockNumber(95), nonce = ByteString("foo")), ValidBlock.body)
       val ourBlocks = blocksMap(amount = 5, parent = startBlock)
       val peerBlocks = blocksMap(amount = 5, parent = divergedStartBlock)
 
-      (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
-      (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
-      (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
-      (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(97)).returns(ourBlocks.get(97).map(_.header))
-      (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(96)).returns(ourBlocks.get(96).map(_.header))
+      mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
+      mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
+      mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
+      mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(97)).returns(ourBlocks.get(97).map(_.header))
+      mockedBlockchainReader.getBlockHeaderByNumber.expects(BigInt(96)).returns(ourBlocks.get(96).map(_.header))
 
       val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchainReader)
       assert(recentBlocksSearch.getHighestCommonBlock(headersList(peerBlocks), ourBestBlock) === None)
@@ -184,11 +188,17 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         commonBlocks :++ BlockHelpers.generateChain(ourBestBlock + 1 - highestCommonBlock, commonBlocks.last)
 
       val dummyPeer =
-        Peer(PeerId("dummyPeer"), new InetSocketAddress("foo", 1), ActorRef.noSender, false, createTimeMillis = 0)
+        Peer(
+          PeerId("dummyPeer"),
+          new InetSocketAddress("foo", 1),
+          ActorRef.noSender.toTyped[PeerActor.Command],
+          false,
+          createTimeMillis = 0
+        )
 
       val initialSearchState = SearchState(1, 10, dummyPeer)
-      val ours = blocksSaved.map(b => (b.number, b)).toMap
-      val peer = blocksSavedInPeer.map(b => (b.number, b)).toMap
+      val ours = blocksSaved.map(b => (b.number.value, b)).toMap
+      val peer = blocksSavedInPeer.map(b => (b.number.value, b)).toMap
 
       val req1 = BinarySearchSupport.blockHeaderNumberToRequest(
         initialSearchState.minBlockNumber,
@@ -202,10 +212,9 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         ours(req1 - 1).header,
         peer(req1).header,
         initialSearchState
-      ) match {
+      ) match
         case ContinueBinarySearch(searchState) => searchState
         case _                                 => fail()
-      }
       assert(s1 === SearchState(5, 10, dummyPeer))
 
       val req2 = BinarySearchSupport.blockHeaderNumberToRequest(s1.minBlockNumber, s1.maxBlockNumber)
@@ -217,10 +226,9 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         ours(req2 - 1).header,
         peer(req2).header,
         s1
-      ) match {
+      ) match
         case ContinueBinarySearch(searchState) => searchState
         case _                                 => fail()
-      }
       assert(s2 === SearchState(5, 6, dummyPeer))
 
       val req3 = BinarySearchSupport.blockHeaderNumberToRequest(s2.minBlockNumber, s2.maxBlockNumber)
@@ -233,10 +241,9 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         ours(req3 - 1).header,
         peer(req3).header,
         s2
-      ) match {
+      ) match
         case ContinueBinarySearch(searchState) => searchState
         case _                                 => fail()
-      }
       assert(s3 === SearchState(6, 6, dummyPeer))
 
       val req4 = BinarySearchSupport.blockHeaderNumberToRequest(s3.minBlockNumber, s3.maxBlockNumber)
@@ -248,10 +255,9 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         ours(req4 - 1).header,
         peer(req4).header,
         s3
-      ) match {
+      ) match
         case BinarySearchCompleted(highestHeader) => highestHeader
         case _                                    => fail()
-      }
       assert(res === BigInt(6))
     }
     "complete search with no match" taggedAs (UnitTest) in {
@@ -260,11 +266,17 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       val blocksSavedInPeer: List[Block] = BlockHelpers.generateChain(8, BlockHelpers.genesis)
 
       val dummyPeer =
-        Peer(PeerId("dummyPeer"), new InetSocketAddress("foo", 1), ActorRef.noSender, false, createTimeMillis = 0)
+        Peer(
+          PeerId("dummyPeer"),
+          new InetSocketAddress("foo", 1),
+          ActorRef.noSender.toTyped[PeerActor.Command],
+          false,
+          createTimeMillis = 0
+        )
 
       val initialSearchState = SearchState(1, 8, dummyPeer)
-      val ours = blocksSaved.map(b => (b.number, b)).toMap
-      val peer = blocksSavedInPeer.map(b => (b.number, b)).toMap
+      val ours = blocksSaved.map(b => (b.number.value, b)).toMap
+      val peer = blocksSavedInPeer.map(b => (b.number.value, b)).toMap
 
       val req1 = BinarySearchSupport.blockHeaderNumberToRequest(
         initialSearchState.minBlockNumber,
@@ -278,10 +290,9 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         ours(req1 - 1).header,
         peer(req1).header,
         initialSearchState
-      ) match {
+      ) match
         case ContinueBinarySearch(searchState) => searchState
         case _                                 => fail()
-      }
       assert(s1 === SearchState(1, 3, dummyPeer))
 
       val req2 = BinarySearchSupport.blockHeaderNumberToRequest(s1.minBlockNumber, s1.maxBlockNumber)
@@ -293,10 +304,9 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         ours(req2 - 1).header,
         peer(req2).header,
         s1
-      ) match {
+      ) match
         case ContinueBinarySearch(searchState) => searchState
         case _                                 => fail()
-      }
       assert(s2 === SearchState(1, 1, dummyPeer))
 
       val req3 = BinarySearchSupport.blockHeaderNumberToRequest(s2.minBlockNumber, s2.maxBlockNumber)
@@ -313,5 +323,3 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       assert(res === NoCommonBlock)
     }
   }
-
-}

@@ -14,7 +14,7 @@ import com.chipprbots.ethereum.crypto.pubKeyFromKeyPair
 import com.chipprbots.ethereum.domain.SignedTransaction.getSender
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.SignedTransactions
 import com.chipprbots.ethereum.security.SecureRandomBuilder
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.utils.Hex
 
@@ -23,7 +23,7 @@ class TransactionSpec
     with ScalaCheckPropertyChecks
     with ObjectGenerators
     with SecureRandomBuilder
-    with Matchers {
+    with Matchers:
 
   "rlp encoding then decoding transaction" should "give back the initial transaction" taggedAs (UnitTest) in {
 
@@ -33,7 +33,7 @@ class TransactionSpec
       val encodedSignedTransaction: Array[Byte] = originalSignedTransaction.toBytes
 
       // decode it
-      import SignedTransactions.SignedTransactionDec
+      import SignedTransactions.*
       val decodedSignedTransaction = encodedSignedTransaction.toSignedTransaction
 
       decodedSignedTransaction shouldEqual originalSignedTransaction
@@ -47,17 +47,16 @@ class TransactionSpec
 
       val senderKeys = crypto.generateKeyPair(secureRandom)
 
-      val originalSenderAddress = {
+      val originalSenderAddress =
         // You get a public address for your account by taking the last 20 bytes of the Keccak-256 hash of the public key and adding 0x to the beginning.
         ECDSASignature
         val pubKey = pubKeyFromKeyPair(senderKeys)
         val hashedPublickKey = kec256(pubKey)
         val slice = hashedPublickKey.slice(hashedPublickKey.length - 20, hashedPublickKey.length)
         Address(slice)
-      }
 
       val originalSignedTransaction =
-        SignedTransaction.sign(originalTransaction, senderKeys, Some(blockchainConfig.chainId))
+        SignedTransaction.sign(originalTransaction, senderKeys, Some(blockchainConfig.chainId.value))
       // check for proper signature content
       getSender(originalSignedTransaction) shouldEqual (Some(originalSenderAddress))
 
@@ -66,7 +65,7 @@ class TransactionSpec
       val encodedSignedTransaction: Array[Byte] = originalSignedTransaction.toBytes
 
       // decode it
-      import SignedTransactions.SignedTransactionDec
+      import SignedTransactions.*
       val decodedSignedTransaction = encodedSignedTransaction.toSignedTransaction
 
       // resolve original sender
@@ -83,7 +82,7 @@ class TransactionSpec
       val encodedSignedTransactionSeq: Array[Byte] = SignedTransactions(originalSignedTransactionSeq).toBytes
 
       // decode it
-      import SignedTransactions.SignedTransactionsDec
+      import SignedTransactions.*
       val SignedTransactions(decodedSignedTransactionSeq) = encodedSignedTransactionSeq.toSignedTransactions
 
       decodedSignedTransactionSeq shouldEqual originalSignedTransactionSeq
@@ -99,8 +98,8 @@ class TransactionSpec
     val tx: TransactionWithAccessList = TransactionWithAccessList(
       1, // ethereum mainnet, used by the core-geth test
       3,
-      1,
-      25000,
+      GasPrice(1),
+      GasAmount(25000),
       toAddr,
       10,
       ByteString(Hex.decode("5544")),
@@ -130,8 +129,8 @@ class TransactionSpec
     val toAddr: Address = Address.apply("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
     val tx: LegacyTransaction = LegacyTransaction(
       3,
-      1,
-      2000,
+      GasPrice(1),
+      GasAmount(2000),
       toAddr,
       10,
       ByteString(Hex.decode("5544"))
@@ -169,4 +168,3 @@ class TransactionSpec
     x shouldBe expected
 
   }
-}

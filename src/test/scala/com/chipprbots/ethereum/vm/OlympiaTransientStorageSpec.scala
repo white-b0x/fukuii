@@ -1,15 +1,18 @@
 package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
+
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import com.chipprbots.ethereum.Fixtures.{Blocks => BlockFixtures}
+import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.testing.Tags.*
 
 import Fixtures.blockchainConfig
 
@@ -18,21 +21,21 @@ import Fixtures.blockchainConfig
   * TSTORE: pop key and value from stack, store in transient storage scoped to (address, key) TLOAD: pop key from stack,
   * push value from transient storage (or 0 if not set) Transient storage is cleared at end of transaction.
   */
-class OlympiaTransientStorageSpec extends AnyWordSpec with Matchers {
+class OlympiaTransientStorageSpec extends AnyWordSpec with Matchers:
 
   val configPreOlympia: EvmConfig = EvmConfig.SpiralConfigBuilder(blockchainConfig)
   val configOlympia: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
 
-  object fxt {
+  object fxt:
     val ownerAddr: Address = Address(0xcafe)
     val callerAddr: Address = Address(0xca11)
     val otherAddr: Address = Address(0xbeef)
 
     val headerOlympia: BlockHeader =
-      BlockFixtures.ValidBlock.header.copy(number = Fixtures.OlympiaBlockNumber)
+      BlockFixtures.ValidBlock.header.copy(number = BlockNumber(Fixtures.OlympiaBlockNumber))
 
     val headerPreOlympia: BlockHeader =
-      BlockFixtures.ValidBlock.header.copy(number = Fixtures.SpiralBlockNumber)
+      BlockFixtures.ValidBlock.header.copy(number = BlockNumber(Fixtures.SpiralBlockNumber))
 
     // TSTORE value 42 at key 0, then TLOAD key 0, STOP
     // Stack result: value 42 on top
@@ -137,8 +140,8 @@ class OlympiaTransientStorageSpec extends AnyWordSpec with Matchers {
         config: EvmConfig,
         startGas: BigInt = 1000000,
         staticCtx: Boolean = false,
-        transientStorage: Map[(Address, BigInt), BigInt] = Map.empty
-    ): ProgramContext[MockWorldState, MockStorage] = {
+        transientStorage: Map[(Address, StorageKey), BigInt] = Map.empty
+    ): ProgramContext[MockWorldState, MockStorage] =
       val world = MockWorldState()
         .saveAccount(ownerAddr, Account(balance = UInt256(1000), nonce = 1))
         .saveCode(ownerAddr, code)
@@ -164,10 +167,8 @@ class OlympiaTransientStorageSpec extends AnyWordSpec with Matchers {
         warmStorage = Set.empty,
         transientStorage = transientStorage
       )
-    }
-  }
 
-  import fxt._
+  import fxt.*
 
   "EIP-1153 Transient Storage" when {
 
@@ -218,8 +219,8 @@ class OlympiaTransientStorageSpec extends AnyWordSpec with Matchers {
 
       "be scoped to (address, key) — different addresses don't interfere" taggedAs (UnitTest, VMTest, OlympiaTest) in {
         // Pre-populate transient storage from a different address
-        val preExisting = Map[(Address, BigInt), BigInt](
-          (otherAddr, BigInt(0)) -> BigInt(999)
+        val preExisting = Map[(Address, StorageKey), BigInt](
+          (otherAddr, StorageKey(BigInt(0))) -> BigInt(999)
         )
         val context = createContext(
           codeTloadUnset.code,
@@ -242,8 +243,8 @@ class OlympiaTransientStorageSpec extends AnyWordSpec with Matchers {
 
         result.error shouldBe None
         // Transient storage should contain the stored value
-        (result.transientStorage should contain).key((ownerAddr, BigInt(0)))
-        result.transientStorage((ownerAddr, BigInt(0))) shouldEqual BigInt(42)
+        (result.transientStorage should contain).key((ownerAddr, StorageKey(BigInt(0))))
+        result.transientStorage((ownerAddr, StorageKey(BigInt(0)))) shouldEqual BigInt(42)
       }
 
       "not affect persistent storage (world state unchanged)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
@@ -342,4 +343,3 @@ class OlympiaTransientStorageSpec extends AnyWordSpec with Matchers {
       }
     }
   }
-}

@@ -5,20 +5,23 @@ import org.apache.pekko.util.ByteString
 import cats.effect.IO
 
 import org.json4s.JValue
-import org.json4s.JsonAST._
-import org.json4s.JsonDSL._
+import org.json4s.JsonAST.*
+import org.json4s.JsonDSL.*
 import org.json4s.jvalue2monadic
 
 import com.chipprbots.ethereum.consensus.mining.Mining
+import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.db.storage.TransactionMappingStorage
 import com.chipprbots.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
-import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.ledger.StxLedger
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -49,7 +52,7 @@ import com.chipprbots.ethereum.vm.VmTracer
   * flat Parity trace array is produced by flattenCallTree(), which walks the CallTracer result and emits one entry per
   * call with a traceAddress array.
   */
-object TraceService {
+object TraceService:
 
   /** Trace replay options — control which trace types are included in the response. Matches OpenEthereum
     * traceReplayTransaction parameter.
@@ -98,7 +101,6 @@ object TraceService {
   case class TraceFilterResponse(traces: Seq[JValue])
 
   val MaxTraceFilterRange: Long = 1000L
-}
 
 class TraceService(
     val blockchain: Blockchain,
@@ -106,9 +108,9 @@ class TraceService(
     val mining: Mining,
     stxLedger: StxLedger,
     transactionMappingStorage: TransactionMappingStorage
-) extends ResolveBlock {
+) extends ResolveBlock:
 
-  import TraceService._
+  import TraceService.*
 
   implicit private val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
@@ -123,13 +125,13 @@ class TraceService(
     */
   def traceTransaction(req: TraceTransactionRequest): ServiceResponse[TraceTransactionResponse] =
     IO {
-      for {
+      for
         location <- transactionMappingStorage
           .get(req.txHash)
           .toRight(JsonRpcError.InvalidParams("Transaction not found"))
         TransactionLocation(blockHash, txIndex) = location
         block <- blockchainReader
-          .getBlockByHash(blockHash)
+          .getBlockByHash(BlockHash(blockHash))
           .toRight(JsonRpcError.InvalidParams(s"Block not found for hash ${blockHash.toHex}"))
         parentHeader <- blockchainReader
           .getBlockHeaderByHash(block.header.parentHash)
@@ -141,17 +143,17 @@ class TraceService(
           JsonRpcError.InvalidParams(s"Transaction index $txIndex out of range")
         )
         targetStx = stxs(txIndex)
-        world = stxLedger.advanceWorldToTx(block.header, stxs, txIndex, parentHeader.stateRoot)
+        world = stxLedger.advanceWorldToTx(block.header, stxs, txIndex, parentHeader.stateRoot.value)
         tracer = new CallTracer(onlyTopCall = false)
         _ = stxLedger.simulateTransactionWithTracer(targetStx, block.header, Some(world), tracer)
         flat = flattenCallTree(
           tracer.getResult,
           req.txHash,
           txIndex,
-          block.header.hash,
-          block.header.number
+          block.header.hash.value,
+          block.header.number.value
         )
-      } yield TraceTransactionResponse(flat)
+      yield TraceTransactionResponse(flat)
     }.recover { case _: MissingNodeException =>
       Left(JsonRpcError.NodeNotFound)
     }
@@ -164,14 +166,14 @@ class TraceService(
     */
   def traceBlock(req: TraceBlockRequest): ServiceResponse[TraceBlockResponse] =
     IO {
-      for {
+      for
         resolved <- resolveBlock(req.block)
         block = resolved.block
         parentHeader <- blockchainReader
           .getBlockHeaderByHash(block.header.parentHash)
           .toRight(JsonRpcError.InvalidParams("Parent block not found"))
-        traces = traceAllTxsFlat(block, parentHeader.stateRoot)
-      } yield TraceBlockResponse(traces)
+        traces = traceAllTxsFlat(block, parentHeader.stateRoot.value)
+      yield TraceBlockResponse(traces)
     }.recover { case _: MissingNodeException =>
       Left(JsonRpcError.NodeNotFound)
     }
@@ -186,13 +188,13 @@ class TraceService(
     */
   def replayTransaction(req: TraceReplayTransactionRequest): ServiceResponse[TraceReplayTransactionResponse] =
     IO {
-      for {
+      for
         location <- transactionMappingStorage
           .get(req.txHash)
           .toRight(JsonRpcError.InvalidParams("Transaction not found"))
         TransactionLocation(blockHash, txIndex) = location
         block <- blockchainReader
-          .getBlockByHash(blockHash)
+          .getBlockByHash(BlockHash(blockHash))
           .toRight(JsonRpcError.InvalidParams(s"Block not found for hash ${blockHash.toHex}"))
         parentHeader <- blockchainReader
           .getBlockHeaderByHash(block.header.parentHash)
@@ -204,9 +206,9 @@ class TraceService(
           JsonRpcError.InvalidParams(s"Transaction index $txIndex out of range")
         )
         targetStx = stxs(txIndex)
-        world = stxLedger.advanceWorldToTx(block.header, stxs, txIndex, parentHeader.stateRoot)
+        world = stxLedger.advanceWorldToTx(block.header, stxs, txIndex, parentHeader.stateRoot.value)
         result = buildReplayResult(targetStx, block, Some(world), req.txHash, txIndex, req.options)
-      } yield TraceReplayTransactionResponse(result)
+      yield TraceReplayTransactionResponse(result)
     }.recover { case _: MissingNodeException =>
       Left(JsonRpcError.NodeNotFound)
     }
@@ -221,7 +223,7 @@ class TraceService(
       req: TraceReplayBlockTransactionsRequest
   ): ServiceResponse[TraceReplayBlockTransactionsResponse] =
     IO {
-      for {
+      for
         resolved <- resolveBlock(req.block)
         block = resolved.block
         parentHeader <- blockchainReader
@@ -229,10 +231,10 @@ class TraceService(
           .toRight(JsonRpcError.InvalidParams("Parent block not found"))
         stxs = SignedTransactionWithSender.getSignedTransactions(block.body.transactionList)
         results = stxs.zipWithIndex.map { case (stx, txIndex) =>
-          val world = stxLedger.advanceWorldToTx(block.header, stxs, txIndex, parentHeader.stateRoot)
-          buildReplayResult(stx, block, Some(world), stx.tx.hash, txIndex, req.options)
+          val world = stxLedger.advanceWorldToTx(block.header, stxs, txIndex, parentHeader.stateRoot.value)
+          buildReplayResult(stx, block, Some(world), stx.tx.hash.value, txIndex, req.options)
         }
-      } yield TraceReplayBlockTransactionsResponse(results)
+      yield TraceReplayBlockTransactionsResponse(results)
     }.recover { case _: MissingNodeException =>
       Left(JsonRpcError.NodeNotFound)
     }
@@ -246,7 +248,7 @@ class TraceService(
     */
   def traceCall(req: TraceCallRequest): ServiceResponse[TraceCallResponse] =
     IO {
-      for {
+      for
         resolved <- resolveBlock(req.block)
         stx <- buildCallTx(req.call, resolved.block)
         world = resolved.pendingState
@@ -258,7 +260,7 @@ class TraceService(
           0,
           req.options
         )
-      } yield TraceCallResponse(result)
+      yield TraceCallResponse(result)
     }.recover { case _: MissingNodeException =>
       Left(JsonRpcError.NodeNotFound)
     }
@@ -271,9 +273,8 @@ class TraceService(
     */
   def traceCallMany(req: TraceCallManyRequest): ServiceResponse[TraceCallManyResponse] =
     IO {
-      for {
-        resolved <- resolveBlock(req.block)
-      } yield {
+      for resolved <- resolveBlock(req.block)
+      yield
         val results: Seq[JValue] = req.calls.map { case (callTx, options) =>
           buildCallTx(callTx, resolved.block)
             .map { stx =>
@@ -282,7 +283,6 @@ class TraceService(
             .getOrElse(JNull)
         }
         TraceCallManyResponse(results)
-      }
     }.recover { case _: MissingNodeException =>
       Left(JsonRpcError.NodeNotFound)
     }
@@ -290,15 +290,14 @@ class TraceService(
   // ─── Helpers ──────────────────────────────────────────────────────────────────
 
   /** Traces all txs in a block and returns flat trace objects for all of them concatenated. */
-  private def traceAllTxsFlat(block: Block, parentStateRoot: ByteString): Seq[JValue] = {
+  private def traceAllTxsFlat(block: Block, parentStateRoot: ByteString): Seq[JValue] =
     val stxs = SignedTransactionWithSender.getSignedTransactions(block.body.transactionList)
     stxs.zipWithIndex.flatMap { case (stx, txIndex) =>
       val world = stxLedger.advanceWorldToTx(block.header, stxs, txIndex, parentStateRoot)
       val tracer = new CallTracer(onlyTopCall = false)
       stxLedger.simulateTransactionWithTracer(stx, block.header, Some(world), tracer)
-      flattenCallTree(tracer.getResult, stx.tx.hash, txIndex, block.header.hash, block.header.number)
+      flattenCallTree(tracer.getResult, stx.tx.hash.value, txIndex, block.header.hash.value, block.header.number.value)
     }
-  }
 
   /** Builds a replay result bundle: { trace, vmTrace, stateDiff } based on options. */
   private def buildReplayResult(
@@ -308,28 +307,36 @@ class TraceService(
       txHash: ByteString,
       txIndex: Int,
       options: TraceOptions
-  ): JValue = {
+  ): JValue =
     // Always run CallTracer for the trace field (even if options.trace=false, needed for vmTrace sub selection)
     val callTracer = new CallTracer(onlyTopCall = false)
     stxLedger.simulateTransactionWithTracer(stx, block.header, world, callTracer)
 
-    val traceField: JValue = if (options.trace) {
-      JArray(flattenCallTree(callTracer.getResult, txHash, txIndex, block.header.hash, block.header.number).toList)
-    } else JNull
+    val traceField: JValue =
+      if options.trace then
+        JArray(
+          flattenCallTree(
+            callTracer.getResult,
+            txHash,
+            txIndex,
+            block.header.hash.value,
+            block.header.number.value
+          ).toList
+        )
+      else JNull
 
-    val vmTraceField: JValue = if (options.vmTrace) {
+    val vmTraceField: JValue = if options.vmTrace then
       val vmTracer = new VmTracer()
       stxLedger.simulateTransactionWithTracer(stx, block.header, world, vmTracer)
       vmTracer.getResult
-    } else JNull
+    else JNull
 
     // stateDiff not yet implemented (deferred to P1-G)
-    val txHashField: JValue = if (txHash.nonEmpty) JString(s"0x${txHash.toHex}") else JNull
+    val txHashField: JValue = if txHash.nonEmpty then JString(s"0x${txHash.toHex}") else JNull
     ("trace" -> traceField) ~
       ("vmTrace" -> vmTraceField) ~
       ("stateDiff" -> (JNull: JValue)) ~
       ("transactionHash" -> txHashField)
-  }
 
   /** Flattens a nested CallTracer result (JObject) into a flat Parity trace array.
     *
@@ -357,41 +364,39 @@ class TraceService(
       txIndex: Int,
       blockHash: ByteString,
       blockNumber: BigInt
-  ): Seq[JValue] = {
+  ): Seq[JValue] =
     val buf = scala.collection.mutable.ArrayBuffer[JValue]()
 
-    def walk(node: JValue, addr: List[Int]): Unit = node match {
+    def walk(node: JValue, addr: List[Int]): Unit = node match
       case obj: JObject =>
-        val calls = (obj \ "calls") match {
+        val calls = (obj \ "calls") match
           case JArray(cs) => cs
           case _          => Nil
-        }
-        val traceType = (obj \ "type") match {
+        val traceType = (obj \ "type") match
           case JString(s) if s.toUpperCase.startsWith("CREATE") => "create"
           case _                                                => "call"
-        }
-        val action: JValue = if (traceType == "create") {
-          ("from" -> (obj \ "from")) ~
-            ("gas" -> (obj \ "gas")) ~
-            ("value" -> (obj \ "value")) ~
-            ("init" -> (obj \ "input"))
-        } else {
-          ("callType" -> ((obj \ "type") match { case JString(s) => s.toLowerCase; case _ => "call" })) ~
+        val action: JValue =
+          if traceType == "create" then
             ("from" -> (obj \ "from")) ~
-            ("to" -> (obj \ "to")) ~
-            ("gas" -> (obj \ "gas")) ~
-            ("value" -> (obj \ "value")) ~
-            ("input" -> (obj \ "input"))
-        }
-        val resultField: JValue = (obj \ "error") match {
+              ("gas" -> (obj \ "gas")) ~
+              ("value" -> (obj \ "value")) ~
+              ("init" -> (obj \ "input"))
+          else
+            ("callType" -> ((obj \ "type") match
+              case JString(s) => s.toLowerCase; case _ => "call"
+            )) ~
+              ("from" -> (obj \ "from")) ~
+              ("to" -> (obj \ "to")) ~
+              ("gas" -> (obj \ "gas")) ~
+              ("value" -> (obj \ "value")) ~
+              ("input" -> (obj \ "input"))
+        val resultField: JValue = (obj \ "error") match
           case JString(_) | JNull => JNull
           case _ =>
-            if (traceType == "create")
+            if traceType == "create" then
               ("gasUsed" -> (obj \ "gasUsed")) ~ ("address" -> (obj \ "to")) ~ ("code" -> (obj \ "output"))
-            else
-              ("gasUsed" -> (obj \ "gasUsed")) ~ ("output" -> (obj \ "output"))
-        }
-        val txHashField: JValue = if (txHash.nonEmpty) JString(s"0x${txHash.toHex}") else JNull
+            else ("gasUsed" -> (obj \ "gasUsed")) ~ ("output" -> (obj \ "output"))
+        val txHashField: JValue = if txHash.nonEmpty then JString(s"0x${txHash.toHex}") else JNull
         val traceAddrField: JValue = JArray(addr.map(i => JInt(i)))
         val entry: JObject =
           ("type" -> traceType) ~
@@ -406,11 +411,8 @@ class TraceService(
         buf += entry
         calls.zipWithIndex.foreach { case (child, i) => walk(child, addr :+ i) }
       case _ => // not an object, skip
-    }
-
     walk(root, Nil)
     buf.toSeq
-  }
 
   /** Implements trace_filter.
     *
@@ -427,7 +429,7 @@ class TraceService(
     */
   def traceFilter(req: TraceFilterRequest): ServiceResponse[TraceFilterResponse] =
     IO {
-      for {
+      for
         fromResolved <- resolveBlock(req.fromBlock)
         toResolved <- resolveBlock(req.toBlock)
         fromNum = fromResolved.block.header.number.toLong
@@ -439,26 +441,24 @@ class TraceService(
           JsonRpcError.InvalidParams(s"Requested range exceeds max of $MaxTraceFilterRange blocks")
         )
         allTraces = (fromNum to toNum).flatMap { blockNum =>
-          if (blockNum == 0) Nil // skip genesis — no parent state
-          else {
-            val branch = blockchainReader.getBestBranch()
+          if blockNum == 0 then Nil // skip genesis — no parent state
+          else
+            val branch = blockchainReader.getBestBranch
             blockchainReader
               .getBlockByNumber(branch, blockNum)
               .flatMap { block =>
                 blockchainReader.getBlockHeaderByHash(block.header.parentHash).map { parentHeader =>
-                  val flat = traceAllTxsFlat(block, parentHeader.stateRoot)
+                  val flat = traceAllTxsFlat(block, parentHeader.stateRoot.value)
                   applyAddressFilter(flat, req.fromAddress, req.toAddress)
                 }
               }
               .getOrElse(Nil)
-          }
         }
-        paginatedTraces = {
+        paginatedTraces =
           val afterN = req.after.getOrElse(0)
           val countN = req.count.getOrElse(allTraces.length)
           allTraces.slice(afterN, afterN + countN)
-        }
-      } yield TraceFilterResponse(paginatedTraces)
+      yield TraceFilterResponse(paginatedTraces)
     }.recover { case _: MissingNodeException =>
       Left(JsonRpcError.NodeNotFound)
     }
@@ -473,12 +473,14 @@ class TraceService(
       fromAddrs: Seq[Address],
       toAddrs: Seq[Address]
   ): Seq[JValue] =
-    if (fromAddrs.isEmpty && toAddrs.isEmpty) traces
+    if fromAddrs.isEmpty && toAddrs.isEmpty then traces
     else
       traces.filter { trace =>
         val action = trace \ "action"
-        val fromHex = (action \ "from") match { case JString(s) => s.toLowerCase; case _ => "" }
-        val toHex = (action \ "to") match { case JString(s) => s.toLowerCase; case _ => "" }
+        val fromHex = (action \ "from") match
+          case JString(s) => s.toLowerCase; case _ => ""
+        val toHex = (action \ "to") match
+          case JString(s) => s.toLowerCase; case _ => ""
         val fromOk = fromAddrs.isEmpty || fromAddrs.exists(a => fromHex == "0x" + a.toString.toLowerCase)
         val toOk = toAddrs.isEmpty || toAddrs.exists(a => toHex == "0x" + a.toString.toLowerCase)
         fromOk && toOk
@@ -488,15 +490,13 @@ class TraceService(
   private def buildCallTx(
       callTx: EthInfoService.CallTx,
       block: Block
-  ): Either[JsonRpcError, SignedTransactionWithSender] = {
-    val gasLimit = callTx.gas.getOrElse(block.header.gasLimit)
+  ): Either[JsonRpcError, SignedTransactionWithSender] =
+    val gasLimit = callTx.gas.map(GasAmount(_)).getOrElse(block.header.gasLimit)
     val fromAddress = callTx.from
       .map(Address.apply)
       .getOrElse(Address(0))
     val toAddress = callTx.to.map(Address.apply)
 
-    val tx = LegacyTransaction(0, callTx.gasPrice, gasLimit, toAddress, callTx.value, callTx.data)
+    val tx = LegacyTransaction(0, GasPrice(callTx.gasPrice), gasLimit, toAddress, callTx.value, callTx.data)
     val fakeSignature = ECDSASignature(0, 0, 0)
     Right(SignedTransactionWithSender(tx, fakeSignature, fromAddress))
-  }
-}

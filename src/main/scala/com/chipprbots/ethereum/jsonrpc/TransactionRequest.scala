@@ -3,6 +3,8 @@ package com.chipprbots.ethereum.jsonrpc
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.utils.Config
 
@@ -14,7 +16,7 @@ case class TransactionRequest(
     gasPrice: Option[BigInt] = None,
     nonce: Option[BigInt] = None,
     data: Option[ByteString] = None
-) {
+):
 
   private val defaultGasPrice: BigInt = 2 * BigInt(10).pow(10)
   private val defaultGasLimit: BigInt = 90000
@@ -24,9 +26,9 @@ case class TransactionRequest(
   def toTransaction(defaultNonce: BigInt, suggestedGasPrice: BigInt): LegacyTransaction =
     LegacyTransaction(
       nonce = nonce.getOrElse(defaultNonce),
-      gasPrice = gasPrice.getOrElse(suggestedGasPrice),
-      gasLimit = gasLimit.getOrElse(defaultGasLimit),
-      receivingAddress = if (Config.testmode) to.filter(_ != Address(0)) else to,
+      gasPrice = GasPrice(gasPrice.getOrElse(suggestedGasPrice)),
+      gasLimit = GasAmount(gasLimit.getOrElse(defaultGasLimit)),
+      receivingAddress = if Config.testmode then to.filter(_ != Address(0)) else to,
       value = value.getOrElse(BigInt(0)),
       payload = data.getOrElse(ByteString.empty)
     )
@@ -34,4 +36,3 @@ case class TransactionRequest(
   // Bridge overload — retained for callers not yet wired to the gas oracle.
   def toTransaction(defaultNonce: BigInt): LegacyTransaction =
     toTransaction(defaultNonce, defaultGasPrice)
-}

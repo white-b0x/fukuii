@@ -11,11 +11,15 @@ import com.chipprbots.ethereum.consensus.pow.validators.MockedPowBlockHeaderVali
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.HeaderBaseFeeError
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.HeaderExtraFieldsError
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.HeaderGasLimitError
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
 /** Tests that BlockHeaderValidatorSkeleton enforces extraFields and baseFee at the Olympia fork boundary.
@@ -31,13 +35,19 @@ class OlympiaBlockHeaderValidationSpec
     extends AnyWordSpec
     with Matchers
     with BlockchainConfigBuilder
-    with com.chipprbots.ethereum.TestInstanceConfigProvider {
+    with com.chipprbots.ethereum.TestInstanceConfigProvider:
 
   private val olympiaBlock: BigInt = BigInt(100)
 
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
     _.copy(olympiaBlockNumber = olympiaBlock)
   )
+
+  // ETH / Hive regime: baseFeeFloor = 0 (Big0). Under this floor the EIP-1559 decrease-branch
+  // off-by-one becomes observable end-to-end through header validation.
+  private val configFloorZero: BlockchainConfig = blockchainConfig
+    .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = olympiaBlock))
+    .copy(baseFeeFloor = BigInt(0))
 
   private val InitialBaseFee: BigInt = BaseFeeCalculator.InitialBaseFee
   private val baseExtraData: ByteString = ByteString("test".getBytes)
@@ -49,11 +59,11 @@ class OlympiaBlockHeaderValidationSpec
 
   private def preOlympiaHeader(number: BigInt, timestamp: Long = 1000L): BlockHeader =
     Fixtures.Blocks.ValidBlock.header.copy(
-      number = number,
-      gasLimit = BigInt(8_000_000),
-      gasUsed = 0,
-      unixTimestamp = timestamp,
-      difficulty = 0,
+      number = BlockNumber(number),
+      gasLimit = GasAmount(BigInt(8_000_000)),
+      gasUsed = GasAmount.Zero,
+      unixTimestamp = Timestamp(timestamp),
+      difficulty = Difficulty.Zero,
       extraData = baseExtraData,
       extraFields = HefEmpty
     )
@@ -61,11 +71,11 @@ class OlympiaBlockHeaderValidationSpec
   private def firstOlympiaHeader(timestamp: Long, baseFee: BigInt): BlockHeader =
     Fixtures.Blocks.ValidBlock.header.copy(
       parentHash = preOlympiaHeader(olympiaBlock - 1).hash,
-      number = olympiaBlock,
-      gasLimit = OneStepFrom8M,
-      gasUsed = 0,
-      unixTimestamp = timestamp,
-      difficulty = 0,
+      number = BlockNumber(olympiaBlock),
+      gasLimit = GasAmount(OneStepFrom8M),
+      gasUsed = GasAmount.Zero,
+      unixTimestamp = Timestamp(timestamp),
+      difficulty = Difficulty.Zero,
       extraData = baseExtraData,
       extraFields = HefPostOlympia(baseFee)
     )
@@ -80,7 +90,7 @@ class OlympiaBlockHeaderValidationSpec
         val parent = preOlympiaHeader(olympiaBlock - 2, timestamp = 1000L)
         val child = preOlympiaHeader(olympiaBlock - 1, timestamp = 2000L).copy(
           parentHash = parent.hash,
-          gasLimit = BigInt(8_000_000)
+          gasLimit = GasAmount(BigInt(8_000_000))
         )
         validate(child, parent) shouldBe Right(BlockHeaderValid)
       }
@@ -89,11 +99,11 @@ class OlympiaBlockHeaderValidationSpec
         val parent = preOlympiaHeader(olympiaBlock - 2, timestamp = 1000L)
         val wrongChild = preOlympiaHeader(olympiaBlock - 1, timestamp = 2000L).copy(
           parentHash = parent.hash,
-          gasLimit = BigInt(8_000_000),
+          gasLimit = GasAmount(BigInt(8_000_000)),
           extraFields = HefPostOlympia(InitialBaseFee)
         )
         val result = validate(wrongChild, parent)
-        result shouldBe a[Left[_, _]]
+        result shouldBe a[Left[?, ?]]
         result.left.toOption.get shouldBe a[HeaderExtraFieldsError]
       }
     }
@@ -113,7 +123,7 @@ class OlympiaBlockHeaderValidationSpec
         val parent = preOlympiaHeader(olympiaBlock - 1, timestamp = 1000L)
         val wrongFee = firstOlympiaHeader(timestamp = 2000L, baseFee = InitialBaseFee + 1)
         val result = validate(wrongFee, parent)
-        result shouldBe a[Left[_, _]]
+        result shouldBe a[Left[?, ?]]
         result.left.toOption.get shouldBe a[HeaderBaseFeeError]
       }
 
@@ -124,7 +134,7 @@ class OlympiaBlockHeaderValidationSpec
       ) in {
         val parent = preOlympiaHeader(olympiaBlock - 1, timestamp = 1000L)
         val bigJump = firstOlympiaHeader(timestamp = 2000L, baseFee = InitialBaseFee).copy(
-          gasLimit = BigInt(16_000_000)
+          gasLimit = GasAmount(BigInt(16_000_000))
         )
         val result = validate(bigJump, parent)
         result shouldBe Left(HeaderGasLimitError)
@@ -134,11 +144,11 @@ class OlympiaBlockHeaderValidationSpec
         val parent = preOlympiaHeader(olympiaBlock - 1, timestamp = 1000L)
         val noFeeChild = preOlympiaHeader(olympiaBlock, timestamp = 2000L).copy(
           parentHash = parent.hash,
-          gasLimit = OneStepFrom8M,
+          gasLimit = GasAmount(OneStepFrom8M),
           extraFields = HefEmpty
         )
         val result = validate(noFeeChild, parent)
-        result shouldBe a[Left[_, _]]
+        result shouldBe a[Left[?, ?]]
         result.left.toOption.get shouldBe a[HeaderExtraFieldsError]
       }
     }
@@ -153,11 +163,11 @@ class OlympiaBlockHeaderValidationSpec
         val expectedBaseFee = BaseFeeCalculator.calcBaseFee(firstBlock, config)
         val secondBlock = Fixtures.Blocks.ValidBlock.header.copy(
           parentHash = firstBlock.hash,
-          number = olympiaBlock + 1,
-          gasLimit = TwoStepsFrom8M,
-          gasUsed = 0,
-          unixTimestamp = 2000L,
-          difficulty = 0,
+          number = BlockNumber(olympiaBlock + 1),
+          gasLimit = GasAmount(TwoStepsFrom8M),
+          gasUsed = GasAmount.Zero,
+          unixTimestamp = Timestamp(2000L),
+          difficulty = Difficulty.Zero,
           extraData = baseExtraData,
           extraFields = HefPostOlympia(expectedBaseFee)
         )
@@ -168,19 +178,56 @@ class OlympiaBlockHeaderValidationSpec
         val firstBlock = firstOlympiaHeader(timestamp = 1000L, baseFee = InitialBaseFee)
         val missingFee = Fixtures.Blocks.ValidBlock.header.copy(
           parentHash = firstBlock.hash,
-          number = olympiaBlock + 1,
-          gasLimit = TwoStepsFrom8M,
-          gasUsed = 0,
-          unixTimestamp = 2000L,
-          difficulty = 0,
+          number = BlockNumber(olympiaBlock + 1),
+          gasLimit = GasAmount(TwoStepsFrom8M),
+          gasUsed = GasAmount.Zero,
+          unixTimestamp = Timestamp(2000L),
+          difficulty = Difficulty.Zero,
           extraData = baseExtraData,
           extraFields = HefEmpty
         )
         val result = validate(missingFee, firstBlock)
-        result shouldBe a[Left[_, _]]
+        result shouldBe a[Left[?, ?]]
         result.left.toOption.get shouldBe a[HeaderExtraFieldsError]
       }
     }
+
+    // End-to-end reproduction of the EIP-1559 decrease-branch off-by-one (block-146 / consume-rlp
+    // block-1 rejection). Under baseFeeFloor = 0 an empty parent block (gasUsed = 0) holds its tiny
+    // base fee: the raw 1/8 delta integer-floors to 0, so the child must declare the SAME base fee.
+    // The historical bug applied .max(1) on the decrease branch, expecting 6 instead of 7 and
+    // rejecting the valid child with INVALID_BASE_FEE_PER_GAS (have 7, want 6, parentGasUsed 0).
+    "block is post-Olympia under baseFeeFloor = 0 (ETH/Hive regime)" should {
+      "accept a child holding baseFee = 7 when its empty parent's baseFee = 7 (decrease holds, no off-by-one)" taggedAs (
+        UnitTest,
+        OlympiaTest,
+        ConsensusTest
+      ) in {
+        val hiveGasLimit = BigInt(37699104) // gasTarget = 18_849_552
+        val emptyParent = Fixtures.Blocks.ValidBlock.header.copy(
+          number = BlockNumber(olympiaBlock),
+          gasLimit = GasAmount(hiveGasLimit),
+          gasUsed = GasAmount.Zero,
+          unixTimestamp = Timestamp(1000L),
+          difficulty = Difficulty.Zero,
+          extraData = baseExtraData,
+          extraFields = HefPostOlympia(BigInt(7))
+        )
+        // Sanity: the held base fee the calculator derives for the child is exactly 7 (not 6).
+        BaseFeeCalculator.calcBaseFee(emptyParent, configFloorZero) shouldBe BigInt(7)
+
+        val child = Fixtures.Blocks.ValidBlock.header.copy(
+          parentHash = emptyParent.hash,
+          number = BlockNumber(olympiaBlock + 1),
+          gasLimit = GasAmount(hiveGasLimit), // constant gasLimit: |diff| = 0 < parent/1024, valid
+          gasUsed = GasAmount.Zero,
+          unixTimestamp = Timestamp(2000L),
+          difficulty = Difficulty.Zero,
+          extraData = baseExtraData,
+          extraFields = HefPostOlympia(BigInt(7))
+        )
+        MockedPowBlockHeaderValidator.validate(child, emptyParent)(configFloorZero) shouldBe Right(BlockHeaderValid)
+      }
+    }
   }
-}
 // scalastyle:on magic.number

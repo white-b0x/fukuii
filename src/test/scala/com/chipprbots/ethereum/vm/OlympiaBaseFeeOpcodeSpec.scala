@@ -1,16 +1,18 @@
 package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
+
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import com.chipprbots.ethereum.Fixtures.{Blocks => BlockFixtures}
+import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
 import com.chipprbots.ethereum.domain.UInt256
-import com.chipprbots.ethereum.testing.Tags._
+import com.chipprbots.ethereum.testing.Tags.*
 
 import Fixtures.blockchainConfig
 
@@ -18,35 +20,35 @@ import Fixtures.blockchainConfig
   *
   * BASEFEE pushes the current block's baseFee onto the stack. Returns 0 if baseFee is not set (pre-Olympia blocks).
   */
-class OlympiaBaseFeeOpcodeSpec extends AnyWordSpec with Matchers {
+class OlympiaBaseFeeOpcodeSpec extends AnyWordSpec with Matchers:
 
   val configPreOlympia: EvmConfig = EvmConfig.SpiralConfigBuilder(blockchainConfig)
   val configOlympia: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
 
-  object fxt {
+  object fxt:
     val ownerAddr: Address = Address(0xcafe)
     val callerAddr: Address = Address(0xca11)
 
     val headerPreOlympia: BlockHeader =
-      BlockFixtures.ValidBlock.header.copy(number = Fixtures.SpiralBlockNumber)
+      BlockFixtures.ValidBlock.header.copy(number = BlockNumber(Fixtures.SpiralBlockNumber))
 
     val baseFeeValue: BigInt = BigInt(7)
 
     val headerWithBaseFee: BlockHeader =
       BlockFixtures.ValidBlock.header.copy(
-        number = Fixtures.OlympiaBlockNumber,
+        number = BlockNumber(Fixtures.OlympiaBlockNumber),
         extraFields = HefPostOlympia(baseFeeValue)
       )
 
     val headerWithLargeBaseFee: BlockHeader =
       BlockFixtures.ValidBlock.header.copy(
-        number = Fixtures.OlympiaBlockNumber,
+        number = BlockNumber(Fixtures.OlympiaBlockNumber),
         extraFields = HefPostOlympia(BigInt("1000000000")) // 1 Gwei
       )
 
     val headerWithZeroBaseFee: BlockHeader =
       BlockFixtures.ValidBlock.header.copy(
-        number = Fixtures.OlympiaBlockNumber,
+        number = BlockNumber(Fixtures.OlympiaBlockNumber),
         extraFields = HefPostOlympia(BigInt(0))
       )
 
@@ -70,7 +72,7 @@ class OlympiaBaseFeeOpcodeSpec extends AnyWordSpec with Matchers {
         header: BlockHeader,
         config: EvmConfig,
         startGas: BigInt = 1000000
-    ): ProgramContext[MockWorldState, MockStorage] = {
+    ): ProgramContext[MockWorldState, MockStorage] =
       val world = MockWorldState()
         .saveAccount(ownerAddr, Account(balance = UInt256(1000), nonce = 1))
         .saveCode(ownerAddr, code)
@@ -94,10 +96,8 @@ class OlympiaBaseFeeOpcodeSpec extends AnyWordSpec with Matchers {
         warmAddresses = Set(ownerAddr),
         warmStorage = Set.empty
       )
-    }
-  }
 
-  import fxt._
+  import fxt.*
 
   "BASEFEE opcode" when {
 
@@ -180,4 +180,3 @@ class OlympiaBaseFeeOpcodeSpec extends AnyWordSpec with Matchers {
       }
     }
   }
-}

@@ -1,37 +1,92 @@
 # CLAUDE.md — Working in fukuii
 
-`fukuii` is an **Ethereum Classic (ETC)** client (forked from IOHK Mantis,
-repackaged under `com.chipprbots`), running on **Scala 3.3.7 LTS** with Akka
-actors and PoW (Ethash) mining. This file orients Claude and any subagents.
+`fukuii` is a **multi-network EVM client** (forked from IOHK Mantis, repackaged
+under `com.chipprbots`), running on **Scala 3.x LTS** with Pekko actors.
+It supports two independent chain families:
 
-## ETC ≠ Ethereum mainnet (read this first)
+- **Ethereum Classic (ETC/Mordor)** — PoW/Ethash, ECIP-1017 fixed-supply
+  emission, block-number fork dispatch. Chain ID 61 (mainnet), 63 (Mordor).
+- **Ethereum (ETH/Sepolia)** — PoS (post-merge), timestamp fork dispatch.
+  Chain ID 1 (mainnet), 11155111 (Sepolia).
 
-ETC **keeps**: PoW/Ethash mining, ECIP-1017 fixed-supply emission, the
-traditional gas model, pre-merge opcodes. Chain ID is **61** (mainnet).
-ETC hard forks: Atlantis → Agharta → Phoenix → Thanos (ECIP-1099) → Magneto →
-Mystique. ETC does **NOT** have Proof-of-Stake/the merge, EIP-1559, blob
-transactions, or account abstraction. Never add ETH-mainnet-only features.
+## ETC vs ETH — read this first
+
+**ETC keeps**: PoW/Ethash, ECIP-1017 fixed-supply emission, traditional gas
+model, pre-merge opcodes, block-number fork dispatch. Hard forks: Atlantis →
+Agharta → Phoenix → Thanos (ECIP-1099) → Magneto → Mystique → **Olympia**
+(planned: ECIP-1111/1112/1121).
+
+**ETH/Sepolia has**: PoS consensus, timestamp fork dispatch, EIP-1559 base-fee
+burned, validator withdrawals, blob transactions (EIP-4844), Osaka fork.
+
+**Do not mix these code paths.** ETC fork config uses `OlympiaOpCodes` /
+`forBlock()`; ETH fork config uses `OsakaOpCodes` / `forTimestamp()`.
 
 ## Build & test commands
 
-```bash
-sbt compile-all        # compile every module + test sources
-sbt pp                 # "prepare PR": compile-all, scalafmt, quick + integration tests
-sbt formatAll          # scalafix + scalafmt across all modules
-sbt formatCheck        # verify formatting without changing files
+| Command | What it runs | When to use |
+|---------|-------------|-------------|
+| `sbt compile-all` | Compiles all modules + test sources | After every file change (exception: core domain sweeps — use `sbt compile` instead, then `compile-all` once at end; see `testing-protocol.md`) |
+| `sbt compile` | Root main sources only — no test/IT/Benchmark | **Core domain type sweeps only** (BlockHeader, Account, Block, Transaction → 50+ dependents) — avoids cascade on every file; `compile-all` once at end |
+| `sbt scalafmtAll` | scalafmt across ALL modules (formatting only) | After every migration commit; safe at any time |
+| `sbt scalafmt` | scalafmt on ROOT module only | **Do not use** — misses submodules (bytes, crypto, rlp, Evm, etc.) |
+| `sbt formatAll` | scalafixAll + scalafmtAll across all modules | Pre-PR on a clean codebase ONLY — aborts on pre-existing scalafix violations |
+| `sbt formatCheck` | Verify formatting without writing | CI / pre-flight check |
+| `sbt pp` | compile-all + formatAll + quick + integration tests | Pre-PR gate — same caveat as formatAll |
+| `sbt "testOnly *Foo*"` | Single test class (seconds) | After each phase that changes logic — not compile-only phases |
+| `./local/scripts/fukuii-test FooSpec` | Wrapper for targeted test | Same as testOnly — prefer this form |
+| `./local/scripts/fukuii-test` | Full testEssential via wrapper | **End of thread only, once** — 24 min, do not run between phases |
+| `sbt testEssential` | Tier 1 full suite (24 min, 3,621 tests) | End of thread only — stalls development if run mid-thread |
+| `sbt testStandard` | Tier 2 tests | Before opening a PR |
+| `sbt testComprehensive` | Tier 3 full compliance suite (<3 h) | Release gate only |
+| `sbt testVM testCrypto` | Tagged test subsets | Targeted validation of specific subsystem |
+| `sbt "IntegrationTest / test"` | Integration test module | After protocol-level changes |
 
-# Test tiers (ADR-017)
-sbt testEssential      # Tier 1 (<5 min): fast unit tests
-sbt testStandard       # Tier 2 (<30 min): unit + integration
-sbt testComprehensive  # Tier 3 (<3 h): full ethereum/tests compliance suite
+**Test cadence during a migration thread:**
+1. Every file edit → `sbt compile-all` (mandatory, fast) — **exception**: if the sweep touches a core domain type (BlockHeader, Account, Block, Transaction), use `sbt compile` between files and `sbt compile-all` once at the end (see `testing-protocol.md` → "Core domain type sweeps")
+2. Phases that only add types (returns removal, Messages.scala additions) → compile only, no tests
+3. After Phase 2 (main migration) and Phase 3 (callers) → `testOnly *<ActorName>*` + any touched caller specs
+4. End of thread, once → full `testEssential` to confirm baseline holds
 
-# Targeted by tag
-sbt testVM testCrypto testNetwork testRLP testMPT testEthereum
-sbt "IntegrationTest / test"
-```
+**The two format commands that look similar but are not:**
+- `scalafmt` → root module only → **wrong for this codebase**
+- `scalafmtAll` → all modules → **always use this one**
+- `formatAll` → runs scalafix first → aborts mid-migration on pre-existing violations → **pre-PR only**
 
 Modules: root `main`, plus `bytes`, `crypto`, `rlp`, `Evm`, `Benchmark`,
 `RpcTest`, `IntegrationTest`.
+
+## Shared agent protocols
+
+Tracked protocols that all agents reference live in `.claude/agent-protocols/`:
+
+| Protocol | Purpose |
+|----------|---------|
+| `warning-ratchet.md` | 4-step pattern: inventory → risk-stratified commit → defer with @nowarn → promote to build error |
+| `testing-protocol.md` | Per-phase test cadence (compile-all per file, testOnly after logic, testEssential once at end) |
+| `risk-stratified-commit.md` | Bucket A/B/C commit discipline for sweep changes |
+| `consensus-change-protocol.md` | Hard stop + routing table before touching consensus paths |
+| `inline-cleanup.md` | "Hunt and seek" — what to fix opportunistically, what to log in CHASE-QUEUE |
+| `logging-standards.md` | Preferred logging API, levels, message format, SLF4J patterns |
+| `scala3-style.md` | S1–S11 Scala 3 standards with grep-verifiable ratchets (S11: opaque type full-layer propagation) |
+| `scala3-given-migration.md` | G1–G3 operational pitfalls for `given/using` migration (P3a findings, applies to P3b) |
+| `pekko-typed-api.md` | P1–P25 Pekko Typed API preferences + TL1/TL2 Cats Effect integration rules |
+| `pre-migration-checklist.md` | LOOM pre-flight: grep each actor for sender(), returns, timers, workers before migrating |
+| `migration-handoff.md` | Continuation file protocol when a thread ends mid-migration |
+| `storage-rocksdb.md` | DataSource contract, column families, iterator lifecycle, WriteBatch, EphemDataSource, RocksDB config |
+| `dead-code-review.md` | Three verdicts before any deletion: Wire it / Delete it / Defer — assess gap, git history, and supersession before `git rm` |
+| `worktree-protocol.md` | Sprint vs task worktree patterns, naming (`wt/<id>`), lifecycle, bin scripts, agent rules for worktree context |
+
+Working documents (public, code patterns only): `.claude/agent-protocols/working-docs/`
+- `CHASE-QUEUE.md` — cross-file issues logged during inline sessions, batched into sprint clusters
+
+Best practices library (research-backed patterns, June 2026 sprint): `.local/best-practices/`
+- `scala/type-safety.md` — 10 opaque type propagation patterns (full S11 reference)
+- `pekko/typed-patterns.md` — P17–P25 detailed patterns with greps
+- `pekko/concurrency.md` — Pekko concurrency and dispatcher patterns
+- `evm-clients/` — snap/2 protocol patterns, anti-patterns, p2p, error recovery
+- `typelevel/patterns.md` — IO/Resource/Fiber idiomatic patterns
+- `codebase-audit.md` — 52 known violations across 9 categories (11 critical, 27 medium, 14 low) with file:line
 
 ## Specialist subagents
 
@@ -41,11 +96,17 @@ session is the orchestrator** — subagents cannot spawn other subagents, so you
 
 | Agent     | Use it for | Proactive? |
 | :-------- | :--------- | :--------- |
-| `forge`   | Consensus-critical code: EVM, mining, crypto, state, block rewards, hard forks, any EIP/ECIP | **Before** any consensus change |
-| `eye`     | Validation: compile + run the right test tier, check ETC compatibility, report pass/fail | **After** code changes |
+| `forge`   | **ETC/Mordor** consensus: EVM, Ethash mining, crypto, state, block rewards, hard forks, EIP/ECIP | **Before** any ETC consensus change |
+| `beacon`  | **ETH/Sepolia** consensus: PoS, timestamp forks, Osaka EIPs, withdrawals, blobs, execution payload | **Before** any ETH consensus change |
+| `eye`     | Validation: compile + run the right test tier, check chain compatibility, report pass/fail | **After** code changes |
 | `wraith`  | Scala 3 compile errors / build failures | On compile failures |
-| `herald`  | P2P / RLPx / ETH wire protocol, Snappy, handshakes, core-geth interop | On networking issues |
+| `herald`  | P2P / RLPx / ETH wire protocol, Snappy, handshakes, multi-client interop | On networking issues |
 | `mithril` | Idiomatic Scala 3 modernization (opaque types, enums, given/using) | On-demand |
+| `prism`   | 8-lens code quality review (non-consensus only): functionality, tests, readability, structure, simplicity, performance, security, scala-fp | Before PRs on non-consensus code |
+| `loom`    | Pekko Classic→Typed migration: one actor per session, pre-flight checks, Command ADT, replyTo, timers | On-demand per actor migration |
+| `vault`   | RocksDB / storage layer: DataSource contract, iterator lifecycle, WriteBatch, WAL, cache tuning (`db/`) | On storage bugs / config changes |
+| `conduit` | JSON-RPC, HTTP, WebSocket, IPC, GraphQL: method compliance, codec, subscriptions (`jsonrpc/`) | On API / transport bugs |
+| `flow`    | Pekko Streams: Source/Sink/Flow graphs, materialization, backpressure, `preMaterialize` anti-patterns, stream test synchronization | On streaming graph bugs / silent element drops |
 
 ### Consensus-Critical Change Protocol (mandatory)
 
@@ -53,11 +114,13 @@ Any change to consensus — EIP/ECIP, chain ID, gas costs, state roots, block
 rewards, transaction validation/signing, hard-fork config, mining/PoW, crypto —
 **must** follow this order. Do not hand-edit consensus code reactively.
 
+0. **Identify the chain**: ETC/Mordor → use `forge`. ETH/Sepolia → use `beacon`.
+   Both chains affected → use both in sequence.
 1. **Plan** (main session): read the spec completely, identify every affected
    component, map side effects.
-2. **`forge`** — consult *before* implementing for impact analysis, then let it
-   implement/review with byte-perfect validation against core-geth.
-3. **`wraith`** — fix any compilation errors without altering forge's semantics.
+2. **`forge` or `beacon`** — consult *before* implementing for impact analysis,
+   then implement/review with byte-perfect validation against the reference client.
+3. **`wraith`** — fix any compilation errors without altering consensus semantics.
 4. **`eye`** — validate: tests, consensus compliance, performance.
 
 Triggers: PR/diff mentions "EIP"/"ECIP"; changes under `consensus/`, `vm/`,
@@ -86,6 +149,45 @@ formatting (use `herald`).
   git history are one-way doors. When uncertain on a consequential or
   irreversible call, surface options to the user instead of guessing.
 
+## Continuation protocol (applies to every agent)
+
+When a session is running low on turns **or** a logical phase ends with more work
+remaining, write a continuation file before the session ends:
+
+```
+.local/docs/continuations/<AgentName>-<Topic>.md
+```
+
+**Standard sections** (keep each short — the next thread reads this cold):
+
+```markdown
+# <AgentName> continuation — <Topic>
+
+## Status
+What phase just completed. What phase is next.
+
+## Files modified
+| File | Status | Last action |
+|------|--------|-------------|
+| path/to/File.scala | IN PROGRESS | removed returns, not yet migrated |
+
+## Open compile errors
+Paste exact error messages. If clean, write: "sbt compile-all — 0 errors".
+
+## Next action (first thing to do)
+One specific instruction: "Open X.scala line N and change Y to Z."
+
+## Test baseline
+Last known result: e.g. "3,621 / 0 — run before and after any change."
+```
+
+**The continuation thread** reads this file as its first action before anything
+else. Do not re-research what is documented here.
+
+**Prior group summaries** (modernization sprint only):
+`.local/docs/moderization-review-june/implementation-sprint/summaries/`
+Read relevant entries for established patterns before starting any migration.
+
 ## OODA loop for large migrations / multi-file work
 
 For comprehensive changes, cycle through:
@@ -103,7 +205,7 @@ For comprehensive changes, cycle through:
 ## Conventions
 
 - Add files to git individually; know what you're committing (avoid `git add .`).
-- Run `sbt scalafmtAll` (or `sbt pp`) before pushing.
+- Run `sbt scalafmtAll` before committing during a migration. Run `sbt pp` (which includes `formatAll`) only before a PR on a clean codebase.
 - Refer to the human as **user**; be authentic, surface disagreement rather than
   burying it.
 
@@ -120,13 +222,24 @@ Read it before planning or implementing. Highlights:
 - Consensus-critical code (EVM/gas, state roots, hashes, RLP, Ethash, rewards,
   hard forks) MUST be byte-for-byte deterministic and ETC-spec compliant — design
   before implementing; follow the `forge` protocol in `.github/agents/forge.md`.
-- Scala 3.3.7 LTS only; code MUST pass `scalafmt` + `scalafix`.
+- Scala 3.x LTS only; code MUST pass `scalafmt` + `scalafix`.
 - Tests MUST be deterministic (no `Thread.sleep`); keep statement coverage ≥ 70%.
 - Run `sbt pp` before opening a PR; CI gates and review must be green to merge.
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/001-healing-frontier-scale/plan.md` (post-SNAP healing frontier-rebuild
-scalability — L1 bounded visited set, L2 persisted frontier + resume, L3 throughput).
+`specs/007-hotpath-alloc-reduction/plan.md` (reduce hot-path CPU allocations on the
+keccak-256 + SNAP inline-merkleization paths to cut GC/allocation pressure and return CPU
+to sync — PURE PERFORMANCE, byte-for-byte identical consensus output. P1: replace per-call
+`new KeccakDigest(256)` with a thread-confined `ThreadLocal[KeccakDigest]` reset-on-entry
+(the load-bearing parity mechanism — guards the aborted-mid-update window). P2: reuse
+StackTrie transient scratch but NEVER the aliased final node blob (chain-split risk). P3:
+single-`Array[Byte]` `kec256` overload, `SnapHashTrie.emit` clone elision, `RLP.encode`
+O(n²)→O(n) — each FR-010-gated on proven parity + measured win. forge protocol; byte-for-byte
+gate via crypto/MPT/ethereum-tests + dedicated keccak vector/reset-after-abort/concurrency
+spec + A/B replay; perf is report-and-record, parity is the hard gate. Honest expectation:
+low single-digit to low-double-digit % throughput; the real CPU fix remains more cores.)
+Prior plans: `specs/004-decoupled-heal-serve-root/plan.md`,
+`specs/003-scoped-heal-verification/plan.md`.
 <!-- SPECKIT END -->

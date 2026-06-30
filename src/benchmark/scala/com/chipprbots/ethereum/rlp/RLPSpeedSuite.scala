@@ -2,9 +2,9 @@ package com.chipprbots.ethereum.rlp
 
 import org.apache.pekko.util.ByteString
 import com.chipprbots.ethereum.ObjectGenerators
-import com.chipprbots.ethereum.domain.Block._
-import com.chipprbots.ethereum.domain._
-import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.SignedTransactions._
+import com.chipprbots.ethereum.domain.Block.*
+import com.chipprbots.ethereum.domain.*
+import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.SignedTransactions.*
 import com.chipprbots.ethereum.utils.Logger
 import com.chipprbots.ethereum.utils.Hex
 import org.scalacheck.Gen
@@ -77,8 +77,8 @@ class RLPSpeedSuite
   val validTransaction = SignedTransaction(
     LegacyTransaction(
       nonce = 172320,
-      gasPrice = BigInt("50000000000"),
-      gasLimit = 90000,
+      gasPrice = GasPrice(BigInt("50000000000")),
+      gasLimit = GasAmount(90000),
       receivingAddress = Address(Hex.decode("1c51bf013add0857c5d9cf2f71a7f15ca93d4816")),
       value = BigInt("1049756850000000000"),
       payload = ByteString.empty

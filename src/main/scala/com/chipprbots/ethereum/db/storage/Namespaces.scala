@@ -1,6 +1,6 @@
 package com.chipprbots.ethereum.db.storage
 
-object Namespaces {
+object Namespaces:
   val ReceiptsNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('r'.toByte)
   val HeaderNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
   val BodyNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('b'.toByte)
@@ -21,6 +21,12 @@ object Namespaces {
     IndexedSeq[Byte]('g'.toByte) // Post-SNAP healing frontier (node hash -> pathset), Layer-2 resume
   val BfsQueueNamespace: IndexedSeq[Byte] =
     IndexedSeq[Byte]('q'.toByte) // BFS level queue (streaming frontier rebuild — OOM-safe at L7+)
+  val SnapSyncProgressNamespace: IndexedSeq[Byte] =
+    IndexedSeq[Byte]('p'.toByte) // SNAP download progress (stateRoot -> JSON cursors, account + storage)
+  val StateTriePathNamespace: IndexedSeq[Byte] =
+    IndexedSeq[Byte]('t'.toByte) // state trie nodes, path-keyed (PathScheme only)
+  val StorageTriePathNamespace: IndexedSeq[Byte] =
+    IndexedSeq[Byte]('u'.toByte) // storage trie nodes, path-keyed, scoped by accountHash (PathScheme only)
 
   val nsSeq: Seq[IndexedSeq[Byte]] = Seq(
     ReceiptsNamespace,
@@ -38,6 +44,8 @@ object Namespaces {
     FlatSlotNamespace,
     FlatAccountNamespace,
     HealingFrontierNamespace,
-    BfsQueueNamespace
+    BfsQueueNamespace,
+    SnapSyncProgressNamespace,
+    StateTriePathNamespace,
+    StorageTriePathNamespace
   )
-}

@@ -4,7 +4,7 @@ import com.chipprbots.ethereum.consensus.difficulty.DifficultyCalculator
 import com.chipprbots.ethereum.consensus.mining.MiningConfig
 import com.chipprbots.ethereum.consensus.mining.MiningMetrics
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
-import com.chipprbots.ethereum.domain._
+import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.ledger.BlockPreparator
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -19,7 +19,7 @@ abstract class NoOmmersBlockGenerator(
       miningConfig,
       difficultyCalc,
       blockTimestampProvider
-    ) {
+    ):
 
   type X = Nil.type
 
@@ -30,7 +30,7 @@ abstract class NoOmmersBlockGenerator(
       blockNumber: BigInt,
       parent: Block,
       beneficiary: Address,
-      blockTimestamp: Long,
+      blockTimestamp: Timestamp,
       x: Nil.type
   )(implicit blockchainConfig: BlockchainConfig): BlockHeader =
     defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
@@ -55,7 +55,7 @@ abstract class NoOmmersBlockGenerator(
           parent,
           transactions,
           beneficiary,
-          blockNumber,
+          blockNumber.value,
           blockPreparator,
           x,
           initialWorldStateBeforeExecution
@@ -64,4 +64,3 @@ abstract class NoOmmersBlockGenerator(
 
       prepared
     }
-}
