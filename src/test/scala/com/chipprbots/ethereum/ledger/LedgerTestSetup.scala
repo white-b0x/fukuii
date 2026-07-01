@@ -66,11 +66,11 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup:
   )
 
   val defaultTx: LegacyTransaction = LegacyTransaction(
-    nonce = 42,
+    nonce = Nonce(42),
     gasPrice = GasPrice(1),
     gasLimit = GasAmount(90000),
     receivingAddress = receiverAddress,
-    value = 0,
+    value = Wei(0),
     payload = ByteString.empty
   )
 
@@ -85,7 +85,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup:
   val initialOriginBalance: UInt256 = 100000000
   val initialMinerBalance: UInt256 = 2000000
 
-  val initialOriginNonce: BigInt = defaultTx.nonce
+  val initialOriginNonce: BigInt = defaultTx.nonce.value
 
   val defaultAddressesToDelete: Set[Address] =
     Set(Address(Hex.decode("01")), Address(Hex.decode("02")), Address(Hex.decode("03")))
@@ -196,9 +196,9 @@ trait BlockchainSetup extends TestSetup:
     .commit()
 
   val validTx: LegacyTransaction = defaultTx.copy(
-    nonce = initialOriginNonce,
+    nonce = Nonce(initialOriginNonce),
     gasLimit = GasAmount(defaultGasLimit.toBigInt),
-    value = defaultValue
+    value = Wei(defaultValue)
   )
   val validStxSignedByOrigin: SignedTransaction =
     SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId.value))

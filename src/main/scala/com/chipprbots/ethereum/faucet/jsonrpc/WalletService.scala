@@ -10,6 +10,7 @@ import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.domain.Nonce
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.faucet.FaucetConfig
 import com.chipprbots.ethereum.jsonrpc.client.RpcClient.RpcError
 import com.chipprbots.ethereum.keystore.KeyStore
@@ -43,7 +44,7 @@ class WalletService(walletRpcClient: WalletRpcClientApi, keyStore: KeyStore, con
         GasPrice(config.txGasPrice),
         GasAmount(config.txGasLimit),
         Some(targetAddress),
-        config.txValue,
+        Wei(config.txValue),
         ByteString()
       )
 

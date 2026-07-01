@@ -97,11 +97,11 @@ class TransactionSpec
     val toAddr: Address = Address.apply("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
     val tx: TransactionWithAccessList = TransactionWithAccessList(
       1, // ethereum mainnet, used by the core-geth test
-      3,
+      Nonce(3),
       GasPrice(1),
       GasAmount(25000),
       toAddr,
-      10,
+      Wei(10),
       ByteString(Hex.decode("5544")),
       Nil
     )
@@ -128,11 +128,11 @@ class TransactionSpec
   "Legacy transaction" should "correctly serialize to original rlp" taggedAs (UnitTest) in {
     val toAddr: Address = Address.apply("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
     val tx: LegacyTransaction = LegacyTransaction(
-      3,
+      Nonce(3),
       GasPrice(1),
       GasAmount(2000),
       toAddr,
-      10,
+      Wei(10),
       ByteString(Hex.decode("5544"))
     )
     val sig = ECDSASignature

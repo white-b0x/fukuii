@@ -41,11 +41,11 @@ class EIP7825GasCapSpec
 
   def makeTx(gasLimit: BigInt): SignedTransaction =
     val tx = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(1),
       gasLimit = GasAmount(gasLimit),
       receivingAddress = Address(1),
-      value = 0,
+      value = Wei(0),
       payload = ByteString.empty
     )
     SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))

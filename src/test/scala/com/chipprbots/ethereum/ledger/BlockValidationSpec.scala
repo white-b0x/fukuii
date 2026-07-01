@@ -64,11 +64,11 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory:
     def hash2ByteString(hash: String): ByteString = ByteString(Hex.decode(hash))
 
     def mkTransaction(nonce: String, address: String, value: String): LegacyTransaction = LegacyTransaction(
-      nonce = BigInt(nonce),
+      nonce = Nonce(BigInt(nonce)),
       gasPrice = GasPrice(BigInt("20000000000")),
       gasLimit = GasAmount(BigInt("50000")),
       receivingAddress = Address(hash2ByteString(address)),
-      value = BigInt(value),
+      value = Wei(BigInt(value)),
       payload = ByteString.empty
     )
 

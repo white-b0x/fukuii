@@ -123,13 +123,13 @@ object TestConverter:
     // gasPrice is present for legacy (0x00) and EIP-2930 (0x01) txs; EIP-1559 (0x02)
     // and EIP-4844 (0x03) omit it (they carry maxFeePerGas/maxPriorityFeePerGas).
     // Default to 0 when absent — the dynamic-fee/blob branches never read this value.
-    val nonce = parseBigInt(testTx.nonce)
+    val nonce = Nonce(parseBigInt(testTx.nonce))
     val gasPrice = testTx.gasPrice.map(parseBigInt).getOrElse(BigInt(0))
     val gasLimit = GasAmount(parseBigInt(testTx.gasLimit))
     val receivingAddress =
       if testTx.to.isEmpty || testTx.to == "0x" then None
       else Some(Address(ByteString(parseHex(testTx.to))))
-    val value = parseBigInt(testTx.value)
+    val value = Wei(parseBigInt(testTx.value))
     val payload = ByteString(parseHex(testTx.data))
 
     // Parse access list (shared by Type 1, 2, 3, 4)

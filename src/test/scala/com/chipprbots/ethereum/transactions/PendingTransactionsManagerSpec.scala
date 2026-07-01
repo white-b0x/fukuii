@@ -28,9 +28,11 @@ import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.LegacyTransaction
+import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
 import com.chipprbots.ethereum.domain.TransactionWithDynamicFee
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.SendMessageCmd
 import com.chipprbots.ethereum.network.Peer
@@ -285,7 +287,7 @@ class PendingTransactionsManagerSpec
   it should "override transactions with the same sender and nonce" taggedAs (UnitTest) in new TestSetup:
     val firstTx: SignedTransactionWithSender = newStx(1, tx, keyPair1)
     val otherTx: SignedTransactionWithSender = newStx(1, tx, keyPair2)
-    val overrideTx: SignedTransactionWithSender = newStx(1, tx.copy(value = 2 * tx.value), keyPair1)
+    val overrideTx: SignedTransactionWithSender = newStx(1, tx.copy(value = tx.value * 2L), keyPair1)
 
     pendingTransactionsManager ! WrappedPeerEvent(PeerEvent.PeerHandshakeSuccessful(peer1, new HandshakeResult {}))
 
@@ -387,11 +389,11 @@ class PendingTransactionsManagerSpec
     OlympiaTest
   ) in new TestSetup:
     val zeroTipLegacy: LegacyTransaction = LegacyTransaction(
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       gasPrice = GasPrice.Zero, // tip = gasPrice - baseFee = 0 - 0 = 0 < minTip(1)
       gasLimit = GasAmount(21_000),
       receivingAddress = Some(Address(42)),
-      value = BigInt(0),
+      value = Wei(BigInt(0)),
       payload = ByteString.empty
     )
     val stx: SignedTransactionWithSender = newStx(0, zeroTipLegacy)
@@ -407,11 +409,11 @@ class PendingTransactionsManagerSpec
     OlympiaTest
   ) in new TestSetup:
     val validLegacy: LegacyTransaction = LegacyTransaction(
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       gasPrice = GasPrice(1), // tip = 1 - 0 = 1 >= minTip(1)
       gasLimit = GasAmount(21_000),
       receivingAddress = Some(Address(42)),
-      value = BigInt(0),
+      value = Wei(BigInt(0)),
       payload = ByteString.empty
     )
     val stx: SignedTransactionWithSender = newStx(0, validLegacy)
@@ -431,12 +433,12 @@ class PendingTransactionsManagerSpec
   ) in new TestSetupWithBaseFee:
     val zeroTipType2: TransactionWithDynamicFee = TransactionWithDynamicFee(
       chainId = BigInt(61),
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       maxPriorityFeePerGas = BigInt(0), // tip = 0 < minTip(1)
       maxFeePerGas = BaseFeeCalculator.InitialBaseFee, // = 1 gwei
       gasLimit = GasAmount(21_000),
       receivingAddress = Some(Address(42)),
-      value = BigInt(0),
+      value = Wei(BigInt(0)),
       payload = ByteString.empty,
       accessList = Nil
     )
@@ -454,12 +456,12 @@ class PendingTransactionsManagerSpec
   ) in new TestSetupWithBaseFee:
     val validType2: TransactionWithDynamicFee = TransactionWithDynamicFee(
       chainId = BigInt(61),
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       maxPriorityFeePerGas = BigInt(1), // effectiveTip = min(1, 1gwei+1 - 1gwei) = 1 >= minTip(1)
       maxFeePerGas = BaseFeeCalculator.InitialBaseFee + 1, // baseFee + 1 wei
       gasLimit = GasAmount(21_000),
       receivingAddress = Some(Address(42)),
-      value = BigInt(0),
+      value = Wei(BigInt(0)),
       payload = ByteString.empty,
       accessList = Nil
     )
@@ -478,23 +480,23 @@ class PendingTransactionsManagerSpec
     val baseFee = BaseFeeCalculator.InitialBaseFee
     val zeroTip: TransactionWithDynamicFee = TransactionWithDynamicFee(
       chainId = BigInt(61),
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       maxPriorityFeePerGas = BigInt(0),
       maxFeePerGas = baseFee,
       gasLimit = GasAmount(21_000),
       receivingAddress = Some(Address(42)),
-      value = BigInt(0),
+      value = Wei(BigInt(0)),
       payload = ByteString.empty,
       accessList = Nil
     )
     val validTip: TransactionWithDynamicFee = TransactionWithDynamicFee(
       chainId = BigInt(61),
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       maxPriorityFeePerGas = BigInt(1),
       maxFeePerGas = baseFee + 1,
       gasLimit = GasAmount(21_000),
       receivingAddress = Some(Address(42)),
-      value = BigInt(0),
+      value = Wei(BigInt(0)),
       payload = ByteString.empty,
       accessList = Nil
     )
@@ -557,7 +559,8 @@ class PendingTransactionsManagerSpec
     val keyPair1: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
     val keyPair2: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
 
-    val tx: LegacyTransaction = LegacyTransaction(1, GasPrice(1), GasAmount(1), Some(Address(42)), 10, ByteString(""))
+    val tx: LegacyTransaction =
+      LegacyTransaction(Nonce(1), GasPrice(1), GasAmount(1), Some(Address(42)), Wei(10), ByteString(""))
 
     def newStx(
         @scala.annotation.unused nonce: BigInt = 0,

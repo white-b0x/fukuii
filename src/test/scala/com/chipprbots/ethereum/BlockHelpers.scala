@@ -24,11 +24,11 @@ object BlockHelpers extends SecureRandomBuilder:
   )
 
   val defaultTx: LegacyTransaction = LegacyTransaction(
-    nonce = 42,
+    nonce = Nonce(42),
     gasPrice = GasPrice(1),
     gasLimit = GasAmount(90000),
     receivingAddress = Address(123),
-    value = 0,
+    value = Wei(0),
     payload = ByteString.empty
   )
 

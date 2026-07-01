@@ -65,12 +65,12 @@ class EIP1559FeeMarketSpec
   ): SignedTransaction =
     val tx = TransactionWithDynamicFee(
       chainId = config.chainId.value,
-      nonce = 0,
+      nonce = Nonce(0),
       maxPriorityFeePerGas = maxPriority,
       maxFeePerGas = maxFeePerGas,
       gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(1)),
-      value = BigInt(0),
+      value = Wei(0),
       payload = ByteString.empty,
       accessList = Nil
     )
@@ -78,11 +78,11 @@ class EIP1559FeeMarketSpec
 
   private def signLegacy(gasPrice: BigInt): SignedTransaction =
     val tx = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(gasPrice),
       gasLimit = GasAmount(21000),
       receivingAddress = Address(1),
-      value = BigInt(0),
+      value = Wei(0),
       payload = ByteString.empty
     )
     SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))

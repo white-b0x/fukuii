@@ -59,12 +59,12 @@ class OlympiaTxTypeAdmissionSpec
   private def signType2(): SignedTransaction =
     val tx = TransactionWithDynamicFee(
       chainId = config.chainId.value,
-      nonce = 0,
+      nonce = Nonce(0),
       maxPriorityFeePerGas = BigInt(1_000_000_000),
       maxFeePerGas = BigInt(2_000_000_000),
       gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(1)),
-      value = BigInt(0),
+      value = Wei(0),
       payload = ByteString.empty,
       accessList = Nil
     )
@@ -74,19 +74,19 @@ class OlympiaTxTypeAdmissionSpec
     val auth = SetCodeAuthorization(
       chainId = config.chainId.value,
       address = Address(1),
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       v = BigInt(0),
       r = BigInt(123456),
       s = BigInt(789012)
     )
     val tx = SetCodeTransaction(
       chainId = config.chainId.value,
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       maxPriorityFeePerGas = BigInt(1_000_000_000),
       maxFeePerGas = BigInt(2_000_000_000),
       gasLimit = GasAmount(50000),
       receivingAddress = Some(Address(1)),
-      value = BigInt(0),
+      value = Wei(0),
       payload = ByteString.empty,
       accessList = Nil,
       authorizationList = List(auth)
@@ -95,11 +95,11 @@ class OlympiaTxTypeAdmissionSpec
 
   private def signLegacy(): SignedTransaction =
     val tx = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(1_000_000_000),
       gasLimit = GasAmount(21000),
       receivingAddress = Address(1),
-      value = BigInt(0),
+      value = Wei(0),
       payload = ByteString.empty
     )
     SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))
@@ -147,11 +147,11 @@ class OlympiaTxTypeAdmissionSpec
 
   private def signLegacyContractCreate(): SignedTransaction =
     val tx = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(1_000_000_000),
       gasLimit = GasAmount(100000),
       receivingAddress = None,
-      value = BigInt(0),
+      value = Wei(0),
       payload = ByteString(0x60, 0x60)
     )
     SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))
@@ -159,11 +159,11 @@ class OlympiaTxTypeAdmissionSpec
   private def signType1(): SignedTransaction =
     val tx = TransactionWithAccessList(
       chainId = config.chainId.value,
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       gasPrice = GasPrice(1_000_000_000),
       gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(1)),
-      value = BigInt(0),
+      value = Wei(0),
       payload = ByteString.empty,
       accessList = Nil
     )

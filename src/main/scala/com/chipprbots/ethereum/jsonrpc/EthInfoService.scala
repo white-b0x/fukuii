@@ -295,7 +295,7 @@ class EthInfoService(
           GasPrice(req.tx.gasPrice),
           GasAmount(gasLimit),
           toAddress,
-          req.tx.value,
+          Wei(req.tx.value),
           req.tx.data
         )
       val fakeSignature = ECDSASignature(0, 0, 0)

@@ -29,11 +29,11 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers:
     implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = ChainId(61))
 
     val tx = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(BigInt(20000000000L)),
       gasLimit = GasAmount(21000),
       receivingAddress = Address("0x3535353535353535353535353535353535353535"),
-      value = BigInt("1000000000000000000"),
+      value = Wei(BigInt("1000000000000000000")),
       payload = ByteString.empty
     )
 
@@ -66,11 +66,11 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers:
     implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = ChainId(1337))
 
     val tx = LegacyTransaction(
-      nonce = 5,
+      nonce = Nonce(5),
       gasPrice = GasPrice(BigInt(30000000000L)),
       gasLimit = GasAmount(21000),
       receivingAddress = Address("0x1234567890123456789012345678901234567890"),
-      value = BigInt("2000000000000000000"),
+      value = Wei(BigInt("2000000000000000000")),
       payload = ByteString.empty
     )
 
@@ -109,11 +109,11 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers:
     implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = ChainId(42161))
 
     val tx = LegacyTransaction(
-      nonce = 10,
+      nonce = Nonce(10),
       gasPrice = GasPrice(BigInt(100000000)),
       gasLimit = GasAmount(21000),
       receivingAddress = Address("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"),
-      value = BigInt("5000000000000000"),
+      value = Wei(BigInt("5000000000000000")),
       payload = ByteString.empty
     )
 
@@ -149,11 +149,11 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers:
     implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = ChainId(61))
 
     val tx = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(BigInt(20000000000L)),
       gasLimit = GasAmount(21000),
       receivingAddress = Address("0x3535353535353535353535353535353535353535"),
-      value = BigInt("1000000000000000000"),
+      value = Wei(BigInt("1000000000000000000")),
       payload = ByteString.empty
     )
 
@@ -195,11 +195,11 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers:
 
   it should "handle transaction hash calculation with large chain IDs" taggedAs (UnitTest) in {
     val tx = LegacyTransaction(
-      nonce = 9,
+      nonce = Nonce(9),
       gasPrice = GasPrice(BigInt(20000000000L)),
       gasLimit = GasAmount(21000),
       receivingAddress = Address("0x3535353535353535353535353535353535353535"),
-      value = BigInt("1000000000000000000"),
+      value = Wei(BigInt("1000000000000000000")),
       payload = ByteString.empty
     )
 

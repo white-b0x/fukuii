@@ -98,7 +98,7 @@ trait ObjectGenerators:
     v <- Gen.choose(BigInt(0), BigInt(1))
     r <- bigIntGen
     s <- bigIntGen
-  yield SetCodeAuthorization(chainId, address, nonce, v, r, s)
+  yield SetCodeAuthorization(chainId, address, Nonce(nonce), v, r, s)
 
   def setCodeTransactionGen: Gen[SetCodeTransaction] = for
     chainId <- bigIntGen
@@ -113,12 +113,12 @@ trait ObjectGenerators:
     authorizationList <- Gen.listOfN(2, setCodeAuthorizationGen)
   yield SetCodeTransaction(
     chainId,
-    nonce,
+    Nonce(nonce),
     maxPriorityFeePerGas,
     maxFeePerGas,
     GasAmount(gasLimit),
     Some(receivingAddress),
-    value,
+    Wei(value),
     payload,
     accessList,
     authorizationList
@@ -135,11 +135,11 @@ trait ObjectGenerators:
     value <- bigIntGen
     payload <- byteStringOfLengthNGen(256)
   yield LegacyTransaction(
-    nonce,
+    Nonce(nonce),
     GasPrice(gasPrice),
     GasAmount(gasLimit),
     receivingAddress,
-    value,
+    Wei(value),
     payload
   )
 
@@ -154,11 +154,11 @@ trait ObjectGenerators:
     accessList <- Gen.listOf(accessListItemGen)
   yield TransactionWithAccessList(
     chainId,
-    nonce,
+    Nonce(nonce),
     GasPrice(gasPrice),
     GasAmount(gasLimit),
     receivingAddress,
-    value,
+    Wei(value),
     payload,
     accessList
   )
@@ -175,12 +175,12 @@ trait ObjectGenerators:
     accessList <- Gen.listOf(accessListItemGen)
   yield TransactionWithDynamicFee(
     chainId,
-    nonce,
+    Nonce(nonce),
     maxPriorityFeePerGas,
     maxFeePerGas,
     GasAmount(gasLimit),
     receivingAddress,
-    value,
+    Wei(value),
     payload,
     accessList
   )

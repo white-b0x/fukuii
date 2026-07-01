@@ -21,6 +21,8 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.LegacyTransaction
+import com.chipprbots.ethereum.domain.Nonce
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
 import com.chipprbots.ethereum.faucet.FaucetConfig
 import com.chipprbots.ethereum.faucet.RpcClientConfig
@@ -51,11 +53,11 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory:
 
     val tx: SignedTransactionWithSender = wallet.signTx(
       LegacyTransaction(
-        currentNonce,
+        Nonce(currentNonce),
         GasPrice(config.txGasPrice),
         GasAmount(config.txGasLimit),
         receivingAddress,
-        config.txValue,
+        Wei(config.txValue),
         ByteString()
       ),
       None

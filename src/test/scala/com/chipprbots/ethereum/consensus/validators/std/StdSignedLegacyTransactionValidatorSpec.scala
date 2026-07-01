@@ -27,11 +27,11 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers:
 
   // From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
   val txBeforeHomestead: LegacyTransaction = LegacyTransaction(
-    nonce = 81,
+    nonce = Nonce(81),
     gasPrice = GasPrice(BigInt("60000000000")),
     gasLimit = GasAmount(21000),
     receivingAddress = Address(Hex.decode("32be343b94f860124dc4fee278fdcbd38c102d88")),
-    value = BigInt("1143962220000000000"),
+    value = Wei(BigInt("1143962220000000000")),
     payload = ByteString.empty
   )
   val signedTxBeforeHomestead: SignedTransaction = SignedTransaction(
@@ -43,11 +43,11 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers:
 
   // From block 0xdc7874d8ea90b63aa0ba122055e514db8bb75c0e7d51a448abd12a31ca3370cf with number 1200003 (tx index 0)
   val txAfterHomestead: LegacyTransaction = LegacyTransaction(
-    nonce = 1631,
+    nonce = Nonce(1631),
     gasPrice = GasPrice(BigInt("30000000000")),
     gasLimit = GasAmount(21000),
     receivingAddress = Address(Hex.decode("1e0cf4971f42462823b122a9a0a2206902b51132")),
-    value = BigInt("1050230460000000000"),
+    value = Wei(BigInt("1050230460000000000")),
     payload = ByteString.empty
   )
   val signedTxAfterHomestead: SignedTransaction = SignedTransaction(
@@ -60,10 +60,10 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers:
   val senderBalance = 100
 
   val senderAccountBeforeHomestead: Account =
-    Account.empty(UInt256(txBeforeHomestead.nonce)).copy(balance = senderBalance)
+    Account.empty(UInt256(txBeforeHomestead.nonce.value)).copy(balance = senderBalance)
 
   val senderAccountAfterHomestead: Account =
-    Account.empty(UInt256(txAfterHomestead.nonce)).copy(balance = senderBalance)
+    Account.empty(UInt256(txAfterHomestead.nonce.value)).copy(balance = senderBalance)
 
   val blockHeaderBeforeHomestead: BlockHeader =
     Fixtures.Blocks.Block3125369.header.copy(number = BlockNumber(1100000), gasLimit = GasAmount(4700000))
@@ -105,7 +105,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers:
   it should "report as syntactic invalid a tx with long nonce" taggedAs (UnitTest, ConsensusTest) in {
     val invalidNonce = (0 until LegacyTransaction.NonceLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidNonce =
-      signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(nonce = BigInt(invalidNonce)))
+      signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(nonce = Nonce(BigInt(invalidNonce))))
     validateStx(signedTxWithInvalidNonce, fromBeforeHomestead = true) match
       case Left(_: TransactionSyntaxError) => succeed
       case _                               => fail()
@@ -132,7 +132,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers:
   it should "report as syntactic invalid a tx with long value" taggedAs (UnitTest, ConsensusTest) in {
     val invalidValue = (0 until LegacyTransaction.ValueLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidValue =
-      signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(value = BigInt(invalidValue)))
+      signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(value = Wei(BigInt(invalidValue))))
     validateStx(signedTxWithInvalidValue, fromBeforeHomestead = true) match
       case Left(_: TransactionSyntaxError) => succeed
       case _                               => fail()
@@ -176,7 +176,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "report as invalid a tx with invalid nonce" taggedAs (UnitTest, ConsensusTest) in {
-    val txWithInvalidNonce = txAfterHomestead.copy(nonce = txAfterHomestead.nonce + 1)
+    val txWithInvalidNonce = txAfterHomestead.copy(nonce = Nonce(txAfterHomestead.nonce.value + 1))
     val signedTxWithInvalidNonce = signedTxAfterHomestead.copy(tx = txWithInvalidNonce)
     validateStx(signedTxWithInvalidNonce, fromBeforeHomestead = false) match
       case Left(_: TransactionNonceError) => succeed

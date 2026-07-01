@@ -67,11 +67,11 @@ class SignedTransactionStatelessFilterSpec extends AnyFlatSpec with Matchers:
 
   private def makeCreateTx(gasLimit: BigInt): SignedTransaction = SignedTransaction(
     tx = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(BigInt("1000000000")),
       gasLimit = GasAmount(gasLimit),
       receivingAddress = None, // contract creation
-      value = BigInt(0),
+      value = Wei(0),
       payload = initcode
     ),
     pointSign = 0x1b.toByte,
@@ -107,11 +107,11 @@ class SignedTransactionStatelessFilterSpec extends AnyFlatSpec with Matchers:
     val callGasLimit: BigInt = BigInt(21000) + BigInt(1024) * 16 // 37384
     val callTx = SignedTransaction(
       tx = LegacyTransaction(
-        nonce = 0,
+        nonce = Nonce(0),
         gasPrice = GasPrice(BigInt("1000000000")),
         gasLimit = GasAmount(callGasLimit),
         receivingAddress = Some(Address(0xcafe)),
-        value = BigInt(0),
+        value = Wei(0),
         payload = initcode
       ),
       pointSign = 0x1b.toByte,
@@ -129,11 +129,11 @@ class SignedTransactionStatelessFilterSpec extends AnyFlatSpec with Matchers:
   private def makeCallTxWithNonce(n: BigInt): SignedTransaction =
     SignedTransaction(
       tx = LegacyTransaction(
-        nonce = n,
+        nonce = Nonce(n),
         gasPrice = GasPrice(BigInt("1000000000")),
         gasLimit = GasAmount(21000),
         receivingAddress = Some(Address(0xcafe)),
-        value = BigInt(0),
+        value = Wei(0),
         payload = ByteString.empty
       ),
       pointSign = 0x1b.toByte,

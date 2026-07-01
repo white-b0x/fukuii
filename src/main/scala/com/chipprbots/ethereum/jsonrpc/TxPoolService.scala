@@ -172,7 +172,7 @@ class TxPoolService(
         case "gasPrice" =>
           compareNumerically(tx.gasPrice.value, f.predicate, BigInt(f.value.stripPrefix("0x"), 16))
         case "value" =>
-          compareNumerically(tx.value, f.predicate, BigInt(f.value.stripPrefix("0x"), 16))
+          compareNumerically(tx.value.value, f.predicate, BigInt(f.value.stripPrefix("0x"), 16))
         case "nonce" =>
           val n =
             if f.value.startsWith("0x") then BigInt(f.value.stripPrefix("0x"), 16)

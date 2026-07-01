@@ -116,7 +116,7 @@ object TransactionResponse:
       transactionIndex = transactionIndex.map(txIndex => BigInt(txIndex)),
       from = SignedTransaction.getSender(stx).map(_.bytes),
       to = stx.tx.receivingAddress.map(_.bytes),
-      value = stx.tx.value,
+      value = stx.tx.value.value,
       gasPrice = effectiveGasPrice,
       gas = stx.tx.gasLimit.value,
       input = stx.tx.payload,

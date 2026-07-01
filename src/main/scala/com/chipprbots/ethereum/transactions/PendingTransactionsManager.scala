@@ -262,7 +262,7 @@ object PendingTransactionsManager:
                 val nonceValid =
                   tx.nonce.value >= account.nonce.toBigInt && tx.nonce.value < account.nonce.toBigInt + 1024
                 val maxGasCost = tx.gasLimit.value * tx.gasPrice.value
-                val totalCost = tx.value + maxGasCost
+                val totalCost = tx.value.value + maxGasCost
                 val balanceValid = account.balance.toBigInt >= totalCost
                 nonceValid && balanceValid
               }

@@ -18,6 +18,7 @@ import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.ledger.StxLedger
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -390,6 +391,7 @@ class DebugTracingService(
       .getOrElse(Address(0))
     val toAddress = callTx.to.map(Address.apply)
 
-    val tx = LegacyTransaction(Nonce.Zero, GasPrice(callTx.gasPrice), gasLimit, toAddress, callTx.value, callTx.data)
+    val tx =
+      LegacyTransaction(Nonce.Zero, GasPrice(callTx.gasPrice), gasLimit, toAddress, Wei(callTx.value), callTx.data)
     val fakeSignature = ECDSASignature(0, 0, 0)
     Right(SignedTransactionWithSender(tx, fakeSignature, fromAddress))

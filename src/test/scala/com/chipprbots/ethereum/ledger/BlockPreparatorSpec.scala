@@ -238,7 +238,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
       val initialOriginNonce = defaultTx.nonce
 
       val initialWorld = emptyWorld
-        .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
+        .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce.value), balance = initialOriginBalance))
 
       val stx = SignedTransactionWithSender(
         SignedTransaction.sign(defaultTx, originKeyPair, Some(blockchainConfig.chainId.value)),
@@ -441,12 +441,12 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
       val numBlobs = 2
       val blobTx = BlobTransaction(
         chainId = pragueConfig.chainId.value,
-        nonce = 1,
+        nonce = Nonce(1),
         maxPriorityFeePerGas = 1,
         maxFeePerGas = 1000,
         gasLimit = GasAmount(21000),
         receivingAddress = Some(receiverAddress),
-        value = 0,
+        value = Wei(0),
         payload = ByteString.empty,
         accessList = Nil,
         maxFeePerBlobGas = 1000,

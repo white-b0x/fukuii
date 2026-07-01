@@ -5,8 +5,9 @@ import org.apache.pekko.util.ByteString
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
-import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.LegacyTransaction
+import com.chipprbots.ethereum.domain.Nonce
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.utils.Config
 
 case class TransactionRequest(
@@ -30,7 +31,7 @@ case class TransactionRequest(
       gasPrice = GasPrice(gasPrice.getOrElse(suggestedGasPrice)),
       gasLimit = GasAmount(gasLimit.getOrElse(defaultGasLimit)),
       receivingAddress = if Config.testmode then to.filter(_ != Address(0)) else to,
-      value = value.getOrElse(BigInt(0)),
+      value = Wei(value.getOrElse(BigInt(0))),
       payload = data.getOrElse(ByteString.empty)
     )
 

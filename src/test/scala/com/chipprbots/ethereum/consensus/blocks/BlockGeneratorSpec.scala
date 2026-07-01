@@ -180,7 +180,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
   ) in new TestSetup:
     val txWitGasTooBigGasLimit: SignedTransaction = SignedTransaction
       .sign(
-        transaction.copy(gasLimit = GasAmount(BigInt(2).pow(100000)), nonce = signedTransaction.tx.nonce + 1),
+        transaction
+          .copy(gasLimit = GasAmount(BigInt(2).pow(100000)), nonce = Nonce(signedTransaction.tx.nonce.value + 1)),
         keyPair,
         Some(BigInt(0x3d))
       )
@@ -254,7 +255,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
 
     val generalTx: SignedTransaction = SignedTransaction.sign(transaction, keyPair, None)
     val specificTx: SignedTransaction =
-      SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, Some(BigInt(0x3d)))
+      SignedTransaction.sign(transaction.copy(nonce = Nonce(transaction.nonce.value + 1)), keyPair, Some(BigInt(0x3d)))
 
     val pendingBlock: PendingBlock =
       blockGenerator
@@ -323,11 +324,11 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
       )
 
     val transaction1: LegacyTransaction = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(1),
       gasLimit = GasAmount(1000000),
       receivingAddress = None,
-      value = 0,
+      value = Wei(0),
       payload = ByteString.empty
     )
     val generalTx: SignedTransaction = SignedTransaction.sign(transaction1, keyPair, None)
@@ -344,7 +345,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
     ConsensusTest
   ) in new TestSetup:
     val generalTx: SignedTransaction =
-      SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, None)
+      SignedTransaction.sign(transaction.copy(nonce = Nonce(transaction.nonce.value + 1)), keyPair, None)
 
     val pendingBlock: PendingBlock =
       blockGenerator
@@ -384,7 +385,11 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
 
   it should "include consecutive transactions from single sender" taggedAs (UnitTest, ConsensusTest) in new TestSetup:
     val nextTransaction: SignedTransaction =
-      SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.nonce + 1), keyPair, Some(BigInt(0x3d)))
+      SignedTransaction.sign(
+        transaction.copy(nonce = Nonce(signedTransaction.tx.nonce.value + 1)),
+        keyPair,
+        Some(BigInt(0x3d))
+      )
 
     val pendingBlock: PendingBlock =
       blockGenerator
@@ -427,17 +432,21 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
     ConsensusTest
   ) in new TestSetup:
     val nextTransaction: SignedTransaction =
-      SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.nonce + 1), keyPair, Some(BigInt(0x3d)))
+      SignedTransaction.sign(
+        transaction.copy(nonce = Nonce(signedTransaction.tx.nonce.value + 1)),
+        keyPair,
+        Some(BigInt(0x3d))
+      )
 
     val privateKeyWithNoEthere: BigInt =
       BigInt(1, Hex.decode("584a31be275195585603ddd05a53d16fae9deafba67213b6060cec9f16e44cae"))
 
     val failingTransaction: LegacyTransaction = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(1),
       gasLimit = GasAmount(txGasLimit),
       receivingAddress = Address(testAddress),
-      value = txTransfer,
+      value = Wei(txTransfer),
       payload = ByteString.empty
     )
     val signedFailingTransaction: SignedTransaction =
@@ -531,21 +540,21 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
     val txGasLimit = 21000
     val txTransfer = 9000
     val transaction: LegacyTransaction = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(1),
       gasLimit = GasAmount(txGasLimit),
       receivingAddress = Address(testAddress),
-      value = txTransfer,
+      value = Wei(txTransfer),
       payload = ByteString.empty
     )
 
     val typedTransaction: TypedTransaction = TransactionWithAccessList(
       chainId = BigInt(61), // ethereum classic mainnet
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(1),
       gasLimit = GasAmount(txGasLimit),
       receivingAddress = Address(testAddress),
-      value = txTransfer,
+      value = Wei(txTransfer),
       payload = ByteString.empty,
       accessList = Nil
     )

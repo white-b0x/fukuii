@@ -22,12 +22,12 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers:
   "TransactionWithDynamicFee" should "roundtrip through boopickle" taggedAs (OlympiaTest, UnitTest) in {
     val tx: Transaction = TransactionWithDynamicFee(
       chainId = BigInt(63),
-      nonce = BigInt(42),
+      nonce = Nonce(BigInt(42)),
       maxPriorityFeePerGas = BigInt(1000000000),
       maxFeePerGas = BigInt(2000000000),
       gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(1)),
-      value = BigInt(1000),
+      value = Wei(BigInt(1000)),
       payload = ByteString.empty,
       accessList = Nil
     )
@@ -39,19 +39,19 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers:
     val auth = SetCodeAuthorization(
       chainId = BigInt(63),
       address = Address(2),
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       v = BigInt(0),
       r = BigInt(123456),
       s = BigInt(789012)
     )
     val tx: Transaction = SetCodeTransaction(
       chainId = BigInt(63),
-      nonce = BigInt(1),
+      nonce = Nonce(BigInt(1)),
       maxPriorityFeePerGas = BigInt(1000000000),
       maxFeePerGas = BigInt(2000000000),
       gasLimit = GasAmount(50000),
       receivingAddress = Some(Address(3)),
-      value = BigInt(0),
+      value = Wei(BigInt(0)),
       payload = ByteString(Array(0x01.toByte, 0x02.toByte)),
       accessList = Nil,
       authorizationList = List(auth)
@@ -74,21 +74,21 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers:
 
   "Mixed transaction types" should "roundtrip in sequence" taggedAs (OlympiaTest, UnitTest) in {
     val legacy: Transaction = LegacyTransaction(
-      nonce = BigInt(0),
+      nonce = Nonce(BigInt(0)),
       gasPrice = GasPrice(BigInt(20000000000L)),
       gasLimit = GasAmount(21000),
       receivingAddress = Address(1),
-      value = BigInt(1000),
+      value = Wei(BigInt(1000)),
       payload = ByteString.empty
     )
     val dynamic: Transaction = TransactionWithDynamicFee(
       chainId = BigInt(63),
-      nonce = BigInt(1),
+      nonce = Nonce(BigInt(1)),
       maxPriorityFeePerGas = BigInt(1000000000),
       maxFeePerGas = BigInt(2000000000),
       gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(2)),
-      value = BigInt(0),
+      value = Wei(BigInt(0)),
       payload = ByteString.empty,
       accessList = Nil
     )

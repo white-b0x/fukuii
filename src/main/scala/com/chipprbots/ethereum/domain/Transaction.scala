@@ -9,7 +9,7 @@ sealed trait Transaction extends Product with Serializable:
   def gasPrice: GasPrice
   def gasLimit: GasAmount
   def receivingAddress: Option[Address]
-  def value: BigInt
+  def value: Wei
   def payload: ByteString
 
   def isContractInit: Boolean = receivingAddress.isEmpty
@@ -82,7 +82,7 @@ object LegacyTransaction:
       gasPrice: GasPrice,
       gasLimit: GasAmount,
       receivingAddress: Address,
-      value: BigInt,
+      value: Wei,
       payload: ByteString
   ): LegacyTransaction =
     LegacyTransaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
@@ -92,7 +92,7 @@ case class LegacyTransaction(
     gasPrice: GasPrice,
     gasLimit: GasAmount,
     receivingAddress: Option[Address],
-    value: BigInt,
+    value: Wei,
     payload: ByteString
 ) extends Transaction:
 
@@ -113,7 +113,7 @@ object TransactionWithAccessList:
       gasPrice: GasPrice,
       gasLimit: GasAmount,
       receivingAddress: Address,
-      value: BigInt,
+      value: Wei,
       payload: ByteString,
       accessList: List[AccessListItem]
   ): TransactionWithAccessList =
@@ -125,7 +125,7 @@ case class TransactionWithAccessList(
     gasPrice: GasPrice,
     gasLimit: GasAmount,
     receivingAddress: Option[Address],
-    value: BigInt,
+    value: Wei,
     payload: ByteString,
     accessList: List[AccessListItem]
 ) extends TypedTransaction:
@@ -148,7 +148,7 @@ object TransactionWithDynamicFee:
       maxFeePerGas: BigInt,
       gasLimit: GasAmount,
       receivingAddress: Address,
-      value: BigInt,
+      value: Wei,
       payload: ByteString,
       accessList: List[AccessListItem]
   ): TransactionWithDynamicFee =
@@ -174,7 +174,7 @@ case class TransactionWithDynamicFee(
     maxFeePerGas: BigInt,
     gasLimit: GasAmount,
     receivingAddress: Option[Address],
-    value: BigInt,
+    value: Wei,
     payload: ByteString,
     accessList: List[AccessListItem]
 ) extends TypedTransaction:
@@ -207,7 +207,7 @@ case class BlobTransaction(
     maxFeePerGas: BigInt,
     gasLimit: GasAmount,
     receivingAddress: Option[Address],
-    value: BigInt,
+    value: Wei,
     payload: ByteString,
     accessList: List[AccessListItem],
     maxFeePerBlobGas: BigInt,
@@ -237,7 +237,7 @@ object BlobTransaction:
       maxFeePerGas: BigInt,
       gasLimit: GasAmount,
       receivingAddress: Address,
-      value: BigInt,
+      value: Wei,
       payload: ByteString,
       accessList: List[AccessListItem],
       maxFeePerBlobGas: BigInt,
@@ -278,7 +278,7 @@ case class SetCodeTransaction(
     maxFeePerGas: BigInt,
     gasLimit: GasAmount,
     receivingAddress: Option[Address],
-    value: BigInt,
+    value: Wei,
     payload: ByteString,
     accessList: List[AccessListItem],
     authorizationList: List[SetCodeAuthorization]

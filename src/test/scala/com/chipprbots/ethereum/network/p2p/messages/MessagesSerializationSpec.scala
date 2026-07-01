@@ -9,8 +9,10 @@ import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.TransactionWithAccessList
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.forkid.ForkId
 import com.chipprbots.ethereum.network.p2p.EthereumMessageDecoder
 import com.chipprbots.ethereum.network.p2p.NetworkMessageDecoder
@@ -97,11 +99,11 @@ class MessagesSerializationSpec extends AnyWordSpec with Matchers:
       "return same result for typed (EIP-2930) transaction wire encoding" in {
         val typedTx = TransactionWithAccessList(
           chainId = 1,
-          nonce = 1,
+          nonce = Nonce(1),
           gasPrice = GasPrice(1),
           gasLimit = GasAmount(21000),
           receivingAddress = None,
-          value = 0,
+          value = Wei(0),
           payload = ByteString.empty,
           accessList = Nil
         )

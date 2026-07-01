@@ -91,11 +91,11 @@ class StdBlockValidatorSpec extends AnyFlatSpec with Matchers:
     transactionList = Seq[SignedTransaction](
       SignedTransaction(
         tx = LegacyTransaction(
-          nonce = BigInt("438550"),
+          nonce = Nonce(BigInt("438550")),
           gasPrice = GasPrice(BigInt("20000000000")),
           gasLimit = GasAmount(BigInt("50000")),
           receivingAddress = Address(ByteString(Hex.decode("ee4439beb5c71513b080bbf9393441697a29f478"))),
-          value = BigInt("1265230129703017984"),
+          value = Wei(BigInt("1265230129703017984")),
           payload = ByteString.empty
         ),
         pointSign = 0x9d.toByte,
@@ -104,11 +104,11 @@ class StdBlockValidatorSpec extends AnyFlatSpec with Matchers:
       ),
       SignedTransaction(
         tx = LegacyTransaction(
-          nonce = BigInt("438551"),
+          nonce = Nonce(BigInt("438551")),
           gasPrice = GasPrice(BigInt("20000000000")),
           gasLimit = GasAmount(BigInt("50000")),
           receivingAddress = Address(ByteString(Hex.decode("c68e9954c7422f479e344faace70c692217ea05b"))),
-          value = BigInt("656010196207162880"),
+          value = Wei(BigInt("656010196207162880")),
           payload = ByteString.empty
         ),
         pointSign = 0x9d.toByte,
@@ -117,11 +117,11 @@ class StdBlockValidatorSpec extends AnyFlatSpec with Matchers:
       ),
       SignedTransaction(
         tx = LegacyTransaction(
-          nonce = BigInt("438552"),
+          nonce = Nonce(BigInt("438552")),
           gasPrice = GasPrice(BigInt("20000000000")),
           gasLimit = GasAmount(BigInt("50000")),
           receivingAddress = Address(ByteString(Hex.decode("19c5a95eeae4446c5d24363eab4355157e4f828b"))),
-          value = BigInt("3725976610361427456"),
+          value = Wei(BigInt("3725976610361427456")),
           payload = ByteString.empty
         ),
         pointSign = 0x9d.toByte,
@@ -130,11 +130,11 @@ class StdBlockValidatorSpec extends AnyFlatSpec with Matchers:
       ),
       SignedTransaction(
         tx = LegacyTransaction(
-          nonce = BigInt("438553"),
+          nonce = Nonce(BigInt("438553")),
           gasPrice = GasPrice(BigInt("20000000000")),
           gasLimit = GasAmount(BigInt("50000")),
           receivingAddress = Address(ByteString(Hex.decode("3435be928d783b7c48a2c3109cba0d97d680747a"))),
-          value = BigInt("108516826677274384"),
+          value = Wei(BigInt("108516826677274384")),
           payload = ByteString.empty
         ),
         pointSign = 0x9d.toByte,

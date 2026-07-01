@@ -489,7 +489,7 @@ object GraphQLSchema:
               GAccount(addr.bytes, blockNum)
             }
         ),
-        Field("value", BigIntType, resolve = _.value.stx.tx.value),
+        Field("value", BigIntType, resolve = _.value.stx.tx.value.value),
         Field("gasPrice", BigIntType, resolve = _.value.stx.tx.gasPrice.value),
         Field("maxFeePerGas", OptionType(BigIntType), resolve = c => txMaxFeePerGas(c.value.stx.tx)),
         Field("maxPriorityFeePerGas", OptionType(BigIntType), resolve = c => txMaxPriorityFeePerGas(c.value.stx.tx)),

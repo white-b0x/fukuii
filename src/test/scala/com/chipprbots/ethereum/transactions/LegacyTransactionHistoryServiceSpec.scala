@@ -49,19 +49,19 @@ class LegacyTransactionHistoryServiceSpec
 
     val tx1 =
       SignedTransaction.sign(
-        LegacyTransaction(0, GasPrice(123), GasAmount(456), Some(address), 1, ByteString()),
+        LegacyTransaction(Nonce(0), GasPrice(123), GasAmount(456), Some(address), Wei(1), ByteString()),
         keyPair,
         None
       )
     val tx2 =
       SignedTransaction.sign(
-        LegacyTransaction(0, GasPrice(123), GasAmount(456), Some(address), 2, ByteString()),
+        LegacyTransaction(Nonce(0), GasPrice(123), GasAmount(456), Some(address), Wei(2), ByteString()),
         keyPair,
         None
       )
     val tx3 =
       SignedTransaction.sign(
-        LegacyTransaction(0, GasPrice(123), GasAmount(456), Some(address), 3, ByteString()),
+        LegacyTransaction(Nonce(0), GasPrice(123), GasAmount(456), Some(address), Wei(3), ByteString()),
         keyPair,
         None
       )
@@ -119,7 +119,7 @@ class LegacyTransactionHistoryServiceSpec
 
       val keyPair = generateKeyPair(secureRandom)
 
-      val tx = LegacyTransaction(0, GasPrice(123), GasAmount(456), None, 99, ByteString())
+      val tx = LegacyTransaction(Nonce(0), GasPrice(123), GasAmount(456), None, Wei(99), ByteString())
       val signedTx = SignedTransaction.sign(tx, keyPair, None)
       val txWithSender = SignedTransactionWithSender(signedTx, Address(keyPair))
 

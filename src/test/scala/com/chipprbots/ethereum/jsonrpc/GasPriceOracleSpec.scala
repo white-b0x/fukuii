@@ -109,11 +109,11 @@ class GasPriceOracleSpec
     */
   private def fakeTx(price: BigInt): SignedTransaction = SignedTransaction(
     LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(price),
       gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(zeroAddr)),
-      value = 0,
+      value = Wei(0),
       payload = ByteString.empty
     ),
     // v=27 = pre-EIP-155; r/s=1 = non-zero but invalid sig → getSender returns None

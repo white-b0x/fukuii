@@ -586,11 +586,11 @@ class JsonRpcControllerEthLegacyTransactionSpec
     val transactions: IndexedSeq[PendingTransaction] = (0 to 1).map { _ =>
       val fakeTransaction = SignedTransactionWithSender(
         LegacyTransaction(
-          nonce = 0,
+          nonce = Nonce(0),
           gasPrice = GasPrice(123),
           gasLimit = GasAmount(123),
           receivingAddress = Address("0x1234"),
-          value = 0,
+          value = Wei(0),
           payload = ByteString()
         ),
         signature = ECDSASignature(0, 0, 0),

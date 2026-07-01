@@ -246,7 +246,7 @@ object EthSimulateJsonMethodsImplicits extends JsonMethodsImplicits:
           "to" -> tx.receivingAddress.map(a => encodeAsHex(a.bytes)).getOrElse(JNull),
           "transactionIndex" -> encodeAsHex(BigInt(txIdx)),
           "type" -> encodeAsHex(txType),
-          "value" -> encodeAsHex(tx.value),
+          "value" -> encodeAsHex(tx.value.value),
           "v" -> encodeAsHex(BigInt(0)),
           "r" -> encodeAsHex(BigInt(0)),
           "s" -> encodeAsHex(BigInt(0)),

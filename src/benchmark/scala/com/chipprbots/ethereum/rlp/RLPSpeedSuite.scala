@@ -76,11 +76,11 @@ class RLPSpeedSuite
 
   val validTransaction = SignedTransaction(
     LegacyTransaction(
-      nonce = 172320,
+      nonce = Nonce(172320),
       gasPrice = GasPrice(BigInt("50000000000")),
       gasLimit = GasAmount(90000),
       receivingAddress = Address(Hex.decode("1c51bf013add0857c5d9cf2f71a7f15ca93d4816")),
-      value = BigInt("1049756850000000000"),
+      value = Wei(BigInt("1049756850000000000")),
       payload = ByteString.empty
     ),
     pointSign = 28,

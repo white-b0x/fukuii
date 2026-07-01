@@ -396,11 +396,11 @@ class EthTxServiceSpec
     val transactions: List[PendingTransaction] = (0 to 1).map { _ =>
       val fakeTransaction = SignedTransactionWithSender(
         LegacyTransaction(
-          nonce = 0,
+          nonce = Nonce(0),
           gasPrice = GasPrice(123),
           gasLimit = GasAmount(123),
           receivingAddress = Address("0x1234"),
-          value = 0,
+          value = Wei(0),
           payload = ByteString()
         ),
         signature = ECDSASignature(0, 0, 0),
@@ -473,11 +473,11 @@ class EthTxServiceSpec
     // //tx 0xb7b8cc9154896b25839ede4cd0c2ad193adf06489fdd9c0a9dfce05620c04ec1
     val contractCreatingTransaction: SignedTransaction = SignedTransaction(
       LegacyTransaction(
-        nonce = 2550,
+        nonce = Nonce(2550),
         gasPrice = GasPrice(BigInt("20000000000")),
         gasLimit = GasAmount(3000000),
         receivingAddress = None,
-        value = 0,
+        value = Wei(0),
         payload
       ),
       v,

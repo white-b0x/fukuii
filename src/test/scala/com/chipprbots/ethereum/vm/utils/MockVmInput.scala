@@ -9,7 +9,9 @@ import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.LegacyTransaction
+import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SignedTransaction
+import com.chipprbots.ethereum.domain.Wei
 
 object MockVmInput:
 
@@ -36,7 +38,7 @@ object MockVmInput:
       nonce: BigInt = 0
   ): SignedTransaction =
     new MockTransaction(
-      LegacyTransaction(nonce, GasPrice(gasPrice), gasLimit, receivingAddress, value, payload),
+      LegacyTransaction(Nonce(nonce), GasPrice(gasPrice), gasLimit, receivingAddress, Wei(value), payload),
       senderAddress
     )
 

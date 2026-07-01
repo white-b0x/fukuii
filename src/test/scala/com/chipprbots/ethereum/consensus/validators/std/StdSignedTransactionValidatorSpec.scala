@@ -69,11 +69,11 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers:
 
   // Contract creation (receivingAddress = None) with oversized initcode.
   private val initcodeTx: LegacyTransaction = LegacyTransaction(
-    nonce = 0,
+    nonce = Nonce(0),
     gasPrice = GasPrice(BigInt("1000000000")),
     gasLimit = GasAmount(BigInt("1000000")),
     receivingAddress = None,
-    value = BigInt(0),
+    value = Wei(BigInt(0)),
     payload = overLimitPayload
   )
 
@@ -153,11 +153,11 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers:
   private val wordCostPayload: ByteString = ByteString(Array.fill(200)(1.toByte))
 
   private val wordCostTx: LegacyTransaction = LegacyTransaction(
-    nonce = 0,
+    nonce = Nonce(0),
     gasPrice = GasPrice(BigInt("1000000000")),
     gasLimit = GasAmount(BigInt(56213)), // 56214 - 1: below post-Shanghai intrinsic, above pre-Shanghai
     receivingAddress = None,
-    value = BigInt(0),
+    value = Wei(BigInt(0)),
     payload = wordCostPayload
   )
 
@@ -231,12 +231,12 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers:
   private def signedBlobTx(maxFeePerBlobGas: BigInt): SignedTransaction = SignedTransaction(
     BlobTransaction(
       chainId = BigInt(1),
-      nonce = 0,
+      nonce = Nonce(0),
       maxPriorityFeePerGas = BigInt(0),
       maxFeePerGas = BigInt(2_000_000_000L),
       gasLimit = GasAmount(BigInt(1_000_000)),
       receivingAddress = Some(Address(0L)),
-      value = BigInt(0),
+      value = Wei(0),
       payload = ByteString.empty,
       accessList = Nil,
       maxFeePerBlobGas = maxFeePerBlobGas,
@@ -308,11 +308,11 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers:
 
   private def signedTxWithNonce(n: BigInt): SignedTransaction = SignedTransaction(
     LegacyTransaction(
-      nonce = n,
+      nonce = Nonce(n),
       gasPrice = GasPrice(BigInt("1000000000")),
       gasLimit = GasAmount(BigInt("100000")),
       receivingAddress = Some(Address(0xcafe)),
-      value = BigInt(0),
+      value = Wei(0),
       payload = ByteString.empty
     ),
     pointSign = 0x1b.toByte,

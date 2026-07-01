@@ -766,7 +766,7 @@ class EthSimulateService(
             maxFeePerGas = call.maxFeePerGas.getOrElse(BigInt(0)),
             gasLimit = GasAmount(gasLimit),
             receivingAddress = toAddr,
-            value = value,
+            value = Wei(value),
             payload = payload,
             accessList = call.accessList.getOrElse(Nil),
             maxFeePerBlobGas = call.maxFeePerBlobGas.getOrElse(BigInt(0)),
@@ -780,7 +780,7 @@ class EthSimulateService(
             maxFeePerGas = call.maxFeePerGas.getOrElse(BigInt(0)),
             gasLimit = GasAmount(gasLimit),
             receivingAddress = toAddr,
-            value = value,
+            value = Wei(value),
             payload = payload,
             accessList = call.accessList.getOrElse(Nil)
           )
@@ -790,7 +790,7 @@ class EthSimulateService(
             gasPrice = GasPrice(gasPrice),
             gasLimit = GasAmount(gasLimit),
             receivingAddress = toAddr,
-            value = value,
+            value = Wei(value),
             payload = payload
           )
 

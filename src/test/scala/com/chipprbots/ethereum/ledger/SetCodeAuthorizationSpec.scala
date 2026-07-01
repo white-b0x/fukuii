@@ -69,7 +69,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
     )
     val sig = ECDSASignature.sign(sigHash, keyPair)
     val yParity = if sig.v == ECDSASignature.negativePointSign then BigInt(0) else BigInt(1)
-    SetCodeAuthorization(chainId, target, nonce, yParity, sig.r, sig.s)
+    SetCodeAuthorization(chainId, target, Nonce(nonce), yParity, sig.r, sig.s)
 
   private def buildWorld(
       extra: Map[Address, Account] = Map.empty,
@@ -85,12 +85,12 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
   ): SignedTransaction =
     val tx = SetCodeTransaction(
       chainId = olympiaConfig.chainId.value,
-      nonce = senderNonce,
+      nonce = Nonce(senderNonce),
       maxPriorityFeePerGas = BigInt(0),
       maxFeePerGas = BigInt(2_000_000_000),
       gasLimit = GasAmount(500_000),
       receivingAddress = Some(Address(1)),
-      value = BigInt(0),
+      value = Wei(BigInt(0)),
       payload = ByteString.empty,
       accessList = Nil,
       authorizationList = authList

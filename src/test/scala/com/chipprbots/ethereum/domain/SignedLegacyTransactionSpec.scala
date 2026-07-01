@@ -85,11 +85,11 @@ class SignedLegacyTransactionSpec extends AnyFlatSpec with SignedTransactionBeha
     // values have been taken directly from the EIP-155 document
     // https://eips.ethereum.org/EIPS/eip-155
     val legacyTransaction = LegacyTransaction(
-      nonce = 9,
+      nonce = Nonce(9),
       gasPrice = GasPrice(20 * BigInt(10).pow(9)),
       gasLimit = GasAmount(21000),
       receivingAddress = Address("0x3535353535353535353535353535353535353535"),
-      value = BigInt(10).pow(18),
+      value = Wei(BigInt(10).pow(18)),
       payload = ByteString.empty
     )
 

@@ -128,7 +128,7 @@ class BlockPreparator(
     *   Upfront cost
     */
   private[ledger] def calculateUpfrontCost(tx: Transaction): UInt256 =
-    UInt256(calculateUpfrontGas(tx) + tx.value)
+    UInt256(calculateUpfrontGas(tx) + tx.value.value)
 
   /** Increments account nonce by 1 stated in YP equation (69) and Pays the upfront Tx gas calculated as TxGasPrice *
     * TxGasLimit from balance. YP equation (68). Per EIP-4844, blob-gas cost is ALSO part of the upfront cost deducted

@@ -93,11 +93,11 @@ class FilterManagerSpec
       transactionList = Seq(
         SignedTransaction(
           tx = LegacyTransaction(
-            nonce = 0,
+            nonce = Nonce(0),
             gasPrice = GasPrice(123),
             gasLimit = GasAmount(123),
             receivingAddress = Address("0x1234"),
-            value = 0,
+            value = Wei(0),
             payload = ByteString()
           ),
           signature = ECDSASignature(0, 0, 27)
@@ -173,22 +173,22 @@ class FilterManagerSpec
       transactionList = Seq(
         SignedTransaction(
           tx = LegacyTransaction(
-            nonce = 0,
+            nonce = Nonce(0),
             gasPrice = GasPrice(123),
             gasLimit = GasAmount(123),
             receivingAddress = Address("0x1234"),
-            value = 0,
+            value = Wei(0),
             payload = ByteString()
           ),
           signature = ECDSASignature(0, 0, 27)
         ),
         SignedTransaction(
           tx = LegacyTransaction(
-            nonce = 0,
+            nonce = Nonce(0),
             gasPrice = GasPrice(123),
             gasLimit = GasAmount(123),
             receivingAddress = Address("0x123456"),
-            value = 0,
+            value = Wei(0),
             payload = ByteString()
           ),
           signature = ECDSASignature(0, 0, 27)
@@ -260,11 +260,11 @@ class FilterManagerSpec
       transactionList = Seq(
         SignedTransaction(
           tx = LegacyTransaction(
-            nonce = 0,
+            nonce = Nonce(0),
             gasPrice = GasPrice(123),
             gasLimit = GasAmount(123),
             receivingAddress = Address("0x1234"),
-            value = 0,
+            value = Wei(0),
             payload = ByteString()
           ),
           signature = ECDSASignature(0, 0, 27)
@@ -301,11 +301,11 @@ class FilterManagerSpec
     val blockTransactions2: Seq[SignedTransaction] = Seq(
       SignedTransaction(
         tx = LegacyTransaction(
-          nonce = 0,
+          nonce = Nonce(0),
           gasPrice = GasPrice(321),
           gasLimit = GasAmount(321),
           receivingAddress = Address("0x1234"),
-          value = 0,
+          value = Wei(0),
           payload = ByteString()
         ),
         signature = ECDSASignature(0, 0, 27)
@@ -405,11 +405,11 @@ class FilterManagerSpec
     val createResp: NewFilterResponse = createProbe.expectMessageType[NewFilterResponse]
 
     val tx: LegacyTransaction = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(123),
       gasLimit = GasAmount(123),
       receivingAddress = Address("0x1234"),
-      value = 0,
+      value = Wei(0),
       payload = ByteString()
     )
 
@@ -440,11 +440,11 @@ class FilterManagerSpec
     val createResp: NewFilterResponse = createProbe.expectMessageType[NewFilterResponse]
 
     val tx: LegacyTransaction = LegacyTransaction(
-      nonce = 0,
+      nonce = Nonce(0),
       gasPrice = GasPrice(123),
       gasLimit = GasAmount(123),
       receivingAddress = Address("0x1234"),
-      value = 0,
+      value = Wei(0),
       payload = ByteString()
     )
 

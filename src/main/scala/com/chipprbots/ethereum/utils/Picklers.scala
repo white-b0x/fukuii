@@ -24,6 +24,7 @@ import com.chipprbots.ethereum.domain.BloomFilter
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SetCodeAuthorization
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.domain.SetCodeTransaction
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.Transaction
@@ -75,6 +76,8 @@ object Picklers:
     transformPickler[Timestamp, Long](Timestamp(_))(_.toLong)
   given noncePickler: Pickler[Nonce] =
     transformPickler[Nonce, BigInt](Nonce(_))(_.value)
+  given weiPickler: Pickler[Wei] =
+    transformPickler[Wei, BigInt](Wei(_))(_.value)
 
   given legacyTransactionPickler: Pickler[LegacyTransaction] = generatePickler[LegacyTransaction]
   given transactionWithAccessListPickler: Pickler[TransactionWithAccessList] =
