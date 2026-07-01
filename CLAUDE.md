@@ -35,8 +35,8 @@ burned, validator withdrawals, blob transactions (EIP-4844), Osaka fork.
 | `sbt pp` | compile-all + formatAll + quick + integration tests | Pre-PR gate — same caveat as formatAll |
 | `sbt "testOnly *Foo*"` | Single test class (seconds) | After each phase that changes logic — not compile-only phases |
 | `./local/scripts/fukuii-test FooSpec` | Wrapper for targeted test | Same as testOnly — prefer this form |
-| `./local/scripts/fukuii-test` | Full testEssential via wrapper | **End of thread only, once** — 24 min, do not run between phases |
-| `sbt testEssential` | Tier 1 full suite (24 min, 3,621 tests) | End of thread only — stalls development if run mid-thread |
+| `./local/scripts/fukuii-test` | Full testEssential via wrapper | **Pre-push only** — before `git push origin`, not mid-sprint. 24-min blocker. |
+| `sbt testEssential` | Tier 1 full suite (24 min, 3,621 tests) | **Pre-push only** — before pushing to origin. Do not run mid-sprint; use targeted tests instead. |
 | `sbt testStandard` | Tier 2 tests | Before opening a PR |
 | `sbt testComprehensive` | Tier 3 full compliance suite (<3 h) | Release gate only |
 | `sbt testVM testCrypto` | Tagged test subsets | Targeted validation of specific subsystem |
@@ -46,7 +46,7 @@ burned, validator withdrawals, blob transactions (EIP-4844), Osaka fork.
 1. Every file edit → `sbt compile-all` (mandatory, fast) — **exception**: if the sweep touches a core domain type (BlockHeader, Account, Block, Transaction), use `sbt compile` between files and `sbt compile-all` once at the end (see `testing-protocol.md` → "Core domain type sweeps")
 2. Phases that only add types (returns removal, Messages.scala additions) → compile only, no tests
 3. After Phase 2 (main migration) and Phase 3 (callers) → `testOnly *<ActorName>*` + any touched caller specs
-4. End of thread, once → full `testEssential` to confirm baseline holds
+4. Before pushing to origin → full `testEssential` (pre-push gate, not mid-sprint)
 
 **The two format commands that look similar but are not:**
 - `scalafmt` → root module only → **wrong for this codebase**

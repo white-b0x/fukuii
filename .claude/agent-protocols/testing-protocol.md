@@ -44,12 +44,13 @@ No tests. These phases change syntax only — compile is the full signal.
 ```
 Run targeted tests only. Do not run testEssential here.
 
-### End of thread — once
+### Pre-push gate — before `git push origin`
 ```bash
 ./local/scripts/fukuii-test                          # full testEssential (~24 min)
 ```
-Run exactly once per thread after all phases are complete. This is the regression gate.
-Do not run it between phases. Do not run it as a mid-session sanity check.
+Run exactly once before pushing to origin. This is the regression gate for a batch or PR.
+Do not run it mid-thread or between phases — it is a 24-minute blocker.
+Do not run it as a sanity check during a sprint; use targeted tests (`fukuii-test <Spec>`) instead.
 
 ---
 
