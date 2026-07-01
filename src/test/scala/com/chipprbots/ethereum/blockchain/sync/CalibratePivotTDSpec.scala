@@ -24,8 +24,8 @@ import com.chipprbots.ethereum.consensus.mining.TestMining
 import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.appstate.BlockInfo
 import com.chipprbots.ethereum.ledger.VMImpl
-import com.chipprbots.ethereum.network.NetworkPeerManagerActor.CalibrateChainWeightNow
-import com.chipprbots.ethereum.network.NetworkPeerManagerActor.GetHandshakedPeers
+import com.chipprbots.ethereum.network.NetworkPeerManagerActor.CalibrateChainWeightNowCmd
+import com.chipprbots.ethereum.network.NetworkPeerManagerActor.GetHandshakedPeersCmd
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RegisterChainWeightCalibrationTargetCmd
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config.SyncConfig
@@ -173,7 +173,7 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     new CalibrationActorSetup:
       // Simulate Restart #7 state: stored TD = 3.32e18, real peer TD = 24.64e21
       // Ratio = 7411× — below TD-PROXY-GAP 10,000× threshold, so NPA gap-detection never fires.
-      // Fix A: timed CalibrateChainWeightNow at T+30s forces correction unconditionally.
+      // Fix A: timed CalibrateChainWeightNowCmd at T+30s forces correction unconditionally.
       val restart7StoredTD: BigInt = BigInt("3320000000000000000") // 3.32×10^18 (wrong)
       val peerTD: BigInt = BigInt("24640000000000000000000") // 24.64×10^21 (real)
       val bestBlockNum: BigInt = BigInt(24720000)
@@ -181,7 +181,7 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       setupBestBlockWithTD(bestBlockNum, restart7StoredTD)
       drainRegistration()
 
-      // Simulate CalibrateChainWeightNow round-trip: NPA sends CalibrateChainWeightFromPeer
+      // Simulate CalibrateChainWeightNowCmd round-trip: NPA sends CalibrateChainWeightFromPeer
       // back with peerTD (Tier 2 path: STATUS only, no NewBlock blockNum)
       syncController ! SyncController.WrappedSyncProtocol(SyncProtocol.CalibrateChainWeightFromPeer(peerTD, BigInt(0)))
 
@@ -252,7 +252,7 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
         SyncProtocol.CalibrateChainWeightFromPeer(BigInt(0), BigInt(0))
       )
       testScheduler.timePasses(30.minutes)
-      networkPeerManager.expectMsg(CalibrateChainWeightNow)
+      networkPeerManager.expectMsg(CalibrateChainWeightNowCmd)
 
       // Now install an anchor so attempt 2 succeeds
       val anchorTD: BigInt = BigInt("24640000000000000000000")
@@ -386,11 +386,11 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       syncController ! SyncController.WrappedSyncProtocol(SyncProtocol.Start)
       networkPeerManager.expectMsgClass(classOf[RegisterChainWeightCalibrationTargetCmd])
       testScheduler.timePasses(31.seconds)
-      // Fish past N GetHandshakedPeers (one per PeerListSupportNg actor) until the T+30s startup
-      // CalibrateChainWeightNow is consumed, leaving the probe queue empty for test assertions.
+      // Fish past N GetHandshakedPeersCmd (one per PeerListSupportNg actor) until the T+30s startup
+      // CalibrateChainWeightNowCmd is consumed, leaving the probe queue empty for test assertions.
       networkPeerManager.fishForMessage(3.seconds) {
-        case CalibrateChainWeightNow => true
-        case GetHandshakedPeers      => false
+        case CalibrateChainWeightNowCmd => true
+        case GetHandshakedPeersCmd(_)   => false
       }
 
     /** Store a best block with a specific stored chain weight (simulate pre-Fix-A state). */
