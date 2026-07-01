@@ -373,7 +373,7 @@ class BlockExecutionSpec
             validBlockHeader.number.value,
             validBlockHeader.number.value - ommersBlockDifference
           )
-          ommerAddress -> UpdateBalance(UInt256(ommerReward))
+          ommerAddress -> UpdateBalance(UInt256(ommerReward.value))
         }
 
         val expectedStateRoot = applyChanges(validBlockParentHeader.stateRoot.value, changes)
@@ -527,15 +527,15 @@ class BlockExecutionSpec
           if address == originAddress then originKeyPair else receiverKeyPair
 
         val tx1 = validTx.copy(
-          value = 100,
+          value = Wei(100),
           receivingAddress = Some(receiver1Address),
           gasLimit = GasAmount(defaultGasLimit.toBigInt)
         )
         val tx2 = validTx.copy(
-          value = 50,
+          value = Wei(50),
           receivingAddress = Some(receiver2Address),
           gasLimit = GasAmount(defaultGasLimit.toBigInt * 2),
-          nonce = validTx.nonce + (if origin1Address == origin2Address then 1 else 0)
+          nonce = Nonce(validTx.nonce.value + (if origin1Address == origin2Address then 1 else 0))
         )
         val keyPair1 = keyPair(origin1Address)
         val keyPair2 = keyPair(origin2Address)

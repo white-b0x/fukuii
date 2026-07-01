@@ -66,7 +66,8 @@ class BlockPreparator(
       // ECIP-1111: Treasury credit BEFORE miner/ommer rewards (spec order per ECIP-1111)
       val worldAfterTreasury = creditBaseFeeToTreasury(block.header, blockchainConfig.treasuryAddress, worldStateProxy)
 
-      val worldAfterPayingBlockReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldAfterTreasury)
+      val worldAfterPayingBlockReward =
+        increaseAccountBalance(minerAddress, UInt256(minerReward.value))(worldAfterTreasury)
       log.debug("Paying block {} reward of {} to miner with address {}", blockNumber, minerReward, minerAddress)
 
       block.body.uncleNodesList.foldLeft(worldAfterPayingBlockReward) { (ws, ommer) =>
@@ -79,7 +80,7 @@ class BlockPreparator(
           ommerReward,
           ommerAddress
         )
-        increaseAccountBalance(ommerAddress, UInt256(ommerReward))(ws)
+        increaseAccountBalance(ommerAddress, UInt256(ommerReward.value))(ws)
       }
 
   /** ECIP-1111: Credit baseFee * gasUsed to treasury. Applied BEFORE miner and ommer rewards per ECIP-1111 spec. */

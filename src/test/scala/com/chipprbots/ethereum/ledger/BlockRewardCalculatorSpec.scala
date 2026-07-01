@@ -519,6 +519,6 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
     era4FirstReward shouldEqual BigInt("2048000000000000000") // 2.048 ETC
 
     // Reduction is exactly 20%
-    val reductionRatio = era4FirstReward.toDouble / era3LastReward.toDouble
+    val reductionRatio = era4FirstReward.value.toDouble / era3LastReward.value.toDouble
     reductionRatio shouldBe (0.8 +- 0.001)
   }

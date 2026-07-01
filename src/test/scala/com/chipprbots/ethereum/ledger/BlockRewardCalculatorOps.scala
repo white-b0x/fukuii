@@ -6,4 +6,4 @@ object BlockRewardCalculatorOps:
     def calculateMiningReward(blockNumber: BigInt, numberOfOmmers: Int): BigInt =
       val rewardForBlock = calculator.calculateMiningRewardForBlock(blockNumber)
       val rewardForOmmers = calculator.calculateMiningRewardForOmmers(blockNumber, numberOfOmmers)
-      rewardForBlock + rewardForOmmers
+      rewardForBlock.value + rewardForOmmers.value
