@@ -7,4 +7,4 @@ object ChainId:
 
   extension (c: ChainId) def value: BigInt = c
 
-  given Ordering[ChainId] = Ordering.BigInt.asInstanceOf[Ordering[ChainId]]
+  given Ordering[ChainId] = Ordering.by(_.value)
