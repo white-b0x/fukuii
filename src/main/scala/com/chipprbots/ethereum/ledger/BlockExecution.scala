@@ -416,13 +416,19 @@ class BlockExecution(
     * prefix (0x00) that's 193 bytes per deposit. Returns a single ByteString = 0x00 || concatenated_deposit_data (or
     * empty if none).
     */
-  def collectDepositRequests(receipts: Seq[Receipt]): Option[ByteString] =
+  def collectDepositRequests(
+      receipts: Seq[Receipt]
+  )(implicit blockchainConfig: BlockchainConfig): Option[ByteString] =
     import BlockExecution.*
+    // EIP-6110: the deposit contract address is network-specific (mainnet vs Sepolia), so read it
+    // from config rather than a hardcoded literal. On Sepolia the wrong address would silently drop
+    // every deposit and desync the EIP-7685 requestsHash.
+    val depositContractAddress = blockchainConfig.depositContractAddress
     val buf = scala.collection.mutable.ArrayBuffer.empty[Byte]
     for
       receipt <- receipts
       log <- receipt.logs
-      if log.loggerAddress == DepositContractAddress
+      if log.loggerAddress == depositContractAddress
       if log.logTopics.headOption.contains(DepositEventSignature)
     do
       // Deposit event data layout (offsets + 32-byte length prefix + padded body):
@@ -464,7 +470,10 @@ object BlockExecution:
 
   val SystemAddress: Address = Address("0xfffffffffffffffffffffffffffffffffffffffe")
 
-  /** EIP-6110: Deposit contract for on-chain validator deposits */
+  /** EIP-6110: Mainnet beacon deposit contract for on-chain validator deposits. Retained as the documented mainnet
+    * constant; the address actually used at runtime is read from BlockchainConfig.depositContractAddress (Sepolia =
+    * 0x7f02C3E3c98b133055B8B348B2Ac625669Ed295D).
+    */
   val DepositContractAddress: Address = Address("0x00000000219ab540356cBB839Cbe05303d7705Fa")
 
   /** EIP-7002: Withdrawal request queue contract */

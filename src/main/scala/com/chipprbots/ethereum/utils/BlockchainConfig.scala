@@ -54,6 +54,11 @@ case class BlockchainConfig(
     allowedMinersPublicKeys: Set[ByteString] = Set.empty,
     messConfig: MESSConfig = MESSConfig(),
     treasuryAddress: Address = Address(0),
+    // EIP-6110: beacon deposit contract whose DepositEvent logs are parsed into execution-layer
+    // deposit requests. Network-specific: mainnet = 0x00000000219ab540356cBB839Cbe05303d7705Fa,
+    // Sepolia = 0x7f02C3E3c98b133055B8B348B2Ac625669Ed295D. Default is mainnet so non-ETH configs
+    // and existing named-arg test fixtures are unaffected.
+    depositContractAddress: Address = Address("0x00000000219ab540356cBB839Cbe05303d7705Fa"),
     baseFeeFloor: BigInt = BigInt(0),
     minTip: BigInt = BigInt(1000000000),
     networkType: NetworkType = NetworkType.ETC,
@@ -248,6 +253,11 @@ object BlockchainConfig:
     val treasuryAddress: Address =
       Try(Address(blockchainConfig.getString("treasury-address"))).getOrElse(Address(0))
 
+    // EIP-6110: default to the mainnet beacon deposit contract when unspecified.
+    val depositContractAddress: Address =
+      Try(Address(blockchainConfig.getString("deposit-contract-address")))
+        .getOrElse(Address("0x00000000219ab540356cBB839Cbe05303d7705Fa"))
+
     val baseFeeFloor: BigInt =
       Try(BigInt(blockchainConfig.getString("base-fee-floor"))).getOrElse(BigInt(0))
 
@@ -326,6 +336,7 @@ object BlockchainConfig:
       allowedMinersPublicKeys = allowedMinersPublicKeys,
       messConfig = messConfig,
       treasuryAddress = treasuryAddress,
+      depositContractAddress = depositContractAddress,
       baseFeeFloor = baseFeeFloor,
       minTip = minTip,
       networkType = networkType,
