@@ -53,6 +53,24 @@ class P256VerifySpec extends AnyFlatSpec with Matchers:
     P256Verify.exec(ByteString.empty) shouldBe Some(ByteString.empty)
   }
 
+  it should "return Some(empty) for input longer than 160 bytes (EIP-7951: length MUST be exactly 160)" taggedAs (
+    OlympiaTest,
+    VMTest
+  ) in {
+    // A valid 160-byte signature with a single trailing byte MUST be rejected as a length failure,
+    // not accepted by slicing the first 160 bytes. Guards against the `<` vs `!=` divergence.
+    val validPlusTrailing = h(
+      "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023" + // hash
+        "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18" + // r
+        "4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76" + // s
+        "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838" + // Qx
+        "c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e" + // Qy
+        "00" // 161st byte — over-length
+    )
+    P256Verify.exec(validPlusTrailing) shouldBe Some(ByteString.empty)
+    P256Verify.exec(ByteString(new Array[Byte](161))) shouldBe Some(ByteString.empty)
+  }
+
   it should "return 0x00 for all-zero r and s" taggedAs (OlympiaTest, VMTest) in {
     val input = h(
       "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023" + // hash

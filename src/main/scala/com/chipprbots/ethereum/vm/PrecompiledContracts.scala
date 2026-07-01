@@ -559,7 +559,10 @@ object PrecompiledContracts:
     private val expectedInputLength = 160 // hash(32) + r(32) + s(32) + x(32) + y(32)
 
     def exec(inputData: ByteString): Option[ByteString] =
-      if inputData.length < expectedInputLength then Some(ByteString.empty) // Invalid input — return empty (failure)
+      // EIP-7951: input MUST be exactly 160 bytes; any other length is a failure (return empty).
+      // Using `!=` (not `<`) rejects over-length input — matches Besu P256VerifyPrecompiledContract
+      // (input.size() != SECP256R1_INPUT_LENGTH) and spec §Validation check 1.
+      if inputData.length != expectedInputLength then Some(ByteString.empty) // Invalid input — return empty (failure)
       else
         val hash = inputData.slice(0, 32).toArray
         val r = inputData.slice(32, 64).toArray

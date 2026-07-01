@@ -11,6 +11,8 @@ import java.security.spec.ECPublicKeySpec
 
 import scala.util.Try
 
+import org.bouncycastle.asn1.sec.SECNamedCurves
+
 /** EIP-7951: P-256 (secp256r1) signature verification using JDK's java.security API.
   */
 object Secp256r1:
@@ -19,6 +21,12 @@ object Secp256r1:
     val params = AlgorithmParameters.getInstance("EC")
     params.init(new ECGenParameterSpec("secp256r1"))
     params.getParameterSpec(classOf[ECParameterSpec])
+
+  // EIP-7951 explicit bounds: curve order n and field modulus p for secp256r1.
+  // Mirrors Besu P256VerifyPrecompiledContract (N = R1_PARAMS.getN(), P = field characteristic).
+  private lazy val r1Params = SECNamedCurves.getByName("secp256r1")
+  private lazy val curveN: BigInteger = r1Params.getN
+  private lazy val curveP: BigInteger = r1Params.getCurve.getField.getCharacteristic
 
   /** Verify a P-256 ECDSA signature.
     *
@@ -37,20 +45,37 @@ object Secp256r1:
     */
   def verify(hash: Array[Byte], r: Array[Byte], s: Array[Byte], x: Array[Byte], y: Array[Byte]): Boolean =
     Try {
+      val rInt = new BigInteger(1, r)
+      val sInt = new BigInteger(1, s)
       val pubX = new BigInteger(1, x)
       val pubY = new BigInteger(1, y)
-      val ecPoint = new ECPoint(pubX, pubY)
-      val pubKeySpec = new ECPublicKeySpec(ecPoint, ecParams)
-      val keyFactory = KeyFactory.getInstance("EC")
-      val publicKey = keyFactory.generatePublic(pubKeySpec)
 
-      // Convert r, s to DER-encoded signature for JCA
-      val derSig = toDerSignature(new BigInteger(1, r), new BigInteger(1, s))
+      // EIP-7951 explicit validation (spec §Validation checks 2, 3, 5); return false on any failure.
+      // These make rejection deterministic across JDK providers rather than relying on
+      // provider-specific behavior of KeyFactory/Signature (see EIP-7951 Rationale, RIP-7212 fix).
+      // Signature component bounds: 0 < r < n and 0 < s < n.
+      val rsInRange =
+        rInt.signum > 0 && rInt.compareTo(curveN) < 0 && sInt.signum > 0 && sInt.compareTo(curveN) < 0
+      // Public-key coordinate bounds: 0 <= qx < p and 0 <= qy < p.
+      val qInRange =
+        pubX.signum >= 0 && pubX.compareTo(curveP) < 0 && pubY.signum >= 0 && pubY.compareTo(curveP) < 0
+      // Point at infinity is encoded as (0, 0) and is not a valid public key.
+      val notInfinity = !(pubX.signum == 0 && pubY.signum == 0)
 
-      val sig = Signature.getInstance("NONEwithECDSA")
-      sig.initVerify(publicKey)
-      sig.update(hash)
-      sig.verify(derSig)
+      if !(rsInRange && qInRange && notInfinity) then false
+      else
+        val ecPoint = new ECPoint(pubX, pubY)
+        val pubKeySpec = new ECPublicKeySpec(ecPoint, ecParams)
+        val keyFactory = KeyFactory.getInstance("EC")
+        val publicKey = keyFactory.generatePublic(pubKeySpec)
+
+        // Convert r, s to DER-encoded signature for JCA
+        val derSig = toDerSignature(rInt, sInt)
+
+        val sig = Signature.getInstance("NONEwithECDSA")
+        sig.initVerify(publicKey)
+        sig.update(hash)
+        sig.verify(derSig)
     }.getOrElse(false)
 
   /** Encode r, s as DER-encoded ECDSA signature */
