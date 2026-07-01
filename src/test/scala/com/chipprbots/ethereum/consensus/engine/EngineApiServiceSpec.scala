@@ -57,7 +57,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         block = block,
         stateRootHash = correctStateRoot, // execution computed this
         receipts = Seq.empty,
-        gasUsed = 21000
+        gasUsed = GasAmount(21000)
       )
 
       result.isLeft shouldBe true
@@ -92,7 +92,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         block = block,
         stateRootHash = stateRoot.value,
         receipts = Seq.empty,
-        gasUsed = 21000 // execution computed different gasUsed
+        gasUsed = GasAmount(21000) // execution computed different gasUsed
       )
 
       result.isLeft shouldBe true
@@ -127,7 +127,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         block = block,
         stateRootHash = stateRoot.value, // matches
         receipts = Seq.empty,
-        gasUsed = 21000 // matches
+        gasUsed = GasAmount(21000) // matches
       )
 
       result.isRight shouldBe true
@@ -263,8 +263,8 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
           logsBloom = block.header.logsBloom.value,
           prevRandao = block.header.mixHash.value,
           blockNumber = block.header.number.value,
-          gasLimit = block.header.gasLimit.value,
-          gasUsed = block.header.gasUsed.value,
+          gasLimit = block.header.gasLimit,
+          gasUsed = block.header.gasUsed,
           timestamp = block.header.unixTimestamp.toLong,
           extraData = block.header.extraData,
           baseFeePerGas = block.header.baseFee.getOrElse(BigInt(0)),
@@ -292,8 +292,8 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
           logsBloom = BloomFilter(modified.logsBloom),
           difficulty = Difficulty.Zero,
           number = BlockNumber(modified.blockNumber),
-          gasLimit = GasAmount(modified.gasLimit),
-          gasUsed = GasAmount(modified.gasUsed),
+          gasLimit = modified.gasLimit,
+          gasUsed = modified.gasUsed,
           unixTimestamp = Timestamp(modified.timestamp),
           extraData = modified.extraData,
           mixHash = BlockHash(modified.prevRandao),
@@ -389,8 +389,8 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       val payload: ExecutionPayload = blockToPayload(validBlock)
 
       // Modify gasUsed and recompute blockHash
-      val modifiedGasUsed: BigInt = (validBlock.header.gasUsed + GasAmount(999)).value
-      val modifiedHeader: BlockHeader = validBlock.header.copy(gasUsed = GasAmount(modifiedGasUsed))
+      val modifiedGasUsed: GasAmount = validBlock.header.gasUsed + GasAmount(999)
+      val modifiedHeader: BlockHeader = validBlock.header.copy(gasUsed = modifiedGasUsed)
       val modifiedPayload: ExecutionPayload = payload.copy(
         gasUsed = modifiedGasUsed,
         blockHash = modifiedHeader.hash.value
@@ -526,8 +526,8 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         logsBloom = BloomFilter.Empty.value,
         prevRandao = ByteString(new Array[Byte](32)),
         blockNumber = 2,
-        gasLimit = 3000000,
-        gasUsed = 0,
+        gasLimit = GasAmount(3000000),
+        gasUsed = GasAmount(0),
         timestamp = 1002,
         extraData = ByteString("fukuii".getBytes),
         baseFeePerGas = BigInt("1000000000"),

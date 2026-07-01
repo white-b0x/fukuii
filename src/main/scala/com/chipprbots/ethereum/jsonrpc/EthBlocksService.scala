@@ -257,7 +257,7 @@ class EthBlocksService(
             if idx == 0 then receipt.cumulativeGasUsed
             else receipt.cumulativeGasUsed - receipts(idx - 1).cumulativeGasUsed
           val sender = SignedTransaction.getSender(stx).getOrElse(Address(0))
-          val resp = TransactionReceiptResponse(receipt, stx, sender, idx, block.header, gasUsed, baseLogIndex)
+          val resp = TransactionReceiptResponse(receipt, stx, sender, idx, block.header, gasUsed.value, baseLogIndex)
           baseLogIndex += receipt.logs.size
           resp
         }

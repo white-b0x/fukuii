@@ -351,7 +351,7 @@ class EthTxServiceSpec
       .and(
         blockchainWriter.storeReceipts(
           Fixtures.Blocks.Block3125369.header.hash,
-          Seq(fakeReceipt, fakeReceipt.copy(cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx))
+          Seq(fakeReceipt, fakeReceipt.copy(cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + GasAmount(gasUsedByTx)))
         )
       )
       .commit()
@@ -367,7 +367,7 @@ class EthTxServiceSpec
       GetTransactionReceiptResponse(
         Some(
           TransactionReceiptResponse(
-            receipt = fakeReceipt.copy(cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx),
+            receipt = fakeReceipt.copy(cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + GasAmount(gasUsedByTx)),
             stx = contractCreatingTransaction,
             signedTransactionSender = contractCreatingTransactionSender,
             transactionIndex = 1,
@@ -489,7 +489,7 @@ class EthTxServiceSpec
 
     val fakeReceipt: LegacyReceipt = LegacyReceipt.withHashOutcome(
       postTransactionStateHash = ByteString(Hex.decode("01" * 32)),
-      cumulativeGasUsed = 43,
+      cumulativeGasUsed = GasAmount(43),
       logsBloomFilter = BloomFilter(ByteString(Hex.decode("00" * 256))),
       logs = Seq(TxLogEntry(Address(42), Seq(ByteString(Hex.decode("01" * 32))), ByteString(Hex.decode("03" * 32))))
     )

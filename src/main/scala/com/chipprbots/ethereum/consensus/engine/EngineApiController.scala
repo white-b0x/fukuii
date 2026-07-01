@@ -15,6 +15,7 @@ import org.json4s.JsonAST.JInt
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.Withdrawal
@@ -486,7 +487,7 @@ class EngineApiController(
       val txs = block.body.transactionList
       // derive per-tx gas used from cumulative deltas
       val gasUsedPerTx: Seq[BigInt] = receipts
-        .map(_.cumulativeGasUsed)
+        .map(_.cumulativeGasUsed.value)
         .scanLeft(BigInt(0)) { (_, cum) =>
           cum
         }
@@ -687,8 +688,8 @@ class EngineApiController(
       logsBloom = hexToByteString(extractString(fields, "logsBloom")),
       prevRandao = hexToByteString(extractString(fields, "prevRandao")),
       blockNumber = extractQuantity(fields, "blockNumber"),
-      gasLimit = extractQuantity(fields, "gasLimit"),
-      gasUsed = extractQuantity(fields, "gasUsed"),
+      gasLimit = GasAmount(extractQuantity(fields, "gasLimit")),
+      gasUsed = GasAmount(extractQuantity(fields, "gasUsed")),
       timestamp = extractQuantity(fields, "timestamp").toLong,
       extraData = hexToByteString(extractString(fields, "extraData")),
       baseFeePerGas = extractQuantity(fields, "baseFeePerGas"),

@@ -303,7 +303,7 @@ class ETH70ComplianceSpec extends AnyWordSpec with Matchers:
         import com.chipprbots.ethereum.domain.*
         val receipt = LegacyReceipt(
           SuccessOutcome,
-          cumulativeGasUsed = BigInt(21000),
+          cumulativeGasUsed = GasAmount(21000),
           logsBloomFilter = BloomFilter(ByteString(Array.fill(256)(0xff.toByte))),
           logs = Seq.empty
         )
@@ -335,7 +335,7 @@ class ETH70ComplianceSpec extends AnyWordSpec with Matchers:
         import com.chipprbots.ethereum.domain.*
         val receipt = LegacyReceipt(
           SuccessOutcome,
-          cumulativeGasUsed = BigInt(21000),
+          cumulativeGasUsed = GasAmount(21000),
           logsBloomFilter = BloomFilter(ByteString(Array.fill(256)(0.toByte))),
           logs = Seq.empty
         )

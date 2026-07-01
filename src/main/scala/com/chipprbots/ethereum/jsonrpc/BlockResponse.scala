@@ -8,6 +8,7 @@ import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.utils.ByteStringUtils
 
 /*
@@ -29,8 +30,8 @@ trait BaseBlockResponse:
   def totalDifficulty: Option[BigInt]
   def extraData: ByteString
   def size: BigInt
-  def gasLimit: BigInt
-  def gasUsed: BigInt
+  def gasLimit: GasAmount
+  def gasUsed: GasAmount
   def timestamp: BigInt
   def mixHash: ByteString
   def transactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]]
@@ -52,8 +53,8 @@ case class BlockResponse(
     totalDifficulty: Option[BigInt],
     extraData: ByteString,
     size: BigInt,
-    gasLimit: BigInt,
-    gasUsed: BigInt,
+    gasLimit: GasAmount,
+    gasUsed: GasAmount,
     timestamp: BigInt,
     mixHash: ByteString,
     transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
@@ -123,8 +124,8 @@ object BlockResponse:
       totalDifficulty = td,
       extraData = block.header.extraData,
       size = Block.size(block),
-      gasLimit = block.header.gasLimit.value,
-      gasUsed = block.header.gasUsed.value,
+      gasLimit = block.header.gasLimit,
+      gasUsed = block.header.gasUsed,
       timestamp = BigInt(block.header.unixTimestamp.toLong),
       mixHash = block.header.mixHash.value,
       transactions = transactions,

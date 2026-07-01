@@ -8,6 +8,7 @@ import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -59,7 +60,7 @@ class BlockValidation(
       block: Block,
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
-      gasUsed: BigInt
+      gasUsed: GasAmount
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] =
     mining.validators.validateBlockAfterExecution(
       block = block,

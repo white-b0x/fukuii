@@ -51,7 +51,7 @@ object ReceiptCodecs:
         case _                 => 0.toByte
       val legacyRLPReceipt = RLPList(
         stateHash,
-        cumulativeGasUsed,
+        cumulativeGasUsed.value,
         RLPValue(logsBloomFilter.toArray),
         RLPList(logs.map(_.toRLPEncodable)*)
       )
@@ -98,7 +98,7 @@ object ReceiptCodecs:
           case _                                                       => FailureOutcome
         LegacyReceipt(
           stateHash,
-          ByteUtils.bytesToBigInt(cumulativeGasUsedBytes),
+          GasAmount(ByteUtils.bytesToBigInt(cumulativeGasUsedBytes)),
           BloomFilter(ByteString(logsBloomFilterBytes)),
           logs.items.map(_.toTxLogEntry)
         )
@@ -116,7 +116,7 @@ object ReceiptCodecs:
           case _                                                       => FailureOutcome
         LegacyReceipt(
           stateHash,
-          ByteUtils.bytesToBigInt(cumulativeGasUsedBytes),
+          GasAmount(ByteUtils.bytesToBigInt(cumulativeGasUsedBytes)),
           BloomFilter.Empty,
           logs.items.map(_.toTxLogEntry)
         )

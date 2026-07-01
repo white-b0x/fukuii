@@ -28,6 +28,7 @@ import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.ledger.BlockExecutionError
 import com.chipprbots.ethereum.ledger.BlockExecutionSuccess
@@ -79,7 +80,7 @@ class TestmodeMining(
         block: Block,
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
-        gasUsed: BigInt
+        gasUsed: GasAmount
     )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] = Right(
       BlockExecutionSuccess
     )

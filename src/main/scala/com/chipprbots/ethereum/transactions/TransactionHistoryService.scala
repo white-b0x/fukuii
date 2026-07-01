@@ -130,9 +130,9 @@ object TransactionHistoryService:
         index <- maybeIndex
         txReceipt <- blockReceipts.lift(index)
       yield
-        val previousCumulativeGas: BigInt =
-          (if index > 0 then blockReceipts.lift(index - 1) else None).map(_.cumulativeGasUsed).getOrElse(0)
+        val previousCumulativeGas =
+          (if index > 0 then blockReceipts.lift(index - 1) else None).map(_.cumulativeGasUsed).getOrElse(GasAmount.Zero)
 
-        txReceipt.cumulativeGasUsed - previousCumulativeGas
+        (txReceipt.cumulativeGasUsed - previousCumulativeGas).value
 
       (Some(block.header), maybeIndex, maybeGasUsed).mapN(MinedTransactionData.apply)

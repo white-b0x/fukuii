@@ -114,7 +114,7 @@ class FilterManagerSpec
           Seq(
             LegacyReceipt.withHashOutcome(
               postTransactionStateHash = ByteString(),
-              cumulativeGasUsed = 0,
+              cumulativeGasUsed = GasAmount.Zero,
               logsBloomFilter = BloomFilter(LedgerBloomFilter.create(logs2)),
               logs = logs2
             )
@@ -205,13 +205,13 @@ class FilterManagerSpec
           Seq(
             LegacyReceipt.withHashOutcome(
               postTransactionStateHash = ByteString(),
-              cumulativeGasUsed = 0,
+              cumulativeGasUsed = GasAmount.Zero,
               logsBloomFilter = BloomFilter(LedgerBloomFilter.create(Seq(log4_1))),
               logs = Seq(log4_1)
             ),
             LegacyReceipt.withHashOutcome(
               postTransactionStateHash = ByteString(),
-              cumulativeGasUsed = 0,
+              cumulativeGasUsed = GasAmount.Zero,
               logsBloomFilter = BloomFilter(LedgerBloomFilter.create(Seq(log4_2))),
               logs = Seq(log4_2)
             )
@@ -281,7 +281,7 @@ class FilterManagerSpec
           Seq(
             LegacyReceipt.withHashOutcome(
               postTransactionStateHash = ByteString(),
-              cumulativeGasUsed = 0,
+              cumulativeGasUsed = GasAmount.Zero,
               logsBloomFilter = BloomFilter(LedgerBloomFilter.create(logs)),
               logs = logs
             )
@@ -321,7 +321,7 @@ class FilterManagerSpec
             Seq(
               LegacyReceipt.withHashOutcome(
                 postTransactionStateHash = ByteString(),
-                cumulativeGasUsed = 0,
+                cumulativeGasUsed = GasAmount.Zero,
                 logsBloomFilter = BloomFilter(LedgerBloomFilter.create(logs2)),
                 logs = logs2
               )

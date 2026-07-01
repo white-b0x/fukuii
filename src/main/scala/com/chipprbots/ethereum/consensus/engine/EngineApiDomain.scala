@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.consensus.engine
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.Withdrawal
 
 /** Engine API domain types per the execution-apis specification. */
@@ -16,8 +17,8 @@ case class ExecutionPayload(
     logsBloom: ByteString,
     prevRandao: ByteString,
     blockNumber: BigInt,
-    gasLimit: BigInt,
-    gasUsed: BigInt,
+    gasLimit: GasAmount,
+    gasUsed: GasAmount,
     timestamp: Long,
     extraData: ByteString,
     baseFeePerGas: BigInt,

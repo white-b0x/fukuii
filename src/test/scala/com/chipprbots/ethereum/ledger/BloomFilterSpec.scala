@@ -7,6 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.LegacyReceipt
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.domain.TxLogEntry
@@ -33,7 +34,7 @@ class BloomFilterSpec extends AnyFlatSpec with Matchers:
   val receiptWithoutLogs: Receipt = LegacyReceipt.withHashOutcome(
     postTransactionStateHash =
       ByteString(Hex.decode("fa28ef92787192b577a8628e520b546ab58b72102572e08191ddecd51d0851e5")),
-    cumulativeGasUsed = 50244,
+    cumulativeGasUsed = GasAmount(50244),
     logsBloomFilter = com.chipprbots.ethereum.domain.BloomFilter(
       ByteString(
         Hex.decode(
@@ -48,7 +49,7 @@ class BloomFilterSpec extends AnyFlatSpec with Matchers:
   val receiptOneLogOneTopic: Receipt = LegacyReceipt.withHashOutcome(
     postTransactionStateHash =
       ByteString(Hex.decode("d74e64c4beb7627811f456baedfe05d26364bef11136b922b8c44769ad1e6ac6")),
-    cumulativeGasUsed = BigInt("1674016"),
+    cumulativeGasUsed = GasAmount(BigInt("1674016")),
     logsBloomFilter = com.chipprbots.ethereum.domain.BloomFilter(
       ByteString(
         Hex.decode(
@@ -73,7 +74,7 @@ class BloomFilterSpec extends AnyFlatSpec with Matchers:
   val receiptWithManyLogs: Receipt = LegacyReceipt.withHashOutcome(
     postTransactionStateHash =
       ByteString(Hex.decode("fe375456a6f22f90f2f55bd57e72c7c663ef7733d5795f091a06496ad5895c67")),
-    cumulativeGasUsed = 319269,
+    cumulativeGasUsed = GasAmount(319269),
     logsBloomFilter = com.chipprbots.ethereum.domain.BloomFilter(
       ByteString(
         Hex.decode(

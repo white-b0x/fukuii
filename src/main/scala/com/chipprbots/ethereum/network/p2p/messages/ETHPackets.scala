@@ -1155,7 +1155,7 @@ object ETHPackets:
         r,
         RLPList(
           receiptStateHash(r),
-          RLPValue(ByteUtils.bigIntToUnsignedByteArray(r.cumulativeGasUsed)),
+          RLPValue(ByteUtils.bigIntToUnsignedByteArray(r.cumulativeGasUsed.value)),
           RLPValue(r.logsBloomFilter.toArray),
           RLPList(r.logs.map(_.toRLPEncodable)*)
         )
@@ -1170,7 +1170,7 @@ object ETHPackets:
         r,
         RLPList(
           receiptStateHash(r),
-          RLPValue(ByteUtils.bigIntToUnsignedByteArray(r.cumulativeGasUsed)),
+          RLPValue(ByteUtils.bigIntToUnsignedByteArray(r.cumulativeGasUsed.value)),
           RLPList(r.logs.map(_.toRLPEncodable)*)
         )
       )

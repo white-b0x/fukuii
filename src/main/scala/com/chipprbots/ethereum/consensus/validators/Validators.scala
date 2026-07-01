@@ -5,6 +5,7 @@ import org.apache.pekko.util.ByteString
 import com.chipprbots.ethereum.consensus.mining.GetBlockHeaderByHash
 import com.chipprbots.ethereum.consensus.mining.GetNBlocksBack
 import com.chipprbots.ethereum.domain.Block
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.ledger.BlockExecutionError
 import com.chipprbots.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
@@ -43,5 +44,5 @@ trait Validators:
       block: Block,
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
-      gasUsed: BigInt
+      gasUsed: GasAmount
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess]

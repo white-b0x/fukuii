@@ -8,7 +8,7 @@ import com.chipprbots.ethereum.mpt.ByteArraySerializable
 
 sealed trait Receipt:
   def postTransactionStateHash: TransactionOutcome
-  def cumulativeGasUsed: BigInt
+  def cumulativeGasUsed: GasAmount
   def logsBloomFilter: BloomFilter
   def logs: Seq[TxLogEntry]
 
@@ -16,7 +16,7 @@ sealed trait Receipt:
 abstract class TypedLegacyReceipt(@annotation.unused _transactionTypeId: Byte, val delegateReceipt: LegacyReceipt)
     extends Receipt:
   def postTransactionStateHash: TransactionOutcome = delegateReceipt.postTransactionStateHash
-  def cumulativeGasUsed: BigInt = delegateReceipt.cumulativeGasUsed
+  def cumulativeGasUsed: GasAmount = delegateReceipt.cumulativeGasUsed
   def logsBloomFilter: BloomFilter = delegateReceipt.logsBloomFilter
   def logs: Seq[TxLogEntry] = delegateReceipt.logs
 
@@ -33,7 +33,7 @@ object Receipt:
 object LegacyReceipt:
   def withHashOutcome(
       postTransactionStateHash: ByteString,
-      cumulativeGasUsed: BigInt,
+      cumulativeGasUsed: GasAmount,
       logsBloomFilter: BloomFilter,
       logs: Seq[TxLogEntry]
   ): LegacyReceipt =
@@ -42,7 +42,7 @@ object LegacyReceipt:
 object Type01Receipt:
   def withHashOutcome(
       postTransactionStateHash: ByteString,
-      cumulativeGasUsed: BigInt,
+      cumulativeGasUsed: GasAmount,
       logsBloomFilter: BloomFilter,
       logs: Seq[TxLogEntry]
   ): Type01Receipt =
@@ -58,7 +58,7 @@ object Type01Receipt:
   */
 case class LegacyReceipt(
     postTransactionStateHash: TransactionOutcome,
-    cumulativeGasUsed: BigInt,
+    cumulativeGasUsed: GasAmount,
     logsBloomFilter: BloomFilter,
     logs: Seq[TxLogEntry]
 ) extends Receipt:
@@ -86,7 +86,7 @@ case class Type01Receipt(legacyReceipt: LegacyReceipt) extends TypedLegacyReceip
 object Type02Receipt:
   def withHashOutcome(
       postTransactionStateHash: ByteString,
-      cumulativeGasUsed: BigInt,
+      cumulativeGasUsed: GasAmount,
       logsBloomFilter: BloomFilter,
       logs: Seq[TxLogEntry]
   ): Type02Receipt =

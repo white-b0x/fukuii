@@ -307,7 +307,7 @@ class ETH69ComplianceSpec extends AnyWordSpec with Matchers:
         val bloom256 = ByteString(Array.fill(256)(0xff.toByte))
         val receipt = LegacyReceipt(
           SuccessOutcome,
-          cumulativeGasUsed = BigInt(21000),
+          cumulativeGasUsed = GasAmount(21000),
           logsBloomFilter = BloomFilter(bloom256),
           logs = Seq.empty
         )
@@ -322,7 +322,7 @@ class ETH69ComplianceSpec extends AnyWordSpec with Matchers:
         val bloom256 = ByteString(Array.fill(256)(0xff.toByte))
         val receipt = LegacyReceipt(
           SuccessOutcome,
-          cumulativeGasUsed = BigInt(21000),
+          cumulativeGasUsed = GasAmount(21000),
           logsBloomFilter = BloomFilter(bloom256),
           logs = Seq.empty
         )
@@ -343,7 +343,7 @@ class ETH69ComplianceSpec extends AnyWordSpec with Matchers:
         val bloom256 = ByteString(Array.fill(256)(0xab.toByte))
         val receipt = LegacyReceipt(
           HashOutcome(ByteString(Array.fill(32)(0x11.toByte))),
-          cumulativeGasUsed = BigInt(50000),
+          cumulativeGasUsed = GasAmount(50000),
           logsBloomFilter = BloomFilter(bloom256),
           logs = Seq.empty
         )

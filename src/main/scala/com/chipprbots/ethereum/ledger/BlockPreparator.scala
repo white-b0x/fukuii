@@ -566,7 +566,7 @@ class BlockPreparator(
 
             val legacyReceipt = LegacyReceipt(
               postTransactionStateHash = transactionOutcome,
-              cumulativeGasUsed = acumGas + gasUsed,
+              cumulativeGasUsed = GasAmount(acumGas + gasUsed),
               logsBloomFilter =
                 com.chipprbots.ethereum.domain.BloomFilter(com.chipprbots.ethereum.ledger.BloomFilter.create(logs)),
               logs = logs
@@ -580,7 +580,13 @@ class BlockPreparator(
 
             log.debug(s"Receipt generated for tx ${stx.hash.toHex}, $receipt")
 
-            executeTransactions(otherStxs, newWorld, blockHeader, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
+            executeTransactions(
+              otherStxs,
+              newWorld,
+              blockHeader,
+              receipt.cumulativeGasUsed.value,
+              acumReceipts :+ receipt
+            )
           case Left(error) =>
             Left(TxsExecutionError(stx, StateBeforeFailure(world, acumGas, acumReceipts), error.toString))
 

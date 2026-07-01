@@ -10,6 +10,7 @@ import com.chipprbots.ethereum.consensus.mining.GetBlockHeaderByHash
 import com.chipprbots.ethereum.consensus.mining.GetNBlocksBack
 import com.chipprbots.ethereum.consensus.validators.*
 import com.chipprbots.ethereum.domain.Block
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.ledger.BlockExecutionError
 import com.chipprbots.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
@@ -46,7 +47,7 @@ final class StdValidators(
       block: Block,
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
-      gasUsed: BigInt
+      gasUsed: GasAmount
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] =
     StdValidators.validateBlockAfterExecution(
       self = this,
@@ -79,13 +80,13 @@ object StdValidators:
       block: Block,
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
-      gasUsed: BigInt
+      gasUsed: GasAmount
   ): Either[BlockExecutionError, BlockExecutionSuccess] =
 
     val header = block.header
     val blockAndReceiptsValidation = self.blockValidator.validateBlockAndReceipts(header, receipts)
 
-    if header.gasUsed.value != gasUsed then
+    if header.gasUsed != gasUsed then
       Left(ValidationAfterExecError(s"Block has invalid gas used, expected ${header.gasUsed} but got $gasUsed"))
     else if header.stateRoot.value != stateRootHash then
       Left(ValidationAfterExecError(s"Block has invalid state root hash, expected ${Hex

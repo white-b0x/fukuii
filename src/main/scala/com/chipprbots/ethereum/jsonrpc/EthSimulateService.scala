@@ -843,7 +843,7 @@ class EthSimulateService(
       val outcome = if vmError.isDefined then FailureOutcome else SuccessOutcome
       val legacyReceipt = LegacyReceipt(
         postTransactionStateHash = outcome,
-        cumulativeGasUsed = accumGas + gasUsed,
+        cumulativeGasUsed = GasAmount(accumGas + gasUsed),
         logsBloomFilter =
           com.chipprbots.ethereum.domain.BloomFilter(com.chipprbots.ethereum.ledger.BloomFilter.create(realLogs)),
         logs = realLogs

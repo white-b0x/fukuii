@@ -27,7 +27,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory:
       }
 
       "report as invalid a block that doesn't have the correct gas used" taggedAs (UnitTest, StateTest) in {
-        val invalidGasUsed: BigInt = gasUsed + 1
+        val invalidGasUsed: GasAmount = gasUsed + GasAmount(1)
         blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft shouldBe true
       }
 
@@ -129,7 +129,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory:
 
     def mkReceipt(stateHash: String, gas: BigInt): Receipt = LegacyReceipt.withHashOutcome(
       postTransactionStateHash = hash2ByteString(stateHash),
-      cumulativeGasUsed = gas,
+      cumulativeGasUsed = GasAmount(gas),
       logsBloomFilter = bloomFilter,
       logs = Seq.empty[TxLogEntry]
     )
@@ -142,4 +142,4 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory:
     )
 
     val stateRootHash: ByteString = block.header.stateRoot.value
-    val gasUsed: BigInt = block.header.gasUsed.value
+    val gasUsed: GasAmount = block.header.gasUsed

@@ -168,7 +168,7 @@ object GraphQLSchema:
         if info.txIndex == 0 then receipt.cumulativeGasUsed
         else receipt.cumulativeGasUsed - receipts(info.txIndex - 1).cumulativeGasUsed
       val baseLogIndex = receipts.take(info.txIndex).map(_.logs.size).sum
-      GReceiptBundle(info.block, info.txIndex, receipt, gasUsed, receipt.cumulativeGasUsed, baseLogIndex)
+      GReceiptBundle(info.block, info.txIndex, receipt, gasUsed.value, receipt.cumulativeGasUsed.value, baseLogIndex)
 
   private def worldStateAt(ctx: GraphQLContext, blockNumber: BigInt): Option[InMemoryWorldStateProxy] =
     ctx.blockchainReader.getBlockByNumber(ctx.blockchainReader.getBestBranch, blockNumber).map { b =>

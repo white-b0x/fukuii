@@ -178,7 +178,7 @@ object Mocks:
         block: Block,
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
-        gasUsed: BigInt
+        gasUsed: GasAmount
     )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] =
       if block.header.number.value == number then Left(ValidationAfterExecError("")) else Right(BlockExecutionSuccess)
 

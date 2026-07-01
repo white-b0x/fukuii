@@ -118,7 +118,7 @@ object TransactionReceiptResponse:
       blockHash = blockHeader.hash.value,
       from = signedTransactionSender,
       to = stx.tx.receivingAddress,
-      cumulativeGasUsed = receipt.cumulativeGasUsed,
+      cumulativeGasUsed = receipt.cumulativeGasUsed.value,
       gasUsed = gasUsedByTransaction,
       contractAddress = contractAddress,
       logs = txLogs,

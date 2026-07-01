@@ -231,7 +231,7 @@ class BlockExecutionSpec
         val LegacyReceipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt) =
           resultingReceipts.head: @unchecked
         rootHashReceipt shouldBe HashOutcome(expectedStateRoot)
-        gasUsedReceipt shouldBe resultingGasUsed
+        gasUsedReceipt.value shouldBe resultingGasUsed
         logsBloomFilterReceipt shouldBe BloomFilter(com.chipprbots.ethereum.ledger.BloomFilter.create(Nil))
         logsReceipt shouldBe Nil
 
@@ -309,7 +309,7 @@ class BlockExecutionSpec
             val LegacyReceipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt) =
               resultingReceipts.head: @unchecked
             rootHashReceipt shouldBe HashOutcome(expectedStateRoot)
-            gasUsedReceipt shouldBe resultingGasUsed
+            gasUsedReceipt.value shouldBe resultingGasUsed
             logsBloomFilterReceipt shouldBe BloomFilter(com.chipprbots.ethereum.ledger.BloomFilter.create(logs))
             logsReceipt shouldBe logs
         }
@@ -574,7 +574,7 @@ class BlockExecutionSpec
         val LegacyReceipt(rootHashReceipt1, gasUsedReceipt1, logsBloomFilterReceipt1, logsReceipt1) =
           receipt1: @unchecked
         rootHashReceipt1 shouldBe HashOutcome(expectedStateRootTx1)
-        gasUsedReceipt1 shouldBe stx1.tx.tx.gasLimit.value
+        gasUsedReceipt1.value shouldBe stx1.tx.tx.gasLimit.value
         logsBloomFilterReceipt1 shouldBe BloomFilter(com.chipprbots.ethereum.ledger.BloomFilter.create(Nil))
         logsReceipt1 shouldBe Nil
 
@@ -590,7 +590,7 @@ class BlockExecutionSpec
         val LegacyReceipt(rootHashReceipt2, gasUsedReceipt2, logsBloomFilterReceipt2, logsReceipt2) =
           receipt2: @unchecked
         rootHashReceipt2 shouldBe HashOutcome(expectedStateRootTx2)
-        gasUsedReceipt2 shouldBe (transaction1.gasLimit + transaction2.gasLimit).value
+        gasUsedReceipt2.value shouldBe (transaction1.gasLimit + transaction2.gasLimit).value
         logsBloomFilterReceipt2 shouldBe BloomFilter(com.chipprbots.ethereum.ledger.BloomFilter.create(Nil))
         logsReceipt2 shouldBe Nil
 
@@ -605,7 +605,7 @@ class BlockExecutionSpec
         val blockExpectedStateRoot = applyChanges(expectedStateRootTx2, changes)
 
         val blockWithCorrectStateAndGasUsed = block.copy(
-          header = block.header.copy(stateRoot = TrieRoot(blockExpectedStateRoot), gasUsed = GasAmount(gasUsedReceipt2))
+          header = block.header.copy(stateRoot = TrieRoot(blockExpectedStateRoot), gasUsed = gasUsedReceipt2)
         )
         assert(blockExecution.executeAndValidateBlock(blockWithCorrectStateAndGasUsed).isRight)
       }

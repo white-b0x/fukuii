@@ -8,6 +8,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.crypto.*
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.LegacyReceipt
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.domain.Transaction
@@ -41,7 +42,7 @@ class ReceiptsSpec extends AnyFlatSpec with Matchers:
 
   val legacyReceipt: Receipt = LegacyReceipt.withHashOutcome(
     postTransactionStateHash = exampleHash,
-    cumulativeGasUsed = cumulativeGas,
+    cumulativeGasUsed = GasAmount(cumulativeGas),
     logsBloomFilter = BloomFilter(exampleLogsBloom),
     logs = Seq(exampleLog)
   )

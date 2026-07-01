@@ -77,7 +77,7 @@ trait ObjectGenerators:
     logsBloomFilter <- byteArrayOfNItemsGen(256)
   yield LegacyReceipt.withHashOutcome(
     postTransactionStateHash = ByteString(postTransactionStateHash),
-    cumulativeGasUsed = cumulativeGasUsed,
+    cumulativeGasUsed = GasAmount(cumulativeGasUsed),
     logsBloomFilter = BloomFilter(ByteString(logsBloomFilter)),
     logs = Seq()
   )

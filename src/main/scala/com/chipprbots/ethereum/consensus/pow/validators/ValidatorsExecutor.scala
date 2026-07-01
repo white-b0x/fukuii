@@ -12,6 +12,7 @@ import com.chipprbots.ethereum.consensus.validators.std.StdBlockValidator
 import com.chipprbots.ethereum.consensus.validators.std.StdSignedTransactionValidator
 import com.chipprbots.ethereum.consensus.validators.std.StdValidators
 import com.chipprbots.ethereum.domain.Block
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.ledger.BlockExecutionError
 import com.chipprbots.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
@@ -39,7 +40,7 @@ trait ValidatorsExecutor extends Validators:
       block: Block,
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
-      gasUsed: BigInt
+      gasUsed: GasAmount
   )(implicit
       blockchainConfig: BlockchainConfig
   ): Either[BlockExecutionError, BlockExecutionSuccess] =
@@ -107,7 +108,7 @@ object ValidatorsExecutor:
       block: Block,
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
-      gasUsed: BigInt
+      gasUsed: GasAmount
   ): Either[BlockExecutionError, BlockExecutionSuccess] =
     StdValidators.validateBlockAfterExecution(
       self = self,

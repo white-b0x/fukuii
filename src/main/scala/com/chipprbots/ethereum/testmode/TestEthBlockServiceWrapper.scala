@@ -8,6 +8,7 @@ import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.jsonrpc.BaseBlockResponse
 import com.chipprbots.ethereum.jsonrpc.BaseTransactionResponse
@@ -139,8 +140,8 @@ case class EthBlockResponse(
     totalDifficulty: Option[BigInt],
     extraData: ByteString,
     size: BigInt,
-    gasLimit: BigInt,
-    gasUsed: BigInt,
+    gasLimit: GasAmount,
+    gasUsed: GasAmount,
     timestamp: BigInt,
     mixHash: ByteString,
     transactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]],

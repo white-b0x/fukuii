@@ -48,7 +48,7 @@ object RegularSyncItSpecUtils:
         block: Block,
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
-        gasUsed: BigInt
+        gasUsed: GasAmount
     )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] = Right(
       BlockExecutionSuccess
     )

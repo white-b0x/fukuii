@@ -342,7 +342,9 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup:
   def getChainHeadersNel(from: BigInt, to: BigInt, parent: ByteString = randomHash()): NonEmptyList[BlockHeader] =
     NonEmptyList.fromListUnsafe(getChainHeaders(from, to, parent))
 
-  val receipts: Seq[Receipt] = Seq(LegacyReceipt.withHashOutcome(randomHash(), 50000, BloomFilter(randomHash()), Nil))
+  val receipts: Seq[Receipt] = Seq(
+    LegacyReceipt.withHashOutcome(randomHash(), GasAmount(50000), BloomFilter(randomHash()), Nil)
+  )
 
   val currentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(99999)
 
@@ -371,7 +373,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup:
         block: Block,
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
-        gasUsed: BigInt
+        gasUsed: GasAmount
     )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] = Right(
       BlockExecutionSuccess
     )

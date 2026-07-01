@@ -59,7 +59,7 @@ class BlockExecution(
           block,
           result.worldState.stateRootHash,
           result.receipts,
-          result.gasUsed
+          GasAmount(result.gasUsed)
         )
       yield (result.receipts, result.executionRequests)
 
