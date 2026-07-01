@@ -12,20 +12,24 @@ Referenced by: `fukuii/CLAUDE.md`, loom.md, wraith.md, mithril.md
 
 ## What counts as consensus-critical
 
-**ETC/Mordor (route to FORGE):**
-- `consensus/` — fork dispatch, block validation, reward calculation
-- `vm/` — EVM opcode execution, gas computation
-- `crypto/` — hashing, signing, key recovery
-- `domain/` — Block, BlockHeader, Transaction, Account types
-- `network/p2p/messages/` — RLP wire encoding/decoding
-- `db/storage/` — state trie, receipt storage, block persistence
-- Anything touching: ECIP fork blocks, ECIP-1017 rewards, Ethash, chain ID 61/63
+**FORGE scope — ETC (mainnet) / Mordor (testnet) and any future PoW-family network:**
+- `consensus/pow/` — Ethash, PoW block validation, mining
+- `consensus/validators/pow/` — PoW-specific validator executors
+- Anything touching: ECIP fork blocks, ECIP-1017 rewards, Ethash, ETChash, `forBlock()`, `OlympiaOpCodes`
 
-**ETH/Sepolia (route to BEACON):**
-- Same file paths as above but for ETH chain paths
+**BEACON scope — ETH (mainnet) / Sepolia (testnet) and any future PoS-family network:**
+- `consensus/engine/` — Engine API domain, EngineApiController, EngineApiService
 - PoS consensus, timestamp fork dispatch, EIP execution
 - Withdrawals, blob transactions (EIP-4844), execution payload encoding
-- Chain ID 1/11155111, Osaka opcodes, `forTimestamp()`
+- `forTimestamp()`, `OsakaOpCodes`
+
+**FORGE + BEACON jointly — shared execution-layer (applies to all supported networks):**
+- `consensus/validators/std/` — standard gas/block validation runs on every network's EL
+- `vm/` — EVM opcode execution, gas computation
+- `crypto/` — hashing, signing, key recovery
+- `domain/` — Block, BlockHeader, Transaction, Account, Receipt types
+- `network/p2p/messages/` — RLP wire encoding/decoding
+- `db/storage/` — state trie, receipt storage, block persistence
 
 **P2P / wire protocol (route to HERALD):**
 - `network/rlpx/` — RLPx handshake, Snappy, framing
@@ -62,15 +66,17 @@ Referenced by: `fukuii/CLAUDE.md`, loom.md, wraith.md, mithril.md
 
 | Symptom / Change | Agent |
 |-----------------|-------|
-| ETC fork activation, block rewards, mining | FORGE |
-| ETC opcode / gas / EVM execution | FORGE |
-| ETH timestamp forks, Osaka EIPs, PoS | BEACON |
-| ETH blob transactions, withdrawals | BEACON |
-| devp2p handshake, ETH wire messages | HERALD |
+| PoW fork activation, block rewards, Ethash, ETChash, `forBlock()` | FORGE |
+| Engine API, PoS, timestamp forks, `forTimestamp()` | BEACON |
+| EVM opcodes, gas computation, `vm/` | FORGE + BEACON |
+| Shared execution-layer validation, `consensus/validators/std/` | FORGE + BEACON |
+| Domain types: Block, BlockHeader, Transaction, Receipt | FORGE + BEACON |
+| devp2p handshake, wire messages | HERALD |
 | SNAP protocol, ETH68/69/70/71 | HERALD |
 | RocksDB, WAL, state persistence | VAULT |
-| RLP encoding of domain types | FORGE + HERALD jointly |
-| Both ETC and ETH affected | FORGE first, then BEACON |
+| RLP encoding of domain types | FORGE + BEACON + HERALD |
+| New PoW-family network added | FORGE |
+| New PoS-family network added | BEACON |
 
 ---
 
