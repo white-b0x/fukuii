@@ -14,6 +14,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.*
 
 import com.typesafe.config.ConfigFactory
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -31,7 +32,13 @@ import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config.SyncConfig
 
 // scalastyle:off magic.number
-class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers:
+class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach:
+
+  private var _pendingCleanup: () => Unit = () => ()
+
+  override protected def afterEach(): Unit =
+    try _pendingCleanup()
+    finally _pendingCleanup = () => ()
 
   // ─── T2.1 Tier 1: exact interpolation from NewBlock ───────────────────────
   "SyncController CalibrateChainWeightFromPeer" should
@@ -587,4 +594,7 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers:
       setBestBlockHeader(bestHdr)
 
     def cleanup(): Unit = Await.result(system.terminate(), 10.seconds)
+
+    // Register teardown with the outer spec's afterEach lifecycle hook
+    ChainWeightCalibrationSpec.this._pendingCleanup = cleanup
 // scalastyle:on magic.number

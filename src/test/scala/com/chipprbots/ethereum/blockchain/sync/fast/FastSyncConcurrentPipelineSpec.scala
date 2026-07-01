@@ -9,6 +9,7 @@ import org.apache.pekko.util.ByteString
 
 import scala.io.Source
 
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -35,7 +36,12 @@ import com.chipprbots.ethereum.testing.Tags.*
   * Verifies that headersFetcherQueue, bodiesFetcherQueue, and receiptsFetcherQueue operate independently. No actor
   * choreography — all assertions deterministic.
   */
-class FastSyncConcurrentPipelineSpec extends AnyFlatSpec with Matchers:
+class FastSyncConcurrentPipelineSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll:
+
+  override protected def afterAll(): Unit =
+    import scala.concurrent.Await
+    import scala.concurrent.duration.*
+    Await.result(Helpers.system.terminate(), 10.seconds)
 
   import Helpers.*
 

@@ -13,6 +13,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.*
 
 import com.typesafe.config.ConfigFactory
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -38,7 +39,13 @@ import com.chipprbots.ethereum.utils.Config.SyncConfig
   *
   * T7/T8 use the SyncController actor (regular-sync mode) to verify end-to-end behaviour.
   */
-class CalibratePivotTDSpec extends AnyFlatSpec with Matchers:
+class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach:
+
+  private var _pendingCleanup: () => Unit = () => ()
+
+  override protected def afterEach(): Unit =
+    try _pendingCleanup()
+    finally _pendingCleanup = () => ()
 
   // ─── T5 / T6: Pure interpolation math ────────────────────────────────────
   //
@@ -420,4 +427,7 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers:
       buf.toVector
 
     def cleanup(): Unit = Await.result(system.terminate(), 10.seconds)
+
+    // Register teardown with the outer spec's afterEach lifecycle hook
+    CalibratePivotTDSpec.this._pendingCleanup = cleanup
 // scalastyle:on magic.number
