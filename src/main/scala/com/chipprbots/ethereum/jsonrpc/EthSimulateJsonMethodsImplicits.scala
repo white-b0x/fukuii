@@ -242,7 +242,7 @@ object EthSimulateJsonMethodsImplicits extends JsonMethodsImplicits:
           "gasPrice" -> encodeAsHex(effectiveGasPrice),
           "hash" -> encodeAsHex(stx.hash.value),
           "input" -> encodeAsHex(tx.payload),
-          "nonce" -> encodeAsHex(tx.nonce),
+          "nonce" -> encodeAsHex(tx.nonce.value),
           "to" -> tx.receivingAddress.map(a => encodeAsHex(a.bytes)).getOrElse(JNull),
           "transactionIndex" -> encodeAsHex(BigInt(txIdx)),
           "type" -> encodeAsHex(txType),

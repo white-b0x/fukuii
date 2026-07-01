@@ -177,7 +177,7 @@ class TxPoolService(
           val n =
             if f.value.startsWith("0x") then BigInt(f.value.stripPrefix("0x"), 16)
             else BigInt(f.value)
-          compareNumerically(tx.nonce, f.predicate, n)
+          compareNumerically(tx.nonce.value, f.predicate, n)
         case _ => true
     }
 

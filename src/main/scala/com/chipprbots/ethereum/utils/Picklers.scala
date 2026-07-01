@@ -22,6 +22,7 @@ import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.*
 import com.chipprbots.ethereum.domain.BlobVersionedHash
 import com.chipprbots.ethereum.domain.BloomFilter
 import com.chipprbots.ethereum.domain.LegacyTransaction
+import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SetCodeAuthorization
 import com.chipprbots.ethereum.domain.SetCodeTransaction
 import com.chipprbots.ethereum.domain.SignedTransaction
@@ -72,6 +73,8 @@ object Picklers:
     transformPickler[BlockNumber, BigInt](BlockNumber(_))(_.value)
   given timestampPickler: Pickler[Timestamp] =
     transformPickler[Timestamp, Long](Timestamp(_))(_.toLong)
+  given noncePickler: Pickler[Nonce] =
+    transformPickler[Nonce, BigInt](Nonce(_))(_.value)
 
   given legacyTransactionPickler: Pickler[LegacyTransaction] = generatePickler[LegacyTransaction]
   given transactionWithAccessListPickler: Pickler[TransactionWithAccessList] =

@@ -34,6 +34,7 @@ import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.domain.SetCodeTransaction
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.SuccessOutcome
+import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.Transaction
 import com.chipprbots.ethereum.domain.TransactionWithAccessList
 import com.chipprbots.ethereum.domain.TransactionWithDynamicFee
@@ -459,7 +460,7 @@ object GraphQLSchema:
     () =>
       fields[GraphQLContext, GTransaction](
         Field("hash", Bytes32Type, resolve = _.value.stx.hash.value),
-        Field("nonce", LongType, resolve = _.value.stx.tx.nonce.toLong),
+        Field("nonce", LongType, resolve = _.value.stx.tx.nonce.value.toLong),
         Field("index", OptionType(LongType), resolve = _.value.blockInfo.map(_.txIndex.toLong)),
         Field(
           "from",
@@ -548,7 +549,7 @@ object GraphQLSchema:
             c.value.blockInfo.flatMap { bi =>
               if c.value.stx.tx.isContractInit then
                 SignedTransaction.getSender(c.value.stx).map { sender =>
-                  val createdAddress = createContractAddress(sender, c.value.stx.tx.nonce)
+                  val createdAddress = createContractAddress(sender, c.value.stx.tx.nonce.value)
                   val blockNum = c.arg(BlockNumberArg).map(BigInt(_)).getOrElse(bi.block.header.number.value)
                   GAccount(createdAddress.bytes, blockNum)
                 }
@@ -1094,7 +1095,7 @@ object GraphQLSchema:
                     .getOrElse(c.ctx.blockchainConfig.accountStartNonce.toBigInt)
                 catch case _: MissingNodeException => c.ctx.blockchainConfig.accountStartNonce.toBigInt
 
-              if stx.tx.nonce < currentNonce then throw GraphQLDataFetchingError.nonceTooLow("sendRawTransaction")
+              if stx.tx.nonce.value < currentNonce then throw GraphQLDataFetchingError.nonceTooLow("sendRawTransaction")
 
               // Forward to the pool via the existing service. Any remaining failure path from
               // EthTxService (e.g. EIP-3860 initcode-too-large) surfaces as Invalid params.

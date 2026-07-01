@@ -5,6 +5,7 @@ import org.apache.pekko.util.ByteString
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.utils.Config
 
@@ -25,7 +26,7 @@ case class TransactionRequest(
   // The user-supplied gasPrice always wins; the oracle value is only the fallback.
   def toTransaction(defaultNonce: BigInt, suggestedGasPrice: BigInt): LegacyTransaction =
     LegacyTransaction(
-      nonce = nonce.getOrElse(defaultNonce),
+      nonce = Nonce(nonce.getOrElse(defaultNonce)),
       gasPrice = GasPrice(gasPrice.getOrElse(suggestedGasPrice)),
       gasLimit = GasAmount(gasLimit.getOrElse(defaultGasLimit)),
       receivingAddress = if Config.testmode then to.filter(_ != Address(0)) else to,

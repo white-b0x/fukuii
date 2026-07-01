@@ -198,7 +198,7 @@ class PersonalService(
       txPool.askForTyped[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactionsReq(_))
     val latestPendingTxNonceFuture: IO[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
       val senderTxsNonces = pendingTxs.pendingTransactions
-        .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.tx.nonce }
+        .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.tx.nonce.value }
       Try(senderTxsNonces.max).toOption
     }
     latestPendingTxNonceFuture.map { maybeLatestPendingTxNonce =>

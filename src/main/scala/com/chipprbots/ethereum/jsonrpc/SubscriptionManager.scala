@@ -262,7 +262,7 @@ object SubscriptionManager:
       val tx = stx.tx.tx
       JObject(
         "hash" -> JString("0x" + stx.tx.hash.toHex),
-        "nonce" -> JString("0x" + tx.nonce.toString(16)),
+        "nonce" -> JString("0x" + tx.nonce.value.toString(16)),
         "from" -> JString(stx.senderAddress.toString),
         "to" -> tx.receivingAddress.map(a => JString(a.toString): JValue).getOrElse(JNull),
         "value" -> JString("0x" + tx.value.toString(16)),

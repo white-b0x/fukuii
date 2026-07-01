@@ -162,8 +162,8 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
     // EIP-2681: nonces >= 2^64-1 are invalid (incrementing would overflow uint64)
     val eip2681NonceCap = BigInt(2).pow(64) - 2
 
-    if nonce > maxNonceValue then Left(TransactionSyntaxError(s"Invalid nonce: $nonce > $maxNonceValue"))
-    else if nonce > eip2681NonceCap then Left(TransactionSyntaxError(s"EIP-2681: nonce $nonce >= 2^64-1"))
+    if nonce.value > maxNonceValue then Left(TransactionSyntaxError(s"Invalid nonce: $nonce > $maxNonceValue"))
+    else if nonce.value > eip2681NonceCap then Left(TransactionSyntaxError(s"EIP-2681: nonce $nonce >= 2^64-1"))
     else if gasLimit > GasAmount(maxGasValue) then
       Left(TransactionSyntaxError(s"Invalid gasLimit: $gasLimit > $maxGasValue"))
     else if gasPrice.value > maxGasValue then
@@ -240,8 +240,8 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
       stx: SignedTransaction,
       senderNonce: UInt256
   ): Either[SignedTransactionError, SignedTransactionValid] =
-    if senderNonce == UInt256(stx.tx.nonce) then Right(SignedTransactionValid)
-    else Left(TransactionNonceError(UInt256(stx.tx.nonce), senderNonce))
+    if senderNonce == UInt256(stx.tx.nonce.value) then Right(SignedTransactionValid)
+    else Left(TransactionNonceError(UInt256(stx.tx.nonce.value), senderNonce))
 
   /** Validates the initcode size for contract creation transactions (EIP-3860)
     *

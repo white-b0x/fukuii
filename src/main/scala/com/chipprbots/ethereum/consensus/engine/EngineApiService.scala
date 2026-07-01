@@ -653,7 +653,7 @@ class EngineApiService(
                             val txs = filtered.sortBy { stx =>
                               val sender =
                                 SignedTransaction.getSender(stx).map(_.bytes.toArray.toSeq).getOrElse(Seq.empty)
-                              (sender, stx.tx.nonce)
+                              (sender, stx.tx.nonce.value)
                             }
                             if txs.nonEmpty then log.info("Payload includes {} pending transactions", txs.size)
                             val pendingTxs = txs

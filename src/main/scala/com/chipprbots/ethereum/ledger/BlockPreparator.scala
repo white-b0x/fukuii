@@ -735,7 +735,7 @@ class BlockPreparator(
           val account = world
             .getAccount(authorityAddr)
             .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
-          if account.nonce != UInt256(auth.nonce) then None
+          if account.nonce != UInt256(auth.nonce.value) then None
           else
             // 5. Increment nonce
             val updatedAccount = account.copy(nonce = account.nonce + 1)

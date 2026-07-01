@@ -178,7 +178,7 @@ object EthTransactionResponse:
   ): EthTransactionResponse =
     EthTransactionResponse(
       hash = stx.hash.value,
-      nonce = stx.tx.nonce,
+      nonce = stx.tx.nonce.value,
       blockHash = blockHeader.map(_.hash.value),
       blockNumber = blockHeader.map(_.number.value),
       transactionIndex = transactionIndex.map(txIndex => BigInt(txIndex)),

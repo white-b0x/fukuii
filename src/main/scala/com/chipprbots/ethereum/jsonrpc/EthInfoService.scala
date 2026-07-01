@@ -290,7 +290,14 @@ class EthInfoService(
       val toAddress = req.tx.to.map(Address.apply)
 
       val tx =
-        LegacyTransaction(0, GasPrice(req.tx.gasPrice), GasAmount(gasLimit), toAddress, req.tx.value, req.tx.data)
+        LegacyTransaction(
+          Nonce.Zero,
+          GasPrice(req.tx.gasPrice),
+          GasAmount(gasLimit),
+          toAddress,
+          req.tx.value,
+          req.tx.data
+        )
       val fakeSignature = ECDSASignature(0, 0, 0)
       SignedTransactionWithSender(tx, fakeSignature, fromAddress)
     }

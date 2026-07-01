@@ -194,7 +194,7 @@ object PendingTransactionsManager:
     /** Update pendingNonces high-water mark for accepted transactions. */
     def updatePendingNonces(txs: Iterable[SignedTransactionWithSender]): Unit =
       txs.foreach { stx =>
-        val nextNonce = stx.tx.tx.nonce + 1
+        val nextNonce = stx.tx.tx.nonce.value + 1
         val current = pendingNonces.getOrElse(stx.senderAddress, BigInt(0))
         if nextNonce > current then pendingNonces = pendingNonces.updated(stx.senderAddress, nextNonce)
       }
@@ -206,7 +206,7 @@ object PendingTransactionsManager:
       // 1. Always apply pending nonce check first (no MPT state needed, immune to race conditions)
       val afterPendingNonceCheck = txs.filter { stx =>
         pendingNonces.get(stx.senderAddress) match
-          case Some(nextExpected) => stx.tx.tx.nonce >= nextExpected
+          case Some(nextExpected) => stx.tx.tx.nonce.value >= nextExpected
           case None               => true
       }
 
@@ -259,7 +259,8 @@ object PendingTransactionsManager:
             afterTipCheck.filter { stx =>
               accountsBySender.get(stx.senderAddress).flatten.exists { account =>
                 val tx = stx.tx.tx
-                val nonceValid = tx.nonce >= account.nonce.toBigInt && tx.nonce < account.nonce.toBigInt + 1024
+                val nonceValid =
+                  tx.nonce.value >= account.nonce.toBigInt && tx.nonce.value < account.nonce.toBigInt + 1024
                 val maxGasCost = tx.gasLimit.value * tx.gasPrice.value
                 val totalCost = tx.value + maxGasCost
                 val balanceValid = account.balance.toBigInt >= totalCost

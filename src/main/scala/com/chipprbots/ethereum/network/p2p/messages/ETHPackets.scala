@@ -78,7 +78,7 @@ object ETHPackets:
         RLPList(
           RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId)),
           address,
-          RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce)),
+          RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
           RLPValue(ByteUtils.bigIntToUnsignedByteArray(v)),
           RLPValue(ByteUtils.bigIntToUnsignedByteArray(r)),
           RLPValue(ByteUtils.bigIntToUnsignedByteArray(s))
@@ -88,7 +88,7 @@ object ETHPackets:
         SetCodeAuthorization(
           rlpChainId.decodeAs[BigInt]("chainId"),
           rlpAddress.decodeAs[Address]("address"),
-          rlpNonce.decodeAs[BigInt]("nonce"),
+          Nonce(rlpNonce.decodeAs[BigInt]("nonce")),
           rlpV.decodeAs[BigInt]("v"),
           rlpR.decodeAs[BigInt]("r"),
           rlpS.decodeAs[BigInt]("s")
@@ -410,7 +410,7 @@ object ETHPackets:
               Transaction.Type02,
               RLPList(
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId)),
-                RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce)),
+                RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxPriorityFeePerGas)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxFeePerGas)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(gasLimit.value)),
@@ -428,7 +428,7 @@ object ETHPackets:
               Transaction.Type01,
               RLPList(
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId)),
-                RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce)),
+                RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(gasPrice.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(gasLimit.value)),
                 receivingAddressBytes,
@@ -457,7 +457,7 @@ object ETHPackets:
               Transaction.Type03,
               RLPList(
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId)),
-                RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce)),
+                RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxPriorityFeePerGas)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxFeePerGas)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(gasLimit.value)),
@@ -488,7 +488,7 @@ object ETHPackets:
               Transaction.Type04,
               RLPList(
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId)),
-                RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce)),
+                RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxPriorityFeePerGas)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxFeePerGas)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(gasLimit.value)),
@@ -504,7 +504,7 @@ object ETHPackets:
             )
           case LegacyTransaction(nonce, gasPrice, gasLimit, _, value, payload) =>
             RLPList(
-              RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce)),
+              RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
               RLPValue(ByteUtils.bigIntToUnsignedByteArray(gasPrice.value)),
               RLPValue(ByteUtils.bigIntToUnsignedByteArray(gasLimit.value)),
               receivingAddressBytes,
@@ -539,7 +539,7 @@ object ETHPackets:
           SignedTransaction(
             SetCodeTransaction(
               ByteUtils.bytesToBigInt(chainIdBytes),
-              ByteUtils.bytesToBigInt(nonceBytes),
+              Nonce(ByteUtils.bytesToBigInt(nonceBytes)),
               ByteUtils.bytesToBigInt(maxPriorityFeePerGasBytes),
               ByteUtils.bytesToBigInt(maxFeePerGasBytes),
               GasAmount(ByteUtils.bytesToBigInt(gasLimitBytes)),
@@ -577,7 +577,7 @@ object ETHPackets:
           SignedTransaction(
             BlobTransaction(
               ByteUtils.bytesToBigInt(chainIdBytes),
-              ByteUtils.bytesToBigInt(nonceBytes),
+              Nonce(ByteUtils.bytesToBigInt(nonceBytes)),
               ByteUtils.bytesToBigInt(maxPriorityFeePerGasBytes),
               ByteUtils.bytesToBigInt(maxFeePerGasBytes),
               GasAmount(ByteUtils.bytesToBigInt(gasLimitBytes)),
@@ -617,7 +617,7 @@ object ETHPackets:
           SignedTransaction(
             TransactionWithDynamicFee(
               ByteUtils.bytesToBigInt(chainIdBytes),
-              ByteUtils.bytesToBigInt(nonceBytes),
+              Nonce(ByteUtils.bytesToBigInt(nonceBytes)),
               ByteUtils.bytesToBigInt(maxPriorityFeePerGasBytes),
               ByteUtils.bytesToBigInt(maxFeePerGasBytes),
               GasAmount(ByteUtils.bytesToBigInt(gasLimitBytes)),
@@ -651,7 +651,7 @@ object ETHPackets:
           SignedTransaction(
             TransactionWithAccessList(
               ByteUtils.bytesToBigInt(chainIdBytes),
-              ByteUtils.bytesToBigInt(nonceBytes),
+              Nonce(ByteUtils.bytesToBigInt(nonceBytes)),
               GasPrice(ByteUtils.bytesToBigInt(gasPriceBytes)),
               GasAmount(ByteUtils.bytesToBigInt(gasLimitBytes)),
               if receivingAddress.bytes.isEmpty then None else Some(Address(receivingAddress.bytes)),
@@ -678,7 +678,7 @@ object ETHPackets:
             ) =>
           SignedTransaction(
             LegacyTransaction(
-              ByteUtils.bytesToBigInt(nonceBytes),
+              Nonce(ByteUtils.bytesToBigInt(nonceBytes)),
               GasPrice(ByteUtils.bytesToBigInt(gasPriceBytes)),
               GasAmount(ByteUtils.bytesToBigInt(gasLimitBytes)),
               if receivingAddress.bytes.isEmpty then None else Some(Address(receivingAddress.bytes)),

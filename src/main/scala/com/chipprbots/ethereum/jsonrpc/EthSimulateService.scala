@@ -761,7 +761,7 @@ class EthSimulateService(
         if isBlob then
           BlobTransaction(
             chainId = blockchainConfig.chainId.value,
-            nonce = senderNonce,
+            nonce = Nonce(senderNonce),
             maxPriorityFeePerGas = call.maxPriorityFeePerGas.getOrElse(BigInt(0)),
             maxFeePerGas = call.maxFeePerGas.getOrElse(BigInt(0)),
             gasLimit = GasAmount(gasLimit),
@@ -775,7 +775,7 @@ class EthSimulateService(
         else if !isLegacy then
           TransactionWithDynamicFee(
             chainId = blockchainConfig.chainId.value,
-            nonce = senderNonce,
+            nonce = Nonce(senderNonce),
             maxPriorityFeePerGas = call.maxPriorityFeePerGas.getOrElse(BigInt(0)),
             maxFeePerGas = call.maxFeePerGas.getOrElse(BigInt(0)),
             gasLimit = GasAmount(gasLimit),
@@ -786,7 +786,7 @@ class EthSimulateService(
           )
         else
           LegacyTransaction(
-            nonce = senderNonce,
+            nonce = Nonce(senderNonce),
             gasPrice = GasPrice(gasPrice),
             gasLimit = GasAmount(gasLimit),
             receivingAddress = toAddr,

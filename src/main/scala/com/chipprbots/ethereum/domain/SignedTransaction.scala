@@ -610,7 +610,7 @@ object SignedTransactionWithSender:
         case sct: SetCodeTransaction         => sct.chainId == blockchainConfig.chainId.value
         case _: LegacyTransaction            => true // validated in getSender
       if !chainIdValid then false
-      else if tx.nonce > eip2681NonceCap then false // EIP-2681 nonce overflow
+      else if tx.nonce.value > eip2681NonceCap then false // EIP-2681 nonce overflow
       else
         // 2. Intrinsic gas validation — reject txs with gas below minimum
         val authListSize = tx match

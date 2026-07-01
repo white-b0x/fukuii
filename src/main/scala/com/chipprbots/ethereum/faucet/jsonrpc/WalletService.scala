@@ -9,6 +9,7 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.LegacyTransaction
+import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.faucet.FaucetConfig
 import com.chipprbots.ethereum.jsonrpc.client.RpcClient.RpcError
 import com.chipprbots.ethereum.keystore.KeyStore
@@ -38,7 +39,7 @@ class WalletService(walletRpcClient: WalletRpcClientApi, keyStore: KeyStore, con
   private def prepareTx(wallet: Wallet, targetAddress: Address, nonce: BigInt): ByteString =
     val transaction =
       LegacyTransaction(
-        nonce,
+        Nonce(nonce),
         GasPrice(config.txGasPrice),
         GasAmount(config.txGasLimit),
         Some(targetAddress),

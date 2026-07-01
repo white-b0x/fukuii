@@ -5,7 +5,7 @@ import org.apache.pekko.util.ByteString
 import org.bouncycastle.util.encoders.Hex
 
 sealed trait Transaction extends Product with Serializable:
-  def nonce: BigInt
+  def nonce: Nonce
   def gasPrice: GasPrice
   def gasLimit: GasAmount
   def receivingAddress: Option[Address]
@@ -78,7 +78,7 @@ object LegacyTransaction:
   val ValueLength = 32
 
   def apply(
-      nonce: BigInt,
+      nonce: Nonce,
       gasPrice: GasPrice,
       gasLimit: GasAmount,
       receivingAddress: Address,
@@ -88,7 +88,7 @@ object LegacyTransaction:
     LegacyTransaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
 
 case class LegacyTransaction(
-    nonce: BigInt,
+    nonce: Nonce,
     gasPrice: GasPrice,
     gasLimit: GasAmount,
     receivingAddress: Option[Address],
@@ -109,7 +109,7 @@ case class LegacyTransaction(
 object TransactionWithAccessList:
   def apply(
       chainId: BigInt,
-      nonce: BigInt,
+      nonce: Nonce,
       gasPrice: GasPrice,
       gasLimit: GasAmount,
       receivingAddress: Address,
@@ -121,7 +121,7 @@ object TransactionWithAccessList:
 
 case class TransactionWithAccessList(
     chainId: BigInt,
-    nonce: BigInt,
+    nonce: Nonce,
     gasPrice: GasPrice,
     gasLimit: GasAmount,
     receivingAddress: Option[Address],
@@ -143,7 +143,7 @@ case class TransactionWithAccessList(
 object TransactionWithDynamicFee:
   def apply(
       chainId: BigInt,
-      nonce: BigInt,
+      nonce: Nonce,
       maxPriorityFeePerGas: BigInt,
       maxFeePerGas: BigInt,
       gasLimit: GasAmount,
@@ -169,7 +169,7 @@ object TransactionWithDynamicFee:
   */
 case class TransactionWithDynamicFee(
     chainId: BigInt,
-    nonce: BigInt,
+    nonce: Nonce,
     maxPriorityFeePerGas: BigInt,
     maxFeePerGas: BigInt,
     gasLimit: GasAmount,
@@ -202,7 +202,7 @@ case class AccessListItem(address: Address, storageKeys: List[StorageKey]) // by
   */
 case class BlobTransaction(
     chainId: BigInt,
-    nonce: BigInt,
+    nonce: Nonce,
     maxPriorityFeePerGas: BigInt,
     maxFeePerGas: BigInt,
     gasLimit: GasAmount,
@@ -232,7 +232,7 @@ case class BlobTransaction(
 object BlobTransaction:
   def apply(
       chainId: BigInt,
-      nonce: BigInt,
+      nonce: Nonce,
       maxPriorityFeePerGas: BigInt,
       maxFeePerGas: BigInt,
       gasLimit: GasAmount,
@@ -261,7 +261,7 @@ object BlobTransaction:
 case class SetCodeAuthorization(
     chainId: BigInt,
     address: Address,
-    nonce: BigInt,
+    nonce: Nonce,
     v: BigInt,
     r: BigInt,
     s: BigInt
@@ -273,7 +273,7 @@ case class SetCodeAuthorization(
   */
 case class SetCodeTransaction(
     chainId: BigInt,
-    nonce: BigInt,
+    nonce: Nonce,
     maxPriorityFeePerGas: BigInt,
     maxFeePerGas: BigInt,
     gasLimit: GasAmount,
