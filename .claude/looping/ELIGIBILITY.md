@@ -39,9 +39,15 @@ taste-driven work stays a manual prompt.
 
 ## `bin/eligible.sh` Verification
 
-Run `./claude/looping/bin/eligible.sh <recipe-id>` before starting any loop.
+Run `.claude/looping/bin/eligible.sh <recipe-id>` before starting any loop.
 The script prints `ELIGIBLE:YES` or `ELIGIBLE:NO reason=<text>` based on:
 - Whether the recipe file exists in `recipes/`
+- Whether `registry.yaml` exists
 - Whether all declared gate scripts exist in `verify/`
-- Whether the declared maker and checker are in `registry.yaml`
 - Whether `refresh_refs: true` recipes can reach the ref repos
+
+**Not currently checked:** whether the declared `maker:`/`checker:` agents are valid
+entries in `registry.yaml`. Recipe `checker:` values vary in shape (`NONE`, a single
+name, a `[bracketed, list]`, and in `spec-conformance.loop.md` a literal fill-in-the-
+blank template) — a naive validator would false-fail on the template form. Not
+implemented until that's resolved by design, not left as a silent gap.

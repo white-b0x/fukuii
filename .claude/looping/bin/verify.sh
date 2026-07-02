@@ -4,6 +4,14 @@
 # Reads gate list from recipes/<recipe-id>.loop.md and runs each verify/<gate>.sh.
 # Prints every GATE: line then the LOOP: aggregate.
 # Exits 0 on ALL_GATES:PASS, nonzero on ALL_GATES:FAIL.
+#
+# INVARIANT: this script captures each gate script's full output via $(...) (below).
+# That is only safe because every verify/<gate>.sh keeps its OWN stdout to a few short
+# lines — compile.sh/format.sh/tests.sh redirect the real sbt output to a log file via
+# sbt-run.sh and print one summary line, never the raw command output. Any new gate
+# script MUST preserve this — see background-script-execution.md. A gate script that
+# forwards raw sbt/test output to its own stdout reintroduces the exact freeze risk
+# that pattern exists to eliminate, one level up, inside this capture.
 
 set -eu
 

@@ -5,14 +5,26 @@
 #
 # Note: sbt task name confirmed as scalafmtCheck in build.sbt; if the build
 # renames it, update here. See open assumption in DISCOVERY.md.
+#
+# Runs via sbt-run.sh (log-to-file, no live-streamed/captured output) instead of
+# capturing full sbt output into a shell variable — see background-script-execution.md.
+# Fixed 2026-07-02 (QUEUE.md SBT-RUN-LOOP chase item), same class of fix as compile.sh.
 
 set -eu
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || printf '/media/dev/2tb/dev/fukuii')"
-cd "$REPO_ROOT"
+SBT_RUN="$REPO_ROOT/.claude/scripts/sbt-run.sh"
 
-OUTPUT=$(sbt scalafmtCheck 2>&1) || {
-    UNFORMATTED=$(printf '%s' "$OUTPUT" | grep -E 'not formatted|error' | head -5 || printf 'see output')
+if [ ! -x "$SBT_RUN" ]; then
+    printf 'GATE:format RESULT:FAIL detail=sbt-run-script-not-found:%s\n' "$SBT_RUN"
+    exit 1
+fi
+
+LOG_NAME="looping-gate-format-$(date +%Y%m%d-%H%M%S)"
+LOG_FILE="$REPO_ROOT/.local/logs/${LOG_NAME}.log"
+
+"$SBT_RUN" "$LOG_NAME" scalafmtCheck || {
+    UNFORMATTED=$(grep -E 'not formatted|error' "$LOG_FILE" | head -5 || printf 'see output')
     printf 'GATE:format RESULT:FAIL detail=scalafmt-violations-detected\n'
     printf '%s\n' "$UNFORMATTED"
     exit 1
