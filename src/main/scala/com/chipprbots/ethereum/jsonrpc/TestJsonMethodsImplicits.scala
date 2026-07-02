@@ -11,7 +11,11 @@ import org.json4s.JsonAST.*
 import org.json4s.JsonDSL.*
 
 import com.chipprbots.ethereum.blockchain.data.GenesisAccount
+import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.Nonce
+import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import com.chipprbots.ethereum.jsonrpc.TestService.*
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonEncoder
@@ -85,7 +89,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits:
           timestamp <- extractBytes((genesisJson \ "timestamp").extract[String])
           nonce <- extractBytes((genesisJson \ "nonce").extract[String])
           mixHash <- extractBytes((genesisJson \ "mixHash").extract[String])
-        yield GenesisParams(author, difficulty, extraData, gasLimit, parentHash, timestamp, nonce, mixHash)
+        yield GenesisParams(author, difficulty, extraData, GasAmount(gasLimit), parentHash, timestamp, nonce, mixHash)
 
       private def extractBlockchainParams(blockchainParamsJson: JValue): Either[JsonRpcError, BlockchainParams] =
         for
@@ -102,9 +106,9 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits:
         yield BlockchainParams(
           EIP150ForkBlock = eIP150ForkBlock,
           EIP158ForkBlock = eIP158ForkBlock,
-          accountStartNonce = accountStartNonce.getOrElse(0),
+          accountStartNonce = Nonce(accountStartNonce.getOrElse(BigInt(0))),
           allowFutureBlocks = allowFutureBlocks,
-          blockReward = blockReward.getOrElse(0),
+          blockReward = Wei(blockReward.getOrElse(BigInt(0))),
           byzantiumForkBlock = byzantiumForkBlock,
           homesteadForkBlock = homesteadForkBlock,
           maximumExtraDataSize = 0,
@@ -130,7 +134,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits:
       def decodeJson(params: Option[JArray]): Either[JsonRpcError, ModifyTimestampRequest] =
         params match
           case Some(JArray(JInt(timestamp) :: Nil)) =>
-            Right(ModifyTimestampRequest(timestamp.toLong))
+            Right(ModifyTimestampRequest(Timestamp(timestamp.toLong)))
           case _ => Left(InvalidParams())
 
       override def encodeJson(t: ModifyTimestampResponse): JValue = true

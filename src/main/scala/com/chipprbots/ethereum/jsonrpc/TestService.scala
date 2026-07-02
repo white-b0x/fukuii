@@ -38,7 +38,11 @@ import com.chipprbots.ethereum.domain.Block.*
 import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
+import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.Nonce
+import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.jsonrpc.JsonMethodsImplicits.*
 import com.chipprbots.ethereum.nodebuilder.TestNode
 import com.chipprbots.ethereum.rlp
@@ -57,7 +61,7 @@ object TestService:
       author: ByteString,
       difficulty: String,
       extraData: ByteString,
-      gasLimit: BigInt,
+      gasLimit: GasAmount,
       parentHash: ByteString,
       timestamp: ByteString,
       nonce: ByteString,
@@ -66,9 +70,9 @@ object TestService:
   case class BlockchainParams(
       EIP150ForkBlock: Option[BigInt],
       EIP158ForkBlock: Option[BigInt],
-      accountStartNonce: BigInt,
+      accountStartNonce: Nonce,
       allowFutureBlocks: Boolean,
-      blockReward: BigInt,
+      blockReward: Wei,
       byzantiumForkBlock: Option[BigInt],
       homesteadForkBlock: Option[BigInt],
       maximumExtraDataSize: BigInt,
@@ -112,7 +116,7 @@ object TestService:
   case class MineBlocksRequest(num: Int)
   case class MineBlocksResponse()
 
-  case class ModifyTimestampRequest(timestamp: Long)
+  case class ModifyTimestampRequest(timestamp: Timestamp)
   case class ModifyTimestampResponse()
 
   case class RewindToBlockRequest(blockNum: Long)
@@ -158,7 +162,7 @@ class TestService(
 
   private var etherbase: Address = miningConfig.coinbase
   private var accountHashWithAdresses: List[(ByteString, Address)] = List()
-  private var blockTimestamp: Long = 0
+  private var blockTimestamp: Timestamp = Timestamp.Zero
 
   private val preimageCache: collection.concurrent.Map[ByteString, UInt256] =
     new collection.concurrent.TrieMap[ByteString, UInt256]()
@@ -175,7 +179,7 @@ class TestService(
       mixHash = Some(request.chainParams.genesis.mixHash),
       difficulty = request.chainParams.genesis.difficulty,
       extraData = request.chainParams.genesis.extraData,
-      gasLimit = "0x" + request.chainParams.genesis.gasLimit.toString(16),
+      gasLimit = "0x" + request.chainParams.genesis.gasLimit.value.toString(16),
       coinbase = request.chainParams.genesis.author,
       timestamp = Hex.toHexString(request.chainParams.genesis.timestamp.toArray[Byte]),
       alloc = request.chainParams.accounts.map { case (addr, acc) =>
@@ -234,7 +238,7 @@ class TestService(
         phoenixBlockNumber = istanbulForkBlockNumber,
         berlinBlockNumber = berlinForkBlockNumber
       ),
-      accountStartNonce = UInt256(blockchainParams.accountStartNonce),
+      accountStartNonce = UInt256(blockchainParams.accountStartNonce.value),
       networkId = 1,
       bootstrapNodes = Set()
     )

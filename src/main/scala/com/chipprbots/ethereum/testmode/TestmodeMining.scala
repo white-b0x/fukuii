@@ -30,6 +30,7 @@ import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.Receipt
+import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.ledger.BlockExecutionError
 import com.chipprbots.ethereum.ledger.BlockExecutionSuccess
 import com.chipprbots.ethereum.ledger.BlockPreparator
@@ -45,7 +46,7 @@ class TestmodeMining(
     blockchainReader: BlockchainReader,
     miningConfig: MiningConfig,
     node: TestNode,
-    blockTimestamp: Long = 0
+    blockTimestamp: Timestamp = Timestamp.Zero
 ) // var, because it can be modified by test_ RPC endpoints
     extends Mining:
 
@@ -118,7 +119,7 @@ class TestmodeMining(
       blockPreparator,
       difficultyCalculator,
       new BlockTimestampProvider:
-        override def getEpochSecond: Long = blockTimestamp
+        override def getEpochSecond: Long = blockTimestamp.toLong
     ):
       override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
 

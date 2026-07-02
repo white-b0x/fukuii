@@ -12,6 +12,7 @@ import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
+import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.ledger.BlockValidation
 import com.chipprbots.ethereum.ledger.VMImpl
@@ -63,7 +64,7 @@ class TestModeComponentsProvider(
     node.blockQueue.clear()
 
   def consensus(
-      blockTimestamp: Long = 0
+      blockTimestamp: Timestamp = Timestamp.Zero
   ): TestmodeMining =
     new TestmodeMining(
       vm,
