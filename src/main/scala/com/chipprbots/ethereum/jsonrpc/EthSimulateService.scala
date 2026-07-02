@@ -170,7 +170,7 @@ class EthSimulateService(
     val simulatedBlockHashes = mutable.Map[BigInt, ByteString]()
 
     // Create initial world state from base block
-    val evmConfig = EvmConfig.forBlock(baseBlock.header.number.value, baseBlock.header.unixTimestamp, blockchainConfig)
+    val evmConfig = EvmConfig.forBlock(baseBlock.header.number, baseBlock.header.unixTimestamp, blockchainConfig)
     var world = InMemoryWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
       mptStorage = blockchain.getReadOnlyMptStorage(),

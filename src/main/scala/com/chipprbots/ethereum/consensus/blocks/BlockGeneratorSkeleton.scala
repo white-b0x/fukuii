@@ -41,7 +41,7 @@ abstract class BlockGeneratorSkeleton(
   protected def newBlockBody(transactions: Seq[SignedTransaction], x: X): BlockBody
 
   protected def defaultPrepareHeader(
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       parent: Block,
       beneficiary: Address,
       blockTimestamp: Timestamp,
@@ -56,20 +56,20 @@ abstract class BlockGeneratorSkeleton(
       transactionsRoot = TrieRoot.Empty,
       receiptsRoot = TrieRoot.Empty,
       logsBloom = BloomFilter.Empty,
-      difficulty = difficultyCalc.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
-      number = BlockNumber(blockNumber),
+      difficulty = difficultyCalc.calculateDifficulty(blockNumber.value, blockTimestamp, parent.header),
+      number = blockNumber,
       gasLimit = GasAmount(calculateGasLimit(parent.header.gasLimit.value, blockNumber)),
       gasUsed = GasAmount.Zero,
       unixTimestamp = blockTimestamp,
       extraData = blockchainConfig.daoForkConfig
-        .flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber))
+        .flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber.value))
         .getOrElse(headerExtraData),
       mixHash = BlockHash(ByteString.empty),
       nonce = ByteString.empty
     )
 
   protected def prepareHeader(
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       parent: Block,
       beneficiary: Address,
       blockTimestamp: Timestamp,
@@ -82,7 +82,7 @@ abstract class BlockGeneratorSkeleton(
       parent: Block,
       transactions: Seq[SignedTransaction],
       beneficiary: Address,
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       blockPreparator: BlockPreparator,
       x: X,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
@@ -126,7 +126,7 @@ abstract class BlockGeneratorSkeleton(
       transactions: Seq[SignedTransaction],
       blockGasLimit: GasAmount,
       blockBaseFee: BigInt = BigInt(0),
-      blockNumber: BigInt = BigInt(0)
+      blockNumber: BlockNumber = BlockNumber.Zero
   )(implicit blockchainConfig: BlockchainConfig): Seq[SignedTransaction] =
 
     // ECIP-1122: filter out txs with effectiveTip < minTip before sorting — but only from
@@ -134,7 +134,7 @@ abstract class BlockGeneratorSkeleton(
     // calcBaseFee returns the 1 gwei floor even before Olympia, so an un-gated filter would
     // (a) drop legitimate sub-(floor+minTip) legacy txs and (b) in block production, desync the
     // tx list from a pre-sealed header (→ HeaderPoWError). Gate on the Olympia activation block.
-    val isOlympia = blockNumber >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
+    val isOlympia = blockNumber.value >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
     val eligibleTransactions =
       if !isOlympia then transactions
       else
@@ -188,11 +188,11 @@ abstract class BlockGeneratorSkeleton(
     * begin converging toward 60M at Olympia activation without any config change. The algorithm matches core-geth's
     * CalcGasLimit() and besu's OlympiaTargetingGasLimitCalculator.
     */
-  protected def calculateGasLimit(parentGas: BigInt, blockNumber: BigInt)(implicit
+  protected def calculateGasLimit(parentGas: BigInt, blockNumber: BlockNumber)(implicit
       blockchainConfig: BlockchainConfig
   ): BigInt =
     val target = blockchainConfig.forkBlockNumbers
-      .gasLimitAdjustmentStartAt(blockNumber)
+      .gasLimitAdjustmentStartAt(blockNumber.value)
       .getOrElse(miningConfig.gasLimitTarget)
     val delta = parentGas / BlockHeaderValidator.GasLimitBoundDivisor - 1
     if parentGas < target then

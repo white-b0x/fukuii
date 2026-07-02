@@ -44,7 +44,7 @@ class PoWBlockGeneratorImpl(
     BlockBody(transactions, x)
 
   protected def prepareHeader(
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       parent: Block,
       beneficiary: Address,
       blockTimestamp: Timestamp,
@@ -83,7 +83,7 @@ class PoWBlockGeneratorImpl(
       val blockNumber = pHeader.number + 1
       val parentHash = pHeader.hash
 
-      val ommers = validators.ommersValidator.validate(parentHash.value, blockNumber.value, x, blockchainReader) match
+      val ommers = validators.ommersValidator.validate(parentHash.value, blockNumber, x, blockchainReader) match
         case Left(_)  => emptyX
         case Right(_) => x
 
@@ -92,7 +92,7 @@ class PoWBlockGeneratorImpl(
         parent,
         transactions,
         beneficiary,
-        blockNumber.value,
+        blockNumber,
         blockPreparator,
         ommers,
         initialWorldStateBeforeExecution

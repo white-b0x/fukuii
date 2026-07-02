@@ -5,6 +5,7 @@ import org.apache.pekko.util.ByteString
 import com.chipprbots.ethereum
 
 import com.chipprbots.ethereum.domain.AccessListItem
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -25,12 +26,12 @@ object EvmConfig:
 
   /** returns the evm config that should be used for given block
     */
-  def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfig): EvmConfig =
+  def forBlock(blockNumber: BlockNumber, blockchainConfig: BlockchainConfig): EvmConfig =
     forBlock(blockNumber, BlockchainConfigForEvm(blockchainConfig))
 
   /** returns the evm config for a given block, applying timestamp-based fork overrides for post-merge ETH chains.
     */
-  def forBlock(blockNumber: BigInt, timestamp: Timestamp, blockchainConfig: BlockchainConfig): EvmConfig =
+  def forBlock(blockNumber: BlockNumber, timestamp: Timestamp, blockchainConfig: BlockchainConfig): EvmConfig =
     var config = forBlock(blockNumber, blockchainConfig)
     // Apply timestamp-based fork upgrades for ETH chains
     if blockchainConfig.isShanghaiTimestamp(timestamp) then
@@ -58,7 +59,7 @@ object EvmConfig:
 
   /** returns the evm config that should be used for given block
     */
-  def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfigForEvm): EvmConfig =
+  def forBlock(blockNumber: BlockNumber, blockchainConfig: BlockchainConfigForEvm): EvmConfig =
     // When ETC-specific forks (Spiral, Mystique) activate AFTER Olympia, the chain follows
     // standard Ethereum fork schedule where London only activates EIP-1559/3529/3541.
     // On ETC, Spiral < Olympia in the fork sequence, so Olympia bundles all EIPs.
@@ -89,7 +90,7 @@ object EvmConfig:
 
     // highest transition block that is less/equal to `blockNumber`
     val evmConfigBuilder = transitionBlockToConfigWithPriorityMapping
-      .filterNot { case (number, _, _) => number > blockNumber }
+      .filterNot { case (number, _, _) => number > blockNumber.value }
       .maxBy { case (number, priority, _) => (number, priority) }
       ._3
 

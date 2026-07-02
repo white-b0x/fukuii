@@ -146,7 +146,7 @@ class BlockExecution(
       (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
       accountStartNonce = blockchainConfig.accountStartNonce,
       stateRootHash = parentHeader.stateRoot.value,
-      noEmptyAccounts = EvmConfig.forBlock(block.header.number.value, blockchainConfig).noEmptyAccounts,
+      noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
 
@@ -368,7 +368,7 @@ class BlockExecution(
     if !blockchainConfig.isPragueTimestamp(block.header.unixTimestamp) then return (world, Nil)
 
     import BlockExecution.*
-    val evmConfig = EvmConfig.forBlock(block.header.number.value, block.header.unixTimestamp, blockchainConfig)
+    val evmConfig = EvmConfig.forBlock(block.header.number, block.header.unixTimestamp, blockchainConfig)
     var w = world
     val outputs = scala.collection.mutable.ListBuffer.empty[ByteString]
 

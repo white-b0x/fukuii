@@ -252,7 +252,8 @@ class EthTxService(
           val tip = blockchainReader.getBestBlock.map(_.header)
           val bestNum = tip.map(_.number.value).getOrElse(blockchainReader.getBestBlockNumber)
           val ts = tip.map(_.unixTimestamp).getOrElse(Timestamp.Zero)
-          val evmConfig = com.chipprbots.ethereum.vm.EvmConfig.forBlock(bestNum, ts, blockchainConfig)
+          val evmConfig = com.chipprbots.ethereum.vm.EvmConfig
+            .forBlock(com.chipprbots.ethereum.domain.BlockNumber(bestNum), ts, blockchainConfig)
           val tx = signedTransaction.tx
           val initCodeTooLarge =
             tx.isContractInit &&

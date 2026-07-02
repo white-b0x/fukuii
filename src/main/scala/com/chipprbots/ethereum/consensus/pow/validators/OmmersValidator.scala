@@ -18,7 +18,7 @@ trait OmmersValidator:
 
   def validate(
       parentHash: ByteString,
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       ommers: Seq[BlockHeader],
       getBlockByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
@@ -26,7 +26,7 @@ trait OmmersValidator:
 
   def validate(
       parentHash: ByteString,
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       ommers: Seq[BlockHeader],
       blockchainReader: BlockchainReader
   )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid] =

@@ -1,5 +1,6 @@
 package com.chipprbots.ethereum.ledger
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.utils.MonetaryPolicyConfig
 
@@ -60,7 +61,7 @@ class BlockRewardCalculator(
     * @return
     *   miner reward for the block
     */
-  def calculateMiningRewardForBlock(blockNumber: BigInt): Wei =
+  def calculateMiningRewardForBlock(blockNumber: BlockNumber): Wei =
     val era = eraNumber(blockNumber)
     val eraMultiplier = rewardReductionRateNumer.pow(era)
     val eraDivisor = rewardReductionRateDenom.pow(era)
@@ -75,7 +76,7 @@ class BlockRewardCalculator(
     * @return
     *   miner reward for the block ommers
     */
-  def calculateMiningRewardForOmmers(blockNumber: BigInt, ommersCount: Int): Wei =
+  def calculateMiningRewardForOmmers(blockNumber: BlockNumber, ommersCount: Int): Wei =
     Wei(calculateMiningRewardPerOmmer(blockNumber) * ommersCount)
 
   /** Calculates the ommers reward for the ommers included on the block
@@ -87,11 +88,11 @@ class BlockRewardCalculator(
     * @return
     *   ommer reward
     */
-  def calculateOmmerRewardForInclusion(blockNumber: BigInt, ommerNumber: BigInt): Wei =
+  def calculateOmmerRewardForInclusion(blockNumber: BlockNumber, ommerNumber: BlockNumber): Wei =
     val era = eraNumber(blockNumber)
 
     if era == 0 then
-      val number = firstEraOmmerMiningRewardMaxNumer - (blockNumber - ommerNumber - 1)
+      val number = firstEraOmmerMiningRewardMaxNumer - (blockNumber.value - ommerNumber.value - 1)
       Wei((newBlockReward(blockNumber) * number) / firstEraOmmerMiningRewardDenom)
     else Wei(calculateMiningRewardForBlock(blockNumber).value * ommerMiningRewardNumer / ommerMiningRewardDenom)
 
@@ -102,18 +103,18 @@ class BlockRewardCalculator(
     * @return
     *   reward given to the miner for each ommer included
     */
-  private def calculateMiningRewardPerOmmer(blockNumber: BigInt): BigInt =
+  private def calculateMiningRewardPerOmmer(blockNumber: BlockNumber): BigInt =
     calculateMiningRewardForBlock(blockNumber).value * ommerInclusionRewardNumer / ommerInclusionRewardDenom
 
   /** era number counting from 0 */
-  private def eraNumber(blockNumber: BigInt): Int =
-    ((blockNumber - 1) / eraDuration).toInt
+  private def eraNumber(blockNumber: BlockNumber): Int =
+    ((blockNumber.value - 1) / eraDuration).toInt
 
   /** Assign proper blockReward accounting Byzantium/Constantinople fork
     * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
     * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1234.md
     */
-  private def newBlockReward(blockNumber: BigInt): BigInt =
-    if blockNumber >= constantinopleBlockNumber then newRewardAfterConstantinople
-    else if blockNumber >= byzantiumBlockNumber then newRewardAfterByzantium
+  private def newBlockReward(blockNumber: BlockNumber): BigInt =
+    if blockNumber.value >= constantinopleBlockNumber then newRewardAfterConstantinople
+    else if blockNumber.value >= byzantiumBlockNumber then newRewardAfterByzantium
     else firstEraBlockReward

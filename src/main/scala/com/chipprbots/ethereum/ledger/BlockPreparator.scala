@@ -55,7 +55,7 @@ class BlockPreparator(
     // too would double-credit every withdrawal and break state-root validation.
     if block.header.isPoS then worldStateProxy
     else
-      val blockNumber = block.header.number.value
+      val blockNumber = block.header.number
       val minerRewardForBlock = blockRewardCalculator.calculateMiningRewardForBlock(blockNumber)
       val minerRewardForOmmers =
         blockRewardCalculator.calculateMiningRewardForOmmers(blockNumber, block.body.uncleNodesList.size)
@@ -72,7 +72,7 @@ class BlockPreparator(
 
       block.body.uncleNodesList.foldLeft(worldAfterPayingBlockReward) { (ws, ommer) =>
         val ommerAddress = Address(ommer.beneficiary)
-        val ommerReward = blockRewardCalculator.calculateOmmerRewardForInclusion(blockNumber, ommer.number.value)
+        val ommerReward = blockRewardCalculator.calculateOmmerRewardForInclusion(blockNumber, ommer.number)
 
         log.debug(
           "Paying block {} reward of {} to ommer with account address {}",
@@ -221,7 +221,7 @@ class BlockPreparator(
       world: InMemoryWorldStateProxy,
       tracer: Option[com.chipprbots.ethereum.vm.ExecutionTracer] = None
   )(implicit blockchainConfig: BlockchainConfig): PR =
-    val evmConfig = EvmConfig.forBlock(blockHeader.number.value, blockHeader.unixTimestamp, blockchainConfig)
+    val evmConfig = EvmConfig.forBlock(blockHeader.number, blockHeader.unixTimestamp, blockchainConfig)
     val context: PC = ProgramContext(stx, blockHeader, senderAddress, world, evmConfig)
     // Apply simulation flags if set (for eth_simulateV1)
     val contextWithSimFlags =
@@ -247,7 +247,7 @@ class BlockPreparator(
       tracer: ExecutionTracer
   )(implicit blockchainConfig: BlockchainConfig): PR =
     val tracerVm = new VMImpl(Some(tracer))
-    val evmConfig = EvmConfig.forBlock(blockHeader.number.value, blockHeader.unixTimestamp, blockchainConfig)
+    val evmConfig = EvmConfig.forBlock(blockHeader.number, blockHeader.unixTimestamp, blockchainConfig)
     val context: PC = ProgramContext(stx, blockHeader, senderAddress, world, evmConfig)
     val contextWithSimFlags =
       var ctx = context
@@ -406,7 +406,7 @@ class BlockPreparator(
     val executionGasBase = gasLimit - GasAmount(totalGasToRefundBase)
 
     if DebugTrace.enabledForBlock(blockHeader.number.value) then
-      val evmConfig = EvmConfig.forBlock(blockHeader.number.value, blockchainConfig)
+      val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
       val isCreate = stx.tx.isContractInit
       val intrinsicGas = evmConfig.calcTransactionIntrinsicGas(stx.tx.payload, isCreate, Seq.empty)
       log.debug(
@@ -469,7 +469,7 @@ class BlockPreparator(
       val authListSize = tx match
         case sct: SetCodeTransaction => sct.authorizationList.size
         case _                       => 0
-      val evmConfig = EvmConfig.forBlock(blockHeader.number.value, blockchainConfig)
+      val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
       val intrinsicGas = evmConfig.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, accessList, authListSize)
 
       val toOrCreate = tx.receivingAddress.map(_.toString).getOrElse("CREATE")
@@ -632,7 +632,7 @@ class BlockPreparator(
           getBlockHashByNumber = (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
           accountStartNonce = blockchainConfig.accountStartNonce,
           stateRootHash = parent.stateRoot.value,
-          noEmptyAccounts = EvmConfig.forBlock(block.header.number.value, blockchainConfig).noEmptyAccounts,
+          noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
           ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
         )
       )

@@ -258,7 +258,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger:
 
   /** Returns a snapshot key given a block number and a snapshot index
     * @param blockNumber
-    *   Block Number Ta
+    *   Block Number Tag
     * @param index
     *   Snapshot Index
     * @return

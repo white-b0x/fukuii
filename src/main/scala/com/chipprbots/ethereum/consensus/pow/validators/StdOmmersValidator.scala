@@ -12,6 +12,7 @@ import com.chipprbots.ethereum.consensus.validators.BlockHeaderValid
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValidator
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
 class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends OmmersValidator:
@@ -46,7 +47,7 @@ class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends Omm
     */
   def validate(
       parentHash: ByteString,
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       ommers: Seq[BlockHeader],
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
@@ -111,7 +112,7 @@ class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends Omm
     */
   private[validators] def validateOmmersAncestors(
       parentHash: ByteString,
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       ommers: Seq[BlockHeader],
       getNBlocksBack: GetNBlocksBack
   ): Either[OmmersError, OmmersValid] =
@@ -146,7 +147,7 @@ class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends Omm
     */
   private def validateOmmersNotUsed(
       parentHash: ByteString,
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       ommers: Seq[BlockHeader],
       getNBlocksBack: GetNBlocksBack
   ): Either[OmmersError, OmmersValid] =
@@ -170,16 +171,16 @@ class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends Omm
 
   private def collectAncestors(
       parentHash: ByteString,
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       getNBlocksBack: GetNBlocksBack
   ): Seq[BlockHeader] =
-    val numberOfBlocks = blockNumber.min(OmmerGenerationLimit).toInt
+    val numberOfBlocks = blockNumber.value.min(OmmerGenerationLimit).toInt
     getNBlocksBack(parentHash, numberOfBlocks).map(_.header)
 
   private def collectOmmersFromAncestors(
       parentHash: ByteString,
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       getNBlocksBack: GetNBlocksBack
   ): Seq[BlockHeader] =
-    val numberOfBlocks = blockNumber.min(OmmerGenerationLimit).toInt
+    val numberOfBlocks = blockNumber.value.min(OmmerGenerationLimit).toInt
     getNBlocksBack(parentHash, numberOfBlocks).flatMap(_.body.uncleNodesList)

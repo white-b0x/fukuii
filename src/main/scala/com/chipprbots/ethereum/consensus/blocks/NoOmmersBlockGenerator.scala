@@ -27,7 +27,7 @@ abstract class NoOmmersBlockGenerator(
     BlockBody(transactions, x)
 
   protected def prepareHeader(
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       parent: Block,
       beneficiary: Address,
       blockTimestamp: Timestamp,
@@ -55,7 +55,7 @@ abstract class NoOmmersBlockGenerator(
           parent,
           transactions,
           beneficiary,
-          blockNumber.value,
+          blockNumber,
           blockPreparator,
           x,
           initialWorldStateBeforeExecution

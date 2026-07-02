@@ -259,7 +259,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
   )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     import stx.tx
     if tx.isContractInit then
-      val config = EvmConfig.forBlock(blockHeaderNumber, blockHeaderTimestamp, blockchainConfig)
+      val config = EvmConfig.forBlock(BlockNumber(blockHeaderNumber), blockHeaderTimestamp, blockchainConfig)
       config.maxInitCodeSize match
         case Some(maxSize) if config.eip3860Enabled && tx.payload.size > maxSize =>
           Left(TransactionInitCodeSizeError(tx.payload.size, maxSize))
@@ -282,7 +282,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
       blockHeaderTimestamp: Timestamp
   )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     import stx.tx
-    val config = EvmConfig.forBlock(blockHeaderNumber, blockHeaderTimestamp, blockchainConfig)
+    val config = EvmConfig.forBlock(BlockNumber(blockHeaderNumber), blockHeaderTimestamp, blockchainConfig)
     val authListSize = tx match
       case sct: SetCodeTransaction => sct.authorizationList.size
       case _                       => 0
