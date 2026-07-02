@@ -56,7 +56,7 @@ You are called once per actor migration thread. Your deliverables per session:
    where `sender()` was used. Show the new types, get confirmation.
 3. **Implementation** — migrate the actor, update all callers, adapt spawning
    sites. One file at a time; compile after each file.
-4. **Verify** — `sbt compile-all` after every file; `sbt scalafmtAll` after formatting phases; `testOnly *<Actor>*` after logic phases; full `./local/scripts/fukuii-test` once at thread end only. See Verification section.
+4. **Verify** — `sbt compile-all` after every file; `sbt scalafmtAll` after formatting phases; `testOnly *<Actor>*` after logic phases; full `testEssential` via `sbt-run.sh` (backgrounded) once at thread end only. See Verification section.
 
 **At session start:**
 1. Check `.local/docs/continuations/` for a loom continuation file — if one exists for this actor, read it before anything else.
@@ -475,15 +475,16 @@ sbt scalafmtAll    # formatting check only — no tests needed, no logic changed
                    # use scalafmtAll NOT formatAll (see CLAUDE.md build commands)
 
 # After Phase 2 (main migration) and Phase 3 (callers) — targeted, seconds:
-./local/scripts/fukuii-test <ActorName>Spec
-./local/scripts/fukuii-test SNAPSuite    # if SSC or SNAP callers were touched
+sbt "testOnly *<ActorName>Spec*"
+sbt "testOnly *SNAPSuite*"    # if SSC or SNAP callers were touched
 
 # END OF THREAD ONLY — once, after all phases complete (~24 min):
-./local/scripts/fukuii-test             # full testEssential baseline
+.claude/scripts/sbt-run.sh <log-name> testEssential   # full testEssential baseline
+# invoke with run_in_background: true — see background-script-execution.md
 ```
 
-Do not run `testEssential` (or `./local/scripts/fukuii-test` without arguments) between phases
-— 24 minutes of stall per run compounds across a multi-phase thread.
+Do not run `testEssential` between phases — 24 minutes of stall per run compounds across
+a multi-phase thread.
 
 **E003 vs E165:** Track `E003` (Classic actor deprecation — `extends Actor`) to measure
 migration progress. `E165` is "unmatchable type in pattern match on Any" — it rises

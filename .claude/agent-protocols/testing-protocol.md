@@ -39,18 +39,20 @@ No tests. These phases change syntax only — compile is the full signal.
 ### After logic-changing phases
 (Main migration, caller updates, behavior changes)
 ```bash
-./local/scripts/fukuii-test <ActorNameSpec>          # actor-specific, seconds
-./local/scripts/fukuii-test <SubsystemSuite>         # subsystem if callers touched
+sbt "testOnly *<ActorNameSpec>*"                     # actor-specific, seconds
+sbt "testOnly *<SubsystemSuite>*"                    # subsystem if callers touched
 ```
-Run targeted tests only. Do not run testEssential here.
+Run targeted tests only. Do not run testEssential here. These finish in seconds with
+small output — run directly, no wrapper needed.
 
 ### Pre-push gate — before `git push origin`
 ```bash
-./local/scripts/fukuii-test                          # full testEssential (~24 min)
+.claude/scripts/sbt-run.sh <log-name> testEssential  # full testEssential (~24 min)
 ```
-Run exactly once before pushing to origin. This is the regression gate for a batch or PR.
+Invoke with `run_in_background: true` — see `background-script-execution.md`. Run exactly
+once before pushing to origin. This is the regression gate for a batch or PR.
 Do not run it mid-thread or between phases — it is a 24-minute blocker.
-Do not run it as a sanity check during a sprint; use targeted tests (`fukuii-test <Spec>`) instead.
+Do not run it as a sanity check during a sprint; use targeted tests (`sbt "testOnly *Spec*"`) instead.
 
 ---
 
@@ -121,12 +123,12 @@ If you are unsure whether a type qualifies, run the grep above before starting.
 
 ```bash
 # By actor name:
-./local/scripts/fukuii-test AccountRangeCoordinatorSpec
-./local/scripts/fukuii-test ByteCodeCoordinatorSpec
+sbt "testOnly *AccountRangeCoordinatorSpec*"
+sbt "testOnly *ByteCodeCoordinatorSpec*"
 
 # By subsystem:
-./local/scripts/fukuii-test SNAPSuite      # all SNAP tests (~263)
-./local/scripts/fukuii-test NetworkSuite
+sbt "testOnly *SNAPSuite*"      # all SNAP tests (~263)
+sbt "testOnly *NetworkSuite*"
 
 # By tag (sbt native):
 sbt testNetwork
@@ -177,7 +179,7 @@ closing; do not accept a lower count as the new baseline without a recorded reas
 
 ## Protocol for failing tests after migration
 
-1. Run targeted test first: `./local/scripts/fukuii-test <FailingSpec>`
+1. Run targeted test first: `sbt "testOnly *<FailingSpec>*"`
 2. Read the failure — understand it before touching anything
 3. If failure is in the migrated actor: fix the migration, not the test
 4. If failure is in a test that tests Classic behavior: update the test for Typed API

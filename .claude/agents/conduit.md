@@ -53,7 +53,7 @@ All 76 tests across the 6 suites below are **passing** as of the
 
 Verify test status before starting any work:
 ```bash
-fukuii-test only "*JsonRpcController* *GraphQL* *ServerActor*"
+sbt "testOnly *JsonRpcController* *GraphQL* *ServerActor*"
 ```
 
 ## Package structure

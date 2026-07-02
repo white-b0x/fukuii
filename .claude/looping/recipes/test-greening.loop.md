@@ -11,7 +11,7 @@ red. Instantiate per-suite by replacing `<suite>` before running.
 ```yaml
 id: test-greening-<suite>
 goal: >
-  fukuii-test essential exits 0 with the named suite <suite> showing 0 failures
+  sbt-run.sh (testEssential, backgrounded) exits 0 with the named suite <suite> showing 0 failures
   and no other previously-green suite newly red, and bin/verify.sh prints
   "LOOP:test-greening-<suite> ALL_GATES:PASS".
 maker: wraith
