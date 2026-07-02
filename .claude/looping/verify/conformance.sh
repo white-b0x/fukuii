@@ -12,6 +12,7 @@
 set -eu
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || printf '/media/dev/2tb/dev/fukuii')"
+CLIENTS_DIR="$REPO_ROOT/.claude/repo-references/clients"
 RECIPE_ID="${LOOP_RECIPE_ID:-unknown}"
 RECIPE_FILE="${LOOP_RECIPE_FILE:-}"
 
@@ -28,23 +29,26 @@ SURFACE=$(printf '%s' "$RECIPE_ID" | sed 's/spec-conformance-//')
 case "$SURFACE" in
     eth70|eth69|eth68|snap|wire*)
         CHECKER="herald"
-        REF_CLIENT="/media/dev/2tb/dev/reference-clients-evm/go-ethereum"
+        REF_CLIENT="$CLIENTS_DIR/go-ethereum"
         REF_BRANCH="upstream"
         ;;
     etc*|ecip*|olympia*|mordor*|classic*)
         CHECKER="forge"
-        REF_CLIENT="/media/dev/2tb/dev/reference-clients-evm/core-geth"
-        REF_BRANCH="upstream"
+        REF_CLIENT="$CLIENTS_DIR/core-geth"
+        # core-geth SPECIAL CASE: upstream (ethereumclassic/core-geth) is deprecated, no
+        # changes since 2024 — diff against main instead (go1.26 Olympia modernization,
+        # the real ECIP reference)
+        REF_BRANCH="main"
         ;;
     eth*|sepolia*|osaka*|eip*)
         CHECKER="beacon"
-        REF_CLIENT="/media/dev/2tb/dev/reference-clients-evm/go-ethereum"
+        REF_CLIENT="$CLIENTS_DIR/go-ethereum"
         REF_BRANCH="upstream"
         ;;
     ref-parity-audit)
         # Poll recipe: report drift across all surfaces into a summary
         CHECKER="forge,beacon,herald,vault,conduit"
-        REF_CLIENT="/media/dev/2tb/dev/reference-clients-evm"
+        REF_CLIENT="$CLIENTS_DIR"
         REF_BRANCH="upstream"
         ;;
     *)
@@ -76,10 +80,16 @@ printf 'Timestamp: %s\n\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 if [ "$SURFACE" = "ref-parity-audit" ]; then
     STALE_COUNT=0
     for client in besu core-geth nethermind go-ethereum reth erigon; do
-        CLIENT_PATH="/media/dev/2tb/dev/reference-clients-evm/$client"
+        CLIENT_PATH="$CLIENTS_DIR/$client"
+        # core-geth SPECIAL CASE: upstream is deprecated (no changes since 2024) — checking
+        # its staleness would always (correctly, but uselessly) report STALE. Check main.
+        CLIENT_BRANCH="upstream"
+        if [ "$client" = "core-geth" ]; then
+            CLIENT_BRANCH="main"
+        fi
         if [ -d "$CLIENT_PATH" ]; then
-            SHA=$(git -C "$CLIENT_PATH" rev-parse upstream 2>/dev/null || printf 'unknown')
-            AGE_SECS=$(git -C "$CLIENT_PATH" log upstream -1 --format='%ct' 2>/dev/null || printf '0')
+            SHA=$(git -C "$CLIENT_PATH" rev-parse "$CLIENT_BRANCH" 2>/dev/null || printf 'unknown')
+            AGE_SECS=$(git -C "$CLIENT_PATH" log "$CLIENT_BRANCH" -1 --format='%ct' 2>/dev/null || printf '0')
             NOW=$(date +%s)
             AGE_DAYS=$(( (NOW - AGE_SECS) / 86400 ))
             STATUS="fresh"

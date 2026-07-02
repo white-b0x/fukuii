@@ -57,6 +57,64 @@ git clone https://github.com/sangria-graphql/sangria.git                        
 
 # Storage (vault)
 git clone https://github.com/facebook/rocksdb.git                                # Java API, WriteBatch, WAL, column families, cache tuning (vault)
+
+# Reference EVM Clients (forge, beacon, herald) — see the "why" note below the index
+# table. Clone from origin (the white-b0x fork) directly, NOT upstream — the fork's
+# `main` branch carries the ETC overlay (where one has been published), and its
+# `upstream` branch is a kept-in-sync mirror of the canonical repo, so cloning origin
+# gets both in one fetch. Add the true canonical as an `upstream` remote for occasional
+# direct-from-canonical fetches, separate from the fork's own `upstream` mirror branch.
+# Finish checked out on `upstream`, NOT `main` — registry.yaml's automated refresh-refs.sh
+# maintenance (`branch: upstream`) does `git diff --quiet upstream` to check for local
+# modifications before fetching; if `main` were checked out instead, that diff would never
+# be empty for besu/nethermind (main genuinely differs from upstream), and the automated
+# refresh would always abort with a false "has local changes" error. EXCEPTION: core-geth
+# stays on `main` — its `upstream` is deprecated (no changes since 2024), so `main` is what
+# gets refreshed (via `origin`, not `upstream`) and what conformance reads for that one.
+# For the rest, `main` is still fetched and available — check it out on demand to read the
+# ETC overlay; just don't leave it as the resting state of these clones.
+mkdir -p clients && cd clients
+
+# besu: origin main = ETC overlay (written, syncs). origin upstream = hyperledger/besu mirror.
+git clone https://github.com/white-b0x/besu.git besu
+git -C besu checkout -b upstream origin/upstream
+git -C besu remote add upstream https://github.com/hyperledger/besu.git
+
+# core-geth: SPECIAL CASE — stays checked out on `main`, unlike every other client here.
+# origin main = go1.26 Olympia modernization (written, syncs) — the actively maintained
+# branch and the real ECIP reference. origin upstream = ethereumclassic/core-geth mirror,
+# but that upstream is DEPRECATED (no changes since 2024) — refreshing or diffing against
+# it would be pointless/misleading, so main (not upstream) is what conformance reads and
+# what refresh-refs.sh keeps fresh (via origin, not the dead upstream remote) for this one.
+# Fork also has many WIP topic branches (security/*, test/*, docs/*) — not fetched here.
+git clone https://github.com/white-b0x/core-geth.git core-geth
+git -C core-geth checkout -b upstream origin/upstream
+git -C core-geth checkout main
+git -C core-geth remote add upstream https://github.com/ethereumclassic/core-geth.git
+git -C core-geth remote add geth https://github.com/ethereum/go-ethereum.git      # cross-check remote only — core-geth derives from multi-geth, not go-ethereum
+
+# nethermind: origin main = ETC overlay (written, syncs). origin upstream = NethermindEth mirror.
+git clone https://github.com/white-b0x/nethermind.git nethermind
+git -C nethermind checkout -b upstream origin/upstream
+git -C nethermind remote add upstream https://github.com/NethermindEth/nethermind.git
+
+# go-ethereum: no ETC overlay written yet — origin main and origin upstream are currently
+# identical. Still set up the same structure so it's ready when overlay work starts.
+git clone https://github.com/white-b0x/go-ethereum.git go-ethereum
+git -C go-ethereum checkout -b upstream origin/upstream
+git -C go-ethereum remote add upstream https://github.com/ethereum/go-ethereum.git
+
+# reth: no ETC overlay written yet — origin main and origin upstream are currently
+# identical. Will follow the same main-is-the-overlay convention once published.
+git clone https://github.com/white-b0x/reth.git reth
+git -C reth checkout -b upstream origin/upstream
+git -C reth remote add upstream https://github.com/paradigmxyz/reth.git
+
+# erigon: same as reth — no ETC overlay written yet.
+git clone https://github.com/white-b0x/erigon.git erigon
+git -C erigon checkout -b upstream origin/upstream
+git -C erigon remote add upstream https://github.com/erigontech/erigon.git
+cd ..
 ```
 
 > **ECIPs local-ahead note:** The local `repo-references/ECIPs` copy contains Olympia spec
@@ -401,6 +459,76 @@ find "$REFS" -maxdepth 3 -name .git -exec dirname {} \; \
 | **Key paths** | `simulators/devp2p/` — RLPx, discovery, ETH wire protocol compliance tests (herald) · `simulators/ethereum/` — block execution, state, JSON-RPC tests (forge, beacon, eye) · `simulators/eth2/` — PoS consensus tests (beacon) · `simulators/smoke/` — basic sanity checks (eye) · `hivesim/` — Go simulation framework API · `clients/` — client descriptors · `docs/` — simulator authoring guide |
 | **Branch convention** | `upstream` = read-only canonical ethereum/hive master (currently checked out — use for simulator structure and hivesim API) · `main` = ETC integration WIP (incomplete, do not treat as canonical) · `fukuii` = fukuii client descriptor WIP |
 | **Why** | Black-box multi-client compliance testing. Both `repo-references/hive` and `/media/dev/2tb/dev/reference-clients-evm/hive/` are clones of white-b0x/hive. Stay on `upstream` branch when reading simulator structure. Switch to `main` only to inspect in-progress ETC patches. Active test runs happen in `reference-clients-evm/hive/`. |
+
+---
+
+### Reference EVM Clients — Besu
+
+| | |
+|---|---|
+| **GitHub** | https://github.com/hyperledger/besu |
+| **Clone as** | `repo-references/clients/besu` |
+| **Used by** | `forge`, `beacon` |
+| **Key paths** | `evm/src/main/java/org/hyperledger/besu/evm/` — opcodes, gas, precompiles · `consensus/` — PoW/PoS engine modules |
+| **Branch convention** | `upstream` (checked out) = mirror of `hyperledger/besu`, kept in sync by push · `main` = ETC overlay, written and syncing — check out on demand to read it |
+| **Why** | Secondary EIP reference (cross-check confirms go-ethereum is not silently wrong) per this project's reference-client authority model. Has a full ETC overlay (Olympia complete, per `besu-etc.md`). |
+
+### Reference EVM Clients — core-geth
+
+| | |
+|---|---|
+| **GitHub** | https://github.com/ethereumclassic/core-geth |
+| **Clone as** | `repo-references/clients/core-geth` |
+| **Used by** | `forge` |
+| **Key paths** | `params/` — fork/chain config · `consensus/ethash/` — PoW · `core/vm/` — opcodes/gas |
+| **Branch convention** | **SPECIAL CASE** — `main` (checked out) = go1.26 Olympia modernization, written and syncing — the real ECIP reference · `upstream` = mirror of `ethereumclassic/core-geth`, but DEPRECATED (no changes since 2024) — not refreshed or diffed against, `main` is what conformance reads for this client instead |
+| **Why** | Authoritative ONLY for ETC-specific ECIPs (ECIP-1017/1099/1100/1111/1112/1121/1122) — NOT the EIP reference; core-geth may silently diverge from go-ethereum on EIP behavior, always verify against go-ethereum + Besu for EIP text. The extra `geth` remote (`ethereum/go-ethereum`) is a cross-check remote only — core-geth derives from multi-geth, not a go-ethereum fork. |
+
+### Reference EVM Clients — Nethermind
+
+| | |
+|---|---|
+| **GitHub** | https://github.com/NethermindEth/nethermind |
+| **Clone as** | `repo-references/clients/nethermind` |
+| **Used by** | `forge`, `beacon` |
+| **Key paths** | `src/Nethermind/Nethermind.Evm/` — opcodes, gas · `src/Nethermind/Nethermind.Consensus/` — consensus engines |
+| **Branch convention** | `upstream` (checked out) = mirror of `NethermindEth/nethermind`, kept in sync by push · `main` = ETC overlay, written and syncing — check out on demand to read it |
+| **Why** | Secondary EIP reference. Has a full ETC overlay in progress (syncing ETC mainnet, per `nethermind-olympia-branch.md`). |
+
+### Reference EVM Clients — go-ethereum
+
+| | |
+|---|---|
+| **GitHub** | https://github.com/ethereum/go-ethereum |
+| **Clone as** | `repo-references/clients/go-ethereum` |
+| **Used by** | `forge`, `beacon` |
+| **Key paths** | `core/vm/` — opcodes, `gas_table.go` · `core/vm/contracts.go` — precompiles · `params/protocol_params.go` — gas/fork constants |
+| **Branch convention** | `upstream` (checked out) and `main` are currently identical — no ETC overlay written yet |
+| **Why** | Primary EIP reference — authoritative for ALL EIP behavior (EIP-1559 formula, opcodes, precompiles, gas schedules) per this project's reference-client authority model (see `QUEUE.md`'s PP-00 prompt). No ETC overlay yet (planned post-fukuii stabilization). |
+
+### Reference EVM Clients — Reth
+
+| | |
+|---|---|
+| **GitHub** | https://github.com/paradigmxyz/reth |
+| **Clone as** | `repo-references/clients/reth` |
+| **Used by** | `beacon` |
+| **Key paths** | `crates/evm/` · `crates/consensus/` |
+| **Branch convention** | `upstream` (checked out) and `main` are currently identical — no ETC overlay written yet |
+| **Why** | Modern high-performance ETH client reference (Rust). No ETC overlay yet. |
+
+### Reference EVM Clients — Erigon
+
+| | |
+|---|---|
+| **GitHub** | https://github.com/erigontech/erigon |
+| **Clone as** | `repo-references/clients/erigon` |
+| **Used by** | `beacon` |
+| **Key paths** | `core/vm/` · `consensus/` |
+| **Branch convention** | `upstream` (checked out) and `main` are currently identical — no ETC overlay written yet |
+| **Why** | Alternative ETH client reference (Go, staged-sync architecture). No ETC overlay yet. |
+
+**Both locations exist and serve different purposes** — same pattern as `hive` above: `repo-references/clients/<name>` is the portable, git-relative copy for structural/spec reading (this convention); `/media/dev/2tb/dev/reference-clients-evm/<name>` is the active working copy (sync testing, running nodes, building). Both are clones of the same `white-b0x/<name>` forks. Fukuii's own tooling (`registry.yaml`, `eligible.sh`, `refresh-refs.sh`, `conformance.sh`) reads from `repo-references/clients/` for portability; use `reference-clients-evm/` directly for anything that needs a live running client.
 
 ---
 

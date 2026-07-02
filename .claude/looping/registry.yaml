@@ -147,23 +147,30 @@ ref_repos:
       branch: upstream
 
   clients:
-    # ETC overlay exists on main: besu, core-geth, nethermind
-    # No ETC overlay yet: go-ethereum, reth, erigon (planned post-fukuii stabilization)
-    - path: /media/dev/2tb/dev/reference-clients-evm/besu
+    # Portable repo-relative copies for structure/spec reading — see agents/REFERENCES.md
+    # "Reference EVM Clients" section for the full clone convention (origin = white-b0x
+    # fork with main + upstream branches, upstream remote = true canonical). Active
+    # working copies (sync testing, running nodes) stay at
+    # /media/dev/2tb/dev/reference-clients-evm/<name>, intentionally not referenced here.
+    # ETC overlay published on main: besu, core-geth, nethermind
+    # No ETC overlay published yet: go-ethereum, reth, erigon
+    - path: .claude/repo-references/clients/besu
       remote: upstream
       branch: upstream
-    - path: /media/dev/2tb/dev/reference-clients-evm/core-geth
+    # core-geth SPECIAL CASE: upstream (ethereumclassic/core-geth) is deprecated, no
+    # changes since 2024 — refresh/diff against origin's main instead (the real ECIP work)
+    - path: .claude/repo-references/clients/core-geth
+      remote: origin
+      branch: main
+    - path: .claude/repo-references/clients/nethermind
       remote: upstream
       branch: upstream
-    - path: /media/dev/2tb/dev/reference-clients-evm/nethermind
+    - path: .claude/repo-references/clients/go-ethereum
       remote: upstream
       branch: upstream
-    - path: /media/dev/2tb/dev/reference-clients-evm/go-ethereum
+    - path: .claude/repo-references/clients/reth
       remote: upstream
       branch: upstream
-    - path: /media/dev/2tb/dev/reference-clients-evm/reth
-      remote: upstream
-      branch: upstream
-    - path: /media/dev/2tb/dev/reference-clients-evm/erigon
+    - path: .claude/repo-references/clients/erigon
       remote: upstream
       branch: upstream

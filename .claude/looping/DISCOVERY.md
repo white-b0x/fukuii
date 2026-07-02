@@ -17,10 +17,10 @@ assumptions so every loop recipe starts from verified facts rather than guesses.
 | `sbt scalafmtCheck` | Verify format without writing | ~20s |
 | `sbt scalafixAll` | Run all scalafix rules | ~30s |
 | `sbt formatAll` | scalafixAll + scalafmtAll (pre-PR only; aborts on pre-existing violations) | ~50s |
-| `.local/scripts/fukuii-test essential` | Tier 1 via wrapper with persistent logging | ~24 min |
-| `.local/scripts/fukuii-test standard` | Tier 2 via wrapper | ~30 min |
-| `.local/scripts/fukuii-test only <Spec>` | Targeted single-spec run | ~10-60s |
-| `.local/scripts/fukuii-test quick` | crypto submodule only | ~20s |
+| `.claude/scripts/sbt-run.sh <log> testEssential` (background) | Tier 1, log-to-file, no live-streamed output | ~24 min |
+| `.claude/scripts/sbt-run.sh <log> testStandard` (background) | Tier 2, log-to-file | ~30 min |
+| `sbt "testOnly *Spec*"` | Targeted single-spec run — fast enough to run directly, no wrapper needed | ~10-60s |
+| `sbt "crypto / test"` | crypto submodule only | ~20s |
 
 **SyncTest exclusion:** RegularSyncSpec, FastSyncSpec, SyncControllerSpec,
 BlockchainHostActorSpec, SyncStateDownloaderStateSpec — all tagged `SyncTest` and
@@ -67,28 +67,36 @@ Dev override: `fukuiiDev=true sbt compile-all` removes `-Xfatal-warnings` for lo
 - `rocksdb/` — Facebook RocksDB (for storage layer research)
 - `circe/`, `json4s/`, `sangria/`, `scalafix/`, `scalamock/` — library references
 
-### Reference EVM clients (`/media/dev/2tb/dev/reference-clients-evm/`)
+### Reference EVM clients (`.claude/repo-references/clients/`)
 
-Branch discipline: every client has an `upstream` branch (read-only fast-forward mirror of
-canonical upstream remote) and optionally a `main` branch (our ETC overlay). The loop
-subsystem only ever updates `upstream` branches. Conformance checks always diff against
-`upstream`, never `main`.
+Portable repo-relative copies — see `agents/REFERENCES.md`'s "Reference EVM Clients"
+section for the full clone convention. Active working copies (sync testing, running
+nodes) stay at `/media/dev/2tb/dev/reference-clients-evm/<name>`, outside this repo,
+never referenced by the loop subsystem's tooling.
 
-| Client | Path | ETC overlay on main? | Upstream branch |
+Branch discipline: every client has an `upstream` branch (mirror of the canonical
+upstream remote, kept fresh by push to the white-b0x fork) and optionally a `main`
+branch (the ETC overlay). The loop subsystem refreshes and diffs against `upstream`,
+never `main` — **except core-geth**, whose `upstream` (ethereumclassic/core-geth) is
+deprecated (no changes since 2024); for core-geth the loop subsystem refreshes and
+diffs against `main` instead, via the `origin` remote, since that's the actively
+maintained ECIP reference.
+
+| Client | Path | ETC overlay on main? | Branch used by loop subsystem |
 |--------|------|---------------------|-----------------|
-| besu | `besu/` | yes | `upstream` |
-| core-geth | `core-geth/` | yes | `upstream` |
-| nethermind | `nethermind/` | yes | `upstream` |
-| go-ethereum | `go-ethereum/` | no (ETC overlay planned post-fukuii stabilization) | `upstream` |
-| reth | `reth/` | no | `upstream` |
-| erigon | `erigon/` | no | `upstream` |
+| besu | `clients/besu/` | yes | `upstream` |
+| core-geth | `clients/core-geth/` | yes | `main` (SPECIAL CASE — upstream deprecated) |
+| nethermind | `clients/nethermind/` | yes | `upstream` |
+| go-ethereum | `clients/go-ethereum/` | no (ETC overlay planned post-fukuii stabilization) | `upstream` |
+| reth | `clients/reth/` | no | `upstream` |
+| erigon | `clients/erigon/` | no | `upstream` |
 | hive | `hive/` | no | `upstream` |
 
 ## Existing Automation Scripts
 
 | Script | Location | Purpose |
 |--------|----------|---------|
-| `fukuii-test` | `.local/scripts/fukuii-test` | Test tier wrapper with persistent logging |
+| `sbt-run.sh` | `.claude/scripts/sbt-run.sh` | Background-safe sbt task wrapper with persistent logging — supersedes the retired `fukuii-test` |
 | `fukuii-run-tick` | `.local/scripts/fukuii-run-tick` | Monitoring state collection (used in cron) |
 | `fukuii-monitor` | `.local/scripts/fukuii-monitor` | High-level node status check |
 | `fukuii-inject-loop` | `.local/scripts/fukuii-inject-loop` | Trie-node injection loop (model for automation pattern) |
