@@ -6,7 +6,9 @@ other concurrent work, or when a sprint has multiple sequential sub-prompts that
 must all land together before merge.
 
 Worktree dirs live at `.claude/worktrees/<id>` on branch `wt/<id>`.
-Bin scripts at `.claude/agent-protocols/worktrees/bin/` automate the lifecycle.
+Bin scripts at `.claude/worktrees/bin/` automate the lifecycle (moved from
+`.claude/worktrees/bin/` — self-contained next to the worktree dirs
+themselves, mirroring `.claude/looping/`'s own `bin/`-next-to-its-subject layout).
 
 ---
 
@@ -33,7 +35,7 @@ Merge after the final sub-prompt.
 
 ```bash
 # 1. Create (run from main checkout, before first sub-prompt)
-.claude/agent-protocols/worktrees/bin/wt-create.sh 7c-sprint scala3-cleanup-june
+.claude/worktrees/bin/wt-create.sh 7c-sprint scala3-cleanup-june
 # → creates .claude/worktrees/7c-sprint on branch wt/7c-sprint
 
 # 2. Enter worktree — all sub-prompts run from here
@@ -64,7 +66,7 @@ grep "opaque type Difficulty" \
   src/main/scala/com/chipprbots/ethereum/domain/Difficulty.scala
 
 # 2. Create (run from main checkout)
-.claude/agent-protocols/worktrees/bin/wt-create.sh 8b-h4 scala3-cleanup-june
+.claude/worktrees/bin/wt-create.sh 8b-h4 scala3-cleanup-june
 # → creates .claude/worktrees/8b-h4 on branch wt/8b-h4
 
 # 3. Enter worktree — all work happens here
@@ -97,14 +99,14 @@ No spaces. Use kebab-case. Keep IDs short but recognisable from the backlog.
 
 ```bash
 # Create a worktree
-.claude/agent-protocols/worktrees/bin/wt-create.sh <name> [base-branch]
+.claude/worktrees/bin/wt-create.sh <name> [base-branch]
 # base-branch defaults to current HEAD branch if omitted
 
 # List active worktrees (highlights .claude/worktrees/ entries)
-.claude/agent-protocols/worktrees/bin/wt-list.sh
+.claude/worktrees/bin/wt-list.sh
 
 # Prune merged / stale worktrees under .claude/worktrees/
-.claude/agent-protocols/worktrees/bin/wt-clean.sh
+.claude/worktrees/bin/wt-clean.sh
 ```
 
 ---
@@ -152,5 +154,5 @@ After the final merge back:
 ```bash
 git worktree list                   # confirm the worktree entry is gone
 git branch -a | grep wt/            # confirm the branch is deleted
-.claude/agent-protocols/worktrees/bin/wt-clean.sh  # catches any stragglers
+.claude/worktrees/bin/wt-clean.sh  # catches any stragglers
 ```

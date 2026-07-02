@@ -6,8 +6,8 @@
 # base-branch defaults to the current HEAD branch if omitted.
 #
 # Example:
-#   .claude/agent-protocols/worktrees/bin/wt-create.sh 7c-sprint scala3-cleanup-june
-#   .claude/agent-protocols/worktrees/bin/wt-create.sh 8b-h3
+#   .claude/worktrees/bin/wt-create.sh 7c-sprint scala3-cleanup-june
+#   .claude/worktrees/bin/wt-create.sh 8b-h3
 
 set -eu
 
