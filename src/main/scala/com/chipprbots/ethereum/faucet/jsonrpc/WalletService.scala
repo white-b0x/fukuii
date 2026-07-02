@@ -6,11 +6,8 @@ import cats.data.EitherT
 import cats.effect.IO
 
 import com.chipprbots.ethereum.domain.Address
-import com.chipprbots.ethereum.domain.GasAmount
-import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.domain.Nonce
-import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.faucet.FaucetConfig
 import com.chipprbots.ethereum.jsonrpc.client.RpcClient.RpcError
 import com.chipprbots.ethereum.keystore.KeyStore
@@ -26,7 +23,7 @@ class WalletService(walletRpcClient: WalletRpcClientApi, keyStore: KeyStore, con
   def sendFunds(wallet: Wallet, addressTo: Address): IO[Either[RpcError, ByteString]] =
     (for
       nonce <- EitherT(walletRpcClient.getNonce(wallet.address))
-      txId <- EitherT(walletRpcClient.sendTransaction(prepareTx(wallet, addressTo, nonce)))
+      txId <- EitherT(walletRpcClient.sendTransaction(prepareTx(wallet, addressTo, Nonce(nonce))))
     yield txId).value.map {
       case Right(txId) =>
         val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
@@ -37,14 +34,14 @@ class WalletService(walletRpcClient: WalletRpcClientApi, keyStore: KeyStore, con
         Left(error)
     }
 
-  private def prepareTx(wallet: Wallet, targetAddress: Address, nonce: BigInt): ByteString =
+  private def prepareTx(wallet: Wallet, targetAddress: Address, nonce: Nonce): ByteString =
     val transaction =
       LegacyTransaction(
-        Nonce(nonce),
-        GasPrice(config.txGasPrice),
-        GasAmount(config.txGasLimit),
+        nonce,
+        config.txGasPrice,
+        config.txGasLimit,
         Some(targetAddress),
-        Wei(config.txValue),
+        config.txValue,
         ByteString()
       )
 

@@ -79,9 +79,9 @@ object TransactionHistoryService:
   case class MinedTransactionData(
       header: BlockHeader,
       transactionIndex: Int,
-      gasUsed: BigInt
+      gasUsed: GasAmount
   ):
-    lazy val timestamp: Long = header.unixTimestamp.toLong
+    lazy val timestamp: Timestamp = header.unixTimestamp
   case class ExtendedTransactionData(
       stx: SignedTransaction,
       isOutgoing: Boolean,
@@ -133,6 +133,6 @@ object TransactionHistoryService:
         val previousCumulativeGas =
           (if index > 0 then blockReceipts.lift(index - 1) else None).map(_.cumulativeGasUsed).getOrElse(GasAmount.Zero)
 
-        (txReceipt.cumulativeGasUsed - previousCumulativeGas).value
+        txReceipt.cumulativeGasUsed - previousCumulativeGas
 
       (Some(block.header), maybeIndex, maybeGasUsed).mapN(MinedTransactionData.apply)

@@ -11,6 +11,7 @@ import org.bouncycastle.util.encoders.Hex
 import com.chipprbots.ethereum.crypto
 import com.chipprbots.ethereum.crypto.*
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.keystore.EncryptedKey
 import com.chipprbots.ethereum.keystore.EncryptedKeyJsonCodec
 import com.chipprbots.ethereum.security.SecureRandomBuilder
@@ -76,7 +77,7 @@ object CliCommands extends SecureRandomBuilder:
         Opts.option[BigInt](long = balanceOption, help = "Initial balance for account", metavar = "balance")
 
       (keysOpt, addressesOpt, balanceOpt).mapN { (addressesFromKeys, addresses, balance) =>
-        allocs(addresses ++ addressesFromKeys, balance)
+        allocs(addresses ++ addressesFromKeys, Wei(balance))
       }
     }
 
@@ -95,9 +96,9 @@ object CliCommands extends SecureRandomBuilder:
       }
     }
 
-  private def allocs(addresses: List[String], balance: BigInt): String =
+  private def allocs(addresses: List[String], balance: Wei): String =
     s""""alloc": ${addresses
-        .map(address => s"""$address: { "balance": $balance }""")
+        .map(address => s"""$address: { "balance": ${balance.value} }""")
         .mkString("{", ", ", "}")}"""
 
   private def privKeyToAddress(privKey: Array[Byte]): String =

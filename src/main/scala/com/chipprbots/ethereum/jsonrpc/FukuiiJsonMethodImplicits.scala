@@ -32,8 +32,8 @@ object FukuiiJsonMethodImplicits extends JsonMethodsImplicits:
     val encodedExtension = JObject(
       "isOutgoing" -> extendedTxData.isOutgoing.jsonEncoded,
       "isPending" -> extendedTxData.isPending.jsonEncoded,
-      "gasUsed" -> extendedTxData.minedTransactionData.map(_.gasUsed).jsonEncoded,
-      "timestamp" -> extendedTxData.minedTransactionData.map(_.timestamp).jsonEncoded
+      "gasUsed" -> extendedTxData.minedTransactionData.map(_.gasUsed.value).jsonEncoded,
+      "timestamp" -> extendedTxData.minedTransactionData.map(_.timestamp.toLong).jsonEncoded
     )
 
     Merge.merge(encodedTxResponse, encodedExtension)

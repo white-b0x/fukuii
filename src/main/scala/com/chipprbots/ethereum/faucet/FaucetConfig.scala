@@ -6,6 +6,9 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.Wei
 
 trait FaucetConfigBuilder:
   lazy val rawConfig: Config = ConfigFactory.load()
@@ -27,9 +30,9 @@ object RpcClientConfig:
 case class FaucetConfig(
     walletAddress: Address,
     walletPassword: String,
-    txGasPrice: BigInt,
-    txGasLimit: BigInt,
-    txValue: BigInt,
+    txGasPrice: GasPrice,
+    txGasLimit: GasAmount,
+    txValue: Wei,
     rpcClient: RpcClientConfig,
     keyStoreDir: String,
     handlerTimeout: FiniteDuration,
@@ -44,9 +47,9 @@ object FaucetConfig:
     FaucetConfig(
       walletAddress = Address(faucetConfig.getString("wallet-address")),
       walletPassword = faucetConfig.getString("wallet-password"),
-      txGasPrice = faucetConfig.getLong("tx-gas-price"),
-      txGasLimit = faucetConfig.getLong("tx-gas-limit"),
-      txValue = faucetConfig.getLong("tx-value"),
+      txGasPrice = GasPrice(faucetConfig.getLong("tx-gas-price")),
+      txGasLimit = GasAmount(faucetConfig.getLong("tx-gas-limit")),
+      txValue = Wei(faucetConfig.getLong("tx-value")),
       rpcClient = RpcClientConfig(faucetConfig.getConfig("rpc-client")),
       keyStoreDir = faucetConfig.getString("keystore-dir"),
       handlerTimeout = faucetConfig.getDuration("handler-timeout").toMillis.millis,

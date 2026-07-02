@@ -407,7 +407,7 @@ class BlockPreparator(
     val totalGasToRefundBase = calcTotalGasToRefund(stx, resultWithAuthRefund, blockHeader.number.value)
     val executionGasBase = gasLimit - totalGasToRefundBase
 
-    if DebugTrace.enabledForBlock(blockHeader.number.value) then
+    if DebugTrace.enabledForBlock(blockHeader.number) then
       val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
       val isCreate = stx.tx.isContractInit
       val intrinsicGas = evmConfig.calcTransactionIntrinsicGas(stx.tx.payload, isCreate, Seq.empty)
@@ -465,7 +465,7 @@ class BlockPreparator(
 
     val world2 = deleteAccountsFn.andThen(deleteTouchedAccountsFn).andThen(persistStateFn)(worldAfterBlobGas)
 
-    if DebugTrace.enabledForTx(blockHeader.number.value, stx.hash.toHex) then
+    if DebugTrace.enabledForTx(blockHeader.number, stx.hash.toHex) then
       val tx = stx.tx
       val accessList = Transaction.accessList(tx)
       val authListSize = tx match
