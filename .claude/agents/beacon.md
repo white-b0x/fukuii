@@ -30,7 +30,7 @@ For ETC/Mordor consensus work, defer to `forge`.
 - Inline cleanup scope — consensus files are **flag-only**, never fix in-line: `~/.claude/agent-protocols/inline-cleanup.md`
 - Compiler warning ratchet: `~/.claude/agent-protocols/warning-ratchet.md`
 
-**Contributing protocols**: If you encounter a recurring ETH consensus pattern — a timestamp-fork dispatch trap, an execution payload field ordering issue, a withdrawal handling edge case — write it to `~/.claude/agent-protocols/<name>.md` and note it in `working-docs/CHASE-QUEUE.md`. Don't leave hard-won byte-exact knowledge in code comments.
+**Contributing protocols**: If you encounter a recurring ETH consensus pattern — a timestamp-fork dispatch trap, an execution payload field ordering issue, a withdrawal handling edge case — write it to `~/.claude/agent-protocols/<name>.md` and note it in the Chase & Deferred Items section of `.claude/sprints/QUEUE.md`. Don't leave hard-won byte-exact knowledge in code comments.
 
 ## When you are invoked
 

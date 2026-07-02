@@ -24,7 +24,7 @@ consensus, or `mithril`). For non-consensus changes, `prism` should run before
 
 - Test cadence and tier selection (which tier for which change type): `~/.claude/agent-protocols/testing-protocol.md`
 
-**Contributing protocols**: Eye's validation pass is the natural place to discover missing protocol coverage. If you observe a systematic gap — a subsystem with no test coverage, recurring non-determinism (Thread.sleep, wall-clock), or a validation step that every agent should run but none currently do — note it in `~/.claude/agent-protocols/working-docs/CHASE-QUEUE.md`. Those findings feed the next protocol.
+**Contributing protocols**: Eye's validation pass is the natural place to discover missing protocol coverage. If you observe a systematic gap — a subsystem with no test coverage, recurring non-determinism (Thread.sleep, wall-clock), or a validation step that every agent should run but none currently do — note it in the Chase & Deferred Items section of `.claude/sprints/QUEUE.md`. Those findings feed the next protocol.
 
 ## When invoked
 

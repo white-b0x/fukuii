@@ -5,7 +5,7 @@ Findings from this checklist populate the Phase 0 facts block in the LOOM prompt
 and inform migration complexity and ordering.
 
 Used by: LOOM (primary), any agent preparing a migration plan
-Referenced by: loom.md, `LOOM-S3-ARC-prompt.md`, `SPRINT-QUEUE.md`
+Referenced by: loom.md, `LOOM-S3-ARC-prompt.md`, `sprint-lifecycle.md`
 
 ---
 
@@ -205,17 +205,18 @@ For each Classic `ActorRef` param found:
    the caller should send (or `ActorRef[Any]` if the adapter pattern requires it).
 2. **Update all spawn sites**: callers that currently write `someTypedRef.toClassic` or
    `externalAdapter.toClassic` to fill this param can drop `.toClassic` once the type is updated.
-3. **If the caller is not in scope for this session**: add a CHASE-QUEUE entry (`type: CLASSIC`)
-   flagging the spawn site so it is not forgotten.
+3. **If the caller is not in scope for this session**: add a Chase entry (`type: CLASSIC`)
+   to `.claude/sprints/QUEUE.md` flagging the spawn site so it is not forgotten.
 
 **Do not close a LOOM migration without either:**
 - Updating all constructor `ActorRef` params to `ActorRef[T]`, OR
-- Adding CHASE-QUEUE entries for each param that cannot be updated yet (with the gate condition)
+- Adding Chase entries to `.claude/sprints/QUEUE.md` for each param that cannot be
+  updated yet (with the gate condition)
 
 **Consensus-boundary spawn sites:** For each spawn site found, check whether the caller
 file is in `consensus/`, `vm/`, `crypto/`, `domain/`, or `network/p2p/messages/`. If yes:
 - Do NOT update the param type without FORGE (ETC) or BEACON (ETH) review
-- Add a CHASE-QUEUE entry flagged `consensus-boundary — route to FORGE/BEACON before updating`
+- Add a Chase entry to `.claude/sprints/QUEUE.md` flagged `consensus-boundary — route to FORGE/BEACON before updating`
 - The actor's internal Typed migration can proceed, but the spawn-site param update is gated on specialist review
 
 Record: param names, their proposed typed equivalent, and which spawn sites are affected.

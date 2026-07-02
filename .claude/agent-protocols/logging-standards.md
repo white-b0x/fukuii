@@ -556,7 +556,7 @@ When opening a file for primary work:
 - Corresponding Micrometer metric alongside each new significant log line
 
 **Do NOT:**
-- Chase into other files to follow a log gap (log it in CHASE-QUEUE)
+- Chase into other files to follow a log gap (log it in `.claude/sprints/QUEUE.md`'s Chase & Deferred Items section)
 - Restructure try/catch just to add logging (that's bucket B/C)
 - Add logging in `consensus/`, `vm/`, `crypto/` without FORGE review
 
@@ -565,7 +565,7 @@ When opening a file for primary work:
 ## Known system-wide logging gaps
 
 When you encounter these in a file you're already editing, add the logging.
-Otherwise log to CHASE-QUEUE.
+Otherwise log to `.claude/sprints/QUEUE.md`'s Chase & Deferred Items section.
 
 | Gap area | Status | Priority |
 |----------|--------|---------|

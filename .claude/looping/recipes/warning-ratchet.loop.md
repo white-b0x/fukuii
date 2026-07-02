@@ -3,10 +3,10 @@
 Promote the next eligible Scalac warning category from "reported" to "build error",
 fix every site that now fails, and close with a clean compile and no new suppressions.
 
-**When to reach for it:** When DEFERRED-BACKLOG shows a warning category is no longer
-externally gated. The deprecation tier (68 sites) is gated on json4s upgrade — do not
-start this recipe until that upgrade is complete. Check `working-docs/DEFERRED-BACKLOG.md`
-before invoking.
+**When to reach for it:** When `.claude/sprints/QUEUE.md`'s Chase & Deferred Items section
+shows a warning category is no longer externally gated. The deprecation tier (68 sites) is
+gated on json4s upgrade — do not start this recipe until that upgrade is complete. Check
+`.claude/sprints/QUEUE.md` before invoking.
 
 **Do not run mid-sprint.** This recipe commits bucket-A (mechanical) changes. It must
 not be interleaved with feature or consensus changes.
@@ -46,8 +46,8 @@ essential
 
 1. Run `sbt compile-all 2>&1 | grep -E 'deprecation|warning'` to inventory all sites.
 2. Cluster by package: `com.chipprbots.ethereum.blockchain`, `network`, `jsonrpc`, etc.
-3. Check DEFERRED-BACKLOG for any sites already tagged with a deferral reason that is
-   still active. Do not try to fix gated sites.
+3. Check `.claude/sprints/QUEUE.md`'s Chase & Deferred Items section for any sites already
+   tagged with a deferral reason that is still active. Do not try to fix gated sites.
 4. Estimate: how many sites are in each package? Can wraith fix a whole package per iteration?
 
 ## PLAN Phase (each iteration)
@@ -58,7 +58,8 @@ State the single highest-impact cluster to fix: package + approximate site count
 
 Invoke wraith with the compile output and the target package.
 Wraith must not add any @nowarn. If a site cannot be fixed without a @nowarn,
-record it in DEFERRED-BACKLOG with a reason and skip it.
+record it in `.claude/sprints/QUEUE.md`'s Chase & Deferred Items section with a
+reason and skip it.
 
 ## VERIFY Phase
 

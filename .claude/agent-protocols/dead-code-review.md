@@ -4,7 +4,7 @@ Every candidate for deletion deserves a question before the `git rm`: **is this
 code genuinely dead, or is it code that was never wired and should be?**
 
 Used by: WRAITH, PRISM, MITHRIL, and any agent performing dead-code sweeps
-Referenced by: inline-cleanup.md, CHASE-QUEUE.md, CODEBASE-AUDIT.md
+Referenced by: inline-cleanup.md, sprint-lifecycle.md, .claude/sprints/QUEUE.md
 
 ---
 
@@ -35,8 +35,9 @@ Signals that a candidate should be wired instead of deleted:
   where one piece got forgotten)
 
 **Action:** Identify the wiring point. If wiring is in-scope for the current
-task, wire it. If out of scope, add a DEFER entry to DEFERRED-BACKLOG.md with
-the candidate, the wiring point, and the gap it would fill.
+task, wire it. If out of scope, add a Deferred entry to the Chase & Deferred
+Items section of `.claude/sprints/QUEUE.md` with the candidate, the wiring
+point, and the gap it would fill.
 
 ### DELETE — genuinely dead code
 
@@ -59,7 +60,7 @@ grep -rn "ClassName\|methodName" src/test/ --include="*.scala"
 ```
 If the candidate appears only in test sources: treat as WIRE, not DELETE. The test is either
 (a) testing behavior that needs the candidate wired to production code, or (b) itself dead.
-For (b), add a CHASE-QUEUE entry (`type: DEAD-TEST`) rather than silently dropping the test.
+For (b), add a Chase entry (`type: DEAD-TEST`) to `.claude/sprints/QUEUE.md` rather than silently dropping the test.
 
 ### DEFER — uncertain, needs context
 
@@ -70,9 +71,9 @@ Signals that the decision should be escalated:
   question
 - Git history shows it was part of a larger planned feature that was never finished
 
-**Action:** Do NOT delete. Add a DEFER entry to DEFERRED-BACKLOG.md. Describe:
-what the code does, what gap it fills, what the wiring point would be, and why
-the decision is deferred.
+**Action:** Do NOT delete. Add a Deferred entry to `.claude/sprints/QUEUE.md`'s
+Chase & Deferred Items section. Describe: what the code does, what gap it
+fills, what the wiring point would be, and why the decision is deferred.
 
 ---
 
@@ -171,20 +172,22 @@ the only entry point, and it was never called.
 
 ---
 
-## Integration with CHASE-QUEUE
+## Integration with the sprint queue
 
-When a dead-code sweep identifies candidates, log each in CHASE-QUEUE.md as:
+When a dead-code sweep identifies candidates, log each in the Chase & Deferred Items
+section of `.claude/sprints/QUEUE.md` as:
 
 ```
 | path/to/File.scala | — | Dead code: <class> — zero callers, <reason> | DEAD | PRISM | YYYY-MM-DD |
 ```
 
-When an agent assesses a DEAD entry before deletion, document the verdict in the
-CHASE-QUEUE entry notes before executing the clearout prompt. The three-question
+When an agent assesses a DEAD entry before deletion, document the verdict in that
+entry's notes before executing the clearout prompt. The three-question
 assessment should take at most 5 minutes — it is not a deep investigation.
 
-If the verdict is WIRE or DEFER, change the entry type from `DEAD` to `DEFER`
-and add a DEFERRED-BACKLOG entry. Remove it from the clearout queue.
+If the verdict is WIRE or DEFER, change the entry type from `DEAD` to `DEFER` in
+place. Remove it from the clearout queue only once actually wired or once the
+defer condition is captured.
 
 ---
 
@@ -208,7 +211,7 @@ log deserve to know *why* the code was removed, not just that it was.
 - Do not delete code because it has no tests (a live class can have poor test coverage)
 - Do not delete code because it "looks experimental" — assess the implementation quality
 - Do not delete code that is part of an in-progress migration (may be not-yet-wired
-  Typed code, new protocol handler, etc.) — check git blame and the working-docs sprint plan
+  Typed code, new protocol handler, etc.) — check git blame and `.claude/sprints/QUEUE.md`
 - Do not delete code marked with `// TODO: wire this` or similar intent markers without
   escalating the deferred item first
 - Do not batch a WIRE candidate with DELETE candidates in the same commit

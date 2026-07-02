@@ -204,7 +204,7 @@ Classic actors watching a peer received `Terminated` automatically via the death
 system. After migrating to `watchWith`, the Typed actor sends a specific Command
 (e.g., `ChildStopped`) instead — `Terminated` is no longer propagated. Any Classic
 peer that relied on `Terminated` for lifecycle coordination must be updated or given
-an adapter. Add a CHASE-QUEUE entry for each such caller not in scope.
+an adapter. Add a Chase entry to `.claude/sprints/QUEUE.md` for each such caller not in scope.
 
 ---
 
@@ -486,10 +486,10 @@ migration commit — not deferred. For each Classic `ActorRef` param:
    Use `ActorRef[Any]` only when the actor sends multiple unrelated types through a message adapter.
 2. Update internal usages — the `!` operator works identically on Classic and Typed refs; type changes only.
 3. Update all spawn sites to drop `.toClassic` at the call site.
-4. If a spawn site is in a file out of scope for this LOOM session, add a CHASE-QUEUE entry (type: CLASSIC).
+4. If a spawn site is in a file out of scope for this LOOM session, add a Chase entry to `.claude/sprints/QUEUE.md` (type: CLASSIC).
 
 **Do NOT close a LOOM migration with Classic `ActorRef` params remaining.** If a param truly cannot be
-updated yet (e.g., because a shared command ADT is not owned by this actor), add the CHASE-QUEUE entry
+updated yet (e.g., because a shared command ADT is not owned by this actor), add the Chase entry
 and document the gate condition.
 
 **Prefer:**

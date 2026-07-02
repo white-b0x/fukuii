@@ -46,7 +46,7 @@ Mark **risk-path? = YES** for anything in consensus-critical code:
 are in consensus-critical paths (`consensus/`, `vm/`, `crypto/`, `domain/`,
 `network/p2p/messages/`). If yes:
 - Remove those items from Step 2's scope entirely
-- Add them to CHASE-QUEUE with a `FORGE-gate` (ETC) or `BEACON-gate` (ETH) note
+- Add them to the Chase & Deferred Items section of `.claude/sprints/QUEUE.md` with a `FORGE-gate` (ETC) or `BEACON-gate` (ETH) note
 - Do not include them in the mechanical commit, and do not attempt to prove them
   behavior-preserving without specialist review — the cost of a wrong call is a chain fork
 
@@ -74,7 +74,7 @@ Never put a behavior-affecting change in the mechanical commit.
 Anything not fixed gets a narrow site-level suppression only:
 
 ```scala
-@nowarn("cat=deprecation") // <one-line reason> — DEFERRED-BACKLOG §<ref>
+@nowarn("cat=deprecation") // <one-line reason> — see .claude/sprints/QUEUE.md §<ref>
 def foo(...) = ...
 ```
 

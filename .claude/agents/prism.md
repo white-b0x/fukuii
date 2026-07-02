@@ -43,7 +43,7 @@ When a finding maps to an established protocol, cite it so the downstream fix ag
 - Cats Effect integration violations (TL1: IORuntime.global outside root; TL2: unsafeRunSync in actors): `~/.claude/agent-protocols/pekko-typed-api.md` § TL1/TL2
 - Known violation index (52 findings, 9 categories, file:line): `.local/best-practices/codebase-audit.md`
 
-**Contributing protocols**: If a finding type recurs across multiple reviews and no protocol covers it yet, note it in `~/.claude/agent-protocols/working-docs/CHASE-QUEUE.md` with a suggested protocol name. Prism reviews surface systemic issues — those are the right inputs for new protocols.
+**Contributing protocols**: If a finding type recurs across multiple reviews and no protocol covers it yet, note it in the Chase & Deferred Items section of `.claude/sprints/QUEUE.md` with a suggested protocol name. Prism reviews surface systemic issues — those are the right inputs for new protocols.
 
 ## When invoked
 

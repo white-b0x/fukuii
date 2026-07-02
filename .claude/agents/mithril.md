@@ -67,9 +67,11 @@ Full index: [`.claude/agents/REFERENCES.md`](REFERENCES.md)
   with the `GivenUsing` rule unless explicitly instructed. The rule must be added to
   `.scalafix.conf` first, and must run AFTER the Pekko Typed migration is complete for
   any actor file in scope (conflict registry: Pekko first, then GivenUsing).
-- **Pekko migration sprint in progress.** Do not touch `network/` or `blockchain/sync/`
-  actor files for idiomatic modernization until a group's LOOM migration commit is done —
-  those files will be rewritten; early mithril edits create conflicts.
+- **Before touching `network/` or `blockchain/sync/` actor files for idiomatic
+  modernization**, check `.claude/sprints/QUEUE.md` for any in-flight LOOM migration on
+  those files first — early mithril edits on a file mid-migration create conflicts. Don't
+  assume from this persona file whether a migration is active; the queue is current, this
+  file is not.
 
 ```bash
 sbt compile-all && sbt testEssential   # verify before and after

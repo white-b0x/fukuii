@@ -114,7 +114,7 @@ grep -rn "ChangedType\|ChangedMessage\|newMethodName" src/main/ --include="*.sca
 
 For each caller not in scope for this task:
 - If the caller uses Classic bridge patterns (`.toClassic`, `ctx.toClassic.sender()`) against the
-  updated API → add a CHASE-QUEUE entry (`type: CLASSIC`) so the bridge is not forgotten
+  updated API → add a Chase entry (`type: CLASSIC`) to `.claude/sprints/QUEUE.md` so the bridge is not forgotten
 - If the caller has a stale method signature after the change → surface to user for triage
 
 Consensus changes often require coordinated updates in the surrounding non-consensus call sites.

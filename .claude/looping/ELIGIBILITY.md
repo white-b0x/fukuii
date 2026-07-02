@@ -32,7 +32,7 @@ taste-driven work stays a manual prompt.
 | `warning-ratchet` | Yes (per sprint) | Yes — compile exits nonzero on new warnings or new @nowarn | Yes — wraith fixes sites systematically | Yes — `LOOP:... ALL_GATES:PASS` | **ELIGIBLE** |
 | `spec-conformance` | Yes (per upstream release) | Yes — conformance.sh diff nonzero on drift | Yes — wraith aligns impl to spec | Yes — empty diff + gate pass | **ELIGIBLE** |
 | `test-greening` | Yes (after major refactors) | Yes — testEssential exits nonzero on failure | Yes — wraith identifies and fixes failing tests | Yes — 0 failures + gate pass | **ELIGIBLE** |
-| `actor-migration` | Yes (one actor per run; queue in SPRINT-QUEUE) | Yes — compile exits nonzero on Classic refs; testOnly exits nonzero on regressions | Yes — loom runs one actor per session per pre-migration-checklist | Yes — compile-all clean + testOnly pass | **ELIGIBLE** |
+| `actor-migration` | Yes (one actor per run; queue in `.claude/sprints/QUEUE.md`) | Yes — compile exits nonzero on Classic refs; testOnly exits nonzero on regressions | Yes — loom runs one actor per session per pre-migration-checklist | Yes — compile-all clean + testOnly pass | **ELIGIBLE** |
 | `ref-parity-audit` | Yes (weekly scheduled poll) | Yes (poll, not finish-line) — conformance gate flags drift | Yes — checkers audit without code changes | N/A (poll; no finish line) | **ELIGIBLE (poll)** |
 
 ---

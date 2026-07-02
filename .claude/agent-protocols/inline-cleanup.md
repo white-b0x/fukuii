@@ -68,14 +68,14 @@ Record in the continuation file if doing LOOM work, or surface to the user.
 
 ## Discipline rules
 
-### Rule 1: Stay in the file — log cross-file finds in CHASE-QUEUE.md
+### Rule 1: Stay in the file — log cross-file finds to the queue's Chase & Deferred Items
 
 Fix what you find in the file you're already editing.
 Do NOT navigate to callers, imports, or related files to continue the cleanup.
 Exception: if a caller file is already in your task's scope, cleanup there too.
 
-When you spot an issue in a file you're NOT editing, append it to:
-`.claude/agent-protocols/working-docs/CHASE-QUEUE.md`
+When you spot an issue in a file you're NOT editing, append it to the "Chase & Deferred
+Items" section of `.claude/sprints/QUEUE.md` (see `sprint-lifecycle.md`):
 
 ```
 | path/to/File.scala | line | pattern description | TYPE | AgentName | YYYY-MM-DD |
@@ -86,11 +86,12 @@ After logging the entry, check whether the pattern is isolated or widespread:
 # How many files share the same pattern?
 grep -rn "pattern_to_fix" src/main/ --include="*.scala" | wc -l
 ```
-Include the count in the CHASE-QUEUE description (e.g., `log.warning→warn (N=12)`).
-Entries with `N=5+` cluster into sprint tasks faster, and the count helps the sprint
-agent decide whether to do a targeted fix or a full sweep.
+Include the count in the entry's description (e.g., `log.warning→warn (N=12)`).
+Entries with `N=5+` cluster into a real batch faster, and the count helps decide
+whether to do a targeted fix or a full sweep.
 
-Public document — code patterns only, no internal dev commentary.
+`.claude/sprints/QUEUE.md` is untracked/operator-local — code patterns only, no internal
+dev commentary that shouldn't ever leave the machine either.
 Entries are batched into sprint sessions when a cluster forms (5+ of same type).
 
 ### Rule 2: Separate commit

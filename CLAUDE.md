@@ -66,7 +66,8 @@ Tracked protocols that all agents reference live in `.claude/agent-protocols/`:
 | `testing-protocol.md` | Per-phase test cadence (compile-all per file, testOnly after logic, testEssential once at end) |
 | `risk-stratified-commit.md` | Bucket A/B/C commit discipline for sweep changes |
 | `consensus-change-protocol.md` | Hard stop + routing table before touching consensus paths |
-| `inline-cleanup.md` | "Hunt and seek" — what to fix opportunistically, what to log in CHASE-QUEUE |
+| `inline-cleanup.md` | "Hunt and seek" — what to fix opportunistically, what to log to the queue |
+| `finding-resolution.md` | Every audit/review finding gets scheduled (existing IP, new IP, or a real future-batch entry) — never left as a bare flagged-but-unscheduled note |
 | `logging-standards.md` | Preferred logging API, levels, message format, SLF4J patterns |
 | `scala3-style.md` | S1–S11 Scala 3 standards with grep-verifiable ratchets (S11: opaque type full-layer propagation) |
 | `scala3-given-migration.md` | G1–G3 operational pitfalls for `given/using` migration (P3a findings, applies to P3b) |
@@ -76,9 +77,15 @@ Tracked protocols that all agents reference live in `.claude/agent-protocols/`:
 | `storage-rocksdb.md` | DataSource contract, column families, iterator lifecycle, WriteBatch, EphemDataSource, RocksDB config |
 | `dead-code-review.md` | Three verdicts before any deletion: Wire it / Delete it / Defer — assess gap, git history, and supersession before `git rm` |
 | `worktree-protocol.md` | Sprint vs task worktree patterns, naming (`wt/<id>`), lifecycle, bin scripts, agent rules for worktree context |
+| `sprint-lifecycle.md` | The permanent queue/log/pattern pipeline for sprint work: research → single queue → fresh-context implementation → close-out (log + pattern capture) → clear → archive |
 
-Working documents (public, code patterns only): `.claude/agent-protocols/working-docs/`
-- `CHASE-QUEUE.md` — cross-file issues logged during inline sessions, batched into sprint clusters
+Sprint tracking (operator-local, untracked): `.claude/sprints/`
+- `QUEUE.md` — the single active prompt queue for sprint work (batches, findings-resolution
+  log, and a standing Chase & Deferred Items section) — see `sprint-lifecycle.md`
+- `completed/`, `archive/` — closed batches, pending then retired
+- `log/` — permanent, sprint-agnostic record of what changed and why
+- `patterns/` — reusable execution-pattern library (prompt-writing efficiency patterns, not
+  just grep commands)
 
 Best practices library (research-backed patterns, June 2026 sprint): `.local/best-practices/`
 - `scala/type-safety.md` — 10 opaque type propagation patterns (full S11 reference)

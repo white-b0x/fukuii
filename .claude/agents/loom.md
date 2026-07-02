@@ -394,13 +394,11 @@ After implementation:
 
 ## Actor migration order
 
-**Wave 2 (infrastructure actors) — COMPLETE.** All 7 actors done. See SPRINT-QUEUE.md.
-
-**Network/sync sprint — IN PROGRESS.** 35 Classic actors in `network/` and
-`blockchain/sync/`. Full plan and group order in:
-`.local/docs/moderization-review-june/network-sync-pekko-migration-plan.md`
-
-Current group status (read SPRINT-QUEUE.md Part 6 table for full state):
+**Do not restate current sprint/migration status here** — check `.claude/sprints/QUEUE.md`
+for what's actually in flight; this file drifts out of sync with reality otherwise. The
+table below is the historical group-by-group record of the network/sync actor migration
+(35 Classic actors in `network/` and `blockchain/sync/`; original plan and group order in
+`.local/docs/moderization-review-june/network-sync-pekko-migration-plan.md`):
 
 | Group | Status | Key actors |
 |-------|--------|-----------|
