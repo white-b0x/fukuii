@@ -28,6 +28,7 @@ import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SetCodeAuthorization
 import com.chipprbots.ethereum.domain.Wei
+import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.SetCodeTransaction
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.Transaction
@@ -87,6 +88,9 @@ object Picklers:
     transformPickler[Nonce, BigInt](Nonce(_))(_.value)
   given weiPickler: Pickler[Wei] =
     transformPickler[Wei, BigInt](Wei(_))(_.value)
+
+  given chainIdPickler: Pickler[ChainId] =
+    transformPickler[ChainId, BigInt](ChainId(_))(_.value)
 
   given legacyTransactionPickler: Pickler[LegacyTransaction] = generatePickler[LegacyTransaction]
   given transactionWithAccessListPickler: Pickler[TransactionWithAccessList] =

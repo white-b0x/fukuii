@@ -102,12 +102,12 @@ class SignedLegacyTransactionSpec extends AnyFlatSpec with SignedTransactionBeha
     val expectedSignedTransaction =
       "f86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83"
 
-    val signingData = SignedTransaction.bytesToSign(legacyTransaction, Some(1))
+    val signingData = SignedTransaction.bytesToSign(legacyTransaction, Some(ChainId(BigInt(1))))
 
     Hex.toHexString(signingData) shouldEqual expectedSigningHash
 
     val senderKeyPair = crypto.keyPairFromPrvKey(Hex.decode(privateKey))
-    val signedTransaction = SignedTransaction.sign(legacyTransaction, senderKeyPair, Some(1))
+    val signedTransaction = SignedTransaction.sign(legacyTransaction, senderKeyPair, Some(ChainId(BigInt(1))))
 
     signedTransaction.signature.v shouldEqual expectedSignatureV
     signedTransaction.signature.r shouldEqual expectedSignatureR

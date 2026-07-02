@@ -637,10 +637,12 @@ class EngineApiService(
                             val expectedChainId = blockchainConfig.chainId.value
                             val filtered = response.pendingTransactions.map(_.stx.tx).filter { stx =>
                               val txChainId: Option[BigInt] = stx.tx match
-                                case t: com.chipprbots.ethereum.domain.TransactionWithAccessList => Some(t.chainId)
-                                case t: com.chipprbots.ethereum.domain.TransactionWithDynamicFee => Some(t.chainId)
-                                case t: com.chipprbots.ethereum.domain.BlobTransaction           => Some(t.chainId)
-                                case t: com.chipprbots.ethereum.domain.SetCodeTransaction        => Some(t.chainId)
+                                case t: com.chipprbots.ethereum.domain.TransactionWithAccessList =>
+                                  Some(t.chainId.value)
+                                case t: com.chipprbots.ethereum.domain.TransactionWithDynamicFee =>
+                                  Some(t.chainId.value)
+                                case t: com.chipprbots.ethereum.domain.BlobTransaction    => Some(t.chainId.value)
+                                case t: com.chipprbots.ethereum.domain.SetCodeTransaction => Some(t.chainId.value)
                                 case _ => None // legacy txs don't have explicit chainID
                               txChainId.forall(_ == expectedChainId)
                             }

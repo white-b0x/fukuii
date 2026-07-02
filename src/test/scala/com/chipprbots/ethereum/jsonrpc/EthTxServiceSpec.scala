@@ -192,7 +192,7 @@ class EthTxServiceSpec
     // Pre-EIP-1559 chain with empty block window: oracle falls back to minimumGasPrice().
     // minimumGasPrice() returns max(0, 1) = 1 wei — never 0.
     val response: ServiceResponse[GetGasPriceResponse] = ethTxService.getGetGasPrice(GetGasPriceRequest())
-    response.unsafeRunSync() shouldEqual Right(GetGasPriceResponse(1))
+    response.unsafeRunSync() shouldEqual Right(GetGasPriceResponse(GasPrice(1)))
 
   it should "return average gas price" taggedAs (UnitTest, RPCTest) in new TestSetup:
     private val block: Block =
@@ -203,7 +203,7 @@ class EthTxServiceSpec
     blockchainWriter.saveBestKnownBlocks(block.hash, block.number.value)
 
     val response: ServiceResponse[GetGasPriceResponse] = ethTxService.getGetGasPrice(GetGasPriceRequest())
-    response.unsafeRunSync() shouldEqual Right(GetGasPriceResponse(BigInt("20000000000")))
+    response.unsafeRunSync() shouldEqual Right(GetGasPriceResponse(GasPrice(BigInt("20000000000"))))
 
   it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" taggedAs (
     UnitTest,

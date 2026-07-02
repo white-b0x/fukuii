@@ -452,7 +452,7 @@ class PersonalServiceSpec
     val nonce = 7
     val txValue = 128000
 
-    val chainId: BigInt = 0x03
+    val chainId: ChainId = ChainId(BigInt(0x03))
     val forkBlockNumbers: ForkBlockNumbers = ForkBlockNumbers.Empty.copy(
       eip155BlockNumber = 12345,
       eip161BlockNumber = 0,
@@ -516,7 +516,7 @@ class PersonalServiceSpec
         txPoolConfig,
         new BlockchainConfigBuilder with com.chipprbots.ethereum.TestInstanceConfigProvider:
           override def blockchainConfig: BlockchainConfig = BlockchainConfig(
-            chainId = ChainId(chainId),
+            chainId = chainId,
             // unused
             networkId = 1,
             maxCodeSize = None,

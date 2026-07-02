@@ -16,6 +16,7 @@ import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import com.chipprbots.ethereum.db.storage.TransactionMappingStorage
 import com.chipprbots.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import com.chipprbots.ethereum.domain.Difficulty
+import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.ChainWeight
@@ -189,7 +190,7 @@ class TraceServiceSpec
         from = None,
         to = None,
         gas = None,
-        gasPrice = 0,
+        gasPrice = GasPrice(0),
         value = 0,
         data = ByteString.empty
       )

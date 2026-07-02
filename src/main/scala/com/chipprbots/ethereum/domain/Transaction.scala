@@ -111,7 +111,7 @@ case class LegacyTransaction(
 
 object TransactionWithAccessList:
   def apply(
-      chainId: BigInt,
+      chainId: ChainId,
       nonce: Nonce,
       gasPrice: GasPrice,
       gasLimit: GasAmount,
@@ -123,7 +123,7 @@ object TransactionWithAccessList:
     TransactionWithAccessList(chainId, nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload, accessList)
 
 case class TransactionWithAccessList(
-    chainId: BigInt,
+    chainId: ChainId,
     nonce: Nonce,
     gasPrice: GasPrice,
     gasLimit: GasAmount,
@@ -145,7 +145,7 @@ case class TransactionWithAccessList(
 
 object TransactionWithDynamicFee:
   def apply(
-      chainId: BigInt,
+      chainId: ChainId,
       nonce: Nonce,
       maxPriorityFeePerGas: PriorityFeePerGas,
       maxFeePerGas: MaxFeePerGas,
@@ -171,7 +171,7 @@ object TransactionWithDynamicFee:
   * calculation compatibility.
   */
 case class TransactionWithDynamicFee(
-    chainId: BigInt,
+    chainId: ChainId,
     nonce: Nonce,
     maxPriorityFeePerGas: PriorityFeePerGas,
     maxFeePerGas: MaxFeePerGas,
@@ -204,7 +204,7 @@ case class AccessListItem(address: Address, storageKeys: List[StorageKey]) // by
   * calculation compatibility.
   */
 case class BlobTransaction(
-    chainId: BigInt,
+    chainId: ChainId,
     nonce: Nonce,
     maxPriorityFeePerGas: PriorityFeePerGas,
     maxFeePerGas: MaxFeePerGas,
@@ -234,7 +234,7 @@ case class BlobTransaction(
 
 object BlobTransaction:
   def apply(
-      chainId: BigInt,
+      chainId: ChainId,
       nonce: Nonce,
       maxPriorityFeePerGas: PriorityFeePerGas,
       maxFeePerGas: MaxFeePerGas,
@@ -262,7 +262,7 @@ object BlobTransaction:
 
 /** EIP-7702 authorization tuple signed by the authority (account being delegated). */
 case class SetCodeAuthorization(
-    chainId: BigInt,
+    chainId: ChainId,
     address: Address,
     nonce: Nonce,
     v: BigInt,
@@ -275,7 +275,7 @@ case class SetCodeAuthorization(
   * compatibility.
   */
 case class SetCodeTransaction(
-    chainId: BigInt,
+    chainId: ChainId,
     nonce: Nonce,
     maxPriorityFeePerGas: PriorityFeePerGas,
     maxFeePerGas: MaxFeePerGas,

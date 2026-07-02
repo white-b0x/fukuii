@@ -53,7 +53,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits:
 
       private def encodeForkConfig(fc: ForkConfig): JObject =
         ("activationBlock" -> encodeAsHex(fc.activationBlock)) ~
-          ("chainId" -> encodeAsHex(fc.chainId)) ~
+          ("chainId" -> encodeAsHex(fc.chainId.value)) ~
           ("precompiles" -> JObject(fc.precompiles.toList.sortBy(_._1).map { case (name, addr) =>
             JField(name, encodeAddress(addr))
           })) ~

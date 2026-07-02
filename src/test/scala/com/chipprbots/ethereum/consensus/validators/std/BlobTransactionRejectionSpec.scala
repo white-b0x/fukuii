@@ -31,10 +31,10 @@ class BlobTransactionRejectionSpec extends AnyFlatSpec with Matchers:
   private val validS = ByteString(Hex.decode("72216654137b4b58a4ece0a6df87aa1a4faf18ec4091839dd1c722fa9604fd09"))
 
   private val blobTx = BlobTransaction(
-    chainId = blockchainConfig.chainId.value,
+    chainId = blockchainConfig.chainId,
     nonce = Nonce(0),
-    maxPriorityFeePerGas = BigInt("1000000000"),
-    maxFeePerGas = BigInt("2000000000"),
+    maxPriorityFeePerGas = PriorityFeePerGas(BigInt("1000000000")),
+    maxFeePerGas = MaxFeePerGas(BigInt("2000000000")),
     gasLimit = GasAmount(21000),
     receivingAddress = Some(Address(Hex.decode("32be343b94f860124dc4fee278fdcbd38c102d88"))),
     value = Wei(BigInt(0)),

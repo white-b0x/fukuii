@@ -21,10 +21,10 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers:
 
   "TransactionWithDynamicFee" should "roundtrip through boopickle" taggedAs (OlympiaTest, UnitTest) in {
     val tx: Transaction = TransactionWithDynamicFee(
-      chainId = BigInt(63),
+      chainId = ChainId(BigInt(63)),
       nonce = Nonce(BigInt(42)),
-      maxPriorityFeePerGas = BigInt(1000000000),
-      maxFeePerGas = BigInt(2000000000),
+      maxPriorityFeePerGas = PriorityFeePerGas(BigInt(1000000000)),
+      maxFeePerGas = MaxFeePerGas(BigInt(2000000000)),
       gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(1)),
       value = Wei(BigInt(1000)),
@@ -37,7 +37,7 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers:
 
   "SetCodeTransaction" should "roundtrip through boopickle" taggedAs (OlympiaTest, UnitTest) in {
     val auth = SetCodeAuthorization(
-      chainId = BigInt(63),
+      chainId = ChainId(BigInt(63)),
       address = Address(2),
       nonce = Nonce(BigInt(0)),
       v = BigInt(0),
@@ -45,10 +45,10 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers:
       s = BigInt(789012)
     )
     val tx: Transaction = SetCodeTransaction(
-      chainId = BigInt(63),
+      chainId = ChainId(BigInt(63)),
       nonce = Nonce(BigInt(1)),
-      maxPriorityFeePerGas = BigInt(1000000000),
-      maxFeePerGas = BigInt(2000000000),
+      maxPriorityFeePerGas = PriorityFeePerGas(BigInt(1000000000)),
+      maxFeePerGas = MaxFeePerGas(BigInt(2000000000)),
       gasLimit = GasAmount(50000),
       receivingAddress = Some(Address(3)),
       value = Wei(BigInt(0)),
@@ -82,10 +82,10 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers:
       payload = ByteString.empty
     )
     val dynamic: Transaction = TransactionWithDynamicFee(
-      chainId = BigInt(63),
+      chainId = ChainId(BigInt(63)),
       nonce = Nonce(BigInt(1)),
-      maxPriorityFeePerGas = BigInt(1000000000),
-      maxFeePerGas = BigInt(2000000000),
+      maxPriorityFeePerGas = PriorityFeePerGas(BigInt(1000000000)),
+      maxFeePerGas = MaxFeePerGas(BigInt(2000000000)),
       gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(2)),
       value = Wei(BigInt(0)),

@@ -39,7 +39,7 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers:
 
     val keyPair =
       crypto.keyPairFromPrvKey(Hex.decode("4646464646464646464646464646464646464646464646464646464646464646"))
-    val signedTx = SignedTransaction.sign(tx, keyPair, Some(BigInt(61)))
+    val signedTx = SignedTransaction.sign(tx, keyPair, Some(ChainId(BigInt(61))))
 
     // Verify v value calculation: chainId * 2 + 35/36
     val expectedV1 = 61 * 2 + 35 // 157
@@ -76,7 +76,7 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers:
 
     val keyPair =
       crypto.keyPairFromPrvKey(Hex.decode("1234567890123456789012345678901234567890123456789012345678901234"))
-    val signedTx = SignedTransaction.sign(tx, keyPair, Some(BigInt(1337)))
+    val signedTx = SignedTransaction.sign(tx, keyPair, Some(ChainId(BigInt(1337))))
 
     // Verify v value calculation: chainId * 2 + 35/36
     val expectedV1 = 1337 * 2 + 35 // 2709
@@ -119,7 +119,7 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers:
 
     val keyPair =
       crypto.keyPairFromPrvKey(Hex.decode("9876543210987654321098765432109876543210987654321098765432109876"))
-    val signedTx = SignedTransaction.sign(tx, keyPair, Some(BigInt(42161)))
+    val signedTx = SignedTransaction.sign(tx, keyPair, Some(ChainId(BigInt(42161))))
 
     // Verify v value calculation: chainId * 2 + 35/36
     val expectedV1 = 42161 * 2 + 35 // 84357
@@ -212,7 +212,7 @@ class EIP155BigIntChainIdSpec extends AnyFlatSpec with Matchers:
     )
 
     val hashes = chainIds.map { chainId =>
-      SignedTransaction.bytesToSign(tx, Some(chainId))
+      SignedTransaction.bytesToSign(tx, Some(ChainId(chainId)))
     }
 
     // Each chain ID should produce a different hash

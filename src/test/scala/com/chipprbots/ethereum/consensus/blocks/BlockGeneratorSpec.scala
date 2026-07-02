@@ -183,7 +183,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
         transaction
           .copy(gasLimit = GasAmount(BigInt(2).pow(100000)), nonce = Nonce(signedTransaction.tx.nonce.value + 1)),
         keyPair,
-        Some(BigInt(0x3d))
+        Some(ChainId(BigInt(0x3d)))
       )
 
     val transactions: Seq[SignedTransaction] =
@@ -255,7 +255,11 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
 
     val generalTx: SignedTransaction = SignedTransaction.sign(transaction, keyPair, None)
     val specificTx: SignedTransaction =
-      SignedTransaction.sign(transaction.copy(nonce = Nonce(transaction.nonce.value + 1)), keyPair, Some(BigInt(0x3d)))
+      SignedTransaction.sign(
+        transaction.copy(nonce = Nonce(transaction.nonce.value + 1)),
+        keyPair,
+        Some(ChainId(BigInt(0x3d)))
+      )
 
     val pendingBlock: PendingBlock =
       blockGenerator
@@ -388,7 +392,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
       SignedTransaction.sign(
         transaction.copy(nonce = Nonce(signedTransaction.tx.nonce.value + 1)),
         keyPair,
-        Some(BigInt(0x3d))
+        Some(ChainId(BigInt(0x3d)))
       )
 
     val pendingBlock: PendingBlock =
@@ -435,7 +439,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
       SignedTransaction.sign(
         transaction.copy(nonce = Nonce(signedTransaction.tx.nonce.value + 1)),
         keyPair,
-        Some(BigInt(0x3d))
+        Some(ChainId(BigInt(0x3d)))
       )
 
     val privateKeyWithNoEthere: BigInt =
@@ -450,7 +454,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
       payload = ByteString.empty
     )
     val signedFailingTransaction: SignedTransaction =
-      SignedTransaction.sign(failingTransaction, keyPairFromPrvKey(privateKeyWithNoEthere), Some(BigInt(0x3d)))
+      SignedTransaction.sign(failingTransaction, keyPairFromPrvKey(privateKeyWithNoEthere), Some(ChainId(BigInt(0x3d))))
 
     val pendingBlock: PendingBlock =
       blockGenerator
@@ -492,7 +496,11 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
     ConsensusTest
   ) in new TestSetup:
     val txWitSameNonceButLowerGasPrice: SignedTransaction = SignedTransaction
-      .sign(transaction.copy(gasPrice = GasPrice(signedTransaction.tx.gasPrice.value - 1)), keyPair, Some(BigInt(0x3d)))
+      .sign(
+        transaction.copy(gasPrice = GasPrice(signedTransaction.tx.gasPrice.value - 1)),
+        keyPair,
+        Some(ChainId(BigInt(0x3d)))
+      )
 
     val pendingBlock: PendingBlock =
       blockGenerator
@@ -549,7 +557,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
     )
 
     val typedTransaction: TypedTransaction = TransactionWithAccessList(
-      chainId = BigInt(61), // ethereum classic mainnet
+      chainId = ChainId(BigInt(61)), // ethereum classic mainnet
       nonce = Nonce(0),
       gasPrice = GasPrice(1),
       gasLimit = GasAmount(txGasLimit),
@@ -560,12 +568,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
     )
 
     lazy val signedTransaction: SignedTransaction =
-      SignedTransaction.sign(transaction, keyPair, Some(BigInt(0x3d)))
+      SignedTransaction.sign(transaction, keyPair, Some(ChainId(BigInt(0x3d))))
     lazy val duplicatedSignedTransaction: SignedTransaction =
-      SignedTransaction.sign(transaction.copy(gasLimit = GasAmount(2)), keyPair, Some(BigInt(0x3d)))
+      SignedTransaction.sign(transaction.copy(gasLimit = GasAmount(2)), keyPair, Some(ChainId(BigInt(0x3d))))
 
     lazy val signedTypedTransaction: SignedTransaction =
-      SignedTransaction.sign(typedTransaction, keyPair, Some(BigInt(0x3d)))
+      SignedTransaction.sign(typedTransaction, keyPair, Some(ChainId(BigInt(0x3d))))
 
     lazy val signedTransactionWithAddress: SignedTransactionWithSender =
       SignedTransactionWithSender(signedTransaction, Address(keyPair))

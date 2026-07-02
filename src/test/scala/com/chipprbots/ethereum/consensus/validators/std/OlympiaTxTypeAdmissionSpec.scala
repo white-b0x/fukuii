@@ -58,21 +58,21 @@ class OlympiaTxTypeAdmissionSpec
 
   private def signType2(): SignedTransaction =
     val tx = TransactionWithDynamicFee(
-      chainId = config.chainId.value,
+      chainId = config.chainId,
       nonce = Nonce(0),
-      maxPriorityFeePerGas = BigInt(1_000_000_000),
-      maxFeePerGas = BigInt(2_000_000_000),
+      maxPriorityFeePerGas = PriorityFeePerGas(BigInt(1_000_000_000)),
+      maxFeePerGas = MaxFeePerGas(BigInt(2_000_000_000)),
       gasLimit = GasAmount(21000),
       receivingAddress = Some(Address(1)),
       value = Wei(0),
       payload = ByteString.empty,
       accessList = Nil
     )
-    SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))
+    SignedTransaction.sign(tx, senderKeys, Some(config.chainId))
 
   private def signType4(): SignedTransaction =
     val auth = SetCodeAuthorization(
-      chainId = config.chainId.value,
+      chainId = config.chainId,
       address = Address(1),
       nonce = Nonce(BigInt(0)),
       v = BigInt(0),
@@ -80,10 +80,10 @@ class OlympiaTxTypeAdmissionSpec
       s = BigInt(789012)
     )
     val tx = SetCodeTransaction(
-      chainId = config.chainId.value,
+      chainId = config.chainId,
       nonce = Nonce(BigInt(0)),
-      maxPriorityFeePerGas = BigInt(1_000_000_000),
-      maxFeePerGas = BigInt(2_000_000_000),
+      maxPriorityFeePerGas = PriorityFeePerGas(BigInt(1_000_000_000)),
+      maxFeePerGas = MaxFeePerGas(BigInt(2_000_000_000)),
       gasLimit = GasAmount(50000),
       receivingAddress = Some(Address(1)),
       value = Wei(0),
@@ -91,7 +91,7 @@ class OlympiaTxTypeAdmissionSpec
       accessList = Nil,
       authorizationList = List(auth)
     )
-    SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))
+    SignedTransaction.sign(tx, senderKeys, Some(config.chainId))
 
   private def signLegacy(): SignedTransaction =
     val tx = LegacyTransaction(
@@ -102,7 +102,7 @@ class OlympiaTxTypeAdmissionSpec
       value = Wei(0),
       payload = ByteString.empty
     )
-    SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))
+    SignedTransaction.sign(tx, senderKeys, Some(config.chainId))
 
   private def validate(stx: SignedTransaction, header: BlockHeader) =
     StdSignedTransactionValidator.validate(
@@ -154,11 +154,11 @@ class OlympiaTxTypeAdmissionSpec
       value = Wei(0),
       payload = ByteString(0x60, 0x60)
     )
-    SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))
+    SignedTransaction.sign(tx, senderKeys, Some(config.chainId))
 
   private def signType1(): SignedTransaction =
     val tx = TransactionWithAccessList(
-      chainId = config.chainId.value,
+      chainId = config.chainId,
       nonce = Nonce(BigInt(0)),
       gasPrice = GasPrice(1_000_000_000),
       gasLimit = GasAmount(21000),
@@ -167,7 +167,7 @@ class OlympiaTxTypeAdmissionSpec
       payload = ByteString.empty,
       accessList = Nil
     )
-    SignedTransaction.sign(tx, senderKeys, Some(config.chainId.value))
+    SignedTransaction.sign(tx, senderKeys, Some(config.chainId))
 
   "OlympiaAllTxTypes" should "accept Type 0 (legacy) pre-Olympia" taggedAs (OlympiaTest, ConsensusTest) in {
     validate(signLegacy(), preOlympiaHeader) shouldBe a[Right[?, ?]]

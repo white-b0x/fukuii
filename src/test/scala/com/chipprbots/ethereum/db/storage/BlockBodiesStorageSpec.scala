@@ -6,6 +6,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import com.chipprbots.ethereum.ObjectGenerators
 import com.chipprbots.ethereum.db.dataSource.EphemDataSource
+import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NewBlock
 import com.chipprbots.ethereum.security.SecureRandomBuilder
@@ -17,7 +18,7 @@ class BlockBodiesStorageSpec
     with ObjectGenerators
     with SecureRandomBuilder:
 
-  val chainId: Option[BigInt] = Some(BigInt(0x3d))
+  val chainId: Option[ChainId] = Some(ChainId(BigInt(0x3d)))
 
   "BlockBodiesStorage" should {
 

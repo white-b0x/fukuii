@@ -34,7 +34,7 @@ object EthInfoService:
   case class ConfigRequest()
   case class ForkConfig(
       activationBlock: BigInt,
-      chainId: BigInt,
+      chainId: ChainId,
       precompiles: Map[String, Address],
       systemContracts: Map[String, Address]
   )
@@ -133,7 +133,7 @@ class EthInfoService(
 
   def config(@unused req: ConfigRequest): ServiceResponse[ConfigResponse] = IO {
     val fbn = blockchainConfig.forkBlockNumbers
-    val chainId = blockchainConfig.chainId.value
+    val chainId = blockchainConfig.chainId
 
     val basePrecompiles: Map[String, Address] = Map(
       "ecrecover" -> PrecompiledContracts.EcDsaRecAddr,

@@ -22,7 +22,7 @@ class BlockBodyWireFormatSpec extends AnyFlatSpec with Matchers:
 
   "BlockBody wire encoding" should "frame typed transactions as RLP byte strings (EIP-2718)" in {
     val typedTx = TransactionWithAccessList(
-      chainId = 1,
+      chainId = ChainId(BigInt(1)),
       nonce = Nonce(1),
       gasPrice = GasPrice(1),
       gasLimit = GasAmount(21000),

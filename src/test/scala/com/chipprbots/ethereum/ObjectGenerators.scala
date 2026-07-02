@@ -98,7 +98,7 @@ trait ObjectGenerators:
     v <- Gen.choose(BigInt(0), BigInt(1))
     r <- bigIntGen
     s <- bigIntGen
-  yield SetCodeAuthorization(chainId, address, Nonce(nonce), v, r, s)
+  yield SetCodeAuthorization(ChainId(chainId), address, Nonce(nonce), v, r, s)
 
   def setCodeTransactionGen: Gen[SetCodeTransaction] = for
     chainId <- bigIntGen
@@ -112,10 +112,10 @@ trait ObjectGenerators:
     accessList <- Gen.listOf(accessListItemGen)
     authorizationList <- Gen.listOfN(2, setCodeAuthorizationGen)
   yield SetCodeTransaction(
-    chainId,
+    ChainId(chainId),
     Nonce(nonce),
-    maxPriorityFeePerGas,
-    maxFeePerGas,
+    PriorityFeePerGas(maxPriorityFeePerGas),
+    MaxFeePerGas(maxFeePerGas),
     GasAmount(gasLimit),
     Some(receivingAddress),
     Wei(value),
@@ -144,7 +144,7 @@ trait ObjectGenerators:
   )
 
   def typedTransactionGen: Gen[TransactionWithAccessList] = for
-    chainId <- bigIntGen
+    chainId <- bigIntGen.map(ChainId(_))
     nonce <- bigIntGen
     gasPrice <- bigIntGen
     gasLimit <- bigIntGen
@@ -164,7 +164,7 @@ trait ObjectGenerators:
   )
 
   def dynamicFeeTransactionGen: Gen[TransactionWithDynamicFee] = for
-    chainId <- bigIntGen
+    chainId <- bigIntGen.map(ChainId(_))
     nonce <- bigIntGen
     maxPriorityFeePerGas <- bigIntGen
     maxFeePerGas <- bigIntGen
@@ -176,8 +176,8 @@ trait ObjectGenerators:
   yield TransactionWithDynamicFee(
     chainId,
     Nonce(nonce),
-    maxPriorityFeePerGas,
-    maxFeePerGas,
+    PriorityFeePerGas(maxPriorityFeePerGas),
+    MaxFeePerGas(maxFeePerGas),
     GasAmount(gasLimit),
     receivingAddress,
     Wei(value),
@@ -220,7 +220,7 @@ trait ObjectGenerators:
       case 2 => leafNodeGen
   }
 
-  def signedTxSeqGen(length: Int, secureRandom: SecureRandom, chainId: Option[BigInt]): Gen[Seq[SignedTransaction]] =
+  def signedTxSeqGen(length: Int, secureRandom: SecureRandom, chainId: Option[ChainId]): Gen[Seq[SignedTransaction]] =
     val senderKeys = crypto.generateKeyPair(secureRandom)
     val txsSeqGen = Gen.listOfN(length, transactionGen)
     txsSeqGen.map { txs =>
@@ -229,7 +229,7 @@ trait ObjectGenerators:
       }
     }
 
-  def signedTxGen(secureRandom: SecureRandom, chainId: Option[BigInt]): Gen[SignedTransaction] =
+  def signedTxGen(secureRandom: SecureRandom, chainId: Option[ChainId]): Gen[SignedTransaction] =
     val senderKeys = crypto.generateKeyPair(secureRandom)
     for tx <- transactionGen
     yield SignedTransaction.sign(tx, senderKeys, chainId)
@@ -239,7 +239,7 @@ trait ObjectGenerators:
       crypto.generateKeyPair(rnd)
     }
 
-  def newBlockGen(secureRandom: SecureRandom, chainId: Option[BigInt]): Gen[NewBlock] = for
+  def newBlockGen(secureRandom: SecureRandom, chainId: Option[ChainId]): Gen[NewBlock] = for
     blockHeader <- blockHeaderGen
     stxs <- signedTxSeqGen(10, secureRandom, chainId)
     uncles <- seqBlockHeaderGen

@@ -71,11 +71,11 @@ object TransactionResponse:
           val legacyChainId = if stx.signature.v > 35 then Some((stx.signature.v - 35) / 2) else None
           (BigInt(0), legacyChainId, None, None, None, None, None, None)
         case tx: TransactionWithAccessList =>
-          (BigInt(1), Some(tx.chainId), None, None, Some(encodeAccessList(tx.accessList)), None, None, None)
+          (BigInt(1), Some(tx.chainId.value), None, None, Some(encodeAccessList(tx.accessList)), None, None, None)
         case tx: TransactionWithDynamicFee =>
           (
             BigInt(2),
-            Some(tx.chainId),
+            Some(tx.chainId.value),
             Some(tx.maxFeePerGas.value),
             Some(tx.maxPriorityFeePerGas.value),
             Some(encodeAccessList(tx.accessList)),
@@ -86,7 +86,7 @@ object TransactionResponse:
         case tx: BlobTransaction =>
           (
             BigInt(3),
-            Some(tx.chainId),
+            Some(tx.chainId.value),
             Some(tx.maxFeePerGas.value),
             Some(tx.maxPriorityFeePerGas.value),
             Some(encodeAccessList(tx.accessList)),
@@ -97,7 +97,7 @@ object TransactionResponse:
         case tx: SetCodeTransaction =>
           (
             BigInt(4),
-            Some(tx.chainId),
+            Some(tx.chainId.value),
             Some(tx.maxFeePerGas.value),
             Some(tx.maxPriorityFeePerGas.value),
             Some(encodeAccessList(tx.accessList)),
@@ -147,7 +147,7 @@ object TransactionResponse:
   private def encodeAuthorizationList(authList: List[SetCodeAuthorization]): Seq[Map[String, Any]] =
     authList.map { auth =>
       Map(
-        "chainId" -> auth.chainId,
+        "chainId" -> auth.chainId.value,
         "address" -> auth.address,
         "nonce" -> auth.nonce.value,
         "yParity" -> auth.v,

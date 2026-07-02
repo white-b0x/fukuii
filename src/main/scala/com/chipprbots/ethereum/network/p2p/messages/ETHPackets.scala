@@ -76,7 +76,7 @@ object ETHPackets:
     RLPCodec.instance[SetCodeAuthorization](
       { case SetCodeAuthorization(chainId, address, nonce, v, r, s) =>
         RLPList(
-          RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId)),
+          RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId.value)),
           address,
           RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
           RLPValue(ByteUtils.bigIntToUnsignedByteArray(v)),
@@ -86,7 +86,7 @@ object ETHPackets:
       },
       { case RLPList(rlpChainId, rlpAddress, rlpNonce, rlpV, rlpR, rlpS) =>
         SetCodeAuthorization(
-          rlpChainId.decodeAs[BigInt]("chainId"),
+          ChainId(rlpChainId.decodeAs[BigInt]("chainId")),
           rlpAddress.decodeAs[Address]("address"),
           Nonce(rlpNonce.decodeAs[BigInt]("nonce")),
           rlpV.decodeAs[BigInt]("v"),
@@ -409,7 +409,7 @@ object ETHPackets:
             PrefixedRLPEncodable(
               Transaction.Type02,
               RLPList(
-                RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId)),
+                RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxPriorityFeePerGas.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxFeePerGas.value)),
@@ -427,7 +427,7 @@ object ETHPackets:
             PrefixedRLPEncodable(
               Transaction.Type01,
               RLPList(
-                RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId)),
+                RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(gasPrice.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(gasLimit.value)),
@@ -456,7 +456,7 @@ object ETHPackets:
             PrefixedRLPEncodable(
               Transaction.Type03,
               RLPList(
-                RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId)),
+                RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxPriorityFeePerGas.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxFeePerGas.value)),
@@ -487,7 +487,7 @@ object ETHPackets:
             PrefixedRLPEncodable(
               Transaction.Type04,
               RLPList(
-                RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId)),
+                RLPValue(ByteUtils.bigIntToUnsignedByteArray(chainId.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(nonce.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxPriorityFeePerGas.value)),
                 RLPValue(ByteUtils.bigIntToUnsignedByteArray(maxFeePerGas.value)),
@@ -538,7 +538,7 @@ object ETHPackets:
             ) =>
           SignedTransaction(
             SetCodeTransaction(
-              ByteUtils.bytesToBigInt(chainIdBytes),
+              ChainId(ByteUtils.bytesToBigInt(chainIdBytes)),
               Nonce(ByteUtils.bytesToBigInt(nonceBytes)),
               PriorityFeePerGas(ByteUtils.bytesToBigInt(maxPriorityFeePerGasBytes)),
               MaxFeePerGas(ByteUtils.bytesToBigInt(maxFeePerGasBytes)),
@@ -576,7 +576,7 @@ object ETHPackets:
             ) =>
           SignedTransaction(
             BlobTransaction(
-              ByteUtils.bytesToBigInt(chainIdBytes),
+              ChainId(ByteUtils.bytesToBigInt(chainIdBytes)),
               Nonce(ByteUtils.bytesToBigInt(nonceBytes)),
               PriorityFeePerGas(ByteUtils.bytesToBigInt(maxPriorityFeePerGasBytes)),
               MaxFeePerGas(ByteUtils.bytesToBigInt(maxFeePerGasBytes)),
@@ -616,7 +616,7 @@ object ETHPackets:
             ) =>
           SignedTransaction(
             TransactionWithDynamicFee(
-              ByteUtils.bytesToBigInt(chainIdBytes),
+              ChainId(ByteUtils.bytesToBigInt(chainIdBytes)),
               Nonce(ByteUtils.bytesToBigInt(nonceBytes)),
               PriorityFeePerGas(ByteUtils.bytesToBigInt(maxPriorityFeePerGasBytes)),
               MaxFeePerGas(ByteUtils.bytesToBigInt(maxFeePerGasBytes)),
@@ -650,7 +650,7 @@ object ETHPackets:
             ) =>
           SignedTransaction(
             TransactionWithAccessList(
-              ByteUtils.bytesToBigInt(chainIdBytes),
+              ChainId(ByteUtils.bytesToBigInt(chainIdBytes)),
               Nonce(ByteUtils.bytesToBigInt(nonceBytes)),
               GasPrice(ByteUtils.bytesToBigInt(gasPriceBytes)),
               GasAmount(ByteUtils.bytesToBigInt(gasLimitBytes)),

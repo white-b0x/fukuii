@@ -98,7 +98,7 @@ class MessagesSerializationSpec extends AnyWordSpec with Matchers:
 
       "return same result for typed (EIP-2930) transaction wire encoding" in {
         val typedTx = TransactionWithAccessList(
-          chainId = 1,
+          chainId = com.chipprbots.ethereum.domain.ChainId(BigInt(1)),
           nonce = Nonce(1),
           gasPrice = GasPrice(1),
           gasLimit = GasAmount(21000),

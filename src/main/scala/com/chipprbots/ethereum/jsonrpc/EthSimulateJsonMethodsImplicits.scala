@@ -225,12 +225,12 @@ object EthSimulateJsonMethodsImplicits extends JsonMethodsImplicits:
           case _: com.chipprbots.ethereum.domain.TransactionWithDynamicFee => BigInt(2)
           case _: com.chipprbots.ethereum.domain.BlobTransaction           => BigInt(3)
           case _: com.chipprbots.ethereum.domain.SetCodeTransaction        => BigInt(4)
-        val chainId: Option[BigInt] = tx match
+        val chainId: Option[com.chipprbots.ethereum.domain.ChainId] = tx match
           case t: com.chipprbots.ethereum.domain.BlobTransaction           => Some(t.chainId)
           case t: com.chipprbots.ethereum.domain.SetCodeTransaction        => Some(t.chainId)
           case t: com.chipprbots.ethereum.domain.TransactionWithDynamicFee => Some(t.chainId)
           case t: com.chipprbots.ethereum.domain.TransactionWithAccessList => Some(t.chainId)
-          case _ => Some(com.chipprbots.ethereum.utils.Config.blockchains.blockchainConfig.chainId.value)
+          case _ => Some(com.chipprbots.ethereum.utils.Config.blockchains.blockchainConfig.chainId)
         val sender = senderAddr.bytes
         val effectiveGasPrice = com.chipprbots.ethereum.domain.Transaction.effectiveGasPrice(tx, header.baseFee)
         val baseFields = List(
@@ -252,7 +252,7 @@ object EthSimulateJsonMethodsImplicits extends JsonMethodsImplicits:
           "s" -> encodeAsHex(BigInt(0)),
           "yParity" -> encodeAsHex(BigInt(0))
         )
-        val chainIdField = chainId.map(c => "chainId" -> encodeAsHex(c)).toList
+        val chainIdField = chainId.map(c => "chainId" -> encodeAsHex(c.value)).toList
         val maxFeeFields = tx match
           case t: com.chipprbots.ethereum.domain.BlobTransaction =>
             List(

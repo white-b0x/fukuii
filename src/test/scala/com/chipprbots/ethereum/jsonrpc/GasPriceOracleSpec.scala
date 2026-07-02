@@ -405,14 +405,14 @@ class GasPriceOracleSpec
     val r = mockReader(bestNum = 5, window = emptyWindow(5), bestBlock = None)
     val response = svc(r).getGetGasPrice(GetGasPriceRequest()).unsafeRunSync()
     response shouldBe a[Right[?, ?]]
-    response.toOption.value.price should be >= BigInt(1)
+    response.toOption.value.price.value should be >= BigInt(1)
   }
 
   it should "always return a non-zero value (never 0x0 on any chain)" taggedAs (UnitTest, RPCTest) in {
     val zeroCfg = defaultCfg.copy(baseFeeFloor = BigInt(0), minTip = BigInt(0))
     val r = mockReader(bestNum = 0, window = Map(BigInt(0) -> None), bestBlock = None)
     val response = svc(r, zeroCfg).getGetGasPrice(GetGasPriceRequest()).unsafeRunSync()
-    response.toOption.value.price should be >= BigInt(1)
+    response.toOption.value.price.value should be >= BigInt(1)
   }
 
   it should "wrap suggestGasPrice() — RPC value equals oracle value" taggedAs (UnitTest, RPCTest) in {
@@ -421,7 +421,7 @@ class GasPriceOracleSpec
     val r = mockReader(bestNum = 20, window = window, bestBlock = Some(blk(20, Nil)))
     val service = svc(r)
     val oracleVal = service.suggestGasPrice()
-    val rpcVal = service.getGetGasPrice(GetGasPriceRequest()).unsafeRunSync().toOption.value.price
+    val rpcVal = service.getGetGasPrice(GetGasPriceRequest()).unsafeRunSync().toOption.value.price.value
     rpcVal shouldEqual oracleVal
   }
 
@@ -435,12 +435,12 @@ class GasPriceOracleSpec
   it should "return the value from blockchainConfig.minTip (not a hardcoded literal)" taggedAs (UnitTest, RPCTest) in {
     val response = blocksSvc().maxPriorityFeePerGas(MaxPriorityFeePerGasRequest()).unsafeRunSync()
     // EthBlocksService uses Config.blockchains.blockchainConfig; test config has minTip = 1 (default)
-    response.toOption.value.maxPriorityFeePerGas shouldEqual Config.blockchains.blockchainConfig.minTip
+    response.toOption.value.maxPriorityFeePerGas.value shouldEqual Config.blockchains.blockchainConfig.minTip
   }
 
   it should "return a non-negative value on any network" taggedAs (UnitTest, RPCTest) in {
     val response = blocksSvc().maxPriorityFeePerGas(MaxPriorityFeePerGasRequest()).unsafeRunSync()
-    response.toOption.value.maxPriorityFeePerGas should be >= BigInt(0)
+    response.toOption.value.maxPriorityFeePerGas.value should be >= BigInt(0)
   }
 
   // ─── E. TransactionRequest oracle injection ────────────────────────────────

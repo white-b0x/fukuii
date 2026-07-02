@@ -164,8 +164,8 @@ object TestConverter:
         TransactionWithDynamicFee(
           chainId = chainId,
           nonce = nonce,
-          maxPriorityFeePerGas = maxPriorityFeePerGas,
-          maxFeePerGas = maxFeePerGas,
+          maxPriorityFeePerGas = PriorityFeePerGas(maxPriorityFeePerGas),
+          maxFeePerGas = MaxFeePerGas(maxFeePerGas),
           gasLimit = gasLimit,
           receivingAddress = receivingAddress,
           value = value,
@@ -183,8 +183,8 @@ object TestConverter:
         BlobTransaction(
           chainId = chainId,
           nonce = nonce,
-          maxPriorityFeePerGas = maxPriorityFeePerGas,
-          maxFeePerGas = maxFeePerGas,
+          maxPriorityFeePerGas = PriorityFeePerGas(maxPriorityFeePerGas),
+          maxFeePerGas = MaxFeePerGas(maxFeePerGas),
           gasLimit = gasLimit,
           receivingAddress = receivingAddress,
           value = value,

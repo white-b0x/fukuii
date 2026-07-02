@@ -15,7 +15,7 @@ import com.chipprbots.ethereum.testing.Tags.*
 
 class BlockchainReaderSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with SecureRandomBuilder:
 
-  val chainId: Option[BigInt] = Some(BigInt(0x3d))
+  val chainId: Option[ChainId] = Some(ChainId(BigInt(0x3d)))
 
   "BlockchainReader" should "be able to get the best block after it was stored by BlockchainWriter" taggedAs (
     UnitTest,

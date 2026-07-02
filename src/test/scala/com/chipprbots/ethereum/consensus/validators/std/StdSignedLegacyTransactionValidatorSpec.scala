@@ -221,7 +221,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers:
 
   it should "report as invalid a chain specific tx before eip155" taggedAs (UnitTest, ConsensusTest) in {
     val keyPair = crypto.generateKeyPair(new SecureRandom)
-    val stx = SignedTransaction.sign(txBeforeHomestead, keyPair, Some(BigInt(0x03)))
+    val stx = SignedTransaction.sign(txBeforeHomestead, keyPair, Some(ChainId(BigInt(0x03))))
     StdSignedTransactionValidator.validate(
       stx,
       senderAccount = senderAccountAfterHomestead,
@@ -235,7 +235,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers:
 
   it should "report as valid a chain specific tx after eip155" taggedAs (UnitTest, ConsensusTest) in {
     val keyPair = crypto.generateKeyPair(new SecureRandom)
-    val stx = SignedTransaction.sign(txAfterHomestead, keyPair, Some(BigInt(0x03)))
+    val stx = SignedTransaction.sign(txAfterHomestead, keyPair, Some(ChainId(BigInt(0x03))))
     StdSignedTransactionValidator.validate(
       stx,
       senderAccount = senderAccountAfterHomestead,

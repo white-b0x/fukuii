@@ -15,6 +15,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.blockchain.checkpoint.CheckpointExporter.ExportError
+import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.blockchain.checkpoint.CheckpointExporter.ExportResult
 import com.chipprbots.ethereum.blockchain.checkpoint.CheckpointImporter.ImportResult
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
@@ -103,7 +104,7 @@ class CheckpointExporterSpec
         sourceStorages.storages.stateStorage,
         sourceStorages.storages.evmCodeStorage,
         sourceReader,
-        chainId = 1337L
+        chainId = ChainId(BigInt(1337L))
       )
       val exportResult: ExportResult = exporter.exportArchive(header.number.value, outputPath).value
       exportResult.nodesExported should be > 0L
@@ -156,7 +157,7 @@ class CheckpointExporterSpec
         sourceStorages.storages.stateStorage,
         sourceStorages.storages.evmCodeStorage,
         sourceReader,
-        chainId = 1L
+        chainId = ChainId(BigInt(1L))
       )
       val r: Either[ExportError, ExportResult] =
         exporter.exportArchive(blockNumber = 9999, output = tmpRoot.resolve("nope.checkpoint"))
@@ -196,7 +197,7 @@ class CheckpointExporterSpec
         sourceStorages.storages.stateStorage,
         sourceStorages.storages.evmCodeStorage,
         sourceReader,
-        chainId = 1L
+        chainId = ChainId(BigInt(1L))
       )
       val exportResult: ExportResult = exporter.exportArchive(header.number.value, outputPath).value
       exportResult.nodesExported should be > 0L

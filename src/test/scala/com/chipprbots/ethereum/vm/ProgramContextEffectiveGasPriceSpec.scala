@@ -10,7 +10,9 @@ import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.MaxFeePerGas
 import com.chipprbots.ethereum.domain.Nonce
+import com.chipprbots.ethereum.domain.PriorityFeePerGas
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.TransactionWithDynamicFee
 import com.chipprbots.ethereum.domain.UInt256
@@ -34,8 +36,8 @@ class ProgramContextEffectiveGasPriceSpec extends AnyFlatSpec with Matchers:
   private def newDynamicFeeTx(maxFeePerGas: BigInt, maxPriorityFeePerGas: BigInt): SignedTransaction =
     val raw = TransactionWithDynamicFee(
       nonce = Nonce(0),
-      maxPriorityFeePerGas = maxPriorityFeePerGas,
-      maxFeePerGas = maxFeePerGas,
+      maxPriorityFeePerGas = PriorityFeePerGas(maxPriorityFeePerGas),
+      maxFeePerGas = MaxFeePerGas(maxFeePerGas),
       gasLimit = GasAmount(100000),
       receivingAddress = Some(Address(ByteString(Array.fill[Byte](20)(0xcc.toByte)))),
       value = Wei(0),

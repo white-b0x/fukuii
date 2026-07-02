@@ -115,7 +115,7 @@ class EthServiceSpec
       Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
       Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
       Some(1),
-      2,
+      GasPrice(2),
       3,
       ByteString("")
     )
@@ -148,7 +148,7 @@ class EthServiceSpec
       Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
       Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
       Some(1),
-      2,
+      GasPrice(2),
       3,
       ByteString("")
     )

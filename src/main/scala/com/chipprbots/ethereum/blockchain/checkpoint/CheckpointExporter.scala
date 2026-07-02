@@ -14,6 +14,7 @@ import com.chipprbots.ethereum.db.storage.MptStorage
 import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.mpt.BranchNode
 import com.chipprbots.ethereum.mpt.ExtensionNode
 import com.chipprbots.ethereum.mpt.HashNode
@@ -42,7 +43,7 @@ final class CheckpointExporter(
     stateStorage: StateStorage,
     evmCodeStorage: EvmCodeStorage,
     blockchainReader: BlockchainReader,
-    chainId: BigInt
+    chainId: ChainId
 ):
   import CheckpointExporter.*
   private val log = LoggerFactory.getLogger(getClass)
@@ -74,7 +75,7 @@ final class CheckpointExporter(
             try
               writer.writeHeader(
                 CheckpointArchive.Header(
-                  chainId = chainId.toLong,
+                  chainId = chainId.value.toLong,
                   blockHeader = header,
                   chainWeight = weight
                 )

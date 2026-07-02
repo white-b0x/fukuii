@@ -21,9 +21,12 @@ import com.chipprbots.ethereum.Timeouts
 import com.chipprbots.ethereum.consensus.eip1559.BaseFeeCalculator
 import com.chipprbots.ethereum.crypto
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.MaxFeePerGas
+import com.chipprbots.ethereum.domain.PriorityFeePerGas
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
 import com.chipprbots.ethereum.domain.BlockchainReader
@@ -432,10 +435,10 @@ class PendingTransactionsManagerSpec
     OlympiaTest
   ) in new TestSetupWithBaseFee:
     val zeroTipType2: TransactionWithDynamicFee = TransactionWithDynamicFee(
-      chainId = BigInt(61),
+      chainId = ChainId(BigInt(61)),
       nonce = Nonce(BigInt(0)),
-      maxPriorityFeePerGas = BigInt(0), // tip = 0 < minTip(1)
-      maxFeePerGas = BaseFeeCalculator.InitialBaseFee, // = 1 gwei
+      maxPriorityFeePerGas = PriorityFeePerGas.Zero, // tip = 0 < minTip(1)
+      maxFeePerGas = MaxFeePerGas(BaseFeeCalculator.InitialBaseFee), // = 1 gwei
       gasLimit = GasAmount(21_000),
       receivingAddress = Some(Address(42)),
       value = Wei(BigInt(0)),
@@ -455,10 +458,10 @@ class PendingTransactionsManagerSpec
     OlympiaTest
   ) in new TestSetupWithBaseFee:
     val validType2: TransactionWithDynamicFee = TransactionWithDynamicFee(
-      chainId = BigInt(61),
+      chainId = ChainId(BigInt(61)),
       nonce = Nonce(BigInt(0)),
-      maxPriorityFeePerGas = BigInt(1), // effectiveTip = min(1, 1gwei+1 - 1gwei) = 1 >= minTip(1)
-      maxFeePerGas = BaseFeeCalculator.InitialBaseFee + 1, // baseFee + 1 wei
+      maxPriorityFeePerGas = PriorityFeePerGas(1), // effectiveTip = min(1, 1gwei+1 - 1gwei) = 1 >= minTip(1)
+      maxFeePerGas = MaxFeePerGas(BaseFeeCalculator.InitialBaseFee + 1), // baseFee + 1 wei
       gasLimit = GasAmount(21_000),
       receivingAddress = Some(Address(42)),
       value = Wei(BigInt(0)),
@@ -479,10 +482,10 @@ class PendingTransactionsManagerSpec
   ) in new TestSetupWithBaseFee:
     val baseFee = BaseFeeCalculator.InitialBaseFee
     val zeroTip: TransactionWithDynamicFee = TransactionWithDynamicFee(
-      chainId = BigInt(61),
+      chainId = ChainId(BigInt(61)),
       nonce = Nonce(BigInt(0)),
-      maxPriorityFeePerGas = BigInt(0),
-      maxFeePerGas = baseFee,
+      maxPriorityFeePerGas = PriorityFeePerGas.Zero,
+      maxFeePerGas = MaxFeePerGas(baseFee),
       gasLimit = GasAmount(21_000),
       receivingAddress = Some(Address(42)),
       value = Wei(BigInt(0)),
@@ -490,10 +493,10 @@ class PendingTransactionsManagerSpec
       accessList = Nil
     )
     val validTip: TransactionWithDynamicFee = TransactionWithDynamicFee(
-      chainId = BigInt(61),
+      chainId = ChainId(BigInt(61)),
       nonce = Nonce(BigInt(0)),
-      maxPriorityFeePerGas = BigInt(1),
-      maxFeePerGas = baseFee + 1,
+      maxPriorityFeePerGas = PriorityFeePerGas(1),
+      maxFeePerGas = MaxFeePerGas(baseFee + 1),
       gasLimit = GasAmount(21_000),
       receivingAddress = Some(Address(42)),
       value = Wei(BigInt(0)),
@@ -502,9 +505,15 @@ class PendingTransactionsManagerSpec
     )
     val keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
     val rejectedStx: SignedTransactionWithSender =
-      SignedTransactionWithSender(SignedTransaction.sign(zeroTip, keyPair, Some(0x3d)), Address(keyPair))
+      SignedTransactionWithSender(
+        SignedTransaction.sign(zeroTip, keyPair, Some(ChainId(BigInt(0x3d)))),
+        Address(keyPair)
+      )
     val acceptedStx: SignedTransactionWithSender =
-      SignedTransactionWithSender(SignedTransaction.sign(validTip, keyPair, Some(0x3d)), Address(keyPair))
+      SignedTransactionWithSender(
+        SignedTransaction.sign(validTip, keyPair, Some(ChainId(BigInt(0x3d)))),
+        Address(keyPair)
+      )
 
     pendingTransactionsManager ! AddTransactions(rejectedStx)
     eventually {
@@ -551,7 +560,7 @@ class PendingTransactionsManagerSpec
         tx: TransactionWithDynamicFee,
         keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
     ): SignedTransactionWithSender =
-      SignedTransactionWithSender(SignedTransaction.sign(tx, keyPair, Some(0x3d)), Address(keyPair))
+      SignedTransactionWithSender(SignedTransaction.sign(tx, keyPair, Some(ChainId(BigInt(0x3d)))), Address(keyPair))
 
   trait TestSetup extends SecureRandomBuilder:
     implicit val classicSystem: org.apache.pekko.actor.ActorSystem = testKit.system.classicSystem
@@ -567,7 +576,7 @@ class PendingTransactionsManagerSpec
         tx: LegacyTransaction = tx,
         keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
     ): SignedTransactionWithSender =
-      SignedTransactionWithSender(SignedTransaction.sign(tx, keyPair, Some(0x3d)), Address(keyPair))
+      SignedTransactionWithSender(SignedTransaction.sign(tx, keyPair, Some(ChainId(BigInt(0x3d)))), Address(keyPair))
 
     val peer1TestProbe: TestProbe = TestProbe()
     val peer1: Peer = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, false)

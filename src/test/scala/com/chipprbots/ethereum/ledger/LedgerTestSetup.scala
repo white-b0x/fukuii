@@ -201,7 +201,7 @@ trait BlockchainSetup extends TestSetup:
     value = Wei(defaultValue)
   )
   val validStxSignedByOrigin: SignedTransaction =
-    SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId.value))
+    SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId))
 
 // SCALA 3 MIGRATION: Cannot use self-type constraint with anonymous instantiation in Scala 3.
 // The implementing class must extend MockFactory and provide mock implementations.

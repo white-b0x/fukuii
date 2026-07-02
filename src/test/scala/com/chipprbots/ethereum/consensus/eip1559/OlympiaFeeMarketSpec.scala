@@ -69,10 +69,10 @@ class OlympiaFeeMarketSpec
         OlympiaTest
       ) in {
         val tx = TransactionWithDynamicFee(
-          chainId = config.chainId.value,
+          chainId = config.chainId,
           nonce = Nonce(BigInt(0)),
-          maxPriorityFeePerGas = BigInt(1_000_000_000L),
-          maxFeePerGas = BigInt(10_000_000_000L),
+          maxPriorityFeePerGas = PriorityFeePerGas(BigInt(1_000_000_000L)),
+          maxFeePerGas = MaxFeePerGas(BigInt(10_000_000_000L)),
           gasLimit = GasAmount(BigInt(21000)),
           receivingAddress = Some(Address(1)),
           value = Wei(0),
@@ -88,10 +88,10 @@ class OlympiaFeeMarketSpec
         OlympiaTest
       ) in {
         val tx = TransactionWithDynamicFee(
-          chainId = config.chainId.value,
+          chainId = config.chainId,
           nonce = Nonce(BigInt(0)),
-          maxPriorityFeePerGas = BigInt(3_000_000_000L),
-          maxFeePerGas = BigInt(10_000_000_000L),
+          maxPriorityFeePerGas = PriorityFeePerGas(BigInt(3_000_000_000L)),
+          maxFeePerGas = MaxFeePerGas(BigInt(10_000_000_000L)),
           gasLimit = GasAmount(BigInt(21000)),
           receivingAddress = Some(Address(1)),
           value = Wei(0),
@@ -107,7 +107,7 @@ class OlympiaFeeMarketSpec
         OlympiaTest
       ) in {
         val auth = SetCodeAuthorization(
-          chainId = config.chainId.value,
+          chainId = config.chainId,
           address = Address(1),
           nonce = Nonce(BigInt(0)),
           v = BigInt(0),
@@ -115,10 +115,10 @@ class OlympiaFeeMarketSpec
           s = BigInt(2)
         )
         val tx = SetCodeTransaction(
-          chainId = config.chainId.value,
+          chainId = config.chainId,
           nonce = Nonce(BigInt(0)),
-          maxPriorityFeePerGas = BigInt(1_000_000_000L),
-          maxFeePerGas = BigInt(5_000_000_000L),
+          maxPriorityFeePerGas = PriorityFeePerGas(BigInt(1_000_000_000L)),
+          maxFeePerGas = MaxFeePerGas(BigInt(5_000_000_000L)),
           gasLimit = GasAmount(BigInt(50000)),
           receivingAddress = Some(Address(1)),
           value = Wei(0),
@@ -157,10 +157,10 @@ class OlympiaFeeMarketSpec
         val maxPriority = BigInt(1_000_000_000L)
         val maxFee = BigInt(10_000_000_000L)
         val tx = TransactionWithDynamicFee(
-          chainId = config.chainId.value,
+          chainId = config.chainId,
           nonce = Nonce(BigInt(0)),
-          maxPriorityFeePerGas = maxPriority,
-          maxFeePerGas = maxFee,
+          maxPriorityFeePerGas = PriorityFeePerGas(maxPriority),
+          maxFeePerGas = MaxFeePerGas(maxFee),
           gasLimit = GasAmount(BigInt(21000)),
           receivingAddress = Some(Address(1)),
           value = Wei(0),
@@ -178,10 +178,10 @@ class OlympiaFeeMarketSpec
       ) in {
         val baseFee = BigInt(5_000_000_000L)
         val tx = TransactionWithDynamicFee(
-          chainId = config.chainId.value,
+          chainId = config.chainId,
           nonce = Nonce(BigInt(0)),
-          maxPriorityFeePerGas = BigInt(0),
-          maxFeePerGas = baseFee,
+          maxPriorityFeePerGas = PriorityFeePerGas.Zero,
+          maxFeePerGas = MaxFeePerGas(baseFee),
           gasLimit = GasAmount(BigInt(21000)),
           receivingAddress = Some(Address(1)),
           value = Wei(0),
@@ -225,10 +225,10 @@ class OlympiaFeeMarketSpec
       "compute zero effectiveTip for Type 2 tx with maxFee = baseFee and tip = 0" taggedAs (UnitTest, OlympiaTest) in {
         val baseFee = InitialBaseFee
         val tx2ZeroTip = TransactionWithDynamicFee(
-          chainId = BigInt(61),
+          chainId = ChainId(BigInt(61)),
           nonce = Nonce(BigInt(0)),
-          maxPriorityFeePerGas = BigInt(0),
-          maxFeePerGas = baseFee,
+          maxPriorityFeePerGas = PriorityFeePerGas.Zero,
+          maxFeePerGas = MaxFeePerGas(baseFee),
           gasLimit = GasAmount(BigInt(21_000)),
           receivingAddress = None,
           value = Wei(0),
@@ -246,10 +246,10 @@ class OlympiaFeeMarketSpec
       ) in {
         val baseFee = InitialBaseFee
         val tx2ValidTip = TransactionWithDynamicFee(
-          chainId = BigInt(61),
+          chainId = ChainId(BigInt(61)),
           nonce = Nonce(BigInt(0)),
-          maxPriorityFeePerGas = InitialBaseFee,
-          maxFeePerGas = InitialBaseFee * 2,
+          maxPriorityFeePerGas = PriorityFeePerGas(InitialBaseFee),
+          maxFeePerGas = MaxFeePerGas(InitialBaseFee * 2),
           gasLimit = GasAmount(BigInt(21_000)),
           receivingAddress = None,
           value = Wei(0),

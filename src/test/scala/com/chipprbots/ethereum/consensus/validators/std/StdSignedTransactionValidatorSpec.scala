@@ -230,10 +230,10 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers:
 
   private def signedBlobTx(maxFeePerBlobGas: BigInt): SignedTransaction = SignedTransaction(
     BlobTransaction(
-      chainId = BigInt(1),
+      chainId = ChainId(BigInt(1)),
       nonce = Nonce(0),
-      maxPriorityFeePerGas = BigInt(0),
-      maxFeePerGas = BigInt(2_000_000_000L),
+      maxPriorityFeePerGas = PriorityFeePerGas.Zero,
+      maxFeePerGas = MaxFeePerGas(BigInt(2_000_000_000L)),
       gasLimit = GasAmount(BigInt(1_000_000)),
       receivingAddress = Some(Address(0L)),
       value = Wei(0),

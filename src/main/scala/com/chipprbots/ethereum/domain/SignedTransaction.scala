@@ -67,13 +67,13 @@ object SignedTransaction:
   def sign(
       tx: Transaction,
       keyPair: AsymmetricCipherKeyPair,
-      chainId: Option[BigInt]
+      chainId: Option[ChainId]
   ): SignedTransaction =
     val bytes = bytesToSign(tx, chainId)
     val sig = ECDSASignature.sign(bytes, keyPair)
     SignedTransaction(tx, getEthereumSignature(tx, sig, chainId))
 
-  private[domain] def bytesToSign(tx: Transaction, chainId: Option[BigInt]): Array[Byte] =
+  private[domain] def bytesToSign(tx: Transaction, chainId: Option[ChainId]): Array[Byte] =
     tx match
       case legacyTransaction: LegacyTransaction => getLegacyBytesToSign(legacyTransaction, chainId)
       case twal: TransactionWithAccessList      => getTWALBytesToSign(twal)
@@ -81,7 +81,7 @@ object SignedTransaction:
       case btx: BlobTransaction                 => getBlobTxBytesToSign(btx)
       case sct: SetCodeTransaction              => getSCTBytesToSign(sct)
 
-  private def getLegacyBytesToSign(legacyTransaction: LegacyTransaction, chainIdOpt: Option[BigInt]): Array[Byte] =
+  private def getLegacyBytesToSign(legacyTransaction: LegacyTransaction, chainIdOpt: Option[ChainId]): Array[Byte] =
     chainIdOpt match
       case Some(id) =>
         chainSpecificTransactionBytes(legacyTransaction, id)
@@ -135,7 +135,7 @@ object SignedTransaction:
     */
   private def getLegacyTransactionRawSignature(
       ethereumSignature: ECDSASignature,
-      chainIdOpt: Option[BigInt]
+      chainIdOpt: Option[ChainId]
   ): ECDSASignature =
     // Normalize v to handle negative values (e.g., -98 byte -> 158 unsigned)
     val normalizedV = if ethereumSignature.v < 0 then ethereumSignature.v + 256 else ethereumSignature.v
@@ -148,10 +148,10 @@ object SignedTransaction:
       case Some(_) if normalizedV == ECDSASignature.positivePointSign =>
         ethereumSignature.copy(v = BigInt(ECDSASignature.positivePointSign))
       // identify negative y-parity for protected post eip-155 signature
-      case Some(chainId) if normalizedV == (2 * chainId + EIP155NegativePointSign) =>
+      case Some(chainId) if normalizedV == (2 * chainId.value + EIP155NegativePointSign) =>
         ethereumSignature.copy(v = BigInt(ECDSASignature.negativePointSign))
       // identify positive y-parity for protected post eip-155 signature
-      case Some(chainId) if normalizedV == (2 * chainId + EIP155PositivePointSign) =>
+      case Some(chainId) if normalizedV == (2 * chainId.value + EIP155PositivePointSign) =>
         ethereumSignature.copy(v = BigInt(ECDSASignature.positivePointSign))
       // legacy pre-eip
       case None => ethereumSignature
@@ -202,7 +202,7 @@ object SignedTransaction:
   private def getEthereumSignature(
       tx: Transaction,
       rawSignature: ECDSASignature,
-      chainIdOpt: Option[BigInt]
+      chainIdOpt: Option[ChainId]
   ): ECDSASignature =
     tx match
       case _: LegacyTransaction =>
@@ -230,12 +230,12 @@ object SignedTransaction:
     * @return
     *   a legacy transaction specific ECDSASignature, with v chainId-protected if possible
     */
-  private def getLegacyEthereumSignature(rawSignature: ECDSASignature, chainIdOpt: Option[BigInt]): ECDSASignature =
+  private def getLegacyEthereumSignature(rawSignature: ECDSASignature, chainIdOpt: Option[ChainId]): ECDSASignature =
     chainIdOpt match
       case Some(chainId) if rawSignature.v == ECDSASignature.negativePointSign =>
-        rawSignature.copy(v = chainId * 2 + EIP155NegativePointSign)
+        rawSignature.copy(v = chainId.value * 2 + EIP155NegativePointSign)
       case Some(chainId) if rawSignature.v == ECDSASignature.positivePointSign =>
-        rawSignature.copy(v = chainId * 2 + EIP155PositivePointSign)
+        rawSignature.copy(v = chainId.value * 2 + EIP155PositivePointSign)
       case None => rawSignature
       case _ =>
         throw new IllegalStateException(
@@ -334,7 +334,7 @@ object SignedTransaction:
     * @return
     *   the transaction payload for Legacy transaction
     */
-  private def chainSpecificTransactionBytes(tx: Transaction, chainId: BigInt): Array[Byte] =
+  private def chainSpecificTransactionBytes(tx: Transaction, chainId: ChainId): Array[Byte] =
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.empty[Byte])
     crypto.kec256(
       rlpEncode(
@@ -345,7 +345,7 @@ object SignedTransaction:
           toEncodeable(receivingAddressAsArray),
           toEncodeable(tx.value),
           toEncodeable(tx.payload),
-          toEncodeable(chainId),
+          toEncodeable(chainId.value),
           toEncodeable(valueForEmptyR),
           toEncodeable(valueForEmptyS)
         )
@@ -359,8 +359,8 @@ object SignedTransaction:
     * @return
     *   Some(chainId) if available, None if not (unprotected signed transaction)
     */
-  private def extractChainId(stx: SignedTransaction)(implicit blockchainConfig: BlockchainConfig): Option[BigInt] =
-    val chainIdOpt: Option[BigInt] = stx.tx match
+  private def extractChainId(stx: SignedTransaction)(implicit blockchainConfig: BlockchainConfig): Option[ChainId] =
+    val chainIdOpt: Option[ChainId] = stx.tx match
       case _: LegacyTransaction
           if stx.signature.v == ECDSASignature.negativePointSign || stx.signature.v == ECDSASignature.positivePointSign =>
         None
@@ -376,7 +376,7 @@ object SignedTransaction:
           val chainId = (normalizedV - EIP155NegativePointSign) / 2
           // Validate that extracted chainId matches the blockchain's configured chainId
           // This ensures EIP-155 replay protection works correctly
-          if chainId == blockchainConfig.chainId.value then Some(chainId)
+          if chainId == blockchainConfig.chainId.value then Some(ChainId(chainId))
           else
             // ChainId present but does not match local config - reject for replay protection
             None
@@ -438,7 +438,7 @@ object SignedTransaction:
         PrefixedRLPEncodable(
           0x01,
           RLPList(
-            tx.chainId,
+            tx.chainId.value,
             tx.nonce,
             tx.gasPrice,
             tx.gasLimit,
@@ -459,7 +459,7 @@ object SignedTransaction:
         PrefixedRLPEncodable(
           0x02,
           RLPList(
-            tx.chainId,
+            tx.chainId.value,
             tx.nonce,
             tx.maxPriorityFeePerGas,
             tx.maxFeePerGas,
@@ -481,7 +481,7 @@ object SignedTransaction:
         PrefixedRLPEncodable(
           0x03,
           RLPList(
-            tx.chainId,
+            tx.chainId.value,
             tx.nonce,
             tx.maxPriorityFeePerGas,
             tx.maxFeePerGas,
@@ -506,7 +506,7 @@ object SignedTransaction:
         PrefixedRLPEncodable(
           0x04,
           RLPList(
-            tx.chainId,
+            tx.chainId.value,
             tx.nonce,
             tx.maxPriorityFeePerGas,
             tx.maxFeePerGas,
@@ -604,10 +604,10 @@ object SignedTransactionWithSender:
       val tx = stx.tx
       // 1. Chain ID validation for typed transactions (EIP-2930+)
       val chainIdValid = tx match
-        case twal: TransactionWithAccessList => twal.chainId == blockchainConfig.chainId.value
-        case twdf: TransactionWithDynamicFee => twdf.chainId == blockchainConfig.chainId.value
-        case btx: BlobTransaction            => btx.chainId == blockchainConfig.chainId.value
-        case sct: SetCodeTransaction         => sct.chainId == blockchainConfig.chainId.value
+        case twal: TransactionWithAccessList => twal.chainId == blockchainConfig.chainId
+        case twdf: TransactionWithDynamicFee => twdf.chainId == blockchainConfig.chainId
+        case btx: BlobTransaction            => btx.chainId == blockchainConfig.chainId
+        case sct: SetCodeTransaction         => sct.chainId == blockchainConfig.chainId
         case _: LegacyTransaction            => true // validated in getSender
       if !chainIdValid then false
       else if tx.nonce.value > eip2681NonceCap then false // EIP-2681 nonce overflow

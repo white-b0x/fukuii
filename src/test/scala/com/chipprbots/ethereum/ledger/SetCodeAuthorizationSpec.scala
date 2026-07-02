@@ -55,7 +55,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
 
   private def signAuth(
       keyPair: AsymmetricCipherKeyPair,
-      chainId: BigInt,
+      chainId: ChainId,
       target: Address,
       nonce: BigInt
   ): SetCodeAuthorization =
@@ -63,7 +63,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
       encode(
         PrefixedRLPEncodable(
           0x05,
-          RLPList(toEncodeable(chainId), toEncodeable(target.toArray), toEncodeable(nonce))
+          RLPList(toEncodeable(chainId.value), toEncodeable(target.toArray), toEncodeable(nonce))
         )
       )
     )
@@ -84,10 +84,10 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
       senderNonce: BigInt = 0
   ): SignedTransaction =
     val tx = SetCodeTransaction(
-      chainId = olympiaConfig.chainId.value,
+      chainId = olympiaConfig.chainId,
       nonce = Nonce(senderNonce),
-      maxPriorityFeePerGas = BigInt(0),
-      maxFeePerGas = BigInt(2_000_000_000),
+      maxPriorityFeePerGas = PriorityFeePerGas.Zero,
+      maxFeePerGas = MaxFeePerGas(BigInt(2_000_000_000)),
       gasLimit = GasAmount(500_000),
       receivingAddress = Some(Address(1)),
       value = Wei(BigInt(0)),
@@ -95,7 +95,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
       accessList = Nil,
       authorizationList = authList
     )
-    SignedTransaction.sign(tx, senderKeyPair, Some(olympiaConfig.chainId.value))
+    SignedTransaction.sign(tx, senderKeyPair, Some(olympiaConfig.chainId))
 
   private def execTx(stx: SignedTransaction, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     setup.prep.executeTransaction(stx, senderAddress, olympiaHeader, world)(olympiaConfig).worldState
@@ -108,7 +108,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
   ) in {
     val authKeys = generateKeyPair(secureRandom)
     val authority = Address(authKeys)
-    val auth = signAuth(authKeys, olympiaConfig.chainId.value, targetAddress, nonce = 0)
+    val auth = signAuth(authKeys, olympiaConfig.chainId, targetAddress, nonce = 0)
     val result = execTx(makeSetCodeTx(List(auth)), buildWorld())
     result.getCode(authority) shouldBe addressToDelegation(targetAddress)
   }
@@ -116,7 +116,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
   it should "increment authority nonce after applying authorization" taggedAs (OlympiaTest, ConsensusTest) in {
     val authKeys = generateKeyPair(secureRandom)
     val authority = Address(authKeys)
-    val auth = signAuth(authKeys, olympiaConfig.chainId.value, targetAddress, nonce = 0)
+    val auth = signAuth(authKeys, olympiaConfig.chainId, targetAddress, nonce = 0)
     val result = execTx(makeSetCodeTx(List(auth)), buildWorld())
     result.getAccount(authority).map(_.nonce.toBigInt) shouldBe Some(BigInt(1))
   }
@@ -127,7 +127,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
   ) in {
     val authKeys = generateKeyPair(secureRandom)
     val authority = Address(authKeys)
-    val auth = signAuth(authKeys, BigInt(999), targetAddress, nonce = 0)
+    val auth = signAuth(authKeys, ChainId(BigInt(999)), targetAddress, nonce = 0)
     val result = execTx(makeSetCodeTx(List(auth)), buildWorld())
     result.getCode(authority) shouldBe ByteString.empty
   }
@@ -135,7 +135,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
   it should "accept chain ID = 0 as wildcard (any chain)" taggedAs (OlympiaTest, ConsensusTest) in {
     val authKeys = generateKeyPair(secureRandom)
     val authority = Address(authKeys)
-    val auth = signAuth(authKeys, BigInt(0), targetAddress, nonce = 0)
+    val auth = signAuth(authKeys, ChainId(BigInt(0)), targetAddress, nonce = 0)
     val result = execTx(makeSetCodeTx(List(auth)), buildWorld())
     result.getCode(authority) shouldBe addressToDelegation(targetAddress)
   }
@@ -151,7 +151,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
       extra = Map(authority -> Account(nonce = UInt256(0), balance = UInt256(0))),
       extraCode = Map(authority -> existingCode)
     )
-    val auth = signAuth(authKeys, olympiaConfig.chainId.value, Address(0L), nonce = 0)
+    val auth = signAuth(authKeys, olympiaConfig.chainId, Address(0L), nonce = 0)
     val result = execTx(makeSetCodeTx(List(auth)), world)
     result.getCode(authority) shouldBe ByteString.empty
   }
@@ -159,7 +159,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
   it should "skip authorization if authority nonce does not match" taggedAs (OlympiaTest, ConsensusTest) in {
     val authKeys = generateKeyPair(secureRandom)
     val authority = Address(authKeys)
-    val auth = signAuth(authKeys, olympiaConfig.chainId.value, targetAddress, nonce = 5)
+    val auth = signAuth(authKeys, olympiaConfig.chainId, targetAddress, nonce = 5)
     val result = execTx(makeSetCodeTx(List(auth)), buildWorld())
     result.getCode(authority) shouldBe ByteString.empty
   }
@@ -167,7 +167,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
   it should "issue a gas refund for pre-existing authority accounts" taggedAs (OlympiaTest, ConsensusTest) in {
     val authKeys = generateKeyPair(secureRandom)
     val authority = Address(authKeys)
-    val auth = signAuth(authKeys, olympiaConfig.chainId.value, targetAddress, nonce = 0)
+    val auth = signAuth(authKeys, olympiaConfig.chainId, targetAddress, nonce = 0)
     val stx = makeSetCodeTx(List(auth))
 
     val gasWithExisting = setup.prep
@@ -197,7 +197,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
       extra = Map(authority -> Account(nonce = UInt256(0), balance = UInt256(0))),
       extraCode = Map(authority -> contractCode)
     )
-    val auth = signAuth(authKeys, olympiaConfig.chainId.value, targetAddress, nonce = 0)
+    val auth = signAuth(authKeys, olympiaConfig.chainId, targetAddress, nonce = 0)
     val result = execTx(makeSetCodeTx(List(auth)), world)
     result.getCode(authority) shouldBe contractCode
   }
