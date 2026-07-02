@@ -16,6 +16,17 @@ adapters (`.toClassic`, `PropsAdapter`, `Behavior[Any]`) are intentional scaffol
 do not flag them as violations until CAPSTONE. Post-CAPSTONE, all of the below
 apply universally.
 
+**Mechanical shortcut:** ~20 of the greps below (excluding checks that need a specific
+actor/file name as a parameter) run in one call instead of one at a time:
+
+```bash
+.claude/scripts/lib/pekko-typed-check.sh
+```
+
+Reports enforced-now checks (target 0), informational checks (review each hit),
+cross-reference checks (P19, P23, P24), and the CAPSTONE-only sweep separately —
+CAPSTONE section counts are expected nonzero during migration, not current regressions.
+
 ---
 
 ## P1 — `Behaviors.withTimers` over raw scheduler
@@ -474,7 +485,10 @@ write `typedRef.toClassic` at the spawn site — the bridge is invisible to the 
 
 ```bash
 # Find Typed actors with Classic ActorRef constructor params (grep the constructor line)
-grep -rn "class.*\(.*ActorRef\b" src/main/ --include="*.scala" \
+# NOTE: literal "(" in BRE grep is unescaped — "\(" starts a group and throws
+# "Unmatched ( or \(" here, which silently produces 0 matches (false pass) if the
+# error is missed. Caught 2026-07-02 building pekko-typed-check.sh.
+grep -rn "class.*(.*ActorRef\b" src/main/ --include="*.scala" \
   | grep -v "typed\.ActorRef\|ActorRef\[" \
   | grep -v "//.*ActorRef"
 # Target: 0 hits in fully-migrated Typed actors

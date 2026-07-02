@@ -337,6 +337,12 @@ any spec that uses `CachedNodeStorage` or `CachedReferenceCountedStateStorage` w
 
 ## Grep patterns for storage code review
 
+**Mechanical shortcut:** all 5 checks below run in one call instead of one at a time:
+
+```bash
+.claude/scripts/lib/storage-rocksdb-check.sh
+```
+
 ```bash
 # Iterator without withResources (potential leak)
 grep -rn "newIterator\b" src/main/ --include="*.scala" | grep -v "withResources\|resource"

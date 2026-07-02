@@ -16,6 +16,15 @@ Each standard below has a current state (enforced / partially enforced / not yet
 Once a standard is fully enforced via scalafix rule or compiler flag, it becomes a build error.
 That is the definition of done for that standard — not "we cleaned it once."
 
+**Mechanical shortcut:** S1-S9's greps below all run in one call instead of one at a time:
+
+```bash
+.claude/scripts/lib/scala3-style-check.sh
+```
+
+Prints count vs. target per standard. S10 (no grep — policy for new code) and S11
+(path-specific sweep, not a fixed ratchet) are not included — see their sections below.
+
 ---
 
 ## Standards

@@ -34,19 +34,17 @@ burned, validator withdrawals, blob transactions (EIP-4844), Osaka fork.
 | `sbt formatCheck` | Verify formatting without writing | CI / pre-flight check |
 | `sbt pp` | compile-all + formatAll + quick + integration tests | Pre-PR gate — same caveat as formatAll |
 | `sbt "testOnly *Foo*"` | Single test class (seconds) | After each phase that changes logic — not compile-only phases |
-| `./local/scripts/fukuii-test FooSpec` | Wrapper for targeted test | Same as testOnly — prefer this form |
-| `./local/scripts/fukuii-test` | Full testEssential via wrapper | **Pre-push only** — before `git push origin`, not mid-sprint. 24-min blocker. |
-| `sbt testEssential` | Tier 1 full suite (24 min, 3,621 tests) | **Pre-push only** — before pushing to origin. Do not run mid-sprint; use targeted tests instead. |
-| `sbt testStandard` | Tier 2 tests | Before opening a PR |
-| `sbt testComprehensive` | Tier 3 full compliance suite (<3 h) | Release gate only |
+| `.claude/scripts/sbt-run.sh <name> testEssential` (background) | Tier 1 full suite (24 min, 3,621 tests) | **Pre-push only** — before pushing to origin. Do not run mid-sprint; use targeted tests instead. Run with `run_in_background: true` — see `background-script-execution.md` |
+| `.claude/scripts/sbt-run.sh <name> testStandard` (background) | Tier 2 tests | Before opening a PR |
+| `.claude/scripts/sbt-run.sh <name> testComprehensive` (background) | Tier 3 full compliance suite (<3 h) | Release gate only |
 | `sbt testVM testCrypto` | Tagged test subsets | Targeted validation of specific subsystem |
-| `sbt "IntegrationTest / test"` | Integration test module | After protocol-level changes |
+| `.claude/scripts/sbt-run.sh <name> "IntegrationTest / test"` (background) | Integration test module | After protocol-level changes |
 
 **Test cadence during a migration thread:**
 1. Every file edit → `sbt compile-all` (mandatory, fast) — **exception**: if the sweep touches a core domain type (BlockHeader, Account, Block, Transaction), use `sbt compile` between files and `sbt compile-all` once at the end (see `testing-protocol.md` → "Core domain type sweeps")
 2. Phases that only add types (returns removal, Messages.scala additions) → compile only, no tests
 3. After Phase 2 (main migration) and Phase 3 (callers) → `testOnly *<ActorName>*` + any touched caller specs
-4. Before pushing to origin → full `testEssential` (pre-push gate, not mid-sprint)
+4. Before pushing to origin → full `testEssential` via `sbt-run.sh` (pre-push gate, not mid-sprint)
 
 **The two format commands that look similar but are not:**
 - `scalafmt` → root module only → **wrong for this codebase**
@@ -78,6 +76,7 @@ Tracked protocols that all agents reference live in `.claude/agent-protocols/`:
 | `dead-code-review.md` | Three verdicts before any deletion: Wire it / Delete it / Defer — assess gap, git history, and supersession before `git rm` |
 | `worktree-protocol.md` | Sprint vs task worktree patterns, naming (`wt/<id>`), lifecycle, bin scripts, agent rules for worktree context |
 | `sprint-lifecycle.md` | The permanent queue/log/pattern pipeline for sprint work: research → single queue → fresh-context implementation → close-out (log + pattern capture) → clear → archive |
+| `background-script-execution.md` | Long/noisy/freeze-prone commands get a log-to-file wrapper script + `run_in_background: true`, never direct foreground execution or human relay |
 
 Sprint tracking (operator-local, untracked): `.claude/sprints/`
 - `QUEUE.md` — the single active prompt queue for sprint work (batches, findings-resolution

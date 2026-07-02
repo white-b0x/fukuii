@@ -18,6 +18,22 @@ the migration touches their API. Pre-flight prevents mid-session surprises.
 Complete all steps below before Phase 1 begins. Write findings into the LOOM session
 prompt as a "Pre-flight facts" block.
 
+**Mechanical shortcut:** steps 1–13 below are all read-only greps against one file — run
+them all in one call instead of by hand:
+
+```bash
+.claude/scripts/lib/pre-migration-checklist.sh src/main/scala/path/to/ActorName.scala
+```
+
+This prints the "Pre-flight facts block" (see format below) directly, plus flags the
+mechanically-detectable red flags from the table at the end of this doc. It does not
+replace judgment — read the flagged sites and make the calls the checklist below
+describes (each worker's Typed/Classic status, whether a `sender()` site is live code vs.
+a comment, whether callers are in-scope for this session) — it only removes the 13
+separate `grep` invocations. Manual steps below are kept as the reference for what each
+check means and how to act on a hit; re-run an individual grep by hand only if you need to
+double check one specific finding.
+
 ---
 
 ## Checklist

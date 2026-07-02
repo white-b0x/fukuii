@@ -72,10 +72,19 @@ If yes: write it up in `.claude/sprints/patterns/PATTERNS.md` using its entry fo
 stall it removes, the old way vs. the pattern, a worked example, a pointer to a mechanical
 helper if one exists). If the mechanical part is genuinely reusable as a tool (not just a
 one-off command), extract it into `.claude/scripts/lib/<name>.sh` so agents call it instead of
-re-deriving the same choreography by hand.
+re-deriving the same choreography by hand — or, for a whole *command family* prone to
+long/noisy output (see `background-script-execution.md`), a top-level `.claude/scripts/<name>.sh`
+wrapper, following `sbt-run.sh` as the reference shape.
 
 If no: note "nothing to promote" in the close-out and move on. This is not busywork required
 on every batch — only real, confirmed repeats earn a patterns entry.
+
+**Safety-severity exception:** most patterns wait for a second occurrence before they're worth
+writing down (per `PATTERNS.md`'s own "confirmed reusable" field). A pattern whose failure mode
+is severe enough on its own — a session or host freeze, data loss risk, anything beyond wasted
+time — gets captured and promoted to a protocol immediately, mid-batch, not deferred to
+close-out. `background-script-execution.md` (born from a full host freeze during IP-CL-A) is
+the precedent: one incident was sufficient evidence, no need to wait and see if it recurred.
 
 ## Rule 5: Batch close-out, in order
 
@@ -106,12 +115,20 @@ Net-new features go through `/speckit-specify` → `/speckit-plan` → `/speckit
 `/speckit-implement`, with artifacts under `specs/<NNN-feature-name>/`. `sprints/QUEUE.md` is
 for modernization/cleanup/audit/research sprint work on **existing** code, not new features.
 
-## Rule 8: Relationship to `.claude/agent-protocols/modernization-log/`
+## Rule 8: The permanent record lives at `.claude/sprints/log/`
 
-That directory is left exactly as-is — an accurate historical record of the June 2026
-Pekko/Scala3 modernization effort. `.claude/sprints/log/` is the same idea, permanent and
-sprint-agnostic, for every sprint going forward. Don't write new entries into
-`modernization-log/`; don't rename or restructure it either.
+`.claude/sprints/log/` is git-tracked (an intentional exception in `.gitignore`, matching the
+precedent set for `.claude/scripts/`) — the durable, team-shared, sprint-agnostic record of
+what changed and why, for every sprint going forward.
+
+**Transitional note (as of this migration):** the June 2026 Pekko/Scala3 modernization
+effort's historical record has been copied verbatim into
+`.claude/sprints/log/legacy-modernization-log/`. The original at
+`.claude/agent-protocols/modernization-log/` is retired in Phase B of the
+progress-tracking/modernization-log cleanup (see below) once that copy is confirmed — until
+then both paths exist; `.claude/sprints/log/legacy-modernization-log/` is canonical going
+forward, don't add new entries to the original. Once Phase B completes, this note and the
+original path are both gone and this rule can drop the caveat.
 
 ## Rule 9: Deferred — headless automation
 
@@ -122,11 +139,24 @@ runner. `.claude/looping/`'s `README.md` Quick Start section (`claude -p ... --m
 `/loop 1w ...`) is the reference point for what that will eventually look like here. This is
 an intentional, named next phase — not an oversight if a future session finds no runner script.
 
-## Deferred: retiring the legacy tracker
+## Cutover: `.claude/sprints/QUEUE.md` takes over Batch 1's remaining run order at IP-CL-A
 
-`.claude/progress-tracking/` (Batch 1's live location, branch `july-fourth`) is untouched by
-this protocol's introduction. Once Batch 1 closes under its existing process, that closure is
-the trigger for a separate pass: run Batch 1's own close-out once by the old manual method,
-decide what (if anything) from its archives is worth preserving into `sprints/log/` or
-`sprints/archive/`, then retire the directory. `.claude/sprints/QUEUE.md` starts accepting
-work at Batch 2 regardless of when that cleanup happens.
+The queue does not wait for the entire Batch 1 to close (`BATCH-1-CLOSE`, the last item in the
+run order) before it starts being used — that would mean 16 more items ran from the legacy
+location first. Instead, the cutover point is **IP-CL-A closing** (its 4th and final sub-batch
+landing): from `IP-CL-J` onward, including `IP-14` and `BATCH-1-CLOSE` themselves, Batch 1's
+remaining run order executes from `.claude/sprints/QUEUE.md`, not
+`JULY_SPRINT_PROMPTS.md`/`july-follow-ups.md`. See `QUEUE.md`'s own Batch 1 section for the
+live status and the exact trigger sequence (write IP-CL-A's log entry → flip GATED-ON-IP-CL-A
+to OPEN → hand off the drafted IP-CL-J kickoff).
+
+## Retiring the legacy tracker — Phase A complete, Phase B pending explicit sign-off
+
+`.claude/progress-tracking/` and `.claude/agent-protocols/modernization-log/` are being
+retired in two hard-separated phases (see the retirement plan): **Phase A** copies every piece
+of content to its new home in `.claude/sprints/*` and verifies nothing is lost — that phase is
+done as of this note. **Phase B** deletes the now-redundant originals, but only file-by-file,
+each gated on the user's own verbal review of where that content landed — not an automated
+follow-on to Phase A passing its checks. Until Phase B runs, **both the old and new paths
+exist simultaneously**; treat `.claude/sprints/*` as canonical for anything new, but don't
+assume the old paths are gone. This note itself gets deleted once Phase B completes.

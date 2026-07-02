@@ -66,8 +66,17 @@ ops/*/captured-logs/
 
 # Claude Code
 # Ignore local Claude settings/state, but track the project's shared subagents,
-# operations skills, and the Spec Kit slash-command skills (.specify/ holds the
-# shared spec-driven infra).
+# operations skills, the Spec Kit slash-command skills (.specify/ holds the shared
+# spec-driven infra), the mechanical helper/wrapper scripts under scripts/ (portable,
+# REPO_ROOT-relative, meant to be shared team tooling not per-operator scratch),
+# .claude/sprints/log/ — the permanent, sprint-agnostic record of what changed and why,
+# which deserves the same durability/team-visibility as modernization-log/ did before it,
+# and .claude/worktrees/bin/ — the worktree lifecycle scripts, moved here (out of
+# agent-protocols/worktrees/bin/) to sit next to the worktree dirs themselves, same
+# layout as .claude/looping/bin/. The rest of .claude/worktrees/ (the actual worktree
+# checkouts) stays untracked — those are full working trees, never committed content.
+# The rest of .claude/sprints/ (QUEUE.md, patterns/, completed/, archive/) stays
+# untracked/operator-local — genuinely ephemeral working state.
 .claude/*
 !.claude/agents/
 !.claude/skills/
@@ -75,6 +84,15 @@ ops/*/captured-logs/
 !.claude/looping/
 .claude/looping/state/*/
 !.claude/looping/bin/
+!.claude/scripts/
+!.claude/sprints/
+.claude/sprints/QUEUE.md
+.claude/sprints/patterns/
+.claude/sprints/completed/
+.claude/sprints/archive/
+!.claude/worktrees/
+.claude/worktrees/*
+!.claude/worktrees/bin/
 
 # Planning & internal docs
 SESSION_NOTES.md

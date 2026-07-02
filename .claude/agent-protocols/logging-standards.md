@@ -583,6 +583,12 @@ Otherwise log to `.claude/sprints/QUEUE.md`'s Chase & Deferred Items section.
 
 ## Grep-verifiable ratchet targets
 
+**Mechanical shortcut:** all 10 checks below run in one call instead of one at a time:
+
+```bash
+.claude/scripts/lib/logging-standards-check.sh
+```
+
 ```bash
 # log.warning — target: 0
 grep -rn "log\.warning" src/main/ --include="*.scala" | wc -l
