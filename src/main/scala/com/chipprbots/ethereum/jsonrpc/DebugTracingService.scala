@@ -14,10 +14,10 @@ import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
-import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.ledger.StxLedger
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -89,7 +89,7 @@ object DebugTracingService:
     * subscription ID).
     */
   case class TraceChainRequest(fromBlock: BlockParam, toBlock: BlockParam, config: TraceConfig = TraceConfig())
-  case class TraceChainBlockResult(block: BigInt, blockHash: ByteString, traces: Seq[JValue])
+  case class TraceChainBlockResult(block: BlockNumber, blockHash: BlockHash, traces: Seq[JValue])
 
 class DebugTracingService(
     val blockchain: Blockchain,
@@ -367,7 +367,7 @@ class DebugTracingService(
                 stxLedger.simulateTransactionWithTracer(stx, block.header, Some(world), tracer)
                 tracer.getResult
               }
-              TraceChainBlockResult(block.header.number.value, block.header.hash.value, traces)
+              TraceChainBlockResult(block.header.number, block.header.hash, traces)
             }
           }
         }
@@ -391,6 +391,6 @@ class DebugTracingService(
     val toAddress = callTx.to.map(Address.apply)
 
     val tx =
-      LegacyTransaction(Nonce.Zero, callTx.gasPrice, gasLimit, toAddress, Wei(callTx.value), callTx.data)
+      LegacyTransaction(Nonce.Zero, callTx.gasPrice, gasLimit, toAddress, callTx.value, callTx.data)
     val fakeSignature = ECDSASignature(0, 0, 0)
     Right(SignedTransactionWithSender(tx, fakeSignature, fromAddress))

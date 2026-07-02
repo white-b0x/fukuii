@@ -12,6 +12,7 @@ import scala.util.Try
 import com.chipprbots.ethereum.blockchain.sync.SyncController
 import com.chipprbots.ethereum.blockchain.sync.SyncProtocol
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.jsonrpc.AkkaTaskOps
 import com.chipprbots.ethereum.jsonrpc.McpDependencies
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
@@ -235,8 +236,8 @@ object BlockByNumberResource:
   val description: Some[String] = Some("Get a specific block by its number")
   val mimeType: Some[String] = Some("application/json")
 
-  def read(number: BigInt, deps: McpDependencies): IO[String] = IO {
-    deps.blockchainReader.getBlockHeaderByNumber(number) match
+  def read(number: BlockNumber, deps: McpDependencies): IO[String] = IO {
+    deps.blockchainReader.getBlockHeaderByNumber(number.value) match
       case Some(h) =>
         val td = deps.blockchainReader
           .getChainWeightByHash(h.hash)
@@ -392,7 +393,7 @@ object McpResourceRegistry:
       case s if s.startsWith("fukuii://block/") =>
         val numStr = s.stripPrefix("fukuii://block/")
         Try(BigInt(numStr)).toOption match
-          case Some(n) => Right(BlockByNumberResource.read(n, deps))
+          case Some(n) => Right(BlockByNumberResource.read(BlockNumber(n), deps))
           case None    => Left(s"Invalid block number: $numStr")
       case s if s.startsWith("fukuii://tx/") =>
         val hash = s.stripPrefix("fukuii://tx/")

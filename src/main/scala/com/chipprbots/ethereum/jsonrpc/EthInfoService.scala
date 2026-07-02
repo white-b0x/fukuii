@@ -29,7 +29,7 @@ import com.chipprbots.ethereum.vm.PrecompiledContracts
 
 object EthInfoService:
   case class ChainIdRequest()
-  case class ChainIdResponse(value: BigInt)
+  case class ChainIdResponse(value: ChainId)
 
   case class ConfigRequest()
   case class ForkConfig(
@@ -62,19 +62,19 @@ object EthInfoService:
       to: Option[ByteString],
       gas: Option[BigInt],
       gasPrice: GasPrice,
-      value: BigInt,
+      value: Wei,
       data: ByteString,
       gasPriceExplicit: Boolean = false
   )
 
   case class CallRequest(tx: CallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
-  case class EstimateGasResponse(gas: BigInt)
+  case class EstimateGasResponse(gas: GasAmount)
   case class CreateAccessListRequest(tx: CallTx, block: BlockParam):
     def toCallRequest: CallRequest = CallRequest(tx, block)
   case class CreateAccessListResponse(
       accessList: Seq[Map[String, Any]],
-      gasUsed: BigInt,
+      gasUsed: GasAmount,
       error: Option[String]
   )
 
@@ -99,7 +99,7 @@ class EthInfoService(
     IO.pure(Right(ProtocolVersionResponse(f"0x${capability.version}%x")))
 
   def chainId(@unused req: ChainIdRequest): ServiceResponse[ChainIdResponse] =
-    IO.pure(Right(ChainIdResponse(blockchainConfig.chainId.value)))
+    IO.pure(Right(ChainIdResponse(blockchainConfig.chainId)))
 
   /** Implements the eth_syncing method that returns syncing information if the node is syncing.
     *
@@ -230,7 +230,7 @@ class EthInfoService(
             Left(JsonRpcError(3, "execution reverted", Some(org.json4s.JString(dataHex))))
           case _ =>
             // Tx doesn't revert — find minimum gas via binary search
-            doCall(req)(stxLedger.binarySearchGasEstimation).map(gas => EstimateGasResponse(gas))
+            doCall(req)(stxLedger.binarySearchGasEstimation).map(gas => EstimateGasResponse(GasAmount(gas)))
       }
     }.recover { case _: MissingNodeException =>
       Left(JsonRpcError.NodeNotFound)
@@ -245,7 +245,7 @@ class EthInfoService(
         // For now, return empty access list with gas used (partial implementation)
         CreateAccessListResponse(
           accessList = Seq.empty,
-          gasUsed = gasUsed,
+          gasUsed = GasAmount(gasUsed),
           error = error
         )
       }
@@ -295,7 +295,7 @@ class EthInfoService(
           req.tx.gasPrice,
           GasAmount(gasLimit),
           toAddress,
-          Wei(req.tx.value),
+          req.tx.value,
           req.tx.data
         )
       val fakeSignature = ECDSASignature(0, 0, 0)

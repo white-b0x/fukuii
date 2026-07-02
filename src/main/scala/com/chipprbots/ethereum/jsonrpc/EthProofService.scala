@@ -12,7 +12,10 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.CodeHash
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.jsonrpc.ProofService.GetProofRequest
 import com.chipprbots.ethereum.jsonrpc.ProofService.GetProofResponse
 import com.chipprbots.ethereum.jsonrpc.ProofService.ProofAccount
@@ -104,8 +107,8 @@ object ProofService:
   case class ProofAccount(
       address: Address,
       accountProof: Seq[ByteString],
-      balance: BigInt,
-      codeHash: ByteString,
+      balance: Wei,
+      codeHash: CodeHash,
       nonce: UInt256,
       storageHash: ByteString,
       storageProof: Seq[StorageProof]
@@ -122,8 +125,8 @@ object ProofService:
       ProofAccount(
         address = address,
         accountProof = accountProof,
-        balance = account.balance,
-        codeHash = account.codeHash.value,
+        balance = Wei(account.balance.toBigInt),
+        codeHash = account.codeHash,
         nonce = account.nonce,
         storageHash = account.storageRoot.value,
         storageProof = storageProof
@@ -171,14 +174,14 @@ class EthProofService(
       block: BlockParam
   ): IO[Either[JsonRpcError, ProofAccount]] = IO {
     for
-      blockNumber <- resolveBlock(block).map(_.block.number.value)
+      blockNumber <- resolveBlock(block).map(_.block.number)
       account <- Either.fromOption(
-        blockchainReader.getAccount(blockchainReader.getBestBranch, address, blockNumber),
+        blockchainReader.getAccount(blockchainReader.getBestBranch, address, blockNumber.value),
         noAccount(address, blockNumber)
       )
       accountProof <- Either.fromOption(
         blockchainReader
-          .getAccountProof(blockchainReader.getBestBranch, address, blockNumber)
+          .getAccountProof(blockchainReader.getBestBranch, address, blockNumber.value)
           .map(_.map(asRlpSerializedNode)),
         noAccountProof(address, blockNumber)
       )
@@ -200,19 +203,19 @@ class EthProofService(
           )
       }
 
-  private def noAccount(address: Address, blockNumber: BigInt): JsonRpcError =
+  private def noAccount(address: Address, blockNumber: BlockNumber): JsonRpcError =
     JsonRpcError.LogicError(s"No account found for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
 
-  private def noAccountProof(address: Address, blockNumber: BigInt): JsonRpcError =
+  private def noAccountProof(address: Address, blockNumber: BlockNumber): JsonRpcError =
     JsonRpcError.LogicError(s"No account proof for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
 
   private def asRlpSerializedNode(node: MptNode): ByteString =
     ByteString(MptTraversals.encodeNode(node))
 
   private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] =
-    def getBlock(number: BigInt): Either[JsonRpcError, Block] =
+    def getBlock(number: BlockNumber): Either[JsonRpcError, Block] =
       blockchainReader
-        .getBlockByNumber(blockchainReader.getBestBranch, number)
+        .getBlockByNumber(blockchainReader.getBestBranch, number.value)
         .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
 
     def getLatestBlock(): Either[JsonRpcError, Block] =
@@ -220,13 +223,14 @@ class EthProofService(
         .toRight(JsonRpcError.InvalidParams("Latest block not found"))
 
     blockParam match
-      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.WithNumber(blockNumber) =>
+        getBlock(BlockNumber(blockNumber)).map(ResolvedBlock(_, pendingState = None))
       case BlockParam.WithHash(hash) =>
         blockchainReader
           .getBlockByHash(BlockHash(hash))
           .toRight(JsonRpcError.InvalidParams("Block not found for hash"))
           .map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Earliest  => getBlock(0).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Earliest  => getBlock(BlockNumber.Zero).map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Latest    => getLatestBlock().map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Safe      => getLatestBlock().map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Finalized => getLatestBlock().map(ResolvedBlock(_, pendingState = None))

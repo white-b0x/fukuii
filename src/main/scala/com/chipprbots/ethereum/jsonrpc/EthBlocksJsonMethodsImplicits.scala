@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.jsonrpc
 import org.json4s.JsonAST.*
 import org.json4s.jvalue2monadic
 
+import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.jsonrpc.EthBlocksService.*
 import com.chipprbots.ethereum.jsonrpc.EthTxJsonMethodsImplicits.transactionResponseJsonEncoder
 import com.chipprbots.ethereum.jsonrpc.JsonRpcError.InvalidParams
@@ -97,7 +98,7 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits:
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, TxCountByBlockHashRequest] =
         params match
           case Some(JArray(JString(input) :: Nil)) =>
-            extractHash(input).map(TxCountByBlockHashRequest.apply)
+            extractHash(input).map(bs => TxCountByBlockHashRequest(BlockHash(bs)))
           case _ => Left(InvalidParams())
 
       override def encodeJson(t: TxCountByBlockHashResponse): JValue =
@@ -108,7 +109,7 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits:
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByBlockHashRequest] =
         params match
           case Some(JArray(JString(blockHash) :: JBool(fullTxs) :: Nil)) =>
-            extractHash(blockHash).map(BlockByBlockHashRequest(_, fullTxs))
+            extractHash(blockHash).map(bh => BlockByBlockHashRequest(BlockHash(bh), fullTxs))
           case _ => Left(InvalidParams())
 
       override def encodeJson(t: BlockByBlockHashResponse): JValue =
@@ -134,7 +135,7 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits:
             for
               hash <- extractHash(blockHash)
               uncleBlockIndex <- extractQuantity(uncleIndex)
-            yield UncleByBlockHashAndIndexRequest(hash, uncleBlockIndex)
+            yield UncleByBlockHashAndIndexRequest(BlockHash(hash), uncleBlockIndex)
           case _ => Left(InvalidParams())
 
       override def encodeJson(t: UncleByBlockHashAndIndexResponse): JValue =
@@ -182,7 +183,7 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits:
         params match
           case Some(JArray(JString(hash) :: Nil)) =>
             for blockHash <- extractHash(hash)
-            yield GetUncleCountByBlockHashRequest(blockHash)
+            yield GetUncleCountByBlockHashRequest(BlockHash(blockHash))
           case _ => Left(InvalidParams())
 
       def encodeJson(t: GetUncleCountByBlockHashResponse): JValue = encodeAsHex(t.result)

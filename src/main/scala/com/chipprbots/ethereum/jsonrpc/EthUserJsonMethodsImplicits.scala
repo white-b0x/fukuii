@@ -36,7 +36,7 @@ object EthUserJsonMethodsImplicits extends JsonMethodsImplicits:
           case _ =>
             Left(InvalidParams())
 
-      def encodeJson(t: GetBalanceResponse): JValue = encodeAsHex(t.value)
+      def encodeJson(t: GetBalanceResponse): JValue = encodeAsHex(t.value.value)
 
   given eth_getStorageAt: (JsonMethodDecoder[GetStorageAtRequest] & JsonEncoder[GetStorageAtResponse]) =
     new JsonMethodDecoder[GetStorageAtRequest] with JsonEncoder[GetStorageAtResponse]:

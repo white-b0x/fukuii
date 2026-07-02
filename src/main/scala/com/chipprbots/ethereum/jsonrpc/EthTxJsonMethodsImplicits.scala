@@ -3,6 +3,8 @@ package com.chipprbots.ethereum.jsonrpc
 import org.json4s.JsonAST.*
 import org.json4s.JsonDSL.*
 
+import com.chipprbots.ethereum.domain.BlockHash
+import com.chipprbots.ethereum.domain.TxHash
 import com.chipprbots.ethereum.jsonrpc.EthTxService.*
 import com.chipprbots.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonEncoder
@@ -20,8 +22,8 @@ object EthTxJsonMethodsImplicits extends JsonMethodsImplicits:
       "logIndex" -> encodeAsHex(log.logIndex),
       "transactionIndex" -> encodeAsHex(log.transactionIndex),
       "transactionHash" -> encodeAsHex(log.transactionHash),
-      "blockHash" -> encodeAsHex(log.blockHash),
-      "blockNumber" -> encodeAsHex(log.blockNumber),
+      "blockHash" -> encodeAsHex(log.blockHash.value),
+      "blockNumber" -> encodeAsHex(log.blockNumber.value),
       "address" -> encodeAsHex(log.address.bytes),
       "data" -> encodeAsHex(log.data),
       "topics" -> JArray(log.topics.toList.map(encodeAsHex)),
@@ -176,7 +178,7 @@ object EthTxJsonMethodsImplicits extends JsonMethodsImplicits:
         params match
           case Some(JArray(JString(txHash) :: Nil)) =>
             for parsedTxHash <- extractHash(txHash)
-            yield GetTransactionByHashRequest(parsedTxHash)
+            yield GetTransactionByHashRequest(TxHash(parsedTxHash))
           case _ => Left(InvalidParams())
 
       override def encodeJson(t: GetTransactionByHashResponse): JValue =
@@ -189,7 +191,7 @@ object EthTxJsonMethodsImplicits extends JsonMethodsImplicits:
         params match
           case Some(JArray(JString(txHash) :: Nil)) =>
             for parsedTxHash <- extractHash(txHash)
-            yield GetTransactionReceiptRequest(parsedTxHash)
+            yield GetTransactionReceiptRequest(TxHash(parsedTxHash))
           case _ => Left(InvalidParams())
 
       override def encodeJson(t: GetTransactionReceiptResponse): JValue =
@@ -208,7 +210,7 @@ object EthTxJsonMethodsImplicits extends JsonMethodsImplicits:
             for
               parsedBlockHash <- extractHash(blockHash)
               parsedTransactionIndex <- extractQuantity(transactionIndex)
-            yield GetTransactionByBlockHashAndIndexRequest(parsedBlockHash, parsedTransactionIndex)
+            yield GetTransactionByBlockHashAndIndexRequest(BlockHash(parsedBlockHash), parsedTransactionIndex)
           case _ => Left(InvalidParams())
 
   given GetTransactionByBlockNumberAndIndexResponseEncoder: JsonEncoder[GetTransactionByBlockNumberAndIndexResponse] =

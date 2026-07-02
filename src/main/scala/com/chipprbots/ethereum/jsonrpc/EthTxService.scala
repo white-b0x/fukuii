@@ -23,15 +23,16 @@ import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.SignedTransaction
+import com.chipprbots.ethereum.domain.TxHash
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import com.chipprbots.ethereum.transactions.TransactionPicker
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
 object EthTxService:
-  case class GetTransactionByHashRequest(txHash: ByteString) // rename to match request
+  case class GetTransactionByHashRequest(txHash: TxHash) // rename to match request
   case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
-  case class GetTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
+  case class GetTransactionByBlockHashAndIndexRequest(blockHash: BlockHash, transactionIndex: BigInt)
   case class GetTransactionByBlockHashAndIndexResponse(transactionResponse: Option[TransactionResponse])
   case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
   case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
@@ -41,7 +42,7 @@ object EthTxService:
   case class SendRawTransactionResponse(transactionHash: ByteString)
   case class EthPendingTransactionsRequest()
   case class EthPendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
-  case class GetTransactionReceiptRequest(txHash: ByteString)
+  case class GetTransactionReceiptRequest(txHash: TxHash)
   case class GetTransactionReceiptResponse(txResponse: Option[TransactionReceiptResponse])
   case class RawTransactionResponse(transactionResponse: Option[SignedTransaction])
 
@@ -104,15 +105,15 @@ class EthTxService(
     val eventualMaybeData = getTransactionDataByHash(req.txHash)
     eventualMaybeData.map(txResponse => Right(GetTransactionByHashResponse(txResponse.map(TransactionResponse(_)))))
 
-  private def getTransactionDataByHash(txHash: ByteString): IO[Option[TransactionData]] =
+  private def getTransactionDataByHash(txHash: TxHash): IO[Option[TransactionData]] =
     val maybeTxPendingResponse: IO[Option[TransactionData]] = getTransactionsFromPool.map {
-      _.pendingTransactions.map(_.stx.tx).find(_.hash.value == txHash).map(TransactionData(_))
+      _.pendingTransactions.map(_.stx.tx).find(_.hash == txHash).map(TransactionData(_))
     }
 
     maybeTxPendingResponse.map { txPending =>
       txPending.orElse {
         for
-          TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(txHash)
+          TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(txHash.value)
           Block(header, body) <- blockchainReader.getBlockByHash(BlockHash(blockHash))
           stx <- body.transactionList.lift(txIndex)
         yield TransactionData(stx, Some(header), Some(txIndex))
@@ -122,7 +123,7 @@ class EthTxService(
   def getTransactionReceipt(req: GetTransactionReceiptRequest): ServiceResponse[GetTransactionReceiptResponse] =
     IO {
       val result: Option[TransactionReceiptResponse] = for
-        TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(req.txHash)
+        TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(req.txHash.value)
         Block(header, body) <- blockchainReader.getBlockByHash(BlockHash(blockHash))
         // Only surface receipts for CANONICAL transactions. Under engine-API, a block
         // may be stored (with receipts + tx-location mapping) immediately after newPayload
@@ -174,10 +175,10 @@ class EthTxService(
     getTransactionByBlockHashAndIndex(req.blockHash, req.transactionIndex)
       .map(td => Right(GetTransactionByBlockHashAndIndexResponse(td.map(TransactionResponse(_)))))
 
-  private def getTransactionByBlockHashAndIndex(blockHash: ByteString, transactionIndex: BigInt) =
+  private def getTransactionByBlockHashAndIndex(blockHash: BlockHash, transactionIndex: BigInt) =
     IO {
       for
-        blockWithTx <- blockchainReader.getBlockByHash(BlockHash(blockHash))
+        blockWithTx <- blockchainReader.getBlockByHash(blockHash)
         blockTxs = blockWithTx.body.transactionList if transactionIndex >= 0 && transactionIndex < blockTxs.size
         transaction <- blockTxs.lift(transactionIndex.toInt)
       yield TransactionData(transaction, Some(blockWithTx.header), Some(transactionIndex.toInt))

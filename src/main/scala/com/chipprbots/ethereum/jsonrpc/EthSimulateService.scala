@@ -51,13 +51,13 @@ object EthSimulateService:
   case class SimulateCall(
       from: Option[Address] = None,
       to: Option[Address] = None,
-      gas: Option[BigInt] = None,
-      value: Option[BigInt] = None,
+      gas: Option[GasAmount] = None,
+      value: Option[Wei] = None,
       input: Option[ByteString] = None,
-      nonce: Option[BigInt] = None,
+      nonce: Option[Nonce] = None,
       maxFeePerGas: Option[MaxFeePerGas] = None,
       maxPriorityFeePerGas: Option[PriorityFeePerGas] = None,
-      gasPrice: Option[BigInt] = None,
+      gasPrice: Option[GasPrice] = None,
       maxFeePerBlobGas: Option[BigInt] = None,
       blobVersionedHashes: Option[Seq[ByteString]] = None,
       accessList: Option[List[AccessListItem]] = None,
@@ -82,7 +82,7 @@ object EthSimulateService:
   case class SimulateCallResult(
       status: BigInt,
       returnData: ByteString,
-      gasUsed: BigInt,
+      gasUsed: GasAmount,
       maxUsedGas: BigInt, // Gas used before refunds
       logs: Seq[TxLog],
       error: Option[SimulateError] = None
@@ -380,13 +380,13 @@ class EthSimulateService(
     )
 
     // Update call results with correct block hash and number
-    val blockHash = finalHeader.hash.value
+    val blockHash = finalHeader.hash
     val updatedCallResults = callResults.zipWithIndex.map { case (cr, _) =>
       cr.copy(logs =
         cr.logs.map(
           _.copy(
             blockHash = blockHash,
-            blockNumber = finalHeader.number.value
+            blockNumber = finalHeader.number
           )
         )
       )
@@ -661,7 +661,7 @@ class EthSimulateService(
       val sender = call.from.getOrElse(Address(0))
 
       // Resolve nonce
-      val senderNonce = call.nonce.getOrElse {
+      val senderNonce = call.nonce.map(_.value).getOrElse {
         nonceMap.getOrElseUpdate(sender, world.getAccount(sender).map(_.nonce.toBigInt).getOrElse(BigInt(0)))
       }
 
@@ -669,13 +669,13 @@ class EthSimulateService(
       val DefaultSimGasLimit = BigInt(50000000)
       val remainingGlobalGas = DefaultSimGasLimit - globalGasOffset - accumGas
       val remainingBlockGas = blockHeader.gasLimit.value - accumGas
-      val gasLimit = call.gas.getOrElse(remainingGlobalGas.min(remainingBlockGas).max(BigInt(0)))
-      val value = call.value.getOrElse(BigInt(0))
+      val gasLimit = call.gas.map(_.value).getOrElse(remainingGlobalGas.min(remainingBlockGas).max(BigInt(0)))
+      val value = call.value.map(_.value).getOrElse(BigInt(0))
       val payload = call.input.getOrElse(ByteString.empty)
       val toAddr = call.to
 
       val maxFeePerGas = call.maxFeePerGas.fold(BigInt(0))(_.value)
-      val gasPrice = call.gasPrice.orElse(call.maxFeePerGas.map(_.value)).getOrElse(BigInt(0))
+      val gasPrice = call.gasPrice.map(_.value).orElse(call.maxFeePerGas.map(_.value)).getOrElse(BigInt(0))
 
       // Check nonce overflow (uint64 max) — returns -32603 (InternalError)
       val MaxUint64 = BigInt("18446744073709551615") // 0xffffffffffffffff
@@ -902,8 +902,8 @@ class EthSimulateService(
           logIndex = globalLogIndex,
           transactionIndex = callIdx,
           transactionHash = stx.hash.value,
-          blockHash = ByteString(new Array[Byte](32)), // Placeholder — updated after header finalized
-          blockNumber = blockHeader.number.value,
+          blockHash = BlockHash(ByteString(new Array[Byte](32))), // Placeholder — updated after header finalized
+          blockNumber = blockHeader.number,
           address = txLog.loggerAddress,
           data = txLog.data,
           topics = txLog.logTopics,
@@ -928,7 +928,7 @@ class EthSimulateService(
           SimulateCallResult(
             status = BigInt(0),
             returnData = ByteString.empty,
-            gasUsed = gasUsed,
+            gasUsed = GasAmount(gasUsed),
             maxUsedGas = gasUsed,
             logs = Seq.empty,
             error = Some(SimulateError(3, msg, Some(returnData)))
@@ -942,7 +942,7 @@ class EthSimulateService(
           SimulateCallResult(
             status = BigInt(0),
             returnData = returnData,
-            gasUsed = gasUsed,
+            gasUsed = GasAmount(gasUsed),
             maxUsedGas = gasUsed,
             logs = Seq.empty,
             error = Some(SimulateError(-32015, errMsg))
@@ -951,7 +951,7 @@ class EthSimulateService(
           SimulateCallResult(
             status = BigInt(1),
             returnData = returnData,
-            gasUsed = gasUsed,
+            gasUsed = GasAmount(gasUsed),
             maxUsedGas = gasUsed,
             logs = allLogs
           )

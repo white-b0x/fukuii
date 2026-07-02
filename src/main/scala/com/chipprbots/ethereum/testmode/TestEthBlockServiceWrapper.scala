@@ -52,7 +52,9 @@ class TestEthBlockServiceWrapper(
       _.flatMap {
 
         case BlockByBlockHashResponse(None) =>
-          Left(JsonRpcError.LogicError(s"EthBlockService: unable to find block for hash ${request.blockHash.toHex}"))
+          Left(
+            JsonRpcError.LogicError(s"EthBlockService: unable to find block for hash ${request.blockHash.value.toHex}")
+          )
 
         case BlockByBlockHashResponse(Some(baseBlockResponse)) if baseBlockResponse.hash.isEmpty =>
           Left(JsonRpcError.LogicError(s"missing hash for block $baseBlockResponse"))

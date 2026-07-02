@@ -119,13 +119,13 @@ object EthSimulateJsonMethodsImplicits extends JsonMethodsImplicits:
           SimulateCall(
             from = (obj \ "from").extractOpt[String].flatMap(s => extractAddress(JString(s)).toOption),
             to = (obj \ "to").extractOpt[String].flatMap(s => extractAddress(JString(s)).toOption),
-            gas = optQty(obj, "gas"),
-            value = optQty(obj, "value"),
+            gas = optQty(obj, "gas").map(GasAmount(_)),
+            value = optQty(obj, "value").map(Wei(_)),
             input = optBytes(obj, "input").orElse(optBytes(obj, "data")),
-            nonce = optQty(obj, "nonce"),
+            nonce = optQty(obj, "nonce").map(Nonce(_)),
             maxFeePerGas = optQty(obj, "maxFeePerGas").map(MaxFeePerGas(_)),
             maxPriorityFeePerGas = optQty(obj, "maxPriorityFeePerGas").map(PriorityFeePerGas(_)),
-            gasPrice = optQty(obj, "gasPrice"),
+            gasPrice = optQty(obj, "gasPrice").map(GasPrice(_)),
             maxFeePerBlobGas = optQty(obj, "maxFeePerBlobGas"),
             blobVersionedHashes = (obj \ "blobVersionedHashes") match
               case JArray(items) =>
@@ -286,7 +286,7 @@ object EthSimulateJsonMethodsImplicits extends JsonMethodsImplicits:
       ): JValue =
         val baseFields = List(
           "returnData" -> encodeAsHex(cr.returnData),
-          "gasUsed" -> encodeAsHex(cr.gasUsed),
+          "gasUsed" -> encodeAsHex(cr.gasUsed.value),
           "maxUsedGas" -> encodeAsHex(cr.maxUsedGas),
           "status" -> encodeAsHex(cr.status)
         )
@@ -310,7 +310,7 @@ object EthSimulateJsonMethodsImplicits extends JsonMethodsImplicits:
         JObject(
           "address" -> encodeAsHex(log.address.bytes),
           "blockHash" -> encodeAsHex(blockHash),
-          "blockNumber" -> encodeAsHex(log.blockNumber),
+          "blockNumber" -> encodeAsHex(log.blockNumber.value),
           "blockTimestamp" -> encodeAsHex(log.blockTimestamp.getOrElse(BigInt(0))),
           "data" -> encodeAsHex(log.data),
           "logIndex" -> encodeAsHex(log.logIndex),

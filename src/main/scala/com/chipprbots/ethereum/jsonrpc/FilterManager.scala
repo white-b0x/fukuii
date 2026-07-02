@@ -73,8 +73,8 @@ object FilterManager:
       logIndex: BigInt,
       transactionIndex: BigInt,
       transactionHash: ByteString,
-      blockHash: ByteString,
-      blockNumber: BigInt,
+      blockHash: BlockHash,
+      blockNumber: BlockNumber,
       address: Address,
       data: ByteString,
       topics: Seq[ByteString],
@@ -160,8 +160,8 @@ object FilterManager:
                   logIndex = logIndex,
                   transactionIndex = txIndex,
                   transactionHash = tx.hash.value,
-                  blockHash = block.header.hash.value,
-                  blockNumber = block.header.number.value,
+                  blockHash = block.header.hash,
+                  blockNumber = block.header.number,
                   address = log.loggerAddress,
                   data = log.data,
                   topics = log.logTopics,
@@ -220,7 +220,7 @@ object FilterManager:
         logs ++ blockGenerator.getPendingBlock.map(p => getLogsFromBlock(filter, p.block, p.receipts)).getOrElse(Nil)
       else logs
 
-    def getBlockHashesAfter(blockNumber: BigInt): Seq[ByteString] =
+    def getBlockHashesAfter(blockNumber: BlockNumber): Seq[ByteString] =
       val bestBlock = blockchainReader.getBestBlockNumber
 
       @tailrec
@@ -231,7 +231,7 @@ object FilterManager:
             case Some(header) => recur(currentBlockNumber + 1, hashesSoFar :+ header.hash.value)
             case None         => hashesSoFar
 
-      recur(blockNumber + 1, Nil)
+      recur(blockNumber.value + 1, Nil)
 
     def getPendingTransactions(): IO[Seq[PendingTransaction]] =
       pendingTransactionsManager
@@ -286,7 +286,9 @@ object FilterManager:
           replyTo ! LogFilterChanges(getLogs(logFilter, Some(lastCheckBlock + 1)))
 
         case Some(_: BlockFilter) =>
-          replyTo ! BlockFilterChanges(getBlockHashesAfter(lastCheckBlock).takeRight(maxBlockHashesChanges))
+          replyTo ! BlockFilterChanges(
+            getBlockHashesAfter(BlockNumber(lastCheckBlock)).takeRight(maxBlockHashesChanges)
+          )
 
         case Some(_: PendingTransactionFilter) =>
           getPendingTransactions()

@@ -21,10 +21,10 @@ object EthBlocksService:
   case class BestBlockNumberRequest()
   case class BestBlockNumberResponse(bestBlockNumber: BigInt)
 
-  case class TxCountByBlockHashRequest(blockHash: ByteString)
+  case class TxCountByBlockHashRequest(blockHash: BlockHash)
   case class TxCountByBlockHashResponse(txsQuantity: Option[Int])
 
-  case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
+  case class BlockByBlockHashRequest(blockHash: BlockHash, fullTxs: Boolean)
   case class BlockByBlockHashResponse(blockResponse: Option[BaseBlockResponse])
 
   case class BlockByNumberRequest(block: BlockParam, fullTxs: Boolean)
@@ -33,7 +33,7 @@ object EthBlocksService:
   case class GetBlockTransactionCountByNumberRequest(block: BlockParam)
   case class GetBlockTransactionCountByNumberResponse(result: BigInt)
 
-  case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
+  case class UncleByBlockHashAndIndexRequest(blockHash: BlockHash, uncleIndex: BigInt)
   case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BaseBlockResponse])
 
   case class UncleByBlockNumberAndIndexRequest(block: BlockParam, uncleIndex: BigInt)
@@ -42,7 +42,7 @@ object EthBlocksService:
   case class GetUncleCountByBlockNumberRequest(block: BlockParam)
   case class GetUncleCountByBlockNumberResponse(result: BigInt)
 
-  case class GetUncleCountByBlockHashRequest(blockHash: ByteString)
+  case class GetUncleCountByBlockHashRequest(blockHash: BlockHash)
   case class GetUncleCountByBlockHashResponse(result: BigInt)
 
   case class GetBlockReceiptsRequest(block: BlockParam)
@@ -103,7 +103,7 @@ class EthBlocksService(
     */
   def getBlockTransactionCountByHash(request: TxCountByBlockHashRequest): ServiceResponse[TxCountByBlockHashResponse] =
     IO {
-      val txsCount = blockchainReader.getBlockBodyByHash(BlockHash(request.blockHash)).map(_.transactionList.size)
+      val txsCount = blockchainReader.getBlockBodyByHash(request.blockHash).map(_.transactionList.size)
       Right(TxCountByBlockHashResponse(txsCount))
     }
 
@@ -117,10 +117,10 @@ class EthBlocksService(
   def getByBlockHash(request: BlockByBlockHashRequest): ServiceResponse[BlockByBlockHashResponse] = IO {
     val BlockByBlockHashRequest(blockHash, fullTxs) = request
     val blockOpt =
-      blockchainReader.getBlockByHash(BlockHash(blockHash)).orElse(blockQueue.getBlockByHash(BlockHash(blockHash)))
+      blockchainReader.getBlockByHash(blockHash).orElse(blockQueue.getBlockByHash(blockHash))
     val weight = blockchainReader
-      .getChainWeightByHash(BlockHash(blockHash))
-      .orElse(blockQueue.getChainWeightByHash(BlockHash(blockHash)))
+      .getChainWeightByHash(blockHash)
+      .orElse(blockQueue.getChainWeightByHash(blockHash))
 
     // Hide engine-API optimistic blocks (ACCEPTED with unknown parent, stored via
     // storeBlockByHashOnly) — they skip the number→hash mapping and haven't been executed.
@@ -178,7 +178,7 @@ class EthBlocksService(
   ): ServiceResponse[UncleByBlockHashAndIndexResponse] = IO {
     val UncleByBlockHashAndIndexRequest(blockHash, uncleIndex) = request
     val uncleHeaderOpt = blockchainReader
-      .getBlockBodyByHash(BlockHash(blockHash))
+      .getBlockBodyByHash(blockHash)
       .flatMap { body =>
         if uncleIndex >= 0 && uncleIndex < body.uncleNodesList.size then
           Some(body.uncleNodesList.apply(uncleIndex.toInt))
@@ -239,12 +239,12 @@ class EthBlocksService(
       req: GetUncleCountByBlockHashRequest
   ): ServiceResponse[GetUncleCountByBlockHashResponse] =
     IO {
-      blockchainReader.getBlockBodyByHash(BlockHash(req.blockHash)) match
+      blockchainReader.getBlockBodyByHash(req.blockHash) match
         case Some(blockBody) =>
           Right(GetUncleCountByBlockHashResponse(blockBody.uncleNodesList.size))
         case None =>
           Left(
-            JsonRpcError.InvalidParams(s"Block with hash ${Hex.toHexString(req.blockHash.toArray[Byte])} not found")
+            JsonRpcError.InvalidParams(s"Block with hash ${Hex.toHexString(req.blockHash.toArray)} not found")
           )
     }
 

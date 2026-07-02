@@ -138,7 +138,7 @@ object DebugTracingJsonMethodsImplicits extends JsonMethodsImplicits:
       override def encodeJson(t: Seq[TraceChainBlockResult]): JValue =
         JArray(t.map { r =>
           JObject(
-            "block" -> JString("0x" + r.block.toString(16)),
+            "block" -> JString("0x" + r.block.value.toString(16)),
             "blockHash" -> JString("0x" + org.bouncycastle.util.encoders.Hex.toHexString(r.blockHash.toArray)),
             "traces" -> JArray(r.traces.toList)
           )

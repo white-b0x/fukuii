@@ -6,8 +6,10 @@ import com.chipprbots.ethereum.consensus.mining.Mining
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.TxLogEntry
@@ -42,12 +44,12 @@ case class GraphQLContext(
 object GraphQLTypes:
 
   /** An account at a specific block. Resolvers fetch `balance`/`code`/`nonce`/`storage` on demand. */
-  final case class GAccount(address: ByteString, blockNumber: BigInt)
+  final case class GAccount(address: ByteString, blockNumber: BlockNumber)
 
   /** A block plus its canonical total difficulty (when available). */
   final case class GBlock(block: Block, totalDifficulty: Option[BigInt]):
     def header: BlockHeader = block.header
-    def number: BigInt = block.header.number.value
+    def number: BlockNumber = block.header.number
     def hash: ByteString = block.header.hash.value
 
   /** A transaction in flight. `blockInfo` is present when the tx has been mined. */
@@ -68,7 +70,7 @@ object GraphQLTypes:
   )
 
   /** Result of an `eth_call`-shaped resolver. */
-  final case class GCallResult(data: ByteString, gasUsed: Long, status: Long)
+  final case class GCallResult(data: ByteString, gasUsed: GasAmount, status: Long)
 
   /** Matches the SDL `SyncState` type. */
   final case class GSyncState(startingBlock: Long, currentBlock: Long, highestBlock: Long)

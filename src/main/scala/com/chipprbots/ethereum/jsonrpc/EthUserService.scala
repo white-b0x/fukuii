@@ -17,7 +17,7 @@ object EthUserService:
   case class GetCodeRequest(address: Address, block: BlockParam)
   case class GetCodeResponse(result: ByteString)
   case class GetBalanceRequest(address: Address, block: BlockParam)
-  case class GetBalanceResponse(value: BigInt)
+  case class GetBalanceResponse(value: Wei)
   case class GetTransactionCountRequest(address: Address, block: BlockParam)
   case class GetTransactionCountResponse(value: BigInt)
   case class GetStorageRootRequest(address: Address, block: BlockParam)
@@ -53,7 +53,7 @@ class EthUserService(
 
   def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] =
     withAccount(req.address, req.block) { account =>
-      GetBalanceResponse(account.balance)
+      GetBalanceResponse(Wei(account.balance.toBigInt))
     }
 
   def getStorageAt(req: GetStorageAtRequest): ServiceResponse[GetStorageAtResponse] =

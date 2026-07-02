@@ -38,8 +38,8 @@ object EthProofJsonMethodsImplicits extends JsonMethodsImplicits:
         JObject(
           "address" -> encodeAsHex(t.proofAccount.address.bytes),
           "accountProof" -> JArray(t.proofAccount.accountProof.toList.map(ap => encodeAsHex(ap))),
-          "balance" -> encodeAsHex(t.proofAccount.balance),
-          "codeHash" -> encodeAsHex(t.proofAccount.codeHash),
+          "balance" -> encodeAsHex(t.proofAccount.balance.value),
+          "codeHash" -> encodeAsHex(t.proofAccount.codeHash.value),
           "nonce" -> encodeAsHex(t.proofAccount.nonce),
           "storageHash" -> encodeAsHex(t.proofAccount.storageHash),
           "storageProof" -> JArray(t.proofAccount.storageProof.toList.map { sp =>

@@ -34,6 +34,7 @@ import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
@@ -46,7 +47,12 @@ object EthMiningService:
   case class GetMiningResponse(isMining: Boolean)
 
   case class GetWorkRequest()
-  case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString, blockNumber: BigInt)
+  case class GetWorkResponse(
+      powHeaderHash: ByteString,
+      dagSeed: ByteString,
+      target: ByteString,
+      blockNumber: BlockNumber
+  )
 
   case class SubmitWorkRequest(nonce: ByteString, powHeaderHash: ByteString, mixHash: ByteString)
   case class SubmitWorkResponse(success: Boolean)
@@ -131,13 +137,13 @@ class EthMiningService(
                 blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong
               )
             val target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty.value).toByteArray)
-            val blockNumber = pb.block.header.number.value
+            val blockNumber = pb.block.header.number
             val workResponse = GetWorkResponse(powHeaderHash, dagSeed, target, blockNumber)
             val notifyUrls = ethash.config.generic.notifyUrls
             if notifyUrls.nonEmpty then
               WorkNotifier.notify(
                 notifyUrls,
-                WorkNotifier.WorkPackage(powHeaderHash, dagSeed, target, blockNumber)
+                WorkNotifier.WorkPackage(powHeaderHash, dagSeed, target, blockNumber.value)
               )(system)
             Right(workResponse)
           }

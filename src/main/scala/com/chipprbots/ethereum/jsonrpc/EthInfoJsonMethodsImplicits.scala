@@ -9,6 +9,7 @@ import org.json4s.JsonDSL.*
 
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.jsonrpc.EthInfoService.*
 import com.chipprbots.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import com.chipprbots.ethereum.jsonrpc.PersonalService.SendTransactionRequest
@@ -22,7 +23,7 @@ import com.chipprbots.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsM
 object EthJsonMethodsImplicits extends JsonMethodsImplicits:
   given eth_chainId: (NoParamsMethodDecoder[ChainIdRequest] & JsonEncoder[ChainIdResponse]) =
     new NoParamsMethodDecoder(ChainIdRequest()) with JsonEncoder[ChainIdResponse]:
-      def encodeJson(t: ChainIdResponse): JValue = encodeAsHex(t.value)
+      def encodeJson(t: ChainIdResponse): JValue = encodeAsHex(t.value.value)
 
   given eth_protocolVersion: (NoParamsMethodDecoder[ProtocolVersionRequest] & JsonEncoder[ProtocolVersionResponse]) =
     new NoParamsMethodDecoder(ProtocolVersionRequest()) with JsonEncoder[ProtocolVersionResponse]:
@@ -76,7 +77,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits:
             Left(InvalidParams())
 
       def encodeJson(t: SendTransactionResponse): JValue =
-        encodeAsHex(t.txHash)
+        encodeAsHex(t.txHash.value)
 
   given eth_call: (JsonMethodDecoder[CallRequest] & JsonEncoder[CallResponse]) =
     new JsonMethodDecoder[CallRequest] with JsonEncoder[CallResponse]:
@@ -93,7 +94,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits:
 
   given eth_estimateGas: eth_estimateGas = new eth_estimateGas
   class eth_estimateGas extends JsonMethodDecoder[CallRequest] with JsonEncoder[EstimateGasResponse]:
-    override def encodeJson(t: EstimateGasResponse): JValue = encodeAsHex(t.gas)
+    override def encodeJson(t: EstimateGasResponse): JValue = encodeAsHex(t.gas.value)
 
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, CallRequest] =
       withoutBlockParam.applyOrElse(params, eth_call.decodeJson)
@@ -131,7 +132,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits:
               case _ => JArray(Nil)
             JObject("address" -> addr, "storageKeys" -> keys)
           }),
-          "gasUsed" -> encodeAsHex(t.gasUsed)
+          "gasUsed" -> encodeAsHex(t.gasUsed.value)
         )
         val errorField = t.error.map(e => "error" -> JString(e)).toList
         JObject(fields ::: errorField)
@@ -168,7 +169,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits:
       to = to,
       gas = gas,
       gasPrice = GasPrice(gasPrice.orElse(maxFeePerGas).getOrElse(BigInt(0))),
-      value = value.getOrElse(0),
+      value = Wei(value.getOrElse(BigInt(0))),
       data = data.orElse(input).getOrElse(ByteString("")),
       gasPriceExplicit = gasPrice.isDefined || maxFeePerGas.isDefined
     )

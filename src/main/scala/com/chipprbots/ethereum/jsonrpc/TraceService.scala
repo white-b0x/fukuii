@@ -18,11 +18,11 @@ import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
-import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.ledger.StxLedger
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -151,8 +151,8 @@ class TraceService(
           tracer.getResult,
           req.txHash,
           txIndex,
-          block.header.hash.value,
-          block.header.number.value
+          block.header.hash,
+          block.header.number
         )
       yield TraceTransactionResponse(flat)
     }.recover { case _: MissingNodeException =>
@@ -297,7 +297,7 @@ class TraceService(
       val world = stxLedger.advanceWorldToTx(block.header, stxs, txIndex, parentStateRoot)
       val tracer = new CallTracer(onlyTopCall = false)
       stxLedger.simulateTransactionWithTracer(stx, block.header, Some(world), tracer)
-      flattenCallTree(tracer.getResult, stx.tx.hash.value, txIndex, block.header.hash.value, block.header.number.value)
+      flattenCallTree(tracer.getResult, stx.tx.hash.value, txIndex, block.header.hash, block.header.number)
     }
 
   /** Builds a replay result bundle: { trace, vmTrace, stateDiff } based on options. */
@@ -320,8 +320,8 @@ class TraceService(
             callTracer.getResult,
             txHash,
             txIndex,
-            block.header.hash.value,
-            block.header.number.value
+            block.header.hash,
+            block.header.number
           ).toList
         )
       else JNull
@@ -363,8 +363,8 @@ class TraceService(
       root: JValue,
       txHash: ByteString,
       txIndex: Int,
-      blockHash: ByteString,
-      blockNumber: BigInt
+      blockHash: BlockHash,
+      blockNumber: BlockNumber
   ): Seq[JValue] =
     val buf = scala.collection.mutable.ArrayBuffer[JValue]()
 
@@ -407,8 +407,8 @@ class TraceService(
             ("traceAddress" -> traceAddrField) ~
             ("transactionHash" -> txHashField) ~
             ("transactionPosition" -> txIndex) ~
-            ("blockHash" -> s"0x${blockHash.toHex}") ~
-            ("blockNumber" -> blockNumber)
+            ("blockHash" -> s"0x${blockHash.value.toHex}") ~
+            ("blockNumber" -> blockNumber.value)
         buf += entry
         calls.zipWithIndex.foreach { case (child, i) => walk(child, addr :+ i) }
       case _ => // not an object, skip
@@ -499,6 +499,6 @@ class TraceService(
     val toAddress = callTx.to.map(Address.apply)
 
     val tx =
-      LegacyTransaction(Nonce.Zero, callTx.gasPrice, gasLimit, toAddress, Wei(callTx.value), callTx.data)
+      LegacyTransaction(Nonce.Zero, callTx.gasPrice, gasLimit, toAddress, callTx.value, callTx.data)
     val fakeSignature = ECDSASignature(0, 0, 0)
     Right(SignedTransactionWithSender(tx, fakeSignature, fromAddress))

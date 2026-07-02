@@ -347,7 +347,7 @@ object JsonMethodsImplicits extends JsonMethodsImplicits:
             Left(InvalidParams())
 
       def encodeJson(t: SendTransactionWithPassphraseResponse): JValue =
-        encodeAsHex(t.txHash)
+        encodeAsHex(t.txHash.value)
 
   given personal_sign: JsonMethodCodec[SignRequest, SignResponse] =
     new JsonMethodCodec[SignRequest, SignResponse]:

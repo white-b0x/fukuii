@@ -18,6 +18,7 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.Nonce
+import com.chipprbots.ethereum.domain.TxHash
 import com.chipprbots.ethereum.jsonrpc.AkkaTaskOps.*
 import com.chipprbots.ethereum.jsonrpc.JsonRpcError.*
 import com.chipprbots.ethereum.jsonrpc.PersonalService.*
@@ -49,10 +50,10 @@ object PersonalService:
   case class LockAccountResponse(result: Boolean)
 
   case class SendTransactionWithPassphraseRequest(tx: TransactionRequest, passphrase: String)
-  case class SendTransactionWithPassphraseResponse(txHash: ByteString)
+  case class SendTransactionWithPassphraseResponse(txHash: TxHash)
 
   case class SendTransactionRequest(tx: TransactionRequest)
-  case class SendTransactionResponse(txHash: ByteString)
+  case class SendTransactionResponse(txHash: TxHash)
 
   case class SignRequest(message: ByteString, address: Address, passphrase: Option[String])
   case class SignResponse(signature: ECDSASignature)
@@ -176,7 +177,7 @@ class PersonalService(
       case Right(wallet) =>
         val futureTxHash = sendTransaction(request.tx, wallet)
         futureTxHash
-          .map(txHash => Right(SendTransactionWithPassphraseResponse(txHash)))
+          .map(txHash => Right(SendTransactionWithPassphraseResponse(TxHash(txHash))))
           .recover { case _: MissingNodeException => Left(JsonRpcError.NodeNotFound) }
       case Left(err) => IO.pure(Left(err))
     }
@@ -186,7 +187,7 @@ class PersonalService(
       case Some(wallet) =>
         val futureTxHash = sendTransaction(request.tx, wallet)
         futureTxHash
-          .map(txHash => Right(SendTransactionResponse(txHash)))
+          .map(txHash => Right(SendTransactionResponse(TxHash(txHash))))
           .recover { case _: MissingNodeException => Left(JsonRpcError.NodeNotFound) }
 
       case None => IO.pure(Left(AccountLocked))

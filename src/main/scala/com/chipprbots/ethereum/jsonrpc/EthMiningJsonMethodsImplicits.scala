@@ -23,7 +23,7 @@ object EthMiningJsonMethodsImplicits extends JsonMethodsImplicits:
         val powHeaderHash = encodeAsHex(t.powHeaderHash)
         val dagSeed = encodeAsHex(t.dagSeed)
         val target = encodeAsHex(t.target)
-        val blockNumber = encodeAsHex(t.blockNumber)
+        val blockNumber = encodeAsHex(t.blockNumber.value)
         JArray(List(powHeaderHash, dagSeed, target, blockNumber))
 
   given eth_submitHashrate: (JsonMethodDecoder[SubmitHashRateRequest] & JsonEncoder[SubmitHashRateResponse]) =
