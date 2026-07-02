@@ -13,28 +13,28 @@ import com.chipprbots.ethereum.utils.Config
 case class TransactionRequest(
     from: Address,
     to: Option[Address] = None,
-    value: Option[BigInt] = None,
-    gasLimit: Option[BigInt] = None,
-    gasPrice: Option[BigInt] = None,
-    nonce: Option[BigInt] = None,
+    value: Option[Wei] = None,
+    gasLimit: Option[GasAmount] = None,
+    gasPrice: Option[GasPrice] = None,
+    nonce: Option[Nonce] = None,
     data: Option[ByteString] = None
 ):
 
-  private val defaultGasPrice: BigInt = 2 * BigInt(10).pow(10)
-  private val defaultGasLimit: BigInt = 90000
+  private val defaultGasPrice: GasPrice = GasPrice(2 * BigInt(10).pow(10))
+  private val defaultGasLimit: GasAmount = GasAmount(90000)
 
   // Preferred overload: caller injects an oracle-derived price (e.g. from EthTxService.suggestGasPrice()).
   // The user-supplied gasPrice always wins; the oracle value is only the fallback.
-  def toTransaction(defaultNonce: BigInt, suggestedGasPrice: BigInt): LegacyTransaction =
+  def toTransaction(defaultNonce: Nonce, suggestedGasPrice: GasPrice): LegacyTransaction =
     LegacyTransaction(
-      nonce = Nonce(nonce.getOrElse(defaultNonce)),
-      gasPrice = GasPrice(gasPrice.getOrElse(suggestedGasPrice)),
-      gasLimit = GasAmount(gasLimit.getOrElse(defaultGasLimit)),
+      nonce = nonce.getOrElse(defaultNonce),
+      gasPrice = gasPrice.getOrElse(suggestedGasPrice),
+      gasLimit = gasLimit.getOrElse(defaultGasLimit),
       receivingAddress = if Config.testmode then to.filter(_ != Address(0)) else to,
-      value = Wei(value.getOrElse(BigInt(0))),
+      value = value.getOrElse(Wei.Zero),
       payload = data.getOrElse(ByteString.empty)
     )
 
   // Bridge overload — retained for callers not yet wired to the gas oracle.
-  def toTransaction(defaultNonce: BigInt): LegacyTransaction =
+  def toTransaction(defaultNonce: Nonce): LegacyTransaction =
     toTransaction(defaultNonce, defaultGasPrice)

@@ -16,6 +16,8 @@ import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.jsonrpc.AkkaTaskOps.*
 import com.chipprbots.ethereum.jsonrpc.JsonRpcError.*
 import com.chipprbots.ethereum.jsonrpc.PersonalService.*
@@ -205,8 +207,8 @@ class PersonalService(
       val maybeCurrentNonce = getCurrentAccount(request.from).map(_.nonce.toBigInt)
       val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1).orElse(maybeCurrentNonce)
       val tx = request.toTransaction(
-        maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce),
-        request.gasPrice.getOrElse(ethTxService.suggestGasPrice())
+        Nonce(maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce.toBigInt)),
+        request.gasPrice.getOrElse(GasPrice(ethTxService.suggestGasPrice()))
       )
 
       val stx =

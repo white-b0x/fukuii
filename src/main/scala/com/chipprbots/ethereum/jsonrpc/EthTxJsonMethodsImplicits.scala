@@ -53,8 +53,8 @@ object EthTxJsonMethodsImplicits extends JsonMethodsImplicits:
     val baseFields = List(
       "transactionHash" -> encodeAsHex(receipt.transactionHash),
       "transactionIndex" -> encodeAsHex(receipt.transactionIndex),
-      "blockNumber" -> encodeAsHex(receipt.blockNumber),
-      "blockHash" -> encodeAsHex(receipt.blockHash),
+      "blockNumber" -> encodeAsHex(receipt.blockNumber.value),
+      "blockHash" -> encodeAsHex(receipt.blockHash.value),
       "from" -> encodeAsHex(receipt.from.bytes)
     )
 
@@ -64,7 +64,7 @@ object EthTxJsonMethodsImplicits extends JsonMethodsImplicits:
     // Continue with more fields
     val middleFields = List(
       "cumulativeGasUsed" -> encodeAsHex(receipt.cumulativeGasUsed),
-      "gasUsed" -> encodeAsHex(receipt.gasUsed),
+      "gasUsed" -> encodeAsHex(receipt.gasUsed.value),
       "contractAddress" -> receipt.contractAddress.map(addr => encodeAsHex(addr.bytes)).getOrElse(JNull),
       "logs" -> JArray(receipt.logs.toList.map(encodeTxLog)),
       "logsBloom" -> encodeAsHex(receipt.logsBloom)
@@ -89,15 +89,15 @@ object EthTxJsonMethodsImplicits extends JsonMethodsImplicits:
   given transactionResponseJsonEncoder: JsonEncoder[TransactionResponse] = tx =>
     val baseFields = List(
       "hash" -> encodeAsHex(tx.hash),
-      "nonce" -> encodeAsHex(tx.nonce),
+      "nonce" -> encodeAsHex(tx.nonce.value),
       "blockHash" -> tx.blockHash.map(encodeAsHex).getOrElse(JNull),
-      "blockNumber" -> tx.blockNumber.map(encodeAsHex).getOrElse(JNull),
+      "blockNumber" -> tx.blockNumber.map(bn => encodeAsHex(bn.value)).getOrElse(JNull),
       "transactionIndex" -> tx.transactionIndex.map(encodeAsHex).getOrElse(JNull),
       "from" -> tx.from.map(encodeAsHex).getOrElse(JNull),
       "to" -> tx.to.map(encodeAsHex).getOrElse(JNull),
-      "value" -> encodeAsHex(tx.value),
+      "value" -> encodeAsHex(tx.value.value),
       "gasPrice" -> encodeAsHex(tx.gasPrice.value),
-      "gas" -> encodeAsHex(tx.gas),
+      "gas" -> encodeAsHex(tx.gas.value),
       "input" -> encodeAsHex(tx.input)
     )
 

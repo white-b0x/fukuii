@@ -155,7 +155,7 @@ class EthTxService(
           signedTransactionSender = sender,
           transactionIndex = txIndex,
           blockHeader = header,
-          gasUsedByTransaction = gasUsed.value,
+          gasUsedByTransaction = gasUsed,
           baseLogIndex = baseLogIndex
         )
 

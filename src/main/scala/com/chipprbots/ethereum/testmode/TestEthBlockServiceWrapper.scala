@@ -6,11 +6,15 @@ import com.chipprbots.ethereum.consensus.mining.Mining
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
+import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SignedTransaction
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.jsonrpc.BaseBlockResponse
 import com.chipprbots.ethereum.jsonrpc.BaseTransactionResponse
 import com.chipprbots.ethereum.jsonrpc.EthBlocksService
@@ -88,7 +92,7 @@ class TestEthBlockServiceWrapper(
         val bestBranch = blockchainReader.getBestBranch
         val response = for
           blockResp <- blockByBlockResponse.blockResponse
-          fullBlock <- blockchainReader.getBlockByNumber(bestBranch, blockResp.number)
+          fullBlock <- blockchainReader.getBlockByNumber(bestBranch, blockResp.number.value)
         yield toEthResponse(fullBlock, blockResp)
         BlockByNumberResponse(response)
       }
@@ -127,7 +131,7 @@ class TestEthBlockServiceWrapper(
   }
 
 case class EthBlockResponse(
-    number: BigInt,
+    number: BlockNumber,
     hash: Option[ByteString],
     parentHash: ByteString,
     nonce: Option[ByteString],
@@ -137,7 +141,7 @@ case class EthBlockResponse(
     stateRoot: ByteString,
     receiptsRoot: ByteString,
     miner: Option[ByteString],
-    difficulty: BigInt,
+    difficulty: Difficulty,
     totalDifficulty: Option[BigInt],
     extraData: ByteString,
     size: BigInt,
@@ -151,15 +155,15 @@ case class EthBlockResponse(
 
 final case class EthTransactionResponse(
     hash: ByteString,
-    nonce: BigInt,
+    nonce: Nonce,
     blockHash: Option[ByteString],
-    blockNumber: Option[BigInt],
+    blockNumber: Option[BlockNumber],
     transactionIndex: Option[BigInt],
     from: Option[ByteString],
     to: Option[ByteString],
-    value: BigInt,
+    value: Wei,
     gasPrice: GasPrice,
-    gas: BigInt,
+    gas: GasAmount,
     input: ByteString,
     r: BigInt,
     s: BigInt,
@@ -180,15 +184,15 @@ object EthTransactionResponse:
   ): EthTransactionResponse =
     EthTransactionResponse(
       hash = stx.hash.value,
-      nonce = stx.tx.nonce.value,
+      nonce = stx.tx.nonce,
       blockHash = blockHeader.map(_.hash.value),
-      blockNumber = blockHeader.map(_.number.value),
+      blockNumber = blockHeader.map(_.number),
       transactionIndex = transactionIndex.map(txIndex => BigInt(txIndex)),
       from = SignedTransaction.getSender(stx).map(_.bytes),
       to = stx.tx.receivingAddress.map(_.bytes),
-      value = stx.tx.value.value,
+      value = stx.tx.value,
       gasPrice = stx.tx.gasPrice,
-      gas = stx.tx.gasLimit.value,
+      gas = stx.tx.gasLimit,
       input = stx.tx.payload,
       r = stx.signature.r,
       s = stx.signature.s,

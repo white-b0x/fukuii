@@ -143,7 +143,7 @@ class NodeJsonRpcHealthChecker(
         case NotSyncing | SyncDone =>
           ethBlocksService
             .getBlockByNumber(BlockByNumberRequest(BlockParam.Pending, fullTxs = true))
-            .map(_.map(_.blockResponse.map(_.number)))
+            .map(_.map(_.blockResponse.map(_.number.value)))
         case Syncing(_, progress, _) => IO.pure(Right(Some(progress.current)))
       }
 

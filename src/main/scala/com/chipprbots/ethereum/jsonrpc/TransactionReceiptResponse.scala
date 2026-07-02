@@ -43,12 +43,12 @@ import com.chipprbots.ethereum.rlp.UInt256RLPImplicits.*
 case class TransactionReceiptResponse(
     transactionHash: ByteString,
     transactionIndex: BigInt,
-    blockNumber: BigInt,
-    blockHash: ByteString,
+    blockNumber: BlockNumber,
+    blockHash: BlockHash,
     from: Address,
     to: Option[Address],
     cumulativeGasUsed: BigInt,
-    gasUsed: BigInt,
+    gasUsed: GasAmount,
     contractAddress: Option[Address],
     logs: Seq[TxLog],
     logsBloom: ByteString,
@@ -69,7 +69,7 @@ object TransactionReceiptResponse:
       signedTransactionSender: Address,
       transactionIndex: Int,
       blockHeader: BlockHeader,
-      gasUsedByTransaction: BigInt,
+      gasUsedByTransaction: GasAmount,
       baseLogIndex: Int
   )(implicit blockchainConfig: com.chipprbots.ethereum.utils.BlockchainConfig): TransactionReceiptResponse =
     val contractAddress = if stx.tx.isContractInit then
@@ -114,8 +114,8 @@ object TransactionReceiptResponse:
     new TransactionReceiptResponse(
       transactionHash = stx.hash.value,
       transactionIndex = transactionIndex,
-      blockNumber = blockHeader.number.value,
-      blockHash = blockHeader.hash.value,
+      blockNumber = blockHeader.number,
+      blockHash = blockHeader.hash,
       from = signedTransactionSender,
       to = stx.tx.receivingAddress,
       cumulativeGasUsed = receipt.cumulativeGasUsed.value,

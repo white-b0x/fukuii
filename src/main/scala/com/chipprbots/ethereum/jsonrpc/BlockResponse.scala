@@ -7,7 +7,9 @@ import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.utils.ByteStringUtils
 
@@ -16,7 +18,7 @@ import com.chipprbots.ethereum.utils.ByteStringUtils
  * it should be considered a band-aid solution and replaced with something robust and non-intrusive
  */
 trait BaseBlockResponse:
-  def number: BigInt
+  def number: BlockNumber
   def hash: Option[ByteString]
   def parentHash: ByteString
   def nonce: Option[ByteString]
@@ -26,7 +28,7 @@ trait BaseBlockResponse:
   def stateRoot: ByteString
   def receiptsRoot: ByteString
   def miner: Option[ByteString]
-  def difficulty: BigInt
+  def difficulty: Difficulty
   def totalDifficulty: Option[BigInt]
   def extraData: ByteString
   def size: BigInt
@@ -39,7 +41,7 @@ trait BaseBlockResponse:
 
 //scalastyle:off method.length
 case class BlockResponse(
-    number: BigInt,
+    number: BlockNumber,
     hash: Option[ByteString],
     parentHash: ByteString,
     nonce: Option[ByteString],
@@ -49,7 +51,7 @@ case class BlockResponse(
     stateRoot: ByteString,
     receiptsRoot: ByteString,
     miner: Option[ByteString],
-    difficulty: BigInt,
+    difficulty: Difficulty,
     totalDifficulty: Option[BigInt],
     extraData: ByteString,
     size: BigInt,
@@ -110,7 +112,7 @@ object BlockResponse:
     })
 
     BlockResponse(
-      number = block.header.number.value,
+      number = block.header.number,
       hash = if pendingBlock then None else Some(block.header.hash.value),
       parentHash = block.header.parentHash.value,
       nonce = if pendingBlock then None else Some(block.header.nonce),
@@ -120,7 +122,7 @@ object BlockResponse:
       stateRoot = block.header.stateRoot.value,
       receiptsRoot = block.header.receiptsRoot.value,
       miner = if pendingBlock then None else Some(block.header.beneficiary),
-      difficulty = block.header.difficulty.value,
+      difficulty = block.header.difficulty,
       totalDifficulty = td,
       extraData = block.header.extraData,
       size = Block.size(block),

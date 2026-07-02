@@ -8,28 +8,28 @@ import com.chipprbots.ethereum.utils.Config
 
 trait BaseTransactionResponse:
   def hash: ByteString
-  def nonce: BigInt
+  def nonce: Nonce
   def blockHash: Option[ByteString]
-  def blockNumber: Option[BigInt]
+  def blockNumber: Option[BlockNumber]
   def transactionIndex: Option[BigInt]
   def from: Option[ByteString]
   def to: Option[ByteString]
-  def value: BigInt
+  def value: Wei
   def gasPrice: GasPrice
-  def gas: BigInt
+  def gas: GasAmount
   def input: ByteString
 
 final case class TransactionResponse(
     hash: ByteString,
-    nonce: BigInt,
+    nonce: Nonce,
     blockHash: Option[ByteString],
-    blockNumber: Option[BigInt],
+    blockNumber: Option[BlockNumber],
     transactionIndex: Option[BigInt],
     from: Option[ByteString],
     to: Option[ByteString],
-    value: BigInt,
+    value: Wei,
     gasPrice: GasPrice,
-    gas: BigInt,
+    gas: GasAmount,
     input: ByteString,
     `type`: Option[BigInt],
     chainId: Option[BigInt],
@@ -110,15 +110,15 @@ object TransactionResponse:
 
     TransactionResponse(
       hash = stx.hash.value,
-      nonce = stx.tx.nonce.value,
+      nonce = stx.tx.nonce,
       blockHash = blockHeader.map(_.hash.value),
-      blockNumber = blockHeader.map(_.number.value),
+      blockNumber = blockHeader.map(_.number),
       transactionIndex = transactionIndex.map(txIndex => BigInt(txIndex)),
       from = SignedTransaction.getSender(stx).map(_.bytes),
       to = stx.tx.receivingAddress.map(_.bytes),
-      value = stx.tx.value.value,
+      value = stx.tx.value,
       gasPrice = GasPrice(effectiveGasPrice),
-      gas = stx.tx.gasLimit.value,
+      gas = stx.tx.gasLimit,
       input = stx.tx.payload,
       `type` = Some(txType),
       chainId = txChainId,

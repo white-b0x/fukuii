@@ -13,6 +13,10 @@ import org.json4s.JsonDSL.*
 
 import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.Nonce
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import com.chipprbots.ethereum.jsonrpc.NetService.*
 import com.chipprbots.ethereum.jsonrpc.PersonalService.*
@@ -134,7 +138,15 @@ trait JsonMethodsImplicits:
         case Some(JString(s)) => extractBytes(s).map(Some(_))
         case Some(_)          => Left(InvalidParams())
         case None             => Right(None)
-    yield TransactionRequest(from, to, value, gas, gasPrice, nonce, data)
+    yield TransactionRequest(
+      from,
+      to,
+      value.map(Wei(_)),
+      gas.map(GasAmount(_)),
+      gasPrice.map(GasPrice(_)),
+      nonce.map(Nonce(_)),
+      data
+    )
 
   protected def extractBlockParam(input: JValue): Either[JsonRpcError, BlockParam] =
     input match

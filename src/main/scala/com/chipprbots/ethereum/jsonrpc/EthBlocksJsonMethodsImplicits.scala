@@ -34,7 +34,7 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits:
 
     // Base fields that are always present
     val baseFields = List(
-      "number" -> encodeAsHex(block.number),
+      "number" -> encodeAsHex(block.number.value),
       "hash" -> block.hash.map(encodeAsHex).getOrElse(JNull),
       "parentHash" -> encodeAsHex(block.parentHash),
       "nonce" -> block.nonce.map(encodeAsHex).getOrElse(JNull),
@@ -44,7 +44,7 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits:
       "stateRoot" -> encodeAsHex(block.stateRoot),
       "receiptsRoot" -> encodeAsHex(block.receiptsRoot),
       "miner" -> block.miner.map(encodeAsHex).getOrElse(JNull),
-      "difficulty" -> encodeAsHex(block.difficulty),
+      "difficulty" -> encodeAsHex(block.difficulty.value),
       "totalDifficulty" -> block.totalDifficulty.map(encodeAsHex).getOrElse(JNull),
       "extraData" -> encodeAsHex(block.extraData),
       "size" -> encodeAsHex(block.size),
