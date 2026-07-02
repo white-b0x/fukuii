@@ -1179,7 +1179,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
   // The freshness-floor filter wired in below stops that path.
   "pivotPassesFreshnessFloor" should "accept a fresh peer (within maxStaleness of CL head)" taggedAs UnitTest in {
     SNAPSyncController.pivotPassesFreshnessFloor(
-      networkBest = BigInt(10_847_168),
+      networkBest = BlockNumber(BigInt(10_847_168)),
       clHeadNumber = Some(BigInt(10_847_413)),
       maxStaleness = 4096
     ) shouldBe Right(())
@@ -1188,7 +1188,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
   it should "reject a stale peer that lags more than maxStaleness behind the CL head" taggedAs UnitTest in {
     // The exact regression: SNAP peer reporting block 10_447_000 while CL head is at
     // 10_847_413 — 400K blocks of drift, way past the 4096 staleness window.
-    val networkBest = BigInt(10_447_000)
+    val networkBest = BlockNumber(BigInt(10_447_000))
     val clHead = BigInt(10_847_413)
     val maxStaleness = 4096L
     val expectedFloor = clHead - maxStaleness // 10_843_317
@@ -1206,7 +1206,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
     val onFloor = clHead - maxStaleness // 10_843_317
 
     SNAPSyncController.pivotPassesFreshnessFloor(
-      networkBest = onFloor,
+      networkBest = BlockNumber(onFloor),
       clHeadNumber = Some(clHead),
       maxStaleness = maxStaleness
     ) shouldBe Right(())
@@ -1216,7 +1216,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
     // ETC mainnet etc. — there is no consensus layer, so no authoritative tip to anchor
     // against. The filter must be a no-op there to preserve the legacy peer-best-wins path.
     SNAPSyncController.pivotPassesFreshnessFloor(
-      networkBest = BigInt(0), // even genesis passes when no CL head is known
+      networkBest = BlockNumber.Zero, // even genesis passes when no CL head is known
       clHeadNumber = None,
       maxStaleness = 4096L
     ) shouldBe Right(())

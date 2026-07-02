@@ -35,6 +35,7 @@ import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.ChainWeight
@@ -156,9 +157,9 @@ private class SNAPSyncControllerImpl(
     if snapSyncConfig.storageScheme == StorageScheme.Path then Some(new PathNodeStorage(flatSlotStorage.dataSource))
     else None
 
-  private def getOrCreateMptStorage(pivotBlockNumber: BigInt): MptStorage =
+  private def getOrCreateMptStorage(pivotBlockNumber: BlockNumber): MptStorage =
     mptStorage.getOrElse {
-      val storage = stateStorage.getBackingStorage(pivotBlockNumber)
+      val storage = stateStorage.getBackingStorage(pivotBlockNumber.value)
       mptStorage = Some(storage)
       ctx.log.info(s"Created writable MptStorage for pivot block $pivotBlockNumber")
       storage
@@ -191,7 +192,7 @@ private class SNAPSyncControllerImpl(
 
   // Minimum pivot block enforced when re-entering SNAP from a RegularSyncStuck escape.
   // Prevents re-selecting the same pivot that caused the regular-sync stall.
-  private var minPivotHint: BigInt = BigInt(0)
+  private var minPivotHint: BlockNumber = BlockNumber.Zero
   private var clHintArrivedAtMs: Option[Long] = None
 
   // Captured once at construction. ETC mainnet has TTD=None and never goes down the
@@ -202,7 +203,7 @@ private class SNAPSyncControllerImpl(
   private val requestTracker = new SNAPRequestTracker()(scheduler)
 
   private var currentPhase: SyncPhase = Idle
-  private var pivotBlock: Option[BigInt] = None
+  private var pivotBlock: Option[BlockNumber] = None
   private var stateRoot: Option[TrieRoot] = None
 
   // Preserved account range progress across SNAP sync restarts (core-geth parity).
@@ -211,7 +212,7 @@ private class SNAPSyncControllerImpl(
   // so already-traversed keyspace doesn't need re-downloading if the pivot
   // hasn't drifted too far (within MaxPreservedPivotDistance blocks).
   private var preservedRangeProgress: Map[ByteString, ByteString] = Map.empty
-  private var preservedAtPivotBlock: Option[BigInt] = None
+  private var preservedAtPivotBlock: Option[BlockNumber] = None
   // Resume saved account-range cursors across this much pivot drift before falling back to a
   // full re-walk. Raised from 256 (~55 min ETC) to 50_000 (~1 week ETC) on 2026-06-01: the 256
   // cap forced a full re-walk of ~16.8M accounts after a 404-block drift, even though FULLY-
@@ -222,7 +223,7 @@ private class SNAPSyncControllerImpl(
   // partial ranges re-download from start because the StackTrie cannot resume mid-range (see
   // AccountRangeCoordinator); and (b) `resumedStaleCursors` forces the healing walk even under
   // deferred-merkleization.
-  private val MaxPreservedPivotDistance: BigInt = 50_000
+  private val MaxPreservedPivotDistance: BlockNumber = BlockNumber(50_000)
 
   // Set true whenever account-range cursors were resumed from a prior session (resumeProgress
   // non-empty). Forces StateHealing to run at completion (overriding the deferred-merkleization
@@ -300,8 +301,8 @@ private class SNAPSyncControllerImpl(
   // ETC network is predominantly core-geth peers; once the pivot ages beyond 128 blocks,
   // all external peers respond with accounts=[], proof=[] and only local Besu can serve.
   // Rolling proactively at 100 blocks preserves all downloaded state (unlike go-ethereum).
-  private var lastProactivePivotBlock: Option[BigInt] = None
-  private val SnapServeWindowBlocks: BigInt = BigInt(100)
+  private var lastProactivePivotBlock: Option[BlockNumber] = None
+  private val SnapServeWindowBlocks: BlockNumber = BlockNumber(100)
 
   // Roll target margin: a proactive/reactive roll picks networkBest - max(pivotBlockOffset,
   // SnapServeWindowMargin) so the new root lands INSIDE peers' indexed snapshot window.
@@ -310,7 +311,7 @@ private class SNAPSyncControllerImpl(
   // "not indexed" forever → the pivot freezes (observed 2026-06-01: ETC stalled 70+ min
   // at 16.8M accounts). Margin ≈ half the serve window keeps the new pivot servable with
   // ~50 blocks of runway before it ages past the 100-block roll trigger.
-  private val SnapServeWindowMargin: BigInt = BigInt(50)
+  private val SnapServeWindowMargin: BlockNumber = BlockNumber(50)
 
   // Pivot readiness probe: before committing a proactive pivot roll, we probe one peer with
   // the candidate root. Only if the peer's snapshot is indexed (returns ≥1 account) do we
@@ -339,12 +340,12 @@ private class SNAPSyncControllerImpl(
   // threshold so dormant mode activates after the next coordinator escalation (2–3 cycles
   // instead of 10). Entries are never cleared — a failed pivot block should not be retried
   // within the same session.
-  private val failedPivotBlocks: mutable.Set[BigInt] = mutable.Set.empty
+  private val failedPivotBlocks: mutable.Set[BlockNumber] = mutable.Set.empty
 
   // Pending pivot refresh: when refreshPivotInPlace() needs a header from a peer,
   // it requests a bootstrap and stores the pending pivot here. When BootstrapComplete
   // arrives in the syncing state, the refresh is completed.
-  private var pendingPivotRefresh: Option[(BigInt, String)] = None
+  private var pendingPivotRefresh: Option[(BlockNumber, String)] = None
 
   // Debounce rapid PeerDisconnected bursts — collect peer IDs and flush after a 3 s quiet window.
   // Prevents a burst of TCP failures (e.g. 15 in 33 s) from draining all coordinator task queues
@@ -365,10 +366,10 @@ private class SNAPSyncControllerImpl(
   // current serve root has aged > HealingServeRootMarginBlocks behind the network head. A single in-flight latch
   // (the bootstrap is a ~1s peer round-trip — never per-block) and a block number of the last pushed serve root.
   private var healingServeRootRequestInFlight: Boolean = false
-  private var lastHealingServeRootBlock: Option[BigInt] = None
+  private var lastHealingServeRootBlock: Option[BlockNumber] = None
   // The serve root is considered stale when it is more than this many blocks behind the network head. Matches
   // SyncController.RecentRootMarginBlocks (64) so the refreshed root lands comfortably inside peers' serve window.
-  private val HealingServeRootMarginBlocks: BigInt = BigInt(64)
+  private val HealingServeRootMarginBlocks: BlockNumber = BlockNumber(64)
   // spec 009 T009/T014 (Moving-Root Delta Heal — BOUNDED re-peg last-resort). Under `movingRootDeltaHeal` the heal
   // re-pegs the single heal root via refreshPivotInPlace (from maybeRequestHealingServeRoot). If a re-peg attempt
   // during StateHealing finds NO suitable served root (refreshPivotInPlace's newPivotOpt.isEmpty branch), this counter
@@ -632,7 +633,7 @@ private class SNAPSyncControllerImpl(
 
         case MinPivotBlock(minBlock) =>
           ctx.log.info("Received MinPivotBlock hint: pivot must be >= {}", minBlock)
-          minPivotHint = minBlock
+          minPivotHint = BlockNumber(minBlock)
           Behaviors.same
 
         case Start =>
@@ -863,7 +864,7 @@ private class SNAPSyncControllerImpl(
         else
           rootOpt match
             case Some(root) if root.value.nonEmpty =>
-              lastHealingServeRootBlock = Some(blockNumber)
+              lastHealingServeRootBlock = Some(BlockNumber(blockNumber))
               ctx.log.info(
                 s"[HEAL-SERVE-ROOT] Pushing newest-servable serve root ${root.value.take(4).toHex} (block $blockNumber) " +
                   s"to healing coordinator (walk root unchanged)."
@@ -896,7 +897,7 @@ private class SNAPSyncControllerImpl(
                   s"[PIVOT-PROBE] Snapshot ready at root ${header.stateRoot.value.take(4).toHex} block $block$attemptsNote — committing roll"
                 )
                 probeAttemptCount = 0
-                completePivotRefreshWithStateRoot(block, header, commitReason)
+                completePivotRefreshWithStateRoot(BlockNumber(block), header, commitReason)
               }
             else
               probeAttemptCount += 1
@@ -904,14 +905,18 @@ private class SNAPSyncControllerImpl(
               pendingProbeCommit = None
               if probeAttemptCount >= MaxProbeAttempts then
                 commitArgs.foreach { case (block, header, commitReason) =>
-                  val pivotAge = currentNetworkBestFromSnapPeers().map(_ - block).getOrElse(BigInt(-1))
+                  val pivotAge = currentNetworkBestFromSnapPeers().map(_.value - block).getOrElse(BigInt(-1))
                   ctx.log.warn(
                     s"[PIVOT-PROBE] Max deferral reached ($MaxProbeAttempts/$MaxProbeAttempts attempts) — " +
                       s"forcing roll at root ${header.stateRoot.value.take(4).toHex} block $block (pivotAge≈$pivotAge). " +
                       s"Snapshot readiness unconfirmed — brief post-roll window may occur."
                   )
                   probeAttemptCount = 0
-                  completePivotRefreshWithStateRoot(block, header, s"$commitReason (forced — max probe attempts)")
+                  completePivotRefreshWithStateRoot(
+                    BlockNumber(block),
+                    header,
+                    s"$commitReason (forced — max probe attempts)"
+                  )
                 }
               else
                 ctx.log.info(
@@ -980,7 +985,7 @@ private class SNAPSyncControllerImpl(
         )
         // Persist to disk for crash recovery. writeAccountCursors preserves any storage cursors
         // written concurrently by StorageRangeCoordinator (read-modify-write on the same JSON blob).
-        val effectivePivot = preservedAtPivotBlock.getOrElse(BigInt(0))
+        val effectivePivot = preservedAtPivotBlock.getOrElse(BlockNumber.Zero)
         stateRoot.foreach { sr =>
           snapProgressStorage.writeAccountCursors(
             sr.value,
@@ -1164,13 +1169,13 @@ private class SNAPSyncControllerImpl(
         val (pendingPivot, originalReason) = pendingPivotRefresh.get
         pendingPivotRefresh = None
         timers.cancel(PivotBootstrapRetryKey)
-        val backtrackedPivot = pendingPivot - snapSyncConfig.pivotBlockOffset
-        if backtrackedPivot > 0 then
+        val backtrackedPivot = pendingPivot - snapSyncConfig.pivotBlockOffset.toLong
+        if backtrackedPivot > BlockNumber.Zero then
           ctx.log.warn(
             s"Pivot header bootstrap failed for block $pendingPivot (reason: $reason, original: $originalReason). " +
               s"Backtracking pivot to $backtrackedPivot (Besu pattern: decrement by ${snapSyncConfig.pivotBlockOffset})."
           )
-          timers.startSingleTimer(PivotBootstrapRetryKey, RetryBootstrapAtBlock(backtrackedPivot), 5.seconds)
+          timers.startSingleTimer(PivotBootstrapRetryKey, RetryBootstrapAtBlock(backtrackedPivot.value), 5.seconds)
         else
           ctx.log.warn(
             s"Pivot header bootstrap failed for block $pendingPivot (reason: $reason). " +
@@ -1193,7 +1198,11 @@ private class SNAPSyncControllerImpl(
                   s"Snapshot readiness unconfirmed — brief post-roll window may occur."
               )
               probeAttemptCount = 0
-              completePivotRefreshWithStateRoot(block, header, s"$commitReason (forced — max probe attempts)")
+              completePivotRefreshWithStateRoot(
+                BlockNumber(block),
+                header,
+                s"$commitReason (forced — max probe attempts)"
+              )
             }
           else
             ctx.log.info(
@@ -1217,10 +1226,10 @@ private class SNAPSyncControllerImpl(
           ctx.log.info(s"Retrying bootstrap at backtracked block $blockNumber...")
           blockchainReader.getBlockHeaderByNumber(blockNumber) match
             case Some(header) =>
-              completePivotRefreshWithStateRoot(blockNumber, header, "backtracked pivot (local header)")
+              completePivotRefreshWithStateRoot(BlockNumber(blockNumber), header, "backtracked pivot (local header)")
             case None =>
               chainDownloader.foreach(_ ! ChainDownloader.Pause)
-              pendingPivotRefresh = Some((blockNumber, "backtracked pivot"))
+              pendingPivotRefresh = Some((BlockNumber(blockNumber), "backtracked pivot"))
               syncController ! StartRegularSyncBootstrap(blockNumber)
               lastAccountProgressMs = System.currentTimeMillis()
         else ctx.log.info(s"Skipping backtracked bootstrap — phase=$currentPhase no longer needs it")
@@ -1463,7 +1472,7 @@ private class SNAPSyncControllerImpl(
         if totalFound == 0 then
           ctx.log.info("Trie walk found no missing nodes — healing complete after {} rounds!", healingRoundCount)
           healingRoundCount = 0
-          pivotBlock.foreach(b => appStateStorage.putSnapSyncPivotBlock(b).commit())
+          pivotBlock.foreach(b => appStateStorage.putSnapSyncPivotBlock(b.value).commit())
           stateRoot.foreach(r => appStateStorage.putSnapSyncStateRoot(r.value).commit())
           // #1188: capture clean signal — the walk just visited every node.
           healingValidatedRoot = stateRoot
@@ -1493,7 +1502,7 @@ private class SNAPSyncControllerImpl(
           // Commit final pivot root — deferred from refreshPivotInPlace() to prevent BUG-006.
           // AppStateStorage now reflects the root that healing actually completed against.
           for b <- pivotBlock; r <- stateRoot do
-            appStateStorage.putSnapSyncPivotBlock(b).and(appStateStorage.putSnapSyncStateRoot(r.value)).commit()
+            appStateStorage.putSnapSyncPivotBlock(b.value).and(appStateStorage.putSnapSyncStateRoot(r.value)).commit()
           // #1188: capture clean signal — same as the streaming TrieWalkComplete(0) path.
           healingValidatedRoot = stateRoot
           // Stop the periodic healing-request scheduler before entering validation.
@@ -1644,7 +1653,7 @@ private class SNAPSyncControllerImpl(
         then
           currentNetworkBestFromSnapPeers().foreach { networkBest =>
             val pivotAge = networkBest - pivotBlock.get
-            val recentlyRolled = lastProactivePivotBlock.exists(last => (networkBest - last) <= BigInt(50))
+            val recentlyRolled = lastProactivePivotBlock.exists(last => (networkBest - last) <= SnapServeWindowMargin)
             val storageLateStage =
               currentPhase == ByteCodeAndStorageSync && storageContractProgressPct >= 0.80
             if pivotAge > SnapServeWindowBlocks && !recentlyRolled &&
@@ -1978,9 +1987,9 @@ private class SNAPSyncControllerImpl(
 
           pivotHeaderOpt match
             case Some(header) =>
-              val targetPivot = header.number.value
+              val targetPivot = header.number
 
-              if pivotTooStaleAgainstNetworkHead(targetPivot) then
+              if pivotTooStaleAgainstNetworkHead(targetPivot.value) then
                 // Don't commit a pivot that peers are unlikely to serve.
                 startSnapSync()
               else
@@ -2012,12 +2021,12 @@ private class SNAPSyncControllerImpl(
                   pivotBlock = Some(targetPivot)
                   stateRoot = Some(header.stateRoot)
                   appStateStorage
-                    .putSnapSyncPivotBlock(targetPivot)
+                    .putSnapSyncPivotBlock(targetPivot.value)
                     .and(appStateStorage.putSnapSyncStateRoot(header.stateRoot.value))
                     .commit()
                   updateBestBlockForPivot(header, targetPivot)
 
-                  SNAPSyncMetrics.setPivotBlockNumber(targetPivot)
+                  SNAPSyncMetrics.setPivotBlockNumber(targetPivot.value)
 
                   ctx.log.info("=" * 80)
                   ctx.log.info("🎯 SNAP Sync Ready (from bootstrap)")
@@ -2047,13 +2056,13 @@ private class SNAPSyncControllerImpl(
                   else
                     blockchainReader.getBlockHeaderByNumber(targetPivot) match
                       case Some(header) =>
-                        pivotBlock = Some(targetPivot)
+                        pivotBlock = Some(BlockNumber(targetPivot))
                         stateRoot = Some(header.stateRoot)
                         appStateStorage
                           .putSnapSyncPivotBlock(targetPivot)
                           .and(appStateStorage.putSnapSyncStateRoot(header.stateRoot.value))
                           .commit()
-                        updateBestBlockForPivot(header, targetPivot)
+                        updateBestBlockForPivot(header, BlockNumber(targetPivot))
 
                         SNAPSyncMetrics.setPivotBlockNumber(targetPivot)
 
@@ -2235,7 +2244,7 @@ private class SNAPSyncControllerImpl(
             // (whose state trie is incomplete at that block) wastes time presenting a root that peers
             // have already evicted from their serve window. minPivotHint == 0 in non-escalation
             // restarts (crash recovery, normal restart) so this never fires spuriously.
-            val belowEscalationHint = minPivotHint > 0 && pivot < minPivotHint
+            val belowEscalationHint = minPivotHint > BlockNumber.Zero && pivot < minPivotHint.value
             if belowEscalationHint then
               ctx.log.warn(
                 s"Recovery: saved pivot $pivot < RegularSync escalation hint $minPivotHint " +
@@ -2249,9 +2258,10 @@ private class SNAPSyncControllerImpl(
               // Fall through to normal startup (same path as drift-exceeded + phases incomplete)
 
             // Check if pivot is still fresh enough (skipped when belowEscalationHint forced clear)
-            val networkBest = currentNetworkBestFromSnapPeers().getOrElse(BigInt(0))
-            val drift = if networkBest > 0 then (networkBest - pivot).abs else BigInt(0)
-            if !belowEscalationHint && networkBest > 0 && drift > snapSyncConfig.maxPivotStalenessBlocks then
+            val networkBest = currentNetworkBestFromSnapPeers().getOrElse(BlockNumber.Zero)
+            val drift = if networkBest > BlockNumber.Zero then (networkBest.value - pivot).abs else BigInt(0)
+            if !belowEscalationHint && networkBest > BlockNumber.Zero && drift > snapSyncConfig.maxPivotStalenessBlocks
+            then
               val storageAlreadyDone = appStateStorage.isSnapSyncStorageComplete()
               val bytecodeAlreadyDone = appStateStorage.isSnapSyncBytecodeComplete()
               if storageAlreadyDone && bytecodeAlreadyDone then
@@ -2279,7 +2289,7 @@ private class SNAPSyncControllerImpl(
                 // Fall through to normal startup
             else if !belowEscalationHint then
               // Pivot is fresh enough — recover bytecodes + storage only
-              pivotBlock = Some(pivot)
+              pivotBlock = Some(BlockNumber(pivot))
               stateRoot = Some(TrieRoot(rootBs))
               accountsComplete = true
 
@@ -2295,7 +2305,7 @@ private class SNAPSyncControllerImpl(
 
               ctx.log.info(s"Recovery: resuming bytecodes + storage sync from pivot $pivot (drift=$drift blocks)")
 
-              val storage = getOrCreateMptStorage(pivot)
+              val storage = getOrCreateMptStorage(BlockNumber(pivot))
               coordinatorGeneration += 1
 
               if !bytecodeAlreadyDone then
@@ -2547,13 +2557,13 @@ private class SNAPSyncControllerImpl(
             ctx.log.info(s"Beginning fast state sync with ${snapSyncConfig.accountConcurrency} concurrent workers")
             ctx.log.info("=" * 80)
 
-            pivotBlock = Some(header.number.value)
+            pivotBlock = Some(header.number)
             stateRoot = Some(header.stateRoot)
             appStateStorage
               .putSnapSyncPivotBlock(header.number.value)
               .and(appStateStorage.putSnapSyncStateRoot(header.stateRoot.value))
               .commit()
-            updateBestBlockForPivot(header, header.number.value)
+            updateBestBlockForPivot(header, header.number)
 
             SNAPSyncMetrics.setPivotBlockNumber(header.number.value)
             bootstrapRetryCount = 0
@@ -2634,7 +2644,7 @@ private class SNAPSyncControllerImpl(
           (localBestBlock, LocalPivot)
 
       val rawPivot = baseBlockForPivot - snapSyncConfig.pivotBlockOffset
-      val pivotBlockNumber = rawPivot.max(minPivotHint)
+      val pivotBlockNumber = rawPivot.max(minPivotHint.value)
       if pivotBlockNumber > rawPivot then
         ctx.log.warn(
           s"SNAP pivot raised from $rawPivot to $pivotBlockNumber to satisfy MinPivotBlock constraint " +
@@ -2704,13 +2714,13 @@ private class SNAPSyncControllerImpl(
         // Use genesis block as pivot (like core-geth does)
         blockchainReader.getBlockHeaderByNumber(0) match
           case Some(genesisHeader) =>
-            pivotBlock = Some(BigInt(0))
+            pivotBlock = Some(BlockNumber.Zero)
             stateRoot = Some(genesisHeader.stateRoot)
             appStateStorage
               .putSnapSyncPivotBlock(0)
               .and(appStateStorage.putSnapSyncStateRoot(genesisHeader.stateRoot.value))
               .commit()
-            updateBestBlockForPivot(genesisHeader, BigInt(0))
+            updateBestBlockForPivot(genesisHeader, BlockNumber.Zero)
 
             SNAPSyncMetrics.setPivotBlockNumber(0)
 
@@ -2790,13 +2800,13 @@ private class SNAPSyncControllerImpl(
         blockchainReader.getBlockHeaderByNumber(pivotBlockNumber) match
           case Some(header) =>
             // Pivot header is available - proceed with SNAP sync
-            pivotBlock = Some(pivotBlockNumber)
+            pivotBlock = Some(BlockNumber(pivotBlockNumber))
             stateRoot = Some(header.stateRoot)
             appStateStorage
               .putSnapSyncPivotBlock(pivotBlockNumber)
               .and(appStateStorage.putSnapSyncStateRoot(header.stateRoot.value))
               .commit()
-            updateBestBlockForPivot(header, pivotBlockNumber)
+            updateBestBlockForPivot(header, BlockNumber(pivotBlockNumber))
 
             // Update metrics - pivot block
             SNAPSyncMetrics.setPivotBlockNumber(pivotBlockNumber)
@@ -3056,8 +3066,8 @@ private class SNAPSyncControllerImpl(
           replyTo ! SyncProtocol.Status.Syncing(
             startingBlockNumber = appStateStorage.getSyncStartingBlock(),
             blocksProgress = SyncProtocol.Status.Progress(
-              pivotBlock.getOrElse(BigInt(0)),
-              pivotBlock.getOrElse(BigInt(0))
+              pivotBlock.map(_.value).getOrElse(BigInt(0)),
+              pivotBlock.map(_.value).getOrElse(BigInt(0))
             ),
             stateNodesProgress = None
           )
@@ -3194,7 +3204,7 @@ private class SNAPSyncControllerImpl(
     // Safety valve: only preserve range progress if pivot hasn't drifted too far.
     // Content-addressed MPT data is valid across adjacent pivots (~256 blocks apart),
     // but large drift means the state may have changed significantly.
-    val currentPivot = pivotBlock.getOrElse(BigInt(0))
+    val currentPivot = pivotBlock.getOrElse(BlockNumber.Zero)
 
     // Try disk recovery first (cross-process restart), then fall back to in-memory.
     // Primary source: SnapSyncProgressStorage (namespace 'p', JSON, account + storage cursors).
@@ -3203,7 +3213,7 @@ private class SNAPSyncControllerImpl(
       snapProgressStorage.readProgress(rootHash.value) match
         case Some(saved) if saved.accountCursors.nonEmpty =>
           val savedPivot = BigInt(saved.pivotBlock)
-          if (currentPivot - savedPivot).abs <= MaxPreservedPivotDistance then
+          if (currentPivot.value - savedPivot).abs <= MaxPreservedPivotDistance.value then
             val ranges = saved.accountCursors.flatMap { case (lastHex, nextHex) =>
               for
                 lastBs <- Try(ByteString(Hex.decode(lastHex))).toOption
@@ -3212,26 +3222,26 @@ private class SNAPSyncControllerImpl(
             }
             ctx.log.info(
               s"Recovered ${ranges.size} account ranges from SnapSyncProgressStorage " +
-                s"(saved pivot=$savedPivot, current=$currentPivot, drift=${(currentPivot - savedPivot).abs})"
+                s"(saved pivot=$savedPivot, current=$currentPivot, drift=${(currentPivot.value - savedPivot).abs})"
             )
             preservedRangeProgress = ranges
-            preservedAtPivotBlock = Some(savedPivot)
+            preservedAtPivotBlock = Some(BlockNumber(savedPivot))
           else if saved.accountCursors.nonEmpty then
             ctx.log.info(
-              s"Discarding stale SnapSyncProgressStorage: pivot drifted ${(currentPivot - savedPivot).abs} blocks " +
+              s"Discarding stale SnapSyncProgressStorage: pivot drifted ${(currentPivot.value - savedPivot).abs} blocks " +
                 s"(>${MaxPreservedPivotDistance})"
             )
         case _ =>
           // Migration fallback: read legacy AppStateStorage plain-text format (one-time, older builds)
           appStateStorage.getSnapSyncProgress().foreach { saved =>
             deserializeSnapProgress(saved).foreach { case (savedPivot, savedRanges) =>
-              if savedRanges.nonEmpty && (currentPivot - savedPivot).abs <= MaxPreservedPivotDistance then
+              if savedRanges.nonEmpty && (currentPivot.value - savedPivot).abs <= MaxPreservedPivotDistance.value then
                 ctx.log.info(
                   s"Migrated ${savedRanges.size} account ranges from legacy AppStateStorage " +
-                    s"(saved pivot=$savedPivot, current=$currentPivot, drift=${(currentPivot - savedPivot).abs})"
+                    s"(saved pivot=$savedPivot, current=$currentPivot, drift=${(currentPivot.value - savedPivot).abs})"
                 )
                 preservedRangeProgress = savedRanges
-                preservedAtPivotBlock = Some(savedPivot)
+                preservedAtPivotBlock = Some(BlockNumber(savedPivot))
                 // Write to new storage immediately so subsequent restarts use the new format
                 snapProgressStorage.writeAccountCursors(
                   rootHash.value,
@@ -3241,7 +3251,7 @@ private class SNAPSyncControllerImpl(
               else if savedRanges.nonEmpty then
                 ctx.log.info(
                   s"Discarding stale legacy AppStateStorage progress: pivot drifted " +
-                    s"${(currentPivot - savedPivot).abs} blocks (>${MaxPreservedPivotDistance})"
+                    s"${(currentPivot.value - savedPivot).abs} blocks (>${MaxPreservedPivotDistance})"
                 )
             }
           }
@@ -3485,7 +3495,7 @@ private class SNAPSyncControllerImpl(
       trieNodeHealingCoordinator.foreach(_ ! actors.TrieNodeHealingCoordinator.WalkStateChanged(true))
       stateRoot.foreach { root =>
         ctx.log.info("Starting trie walk to discover missing nodes for healing...")
-        val storage = getOrCreateMptStorage(pivotBlock.getOrElse(BigInt(0)))
+        val storage = getOrCreateMptStorage(pivotBlock.getOrElse(BlockNumber.Zero))
         val selfRef = ctx.self
         scala.concurrent
           .Future {
@@ -3532,7 +3542,7 @@ private class SNAPSyncControllerImpl(
       stateRoot.foreach { root =>
         ctx.log.info("Using actor-based concurrency for state healing")
 
-        val storage = getOrCreateMptStorage(pivotBlock.getOrElse(BigInt(0)))
+        val storage = getOrCreateMptStorage(pivotBlock.getOrElse(BlockNumber.Zero))
 
         trieNodeHealingCoordinator = Some(
           ctx.spawn(
@@ -3611,7 +3621,7 @@ private class SNAPSyncControllerImpl(
     else
       stateRoot match
         case Some(root) =>
-          val storage = getOrCreateMptStorage(pivotBlock.getOrElse(BigInt(0)))
+          val storage = getOrCreateMptStorage(pivotBlock.getOrElse(BlockNumber.Zero))
           trieNodeHealingCoordinator = Some(
             ctx.spawn(
               Behaviors
@@ -3727,7 +3737,7 @@ private class SNAPSyncControllerImpl(
     then
       currentNetworkBestFromSnapPeers().foreach { networkBest =>
         // Target a root inside peers' serve window: networkBest − margin (≥1). recentRootTarget caps at 1.
-        val serveTarget = SyncController.recentRootTarget(Seq(networkBest), HealingServeRootMarginBlocks)
+        val serveTarget = SyncController.recentRootTarget(Seq(networkBest.value), HealingServeRootMarginBlocks.value)
         serveTarget.foreach { target =>
           // Refresh cadence (U1): a serve root is fetched at `networkBest − margin`, so it STARTS `margin` blocks
           // behind the head. We refresh only once it has drifted a FULL window further back — i.e. when it is
@@ -3745,7 +3755,7 @@ private class SNAPSyncControllerImpl(
               // persisted verified node and resetting verificationPassComplete so a fresh pruned descent gates
               // completion against the new root. Record the block so the cadence (≤ once per window) matches the
               // serve-root path; the actual root lands when the refresh settles.
-              lastHealingServeRootBlock = Some(target)
+              lastHealingServeRootBlock = Some(BlockNumber(target))
               ctx.log.info(
                 s"[HEAL-REPEG] Heal root stale (networkBest=$networkBest, target=$target, " +
                   s"margin=$HealingServeRootMarginBlocks, lastRepegBlock=${lastHealingServeRootBlock.getOrElse("none")}) " +
@@ -3820,7 +3830,7 @@ private class SNAPSyncControllerImpl(
     * responsive during the multi-minute walk. `onComplete` (not `.foreach`) ensures every Future outcome — including a
     * throw inside `validatorFactory(storage)` — produces a message; otherwise the in-progress flag could stick.
     */
-  private def spawnAccountValidation(generation: Long, expectedRoot: ByteString, pivot: BigInt): Unit =
+  private def spawnAccountValidation(generation: Long, expectedRoot: ByteString, pivot: BlockNumber): Unit =
     val storage = getOrCreateMptStorage(pivot)
     val selfRef = ctx.self
     val start = System.currentTimeMillis()
@@ -3836,7 +3846,7 @@ private class SNAPSyncControllerImpl(
           selfRef ! ValidateAccountTrieResult(generation, Left(e.getMessage), -1L)
       }(snapValidationEc)
 
-  private def spawnStorageValidation(generation: Long, expectedRoot: ByteString, pivot: BigInt): Unit =
+  private def spawnStorageValidation(generation: Long, expectedRoot: ByteString, pivot: BlockNumber): Unit =
     val storage = getOrCreateMptStorage(pivot)
     val selfRef = ctx.self
     val start = System.currentTimeMillis()
@@ -3886,7 +3896,7 @@ private class SNAPSyncControllerImpl(
           validationInProgress = false
   // end else (stateValidationEnabled && !validationInProgress)
 
-  private def currentNetworkBestFromSnapPeers(): Option[BigInt] =
+  private def currentNetworkBestFromSnapPeers(): Option[BlockNumber] =
     val bootstrapPivotBlock = appStateStorage.getBootstrapPivotBlock()
     // Peers whose STATUS hasn't arrived yet have maxBlockNumber=0 — exclude them, otherwise
     // a fresh-startup race returns Some(0) and the caller commits to a genesis pivot before
@@ -3897,7 +3907,7 @@ private class SNAPSyncControllerImpl(
       .filter(p => bootstrapPivotBlock == 0 || p.peerInfo.maxBlockNumber >= bootstrapPivotBlock)
       .sortBy(_.peerInfo.maxBlockNumber)(bigIntReverseOrdering)
       .headOption
-      .map(_.peerInfo.maxBlockNumber)
+      .map(p => BlockNumber(p.peerInfo.maxBlockNumber))
 
   /** Refresh the pivot block and state root without destroying coordinators.
     *
@@ -3935,8 +3945,8 @@ private class SNAPSyncControllerImpl(
         // pivot below our current one (which could happen if the CL hint regressed,
         // though that should not happen for forkchoiceUpdated).
         val target = clHead - snapSyncConfig.pivotBlockOffset
-        val currentPivot = pivotBlock.getOrElse(BigInt(0))
-        if target <= currentPivot then
+        val currentPivot = pivotBlock.getOrElse(BlockNumber.Zero)
+        if target <= currentPivot.value then
           ctx.log.info(
             s"CL-based pivot $target not strictly newer than current $currentPivot " +
               s"(CL head=$clHead, offset=${snapSyncConfig.pivotBlockOffset}). Skipping refresh."
@@ -3971,7 +3981,9 @@ private class SNAPSyncControllerImpl(
           // froze the ETC pivot on 2026-06-01 — peers emit "not indexed" for the tip root.
           // NOTE: the post-merge (CL-anchored) branch above has the same latent issue at
           // offset=0; deferred — it fires rarely and has its own freshness-floor handling.
-          .map(networkBest => networkBest - BigInt(snapSyncConfig.pivotBlockOffset).max(SnapServeWindowMargin))
+          .map(networkBest =>
+            (networkBest - BlockNumber(snapSyncConfig.pivotBlockOffset).max(SnapServeWindowMargin)).value
+          )
           .filter(_ > 0)
 
     if newPivotOpt.isEmpty then
@@ -4024,14 +4036,14 @@ private class SNAPSyncControllerImpl(
         ctx.log.info(s"Pivot header for block $newPivotBlock not available locally. Requesting header bootstrap...")
         // Pause chain download to free up peers for the pivot header bootstrap
         chainDownloader.foreach(_ ! ChainDownloader.Pause)
-        pendingPivotRefresh = Some((newPivotBlock, reason))
+        pendingPivotRefresh = Some((BlockNumber(newPivotBlock), reason))
         syncController ! StartRegularSyncBootstrap(newPivotBlock)
         // Reset account stagnation timer while we wait for the header.
         // Note: do NOT reset lastStorageProgressMs here — if storage has been stalled with
         // no actual slot progress, the stagnation timer must continue counting so it can
         // eventually trigger a full restart rather than cycling pivots indefinitely.
         lastAccountProgressMs = System.currentTimeMillis()
-      else completePivotRefreshWithStateRoot(newPivotBlock, newPivotHeaderOpt.get, reason)
+      else completePivotRefreshWithStateRoot(BlockNumber(newPivotBlock), newPivotHeaderOpt.get, reason)
 
   /** Estimate the cumulative TD at `pivotBlockNumber` using linear interpolation over connected ETH68 peers.
     *
@@ -4089,7 +4101,7 @@ private class SNAPSyncControllerImpl(
     */
   private def updateBestBlockForPivot(
       header: BlockHeader,
-      pivotBlockNumber: BigInt
+      pivotBlockNumber: BlockNumber
   ): Unit =
     val pivotHash = header.hash
     // Priority:
@@ -4103,14 +4115,15 @@ private class SNAPSyncControllerImpl(
       blockchainReader
         .getChainWeightByHash(pivotHash)
         .map(cw => (cw.totalDifficulty.value, "REAL_PIVOT_TD"))
-        .orElse(calibratePivotTD(pivotBlockNumber).map(td => (td, "PEER_INTERPOLATED_TD")))
+        .orElse(calibratePivotTD(pivotBlockNumber.value).map(td => (td, "PEER_INTERPOLATED_TD")))
         .getOrElse {
           val genesisTD: BigInt = blockchainReader
             .getChainWeightByHash(blockchainReader.genesisHeader.hash)
             .map(_.totalDifficulty.value)
             .getOrElse(blockchainReader.genesisHeader.difficulty.value)
           val proxy: BigInt =
-            if pivotBlockNumber == BigInt(0) then header.difficulty.value else pivotBlockNumber.max(genesisTD)
+            if pivotBlockNumber == BlockNumber.Zero then header.difficulty.value
+            else pivotBlockNumber.value.max(genesisTD)
           (proxy, "BLOCK_NUMBER_PROXY")
         }
     blockchainWriter.storeBlockHeader(header).commit()
@@ -4120,7 +4133,7 @@ private class SNAPSyncControllerImpl(
     // Always advance the self-reported best-block pointer so STATUS messages show the correct
     // pivot block number.
     appStateStorage
-      .putBestBlockInfo(com.chipprbots.ethereum.domain.appstate.BlockInfo(pivotHash.value, pivotBlockNumber))
+      .putBestBlockInfo(com.chipprbots.ethereum.domain.appstate.BlockInfo(pivotHash.value, pivotBlockNumber.value))
       .commit()
     ctx.log.info(
       s"Updated best block for ETH status: block=$pivotBlockNumber, hash=${pivotHash.value.toHex.take(16)}..., " +
@@ -4129,7 +4142,7 @@ private class SNAPSyncControllerImpl(
 
   /** Complete the pivot refresh once we have the header (either from local storage or bootstrapped from peer). */
   private def completePivotRefreshWithStateRoot(
-      newPivotBlock: BigInt,
+      newPivotBlock: BlockNumber,
       newPivotHeader: BlockHeader,
       reason: String
   ): Unit =
@@ -4146,7 +4159,7 @@ private class SNAPSyncControllerImpl(
       )
     else
       val newStateRoot = newPivotHeader.stateRoot
-      val oldPivot = pivotBlock.getOrElse(BigInt(0))
+      val oldPivot = pivotBlock.getOrElse(BlockNumber.Zero)
       val oldRoot = stateRoot.map(_.value.take(4).toHex).getOrElse("none")
       val newRoot = newStateRoot.value.take(4).toHex
 
@@ -4208,14 +4221,14 @@ private class SNAPSyncControllerImpl(
                 peerWithInfo.peer.id
               )
               pivotProbeRequestId = Some(probeId)
-              pendingProbeCommit = Some((newPivotBlock, newPivotHeader, reason))
+              pendingProbeCommit = Some((newPivotBlock.value, newPivotHeader, reason))
               // C4: keyed by the probe's BigInt requestId so a stale probe's timeout never cancels a newer one.
               timers.startSingleTimer(s"pivot-probe-$probeId", PivotProbeTimeout(probeId), 15.seconds)
               ctx.log.info(
                 s"[PIVOT-PROBE] Probing $peerKind ${peerWithInfo.peer.id.value} " +
                   s"($totalSnapPeers snap peers available) " +
                   s"for root ${newStateRoot.value.take(4).toHex} block $newPivotBlock " +
-                  s"pivot=${pivotBlock.getOrElse(0)} — deferring coordinator notification"
+                  s"pivot=${pivotBlock.getOrElse(BlockNumber.Zero)} — deferring coordinator notification"
               )
               deferForProbe = true
             case None =>
@@ -4274,7 +4287,7 @@ private class SNAPSyncControllerImpl(
             validationGeneration += 1
             lastProactivePivotBlock =
               // approximate networkBest at roll time; pivotBlock = networkBest - max(offset, margin)
-              pivotBlock.map(_ + BigInt(snapSyncConfig.pivotBlockOffset).max(SnapServeWindowMargin))
+              pivotBlock.map(_ + BlockNumber(snapSyncConfig.pivotBlockOffset).max(SnapServeWindowMargin))
             // Note: mptStorage stays the same — content-addressed nodes don't need re-tagging.
             // The backing storage was already created for the original pivot block number,
             // but since nodes are keyed by hash, they're valid for any root.
@@ -4284,11 +4297,11 @@ private class SNAPSyncControllerImpl(
             // the new root is stored before all its nodes are healed, then validateState() sees a mismatch.
             if currentPhase != StateHealing then
               appStateStorage
-                .putSnapSyncPivotBlock(newPivotBlock)
+                .putSnapSyncPivotBlock(newPivotBlock.value)
                 .and(appStateStorage.putSnapSyncStateRoot(newStateRoot.value))
                 .commit()
             updateBestBlockForPivot(newPivotHeader, newPivotBlock)
-            SNAPSyncMetrics.setPivotBlockNumber(newPivotBlock)
+            SNAPSyncMetrics.setPivotBlockNumber(newPivotBlock.value)
             SNAPSyncMetrics.incrementPivotRefreshed()
 
             // Geth-aligned: send refresh signal to ALL active coordinators (all 3 run concurrently)
@@ -4310,7 +4323,7 @@ private class SNAPSyncControllerImpl(
             }
             // Chain download target extends to the new pivot (chain data is canonical, never invalidated)
             if chainDownloader.isDefined then
-              chainDownloader.foreach(_ ! ChainDownloader.UpdateTarget(newPivotBlock))
+              chainDownloader.foreach(_ ! ChainDownloader.UpdateTarget(newPivotBlock.value))
               // Resume chain download if it was paused during pivot header bootstrap
               chainDownloader.foreach(_ ! ChainDownloader.Resume)
             else
@@ -4412,7 +4425,7 @@ private class SNAPSyncControllerImpl(
     ctx.log.info(s"Validation found ${missingNodes.size} missing nodes — re-running trie walk with paths for healing")
     currentPhase = StateHealing
     stateRoot.foreach { root =>
-      val storage = getOrCreateMptStorage(pivotBlock.getOrElse(BigInt(0)))
+      val storage = getOrCreateMptStorage(pivotBlock.getOrElse(BlockNumber.Zero))
       scala.concurrent
         .Future {
           val validator = new StateValidator(storage)
@@ -4436,7 +4449,7 @@ private class SNAPSyncControllerImpl(
   private def currentSyncStatus: SyncProtocol.Status =
     val progress = progressMonitor.currentProgress
     val startingBlock = appStateStorage.getSyncStartingBlock()
-    val currentBlock = pivotBlock.getOrElse(startingBlock)
+    val currentBlock: BigInt = pivotBlock.map(_.value).getOrElse(startingBlock)
 
     /** Helper to get estimate or actual count, whichever is larger. Used as a defensive fallback when estimates are not
       * yet available (0).
@@ -4605,14 +4618,14 @@ private class SNAPSyncControllerImpl(
     * `ChainDownloader.Done` arrives. SNAP-only schedules are cancelled before the handoff so eviction tickers and
     * stagnation checks don't keep firing while regular sync owns the peer pool.
     */
-  private def finalizeSnapSync(pivot: BigInt): Behavior[Command] =
+  private def finalizeSnapSync(pivot: BlockNumber): Behavior[Command] =
     import scala.util.boundary, boundary.break
     boundary[Behavior[Command]] {
       // Look up the pivot header so we can store a complete "best block" anchor.
       // RegularSync's BranchResolution needs: header, body, number→hash mapping,
       // ChainWeight, and BestBlockInfo (hash + number) to accept blocks that chain
       // from the pivot.
-      blockchainReader.getBlockHeaderByNumber(pivot) match
+      blockchainReader.getBlockHeaderByNumber(pivot.value) match
         case Some(pivotHeader) =>
           // A5: Root match guard — snapStateRoot must equal pivotHeader.stateRoot before
           // marking sync done. Mirrors Besu SnapWorldDownloadState.saveWorldState() implicit
@@ -4653,8 +4666,8 @@ private class SNAPSyncControllerImpl(
               .map(_.totalDifficulty.value)
               .filter(_ > genesisBlockTD * BigInt(1000))
               .map(td => (td, "REAL_DB_TD"))
-              .orElse(calibratePivotTD(pivot).map(td => (td, "PEER_INTERPOLATED_TD")))
-              .getOrElse((pivot.max(genesisBlockTD), "BLOCK_NUMBER_PROXY"))
+              .orElse(calibratePivotTD(pivot.value).map(td => (td, "PEER_INTERPOLATED_TD")))
+              .getOrElse((pivot.value.max(genesisBlockTD), "BLOCK_NUMBER_PROXY"))
           ctx.log.info("SNAP finalize pivot TD: block={} td={} source={}", pivot, finalTD, tdSource)
           blockchainWriter
             .storeChainWeight(
@@ -4667,7 +4680,7 @@ private class SNAPSyncControllerImpl(
           // sets the number, leaving getBestBlockInfo().hash empty).
           appStateStorage
             .putBestBlockInfo(
-              com.chipprbots.ethereum.domain.appstate.BlockInfo(pivotHash.value, pivot)
+              com.chipprbots.ethereum.domain.appstate.BlockInfo(pivotHash.value, pivot.value)
             )
             .commit()
 
@@ -4693,7 +4706,7 @@ private class SNAPSyncControllerImpl(
         case None =>
           // Fallback: shouldn't happen since PivotHeaderBootstrap stored the header
           ctx.log.warn(s"Pivot header for block $pivot not found in storage — setting best block number only")
-          appStateStorage.putBestBlockNumber(pivot).commit()
+          appStateStorage.putBestBlockNumber(pivot.value).commit()
 
       progressMonitor.complete()
       ctx.log.info(progressMonitor.currentProgress.toString)
@@ -4707,7 +4720,7 @@ private class SNAPSyncControllerImpl(
       stopStateSyncChildren()
 
       // Phase 1 of the handshake: tell the parent that pivot/state is anchored. Parent starts RegularSync.
-      syncController ! SnapSyncFinalized(pivot)
+      syncController ! SnapSyncFinalized(pivot.value)
 
       val backfillStillRunning =
         snapSyncConfig.chainDownloadEnabled && chainDownloader.isDefined && !chainDownloadComplete
@@ -4768,7 +4781,7 @@ private class SNAPSyncControllerImpl(
 
   private def startChainDownloader(): Unit =
     if snapSyncConfig.chainDownloadEnabled then
-      pivotBlock.filter(_ > 0).foreach { pivot =>
+      pivotBlock.filter(_ > BlockNumber.Zero).foreach { pivot =>
         if chainDownloader.isEmpty then
           ctx.log.info("Starting parallel chain download from genesis to pivot block {}", pivot)
           coordinatorGeneration += 1
@@ -4795,7 +4808,7 @@ private class SNAPSyncControllerImpl(
               s"chain-downloader-$coordinatorGeneration",
               DispatcherSelector.fromConfig("sync-dispatcher")
             )
-          downloader ! ChainDownloader.Start(pivot)
+          downloader ! ChainDownloader.Start(pivot.value)
           chainDownloader = Some(downloader)
           chainDownloadComplete = false
       }
@@ -5085,13 +5098,13 @@ object SNAPSyncController:
     *   `Left(floor)` with the rejected freshness floor for diagnostic logging at the call site.
     */
   private[snap] def pivotPassesFreshnessFloor(
-      networkBest: BigInt,
+      networkBest: BlockNumber,
       clHeadNumber: Option[BigInt],
       maxStaleness: Long
   ): Either[BigInt, Unit] = clHeadNumber match
     case Some(clHead) =>
       val floor = clHead - maxStaleness
-      if networkBest < floor then Left(floor) else Right(())
+      if networkBest.value < floor then Left(floor) else Right(())
     case None =>
       // Pre-merge / pre-CL-hint state: no authoritative tip to compare against. Preserve the
       // legacy "take whatever peer offers" behavior.
