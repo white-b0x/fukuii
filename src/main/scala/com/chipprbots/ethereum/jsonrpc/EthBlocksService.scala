@@ -59,7 +59,7 @@ object EthBlocksService:
   )
 
   case class MaxPriorityFeePerGasRequest()
-  case class MaxPriorityFeePerGasResponse(maxPriorityFeePerGas: BigInt)
+  case class MaxPriorityFeePerGasResponse(maxPriorityFeePerGas: PriorityFeePerGas)
 
   case class BlobBaseFeeRequest()
   case class BlobBaseFeeResponse(blobBaseFee: BigInt)
@@ -273,7 +273,7 @@ class EthBlocksService(
     val oldestBlock = (newestBlockNum - count + 1).max(0)
 
     val baseFees = (oldestBlock.toLong to (newestBlockNum + 1).toLong).map { num =>
-      blockchainReader.getBlockHeaderByNumber(num).flatMap(_.baseFee).getOrElse(BigInt(0))
+      blockchainReader.getBlockHeaderByNumber(num).flatMap(_.baseFee).map(_.value).getOrElse(BigInt(0))
     }.toSeq
 
     val gasUsedRatios = (oldestBlock.toLong to newestBlockNum.toLong).map { num =>
@@ -337,7 +337,7 @@ class EthBlocksService(
       // Return the per-chain minimum tip from config rather than a hardcoded 1 gwei literal.
       // On ETC/Mordor post-Olympia: blockchainConfig.minTip = 1 gwei (ECIP-1112).
       // On ETH/Sepolia: minTip defaults to 1 gwei. Both match the reference client stub behaviour.
-      Right(MaxPriorityFeePerGasResponse(blockchainConfig.minTip))
+      Right(MaxPriorityFeePerGasResponse(PriorityFeePerGas(blockchainConfig.minTip)))
     }
 
   def blobBaseFee(@unused req: BlobBaseFeeRequest): ServiceResponse[BlobBaseFeeResponse] = IO {

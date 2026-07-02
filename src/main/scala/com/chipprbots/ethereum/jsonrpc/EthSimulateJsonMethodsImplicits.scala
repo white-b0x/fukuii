@@ -123,8 +123,8 @@ object EthSimulateJsonMethodsImplicits extends JsonMethodsImplicits:
             value = optQty(obj, "value"),
             input = optBytes(obj, "input").orElse(optBytes(obj, "data")),
             nonce = optQty(obj, "nonce"),
-            maxFeePerGas = optQty(obj, "maxFeePerGas"),
-            maxPriorityFeePerGas = optQty(obj, "maxPriorityFeePerGas"),
+            maxFeePerGas = optQty(obj, "maxFeePerGas").map(MaxFeePerGas(_)),
+            maxPriorityFeePerGas = optQty(obj, "maxPriorityFeePerGas").map(PriorityFeePerGas(_)),
             gasPrice = optQty(obj, "gasPrice"),
             maxFeePerBlobGas = optQty(obj, "maxFeePerBlobGas"),
             blobVersionedHashes = (obj \ "blobVersionedHashes") match
@@ -185,7 +185,7 @@ object EthSimulateJsonMethodsImplicits extends JsonMethodsImplicits:
         ) ++ (if h.withdrawalsRoot.isDefined then List("withdrawals" -> JArray(Nil)) else Nil)
 
         // Conditionally add fork-specific fields
-        val baseFeeField = h.baseFee.map(bf => "baseFeePerGas" -> encodeAsHex(bf)).toList
+        val baseFeeField = h.baseFee.map(bf => "baseFeePerGas" -> encodeAsHex(bf.value)).toList
         val blobFields = h.blobGasUsed.map(bg => "blobGasUsed" -> encodeAsHex(bg)).toList ++
           h.excessBlobGas.map(eb => "excessBlobGas" -> encodeAsHex(eb)).toList
         val beaconField =
@@ -256,13 +256,13 @@ object EthSimulateJsonMethodsImplicits extends JsonMethodsImplicits:
         val maxFeeFields = tx match
           case t: com.chipprbots.ethereum.domain.BlobTransaction =>
             List(
-              "maxFeePerGas" -> encodeAsHex(t.maxFeePerGas),
-              "maxPriorityFeePerGas" -> encodeAsHex(t.maxPriorityFeePerGas)
+              "maxFeePerGas" -> encodeAsHex(t.maxFeePerGas.value),
+              "maxPriorityFeePerGas" -> encodeAsHex(t.maxPriorityFeePerGas.value)
             )
           case t: com.chipprbots.ethereum.domain.TransactionWithDynamicFee =>
             List(
-              "maxFeePerGas" -> encodeAsHex(t.maxFeePerGas),
-              "maxPriorityFeePerGas" -> encodeAsHex(t.maxPriorityFeePerGas)
+              "maxFeePerGas" -> encodeAsHex(t.maxFeePerGas.value),
+              "maxPriorityFeePerGas" -> encodeAsHex(t.maxPriorityFeePerGas.value)
             )
           case _ => Nil
         val accessListField = tx match

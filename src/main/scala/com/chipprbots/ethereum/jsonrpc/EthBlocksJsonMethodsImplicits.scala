@@ -253,7 +253,7 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits:
   given eth_maxPriorityFeePerGas
       : (NoParamsMethodDecoder[MaxPriorityFeePerGasRequest] & JsonEncoder[MaxPriorityFeePerGasResponse]) =
     new NoParamsMethodDecoder(MaxPriorityFeePerGasRequest()) with JsonEncoder[MaxPriorityFeePerGasResponse]:
-      def encodeJson(t: MaxPriorityFeePerGasResponse): JValue = encodeAsHex(t.maxPriorityFeePerGas)
+      def encodeJson(t: MaxPriorityFeePerGasResponse): JValue = encodeAsHex(t.maxPriorityFeePerGas.value)
 
   // eth_blobBaseFee
   given eth_blobBaseFee: (NoParamsMethodDecoder[BlobBaseFeeRequest] & JsonEncoder[BlobBaseFeeResponse]) =

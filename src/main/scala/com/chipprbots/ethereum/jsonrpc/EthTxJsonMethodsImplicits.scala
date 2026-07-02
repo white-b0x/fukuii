@@ -96,7 +96,7 @@ object EthTxJsonMethodsImplicits extends JsonMethodsImplicits:
       "from" -> tx.from.map(encodeAsHex).getOrElse(JNull),
       "to" -> tx.to.map(encodeAsHex).getOrElse(JNull),
       "value" -> encodeAsHex(tx.value),
-      "gasPrice" -> encodeAsHex(tx.gasPrice),
+      "gasPrice" -> encodeAsHex(tx.gasPrice.value),
       "gas" -> encodeAsHex(tx.gas),
       "input" -> encodeAsHex(tx.input)
     )
@@ -158,7 +158,7 @@ object EthTxJsonMethodsImplicits extends JsonMethodsImplicits:
 
   given eth_gasPrice: (NoParamsMethodDecoder[GetGasPriceRequest] & JsonEncoder[GetGasPriceResponse]) =
     new NoParamsMethodDecoder(GetGasPriceRequest()) with JsonEncoder[GetGasPriceResponse]:
-      override def encodeJson(t: GetGasPriceResponse): JValue = encodeAsHex(t.price)
+      override def encodeJson(t: GetGasPriceResponse): JValue = encodeAsHex(t.price.value)
 
   given eth_pendingTransactions
       : (NoParamsMethodDecoder[EthPendingTransactionsRequest] & JsonEncoder[EthPendingTransactionsResponse]) =

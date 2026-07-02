@@ -55,8 +55,8 @@ object EthSimulateService:
       value: Option[BigInt] = None,
       input: Option[ByteString] = None,
       nonce: Option[BigInt] = None,
-      maxFeePerGas: Option[BigInt] = None,
-      maxPriorityFeePerGas: Option[BigInt] = None,
+      maxFeePerGas: Option[MaxFeePerGas] = None,
+      maxPriorityFeePerGas: Option[PriorityFeePerGas] = None,
       gasPrice: Option[BigInt] = None,
       maxFeePerBlobGas: Option[BigInt] = None,
       blobVersionedHashes: Option[Seq[ByteString]] = None,
@@ -481,7 +481,7 @@ class EthSimulateService(
     val simulatedExcessBlobGas =
       val parentExcess = parentHeader.excessBlobGas.getOrElse(BigInt(0))
       val parentUsed = parentHeader.blobGasUsed.getOrElse(BigInt(0))
-      val parentBaseFee = parentHeader.baseFee.getOrElse(BigInt(0))
+      val parentBaseFee = parentHeader.baseFee.map(_.value).getOrElse(BigInt(0))
       com.chipprbots.ethereum.consensus.engine.BlobGasUtils.expectedExcessBlobGas(
         parentExcess,
         parentUsed,
@@ -492,7 +492,7 @@ class EthSimulateService(
     val extraFields =
       if blockchainConfig.isPragueTimestamp(ts) then
         HefPostPrague(
-          baseFee,
+          BaseFeePerGas(baseFee),
           EmptyWithdrawalsRoot,
           BigInt(0),
           simulatedExcessBlobGas,
@@ -501,14 +501,15 @@ class EthSimulateService(
         )
       else if blockchainConfig.isCancunTimestamp(ts) then
         HefPostCancun(
-          baseFee,
+          BaseFeePerGas(baseFee),
           EmptyWithdrawalsRoot,
           BigInt(0),
           simulatedExcessBlobGas,
           parentBeaconBlockRoot
         )
-      else if blockchainConfig.isShanghaiTimestamp(ts) then HefPostShanghai(baseFee, EmptyWithdrawalsRoot)
-      else if parentHeader.baseFee.isDefined then HefPostOlympia(baseFee) // Post-London but pre-Shanghai
+      else if blockchainConfig.isShanghaiTimestamp(ts) then
+        HefPostShanghai(BaseFeePerGas(baseFee), EmptyWithdrawalsRoot)
+      else if parentHeader.baseFee.isDefined then HefPostOlympia(BaseFeePerGas(baseFee)) // Post-London but pre-Shanghai
       else HefEmpty // Pre-London
 
     // Pre-merge blocks have non-zero difficulty
@@ -651,7 +652,7 @@ class EthSimulateService(
     val senders = mutable.ArrayBuffer[Address]()
     val receipts = mutable.ArrayBuffer[Receipt]()
     var accumGas = BigInt(0)
-    val baseFee = blockHeader.baseFee.getOrElse(BigInt(0))
+    val baseFee = blockHeader.baseFee.map(_.value).getOrElse(BigInt(0))
     // Block-level logIndex counter — geth numbers logs globally across all calls
     // in the block, including synthetic Transfer logs emitted for traceTransfers.
     var globalLogIndex = 0
@@ -673,8 +674,8 @@ class EthSimulateService(
       val payload = call.input.getOrElse(ByteString.empty)
       val toAddr = call.to
 
-      val maxFeePerGas = call.maxFeePerGas.getOrElse(BigInt(0))
-      val gasPrice = call.gasPrice.orElse(call.maxFeePerGas).getOrElse(BigInt(0))
+      val maxFeePerGas = call.maxFeePerGas.fold(BigInt(0))(_.value)
+      val gasPrice = call.gasPrice.orElse(call.maxFeePerGas.map(_.value)).getOrElse(BigInt(0))
 
       // Check nonce overflow (uint64 max) — returns -32603 (InternalError)
       val MaxUint64 = BigInt("18446744073709551615") // 0xffffffffffffffff
@@ -762,8 +763,8 @@ class EthSimulateService(
           BlobTransaction(
             chainId = blockchainConfig.chainId.value,
             nonce = Nonce(senderNonce),
-            maxPriorityFeePerGas = call.maxPriorityFeePerGas.getOrElse(BigInt(0)),
-            maxFeePerGas = call.maxFeePerGas.getOrElse(BigInt(0)),
+            maxPriorityFeePerGas = call.maxPriorityFeePerGas.getOrElse(PriorityFeePerGas.Zero),
+            maxFeePerGas = call.maxFeePerGas.getOrElse(MaxFeePerGas.Zero),
             gasLimit = GasAmount(gasLimit),
             receivingAddress = toAddr,
             value = Wei(value),
@@ -776,8 +777,8 @@ class EthSimulateService(
           TransactionWithDynamicFee(
             chainId = blockchainConfig.chainId.value,
             nonce = Nonce(senderNonce),
-            maxPriorityFeePerGas = call.maxPriorityFeePerGas.getOrElse(BigInt(0)),
-            maxFeePerGas = call.maxFeePerGas.getOrElse(BigInt(0)),
+            maxPriorityFeePerGas = call.maxPriorityFeePerGas.getOrElse(PriorityFeePerGas.Zero),
+            maxFeePerGas = call.maxFeePerGas.getOrElse(MaxFeePerGas.Zero),
             gasLimit = GasAmount(gasLimit),
             receivingAddress = toAddr,
             value = Wei(value),
@@ -1009,7 +1010,7 @@ class EthSimulateService(
 
   /** EIP-1559: Compute the base fee for the next block */
   private def computeNextBaseFee(parentHeader: BlockHeader): BigInt =
-    val parentBaseFee = parentHeader.baseFee.getOrElse(BigInt(0))
+    val parentBaseFee = parentHeader.baseFee.map(_.value).getOrElse(BigInt(0))
     if parentBaseFee == 0 then return BigInt(0)
     val elasticityMultiplier = 2
     val baseFeeChangeDenominator = 8

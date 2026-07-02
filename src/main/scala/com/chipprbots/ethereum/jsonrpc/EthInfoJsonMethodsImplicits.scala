@@ -8,6 +8,7 @@ import org.json4s.JsonAST.*
 import org.json4s.JsonDSL.*
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.jsonrpc.EthInfoService.*
 import com.chipprbots.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import com.chipprbots.ethereum.jsonrpc.PersonalService.SendTransactionRequest
@@ -166,7 +167,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits:
       from = from,
       to = to,
       gas = gas,
-      gasPrice = gasPrice.orElse(maxFeePerGas).getOrElse(0),
+      gasPrice = GasPrice(gasPrice.orElse(maxFeePerGas).getOrElse(BigInt(0))),
       value = value.getOrElse(0),
       data = data.orElse(input).getOrElse(ByteString("")),
       gasPriceExplicit = gasPrice.isDefined || maxFeePerGas.isDefined

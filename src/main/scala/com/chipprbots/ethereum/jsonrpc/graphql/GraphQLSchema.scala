@@ -29,6 +29,9 @@ import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockHeaderImplicits.BlockHeaderEnc
 import com.chipprbots.ethereum.domain.FailureOutcome
 import com.chipprbots.ethereum.domain.HashOutcome
+import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.MaxFeePerGas
+import com.chipprbots.ethereum.domain.PriorityFeePerGas
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.domain.SetCodeTransaction
@@ -121,15 +124,15 @@ object GraphQLSchema:
     case _                  => None
 
   private def txMaxFeePerGas(tx: Transaction): Option[BigInt] = tx match
-    case t: TransactionWithDynamicFee => Some(t.maxFeePerGas)
-    case t: BlobTransaction           => Some(t.maxFeePerGas)
-    case t: SetCodeTransaction        => Some(t.maxFeePerGas)
+    case t: TransactionWithDynamicFee => Some(t.maxFeePerGas.value)
+    case t: BlobTransaction           => Some(t.maxFeePerGas.value)
+    case t: SetCodeTransaction        => Some(t.maxFeePerGas.value)
     case _                            => None
 
   private def txMaxPriorityFeePerGas(tx: Transaction): Option[BigInt] = tx match
-    case t: TransactionWithDynamicFee => Some(t.maxPriorityFeePerGas)
-    case t: BlobTransaction           => Some(t.maxPriorityFeePerGas)
-    case t: SetCodeTransaction        => Some(t.maxPriorityFeePerGas)
+    case t: TransactionWithDynamicFee => Some(t.maxPriorityFeePerGas.value)
+    case t: BlobTransaction           => Some(t.maxPriorityFeePerGas.value)
+    case t: SetCodeTransaction        => Some(t.maxPriorityFeePerGas.value)
     case _                            => None
 
   private def txMaxFeePerBlobGas(tx: Transaction): Option[BigInt] = tx match
@@ -140,13 +143,13 @@ object GraphQLSchema:
     tx match
       case t: TransactionWithDynamicFee =>
         val bf = baseFee.getOrElse(BigInt(0))
-        t.maxPriorityFeePerGas.min(t.maxFeePerGas - bf).max(BigInt(0))
+        t.maxPriorityFeePerGas.value.min(t.maxFeePerGas.value - bf).max(BigInt(0))
       case t: BlobTransaction =>
         val bf = baseFee.getOrElse(BigInt(0))
-        t.maxPriorityFeePerGas.min(t.maxFeePerGas - bf).max(BigInt(0))
+        t.maxPriorityFeePerGas.value.min(t.maxFeePerGas.value - bf).max(BigInt(0))
       case t: SetCodeTransaction =>
         val bf = baseFee.getOrElse(BigInt(0))
-        t.maxPriorityFeePerGas.min(t.maxFeePerGas - bf).max(BigInt(0))
+        t.maxPriorityFeePerGas.value.min(t.maxFeePerGas.value - bf).max(BigInt(0))
       case other => other.gasPrice.value - baseFee.getOrElse(BigInt(0))
 
   /** `null` for pre-Byzantium receipts (which store a state root instead of a status byte — see EIP-658). Hive test 30
@@ -292,7 +295,7 @@ object GraphQLSchema:
       from = from,
       to = to,
       gas = gas,
-      gasPrice = effectiveGasPrice,
+      gasPrice = GasPrice(effectiveGasPrice),
       value = value,
       data = data,
       gasPriceExplicit = m.get("gasPrice").flatMap(asOption[BigInt]).isDefined
@@ -497,7 +500,7 @@ object GraphQLSchema:
         Field(
           "effectiveTip",
           OptionType(BigIntType),
-          resolve = c => c.value.blockInfo.map(bi => effectiveTip(c.value.stx.tx, bi.block.header.baseFee))
+          resolve = c => c.value.blockInfo.map(bi => effectiveTip(c.value.stx.tx, bi.block.header.baseFee.map(_.value)))
         ),
         Field("gas", LongType, resolve = _.value.stx.tx.gasLimit.toLong),
         Field("inputData", BytesType, resolve = _.value.stx.tx.payload),
@@ -621,7 +624,7 @@ object GraphQLSchema:
         Field("extraData", BytesType, resolve = _.value.header.extraData),
         Field("gasLimit", LongType, resolve = _.value.header.gasLimit.toLong),
         Field("gasUsed", LongType, resolve = _.value.header.gasUsed.toLong),
-        Field("baseFeePerGas", OptionType(BigIntType), resolve = _.value.header.baseFee),
+        Field("baseFeePerGas", OptionType(BigIntType), resolve = _.value.header.baseFee.map(_.value)),
         Field(
           "nextBaseFeePerGas",
           OptionType(BigIntType),
@@ -632,6 +635,7 @@ object GraphQLSchema:
                 .getBlockHeaderByNumber(c.value.number + 1)
                 .flatMap(_.baseFee)
                 .orElse(c.value.header.baseFee)
+                .map(_.value)
                 .get
             }
         ),
@@ -1010,7 +1014,7 @@ object GraphQLSchema:
           c.ctx.ethTxService
             .getGetGasPrice(com.chipprbots.ethereum.jsonrpc.EthTxService.GetGasPriceRequest())
             .map {
-              case Right(r) => r.price
+              case Right(r) => r.price.value
               case Left(_)  => BigInt(0)
             }
             .unsafeToFuture()
@@ -1022,7 +1026,7 @@ object GraphQLSchema:
           c.ctx.ethBlocksService
             .maxPriorityFeePerGas(com.chipprbots.ethereum.jsonrpc.EthBlocksService.MaxPriorityFeePerGasRequest())
             .map {
-              case Right(r) => r.maxPriorityFeePerGas
+              case Right(r) => r.maxPriorityFeePerGas.value
               case Left(_)  => BigInt(0)
             }
             .unsafeToFuture()

@@ -15,7 +15,6 @@ import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.GasAmount
-import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
 import com.chipprbots.ethereum.domain.Wei
@@ -392,6 +391,6 @@ class DebugTracingService(
     val toAddress = callTx.to.map(Address.apply)
 
     val tx =
-      LegacyTransaction(Nonce.Zero, GasPrice(callTx.gasPrice), gasLimit, toAddress, Wei(callTx.value), callTx.data)
+      LegacyTransaction(Nonce.Zero, callTx.gasPrice, gasLimit, toAddress, Wei(callTx.value), callTx.data)
     val fakeSignature = ECDSASignature(0, 0, 0)
     Right(SignedTransactionWithSender(tx, fakeSignature, fromAddress))

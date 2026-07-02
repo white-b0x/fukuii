@@ -61,7 +61,7 @@ object EthInfoService:
       from: Option[ByteString],
       to: Option[ByteString],
       gas: Option[BigInt],
-      gasPrice: BigInt,
+      gasPrice: GasPrice,
       value: BigInt,
       data: ByteString,
       gasPriceExplicit: Boolean = false
@@ -264,10 +264,10 @@ class EthInfoService(
     val header = if !req.tx.gasPriceExplicit && block.block.header.baseFee.isDefined then
       import BlockHeader.HeaderExtraFields.*
       val zeroBaseFeeExtra = block.block.header.extraFields match
-        case HefPostOlympia(_)                    => HefPostOlympia(0)
-        case HefPostShanghai(_, wr)               => HefPostShanghai(0, wr)
-        case HefPostCancun(_, wr, bg, eb, pb)     => HefPostCancun(0, wr, bg, eb, pb)
-        case HefPostPrague(_, wr, bg, eb, pb, rh) => HefPostPrague(0, wr, bg, eb, pb, rh)
+        case HefPostOlympia(_)                    => HefPostOlympia(BaseFeePerGas.Zero)
+        case HefPostShanghai(_, wr)               => HefPostShanghai(BaseFeePerGas.Zero, wr)
+        case HefPostCancun(_, wr, bg, eb, pb)     => HefPostCancun(BaseFeePerGas.Zero, wr, bg, eb, pb)
+        case HefPostPrague(_, wr, bg, eb, pb, rh) => HefPostPrague(BaseFeePerGas.Zero, wr, bg, eb, pb, rh)
         case other                                => other
       block.block.header.copy(extraFields = zeroBaseFeeExtra)
     else block.block.header
@@ -292,7 +292,7 @@ class EthInfoService(
       val tx =
         LegacyTransaction(
           Nonce.Zero,
-          GasPrice(req.tx.gasPrice),
+          req.tx.gasPrice,
           GasAmount(gasLimit),
           toAddress,
           Wei(req.tx.value),

@@ -15,7 +15,7 @@ trait BaseTransactionResponse:
   def from: Option[ByteString]
   def to: Option[ByteString]
   def value: BigInt
-  def gasPrice: BigInt
+  def gasPrice: GasPrice
   def gas: BigInt
   def input: ByteString
 
@@ -28,7 +28,7 @@ final case class TransactionResponse(
     from: Option[ByteString],
     to: Option[ByteString],
     value: BigInt,
-    gasPrice: BigInt,
+    gasPrice: GasPrice,
     gas: BigInt,
     input: ByteString,
     `type`: Option[BigInt],
@@ -76,8 +76,8 @@ object TransactionResponse:
           (
             BigInt(2),
             Some(tx.chainId),
-            Some(tx.maxFeePerGas),
-            Some(tx.maxPriorityFeePerGas),
+            Some(tx.maxFeePerGas.value),
+            Some(tx.maxPriorityFeePerGas.value),
             Some(encodeAccessList(tx.accessList)),
             None,
             None,
@@ -87,8 +87,8 @@ object TransactionResponse:
           (
             BigInt(3),
             Some(tx.chainId),
-            Some(tx.maxFeePerGas),
-            Some(tx.maxPriorityFeePerGas),
+            Some(tx.maxFeePerGas.value),
+            Some(tx.maxPriorityFeePerGas.value),
             Some(encodeAccessList(tx.accessList)),
             Some(tx.maxFeePerBlobGas),
             Some(tx.blobVersionedHashes.map(_.value)),
@@ -98,8 +98,8 @@ object TransactionResponse:
           (
             BigInt(4),
             Some(tx.chainId),
-            Some(tx.maxFeePerGas),
-            Some(tx.maxPriorityFeePerGas),
+            Some(tx.maxFeePerGas.value),
+            Some(tx.maxPriorityFeePerGas.value),
             Some(encodeAccessList(tx.accessList)),
             None,
             None,
@@ -117,7 +117,7 @@ object TransactionResponse:
       from = SignedTransaction.getSender(stx).map(_.bytes),
       to = stx.tx.receivingAddress.map(_.bytes),
       value = stx.tx.value.value,
-      gasPrice = effectiveGasPrice,
+      gasPrice = GasPrice(effectiveGasPrice),
       gas = stx.tx.gasLimit.value,
       input = stx.tx.payload,
       `type` = Some(txType),

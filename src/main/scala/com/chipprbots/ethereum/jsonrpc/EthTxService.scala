@@ -21,6 +21,7 @@ import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.domain.Timestamp
+import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager.PendingTransaction
@@ -35,7 +36,7 @@ object EthTxService:
   case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
   case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
   case class GetGasPriceRequest()
-  case class GetGasPriceResponse(price: BigInt)
+  case class GetGasPriceResponse(price: GasPrice)
   case class SendRawTransactionRequest(data: ByteString)
   case class SendRawTransactionResponse(transactionHash: ByteString)
   case class EthPendingTransactionsRequest()
@@ -196,7 +197,7 @@ class EthTxService(
   private[jsonrpc] def minimumGasPrice(): BigInt =
     val minViable = blockchainReader.getBestBlock
       .flatMap(_.header.baseFee) match
-      case Some(baseFee) => baseFee.max(blockchainConfig.baseFeeFloor) + blockchainConfig.minTip
+      case Some(baseFee) => baseFee.value.max(blockchainConfig.baseFeeFloor) + blockchainConfig.minTip
       case None          => BigInt(0) // floor set by .max(1) below
     minViable.max(BigInt(1)) // always non-zero on every network
 
@@ -235,7 +236,7 @@ class EthTxService(
     else floor // no transactions in window: return floor, never 0
 
   def getGetGasPrice(@unused req: GetGasPriceRequest): ServiceResponse[GetGasPriceResponse] =
-    IO(Right(GetGasPriceResponse(suggestGasPrice())))
+    IO(Right(GetGasPriceResponse(GasPrice(suggestGasPrice()))))
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] =
     import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.SignedTransactions.*

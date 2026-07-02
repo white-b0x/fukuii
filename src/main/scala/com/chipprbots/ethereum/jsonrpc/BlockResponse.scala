@@ -132,7 +132,7 @@ object BlockResponse:
       uncles = block.body.uncleNodesList.map(_.hash.value),
       signature = signatureStr,
       signer = signerStr,
-      baseFeePerGas = block.header.baseFee,
+      baseFeePerGas = block.header.baseFee.map(_.value),
       withdrawalsRoot = block.header.withdrawalsRoot,
       withdrawals = withdrawals,
       blobGasUsed = block.header.blobGasUsed,
