@@ -7,11 +7,14 @@ import boopickle.Pickler
 
 import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.domain.AccessListItem
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlobTransaction
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.MaxFeePerGas
+import com.chipprbots.ethereum.domain.PriorityFeePerGas
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
@@ -45,6 +48,8 @@ object Picklers:
     transformPickler[BlockHash, Array[Byte]](arr => BlockHash(ByteString(arr)))(_.toArray)
   given trieRootPickler: Pickler[TrieRoot] =
     transformPickler[TrieRoot, Array[Byte]](arr => TrieRoot(ByteString(arr)))(_.toArray)
+  given baseFeePerGasPickler: Pickler[BaseFeePerGas] =
+    transformPickler[BaseFeePerGas, BigInt](BaseFeePerGas(_))(_.value)
   given ecdsaSignaturePickler: Pickler[ECDSASignature] = generatePickler[ECDSASignature]
   given hefEmptyPickler: Pickler[HefEmpty.type] = generatePickler[HefEmpty.type]
   given hefPostOlympiaPickler: Pickler[HefPostOlympia] = generatePickler[HefPostOlympia]
@@ -70,6 +75,10 @@ object Picklers:
     transformPickler[GasAmount, BigInt](GasAmount(_))(_.value)
   given gasPricePickler: Pickler[GasPrice] =
     transformPickler[GasPrice, BigInt](GasPrice(_))(_.value)
+  given maxFeePerGasPickler: Pickler[MaxFeePerGas] =
+    transformPickler[MaxFeePerGas, BigInt](MaxFeePerGas(_))(_.value)
+  given priorityFeePerGasPickler: Pickler[PriorityFeePerGas] =
+    transformPickler[PriorityFeePerGas, BigInt](PriorityFeePerGas(_))(_.value)
   given blockNumberPickler: Pickler[BlockNumber] =
     transformPickler[BlockNumber, BigInt](BlockNumber(_))(_.value)
   given timestampPickler: Pickler[Timestamp] =

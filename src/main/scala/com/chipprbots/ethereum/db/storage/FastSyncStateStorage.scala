@@ -11,6 +11,7 @@ import boopickle.Default.*
 
 import com.chipprbots.ethereum.blockchain.sync.fast.FastSync.*
 import com.chipprbots.ethereum.db.dataSource.DataSource
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Difficulty
@@ -49,6 +50,8 @@ class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[S
     transformPickler[BlockHash, Array[Byte]](arr => BlockHash(ByteString(arr)))(_.toArray)
   given trieRootPickler: Pickler[TrieRoot] =
     transformPickler[TrieRoot, Array[Byte]](arr => TrieRoot(ByteString(arr)))(_.toArray)
+  given baseFeePerGasPickler: Pickler[BaseFeePerGas] =
+    transformPickler[BaseFeePerGas, BigInt](BaseFeePerGas(_))(_.value)
 
   given headerExtraFieldsPickler: CompositePickler[HeaderExtraFields] =
     compositePickler[HeaderExtraFields]
