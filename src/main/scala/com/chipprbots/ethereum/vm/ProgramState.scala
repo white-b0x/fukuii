@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.vm
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.TxLogEntry
 import com.chipprbots.ethereum.domain.UInt256
@@ -75,14 +76,14 @@ object ProgramState:
 case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
     vm: VM[W, S],
     env: ExecEnv,
-    gas: BigInt,
+    gas: GasAmount,
     world: W,
     addressesToDelete: Set[Address],
     stack: Stack = Stack.empty(),
     memory: Memory = Memory.empty,
     pc: Int = 0,
     returnData: ByteString = ByteString.empty,
-    gasRefund: BigInt = 0,
+    gasRefund: GasAmount = GasAmount.Zero,
     internalTxs: Vector[InternalTransaction] = Vector.empty,
     logs: Vector[TxLogEntry] = Vector.empty,
     halted: Boolean = false,
@@ -92,7 +93,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
     accessedAddresses: Set[Address],
     accessedStorageKeys: Set[(Address, StorageKey)],
     transientStorage: Map[(Address, StorageKey), BigInt] = Map.empty,
-    opcodeGasCost: BigInt = 0
+    opcodeGasCost: GasAmount = GasAmount.Zero
 ):
 
   def config: EvmConfig = env.evmConfig
@@ -103,7 +104,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def storage: S = world.getStorage(ownAddress)
 
-  def gasUsed: BigInt = env.startGas - gas
+  def gasUsed: GasAmount = env.startGas - gas
 
   def withWorld(updated: W): ProgramState[W, S] =
     copy(world = updated)
@@ -116,9 +117,17 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def inputData: ByteString = env.inputData
 
   def spendGas(amount: BigInt): ProgramState[W, S] =
+    copy(gas = gas - GasAmount(amount))
+
+  @scala.annotation.targetName("spendGasAmount")
+  def spendGas(amount: GasAmount): ProgramState[W, S] =
     copy(gas = gas - amount)
 
   def refundGas(amount: BigInt): ProgramState[W, S] =
+    copy(gasRefund = gasRefund + GasAmount(amount))
+
+  @scala.annotation.targetName("refundGasAmount")
+  def refundGas(amount: GasAmount): ProgramState[W, S] =
     copy(gasRefund = gasRefund + amount)
 
   def step(i: Int = 1): ProgramState[W, S] =
@@ -175,7 +184,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](
       returnData,
-      if error.exists(_.useWholeGas) then 0 else gas,
+      if error.exists(_.useWholeGas) then GasAmount.Zero else gas,
       world,
       addressesToDelete,
       logs,

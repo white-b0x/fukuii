@@ -63,7 +63,7 @@ class StxLedger(
     val result = blockPreparator.runVM(tx, senderAddress, blockHeader, worldForTx, tracer)
     val totalGasToRefund = blockPreparator.calcTotalGasToRefund(tx, result, blockHeader.number.value)
 
-    TxResult(result.world, tx.tx.gasLimit.value - totalGasToRefund, result.logs, result.returnData, result.error)
+    TxResult(result.world, tx.tx.gasLimit.value - totalGasToRefund.value, result.logs, result.returnData, result.error)
 
   /** Like [[simulateTransaction]] but attaches a tracer and fires the tx-level lifecycle hooks.
     *
@@ -99,13 +99,13 @@ class StxLedger(
       else world1
 
     val worldForTx = blockPreparator.updateSenderAccountBeforeExecution(tx, senderAddress, world2)
-    tracer.onTxStart(senderAddress, tx.tx.receivingAddress, tx.tx.gasLimit.value, tx.tx.value.value, tx.tx.payload)
+    tracer.onTxStart(senderAddress, tx.tx.receivingAddress, tx.tx.gasLimit, tx.tx.value.value, tx.tx.payload)
     val result = blockPreparator.runVMWithTracer(tx, senderAddress, blockHeader, worldForTx, tracer)
-    val totalGasToRefund = blockPreparator.calcTotalGasToRefund(tx, result, blockHeader.number.value)
-    val gasUsed = tx.tx.gasLimit.value - totalGasToRefund
+    val totalGasToRefund: GasAmount = blockPreparator.calcTotalGasToRefund(tx, result, blockHeader.number.value)
+    val gasUsed: GasAmount = tx.tx.gasLimit - totalGasToRefund
     tracer.onTxEnd(gasUsed, result.returnData, result.error.map(_.toString))
 
-    TxResult(result.world, gasUsed, result.logs, result.returnData, result.error)
+    TxResult(result.world, gasUsed.value, result.logs, result.returnData, result.error)
 
   /** Advances a world state through prior transactions in a block to reach the state just before transaction at
     * [[txIndex]]. Used by [[DebugTracingService]] and [[TraceService]] for historical trace replay.

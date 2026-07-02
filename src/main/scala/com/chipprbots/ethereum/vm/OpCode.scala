@@ -5,6 +5,7 @@ import org.apache.pekko.util.ByteString
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.SetCodeTransaction
 import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.TxLogEntry
@@ -237,7 +238,7 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val baseGa
     else if state.stack.size - delta + alpha > state.stack.maxSize then state.withError(StackOverflow)
     else
       val gas: BigInt = calcGas(state)
-      if gas > state.gas then state.copy(gas = 0).withError(OutOfGas)
+      if gas > state.gas.value then state.copy(gas = GasAmount.Zero).withError(OutOfGas)
       else exec(state).spendGas(gas)
 
   protected def calcGas[S <: Storage[S], W <: WorldStateProxy[W, S]](state: ProgramState[W, S]): BigInt =
@@ -691,7 +692,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero):
     val eip1283Enabled = isEip1283Enabled(ethFork)
 
     val originalCharge: BigInt =
-      if eip2200Enabled && state.gas <= state.config.feeSchedule.G_callstipend then
+      if eip2200Enabled && state.gas.value <= state.config.feeSchedule.G_callstipend then
         state.config.feeSchedule.G_callstipend + 1 // Out of gas error
       else if eip2200Enabled || eip1283Enabled then
         if currentValue == newValue.toBigInt then // no-op
@@ -746,7 +747,7 @@ case object PC extends ConstOp(0x58)(_.pc)
 
 case object MSIZE extends ConstOp(0x59)(s => (UInt256.Size * wordsForBytes(s.memory.size)).toUInt256)
 
-case object GAS extends ConstOp(0x5a)(state => (state.gas - state.config.feeSchedule.G_base).toUInt256)
+case object GAS extends ConstOp(0x5a)(state => (state.gas.value - state.config.feeSchedule.G_base).toUInt256)
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0, _.G_jumpdest) with ConstGas:
   protected def exec[S <: Storage[S], W <: WorldStateProxy[W, S]](state: ProgramState[W, S]): ProgramState[W, S] =
@@ -886,8 +887,8 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
     else if state.stack.size - delta + alpha > state.stack.maxSize then state.withError(StackOverflow)
     else
       val gas: BigInt = calcGas(state)
-      if gas > state.gas then state.copy(gas = 0).withError(OutOfGas)
-      else exec(state.copy(opcodeGasCost = gas)).spendGas(gas)
+      if gas > state.gas.value then state.copy(gas = GasAmount.Zero).withError(OutOfGas)
+      else exec(state.copy(opcodeGasCost = GasAmount(gas))).spendGas(gas)
 
   protected def exec[S <: Storage[S], W <: WorldStateProxy[W, S]](state: ProgramState[W, S]): ProgramState[W, S] =
     val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
@@ -900,8 +901,8 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
     else
 
       // Gas cost already computed by OpCode.execute() and stored in state.opcodeGasCost
-      val availableGas = state.gas - state.opcodeGasCost
-      val startGas = state.config.gasCap(availableGas)
+      val availableGas: GasAmount = state.gas - state.opcodeGasCost
+      val startGas: GasAmount = GasAmount(state.config.gasCap(availableGas.value))
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
       val world1 = state.world.increaseNonce(state.ownAddress)
 
@@ -1023,7 +1024,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
       case DELEGATECALL =>
         (state.ownAddress, state.env.callerAddr, callValue, UInt256.Zero, false, state.staticCtx)
-    val startGas = calcStartGas(state, params, endowment)
+    val startGas: GasAmount = GasAmount(calcStartGas(state, params, endowment))
 
     // EIP-7702: Warm the delegation target address if applicable
     val stateWithDelegationWarming =
@@ -1067,8 +1068,10 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       case Some(error) =>
         val stack2 = stack1.push(UInt256.Zero)
         val world1 = state.world.keepPrecompileTouched(result.world)
-        val gasAdjustment =
-          if error == InvalidCall then -startGas else if error == RevertOccurs then -result.gasRemaining else BigInt(0)
+        val gasAdjustment: BigInt =
+          if error == InvalidCall then -startGas.value
+          else if error == RevertOccurs then -result.gasRemaining.value
+          else BigInt(0)
         val memoryAdjustment = if error == RevertOccurs then mem2 else mem1.expand(outOffset, outSize)
 
         state
@@ -1098,7 +1101,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
         else Seq.empty
 
         state
-          .spendGas(-result.gasRemaining)
+          .spendGas(-result.gasRemaining.value)
           .refundGas(result.gasRefund)
           .withStack(stack2)
           .withMemory(mem2)
@@ -1115,7 +1118,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
   protected def internalTransaction(
       env: ExecEnv,
       callee: UInt256,
-      startGas: BigInt,
+      startGas: GasAmount,
       inputData: ByteString,
       endowment: UInt256
   ): InternalTransaction =
@@ -1178,8 +1181,8 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       g: BigInt,
       consumedGas: BigInt
   ): BigInt =
-    if state.config.subGasCapDivisor.isDefined && state.gas >= consumedGas then
-      g.min(state.config.gasCap(state.gas - consumedGas))
+    if state.config.subGasCapDivisor.isDefined && state.gas.value >= consumedGas then
+      g.min(state.config.gasCap(state.gas.value - consumedGas))
     else g
 
   private def gasExtra[S <: Storage[S], W <: WorldStateProxy[W, S]](

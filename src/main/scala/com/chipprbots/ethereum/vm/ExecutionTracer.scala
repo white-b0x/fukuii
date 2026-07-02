@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.vm
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 
 /** Pluggable execution tracer interface — Fukuii's equivalent of Besu's OperationTracer.
   *
@@ -39,11 +40,11 @@ trait ExecutionTracer:
 
   /** Called once for the top-level transaction before execution begins. Corresponds to Besu's traceStartTransaction.
     */
-  def onTxStart(from: Address, to: Option[Address], gas: BigInt, value: BigInt, input: ByteString): Unit = ()
+  def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: BigInt, input: ByteString): Unit = ()
 
   /** Called once when the top-level transaction returns. Corresponds to Besu's traceEndTransaction.
     */
-  def onTxEnd(gasUsed: BigInt, output: ByteString, error: Option[String]): Unit = ()
+  def onTxEnd(gasUsed: GasAmount, output: ByteString, error: Option[String]): Unit = ()
 
   /** Called when entering an internal CALL/CALLCODE/DELEGATECALL/STATICCALL/CREATE/CREATE2. Only fires for internal
     * sub-calls (callDepth > 0), not the top-level transaction. Corresponds to Besu's traceContextEnter.
@@ -65,14 +66,14 @@ trait ExecutionTracer:
       opCode: String,
       from: Address,
       to: Address,
-      gas: BigInt,
+      gas: GasAmount,
       value: BigInt,
       input: ByteString
   ): Unit = ()
 
   /** Called when an internal CALL/CREATE returns. Corresponds to Besu's traceContextExit.
     */
-  def onCallExit(gasUsed: BigInt, output: ByteString, error: Option[String]): Unit = ()
+  def onCallExit(gasUsed: GasAmount, output: ByteString, error: Option[String]): Unit = ()
 
   /** Returns the tracer-specific result as a JSON value for the RPC response. */
   def getResult: org.json4s.JValue

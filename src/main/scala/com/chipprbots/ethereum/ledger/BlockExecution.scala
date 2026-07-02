@@ -387,7 +387,7 @@ class BlockExecution(
           originAddr = SystemAddress,
           recipientAddr = Some(queueAddr),
           gasPrice = com.chipprbots.ethereum.domain.UInt256.Zero,
-          startGas = BigInt(30000000),
+          startGas = GasAmount(30000000),
           inputData = ByteString.empty,
           value = com.chipprbots.ethereum.domain.UInt256.Zero,
           endowment = com.chipprbots.ethereum.domain.UInt256.Zero,

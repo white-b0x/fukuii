@@ -4,6 +4,7 @@ import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.UInt256
 
 object ExecEnv:
@@ -62,7 +63,7 @@ case class ExecEnv(
     program: Program,
     blockHeader: BlockHeader,
     callDepth: Int,
-    startGas: BigInt,
+    startGas: GasAmount,
     evmConfig: EvmConfig,
     precompileRelocations: Map[Address, Address] = Map.empty,
     blobVersionedHashes: Seq[ByteString] = Seq.empty,

@@ -8,6 +8,7 @@ import org.json4s.JsonAST.*
 import org.json4s.JsonDSL.*
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.utils.Hex
 
 /** Native callTracer matching go-ethereum's eth/tracers/native/call.go.
@@ -42,10 +43,10 @@ class CallTracer(onlyTopCall: Boolean = false) extends ExecutionTracer:
       opCode: String,
       from: Address,
       to: Address,
-      gas: BigInt,
+      gas: GasAmount,
       value: BigInt,
       input: ByteString,
-      var gasUsed: BigInt = 0,
+      var gasUsed: GasAmount = GasAmount.Zero,
       var output: ByteString = ByteString.empty,
       var error: Option[String] = None,
       var revertReason: Option[String] = None,
@@ -55,7 +56,7 @@ class CallTracer(onlyTopCall: Boolean = false) extends ExecutionTracer:
   private val callStack = mutable.Stack[CallFrame]()
   private var rootFrame: Option[CallFrame] = None
 
-  override def onTxStart(from: Address, to: Option[Address], gas: BigInt, value: BigInt, input: ByteString): Unit =
+  override def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: BigInt, input: ByteString): Unit =
     val opCode = if to.isDefined then "CALL" else "CREATE"
     val frame = CallFrame(
       opCode = opCode,
@@ -68,7 +69,7 @@ class CallTracer(onlyTopCall: Boolean = false) extends ExecutionTracer:
     callStack.push(frame)
     rootFrame = Some(frame)
 
-  override def onTxEnd(gasUsed: BigInt, output: ByteString, error: Option[String]): Unit =
+  override def onTxEnd(gasUsed: GasAmount, output: ByteString, error: Option[String]): Unit =
     if callStack.nonEmpty then
       val frame = callStack.pop()
       frame.gasUsed = gasUsed
@@ -81,7 +82,7 @@ class CallTracer(onlyTopCall: Boolean = false) extends ExecutionTracer:
       opCode: String,
       from: Address,
       to: Address,
-      gas: BigInt,
+      gas: GasAmount,
       value: BigInt,
       input: ByteString
   ): Unit =
@@ -97,7 +98,7 @@ class CallTracer(onlyTopCall: Boolean = false) extends ExecutionTracer:
     )
     callStack.push(frame)
 
-  override def onCallExit(gasUsed: BigInt, output: ByteString, error: Option[String]): Unit =
+  override def onCallExit(gasUsed: GasAmount, output: ByteString, error: Option[String]): Unit =
     if onlyTopCall then return
     if callStack.size <= 1 then return // don't pop the root frame
 
@@ -118,8 +119,8 @@ class CallTracer(onlyTopCall: Boolean = false) extends ExecutionTracer:
     var obj: JObject = ("type" -> frame.opCode) ~
       ("from" -> encodeAddress(frame.from)) ~
       ("to" -> encodeAddress(frame.to)) ~
-      ("gas" -> JString("0x" + frame.gas.toString(16))) ~
-      ("gasUsed" -> JString("0x" + frame.gasUsed.toString(16)))
+      ("gas" -> JString("0x" + frame.gas.value.toString(16))) ~
+      ("gasUsed" -> JString("0x" + frame.gasUsed.value.toString(16)))
 
     if frame.opCode == "CALL" || frame.opCode == "CREATE" || frame.opCode == "CREATE2" then
       obj = obj ~ ("value" -> encodeHex(frame.value))

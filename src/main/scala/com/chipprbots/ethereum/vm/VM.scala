@@ -8,6 +8,7 @@ import org.bouncycastle.util.encoders.Hex
 
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.SetCodeTransaction
 import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
@@ -141,7 +142,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]](
             if context.evmConfig.eip3860Enabled && maxInitCodeSize.exists(max => context.inputData.size > max) then
               (
                 invalidCallResult(context, Set.empty, Set.empty)
-                  .copy(error = Some(InitCodeSizeLimit), gasRemaining = 0),
+                  .copy(error = Some(InitCodeSizeLimit), gasRemaining = GasAmount.Zero),
                 Address(0)
               )
             else
@@ -272,7 +273,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]](
       Set(),
       Nil,
       Nil,
-      0,
+      GasAmount.Zero,
       Some(InvalidCall),
       accessedAddresses,
       accessedStorageKeys
@@ -290,29 +291,30 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
     val out: PR =
       if result.error.isDefined then
-        if result.error.contains(RevertOccurs) then result else result.copy(gasRemaining = 0)
+        if result.error.contains(RevertOccurs) then result else result.copy(gasRemaining = GasAmount.Zero)
       else
         val contractCode = result.returnData
         val codeDepositCost = config.calcCodeDepositCost(contractCode)
 
+        val codeDepositCostG = GasAmount(codeDepositCost)
         val maxCodeSizeExceeded = exceedsMaxContractSize(context, config, contractCode)
-        val codeStoreOutOfGas = result.gasRemaining < codeDepositCost
+        val codeStoreOutOfGas = result.gasRemaining < codeDepositCostG
         // EIP-3541: Reject new contracts starting with 0xEF byte
         val startsWithEF = config.eip3541Enabled && contractCode.nonEmpty && contractCode.head == 0xef.toByte
 
         if startsWithEF then
           // EIP-3541: Code starting with 0xEF byte causes exceptional abort
-          result.copy(error = Some(InvalidCode), gasRemaining = 0)
+          result.copy(error = Some(InvalidCode), gasRemaining = GasAmount.Zero)
         else if maxCodeSizeExceeded || (codeStoreOutOfGas && config.exceptionalFailedCodeDeposit) then
           // Code size too big or code storage causes out-of-gas with exceptionalFailedCodeDeposit enabled
-          result.copy(error = Some(OutOfGas), gasRemaining = 0)
+          result.copy(error = Some(OutOfGas), gasRemaining = GasAmount.Zero)
         else if codeStoreOutOfGas && !config.exceptionalFailedCodeDeposit then
           // Code storage causes out-of-gas with exceptionalFailedCodeDeposit disabled
           result
         else
           // Code storage succeeded
           result.copy(
-            gasRemaining = result.gasRemaining - codeDepositCost,
+            gasRemaining = result.gasRemaining - codeDepositCostG,
             world = result.world.saveCode(address, result.returnData)
           )
 
@@ -320,7 +322,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]](
       val contractCodeSize = result.returnData.size
       val codeDepositCost = config.calcCodeDepositCost(result.returnData)
       val maxCodeSizeExceeded = exceedsMaxContractSize(context, config, result.returnData)
-      val codeStoreOutOfGas = result.gasRemaining < codeDepositCost
+      val codeStoreOutOfGas = result.gasRemaining < GasAmount(codeDepositCost)
       log.info(
         s"TRACE_CREATE block=${context.blockHeader.number} caller=${context.callerAddr} " +
           s"newAddress=$address initcodeSize=${context.inputData.size} runtimeCodeSize=$contractCodeSize " +

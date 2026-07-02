@@ -8,6 +8,7 @@ import org.json4s.JsonAST.*
 import org.json4s.JsonDSL.*
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.utils.Hex
 
@@ -61,7 +62,7 @@ class VmTracer extends ExecutionTracer:
   private val frameStack = mutable.Stack[VmFrame]()
   private var rootFrame: Option[VmFrame] = None
 
-  override def onTxStart(from: Address, to: Option[Address], gas: BigInt, value: BigInt, input: ByteString): Unit =
+  override def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: BigInt, input: ByteString): Unit =
     val frame = VmFrame()
     frameStack.push(frame)
     rootFrame = Some(frame)
@@ -76,8 +77,8 @@ class VmTracer extends ExecutionTracer:
 
     if frame.code.isEmpty then frame.code = prevState.env.program.code
 
-    val cost = prevState.gas - nextState.gas
-    val exUsed = nextState.gas
+    val cost: BigInt = (prevState.gas - nextState.gas).value
+    val exUsed: BigInt = nextState.gas.value
 
     val exPush: Seq[BigInt] =
       if opCode.alpha > 0 then nextState.stack.toSeq.take(opCode.alpha).map(_.toBigInt)
@@ -116,14 +117,14 @@ class VmTracer extends ExecutionTracer:
       opCode: String,
       from: Address,
       to: Address,
-      gas: BigInt,
+      gas: GasAmount,
       value: BigInt,
       input: ByteString
   ): Unit =
     val frame = VmFrame()
     frameStack.push(frame)
 
-  override def onCallExit(gasUsed: BigInt, output: ByteString, error: Option[String]): Unit =
+  override def onCallExit(gasUsed: GasAmount, output: ByteString, error: Option[String]): Unit =
     if frameStack.size <= 1 then return
     val frame = frameStack.pop()
     val encoded = encodeFrame(frame)

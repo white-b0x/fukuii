@@ -8,6 +8,7 @@ import org.json4s.JsonAST.*
 import org.json4s.JsonDSL.*
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.utils.Hex
 
@@ -43,7 +44,7 @@ class PrestateTracer[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def setPostWorld(world: W): Unit =
     postWorld = Some(world)
 
-  override def onTxStart(from: Address, to: Option[Address], gas: BigInt, value: BigInt, input: ByteString): Unit =
+  override def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: BigInt, input: ByteString): Unit =
     touchedAddresses += from
     to.foreach(addr => touchedAddresses += addr)
 
@@ -51,7 +52,7 @@ class PrestateTracer[W <: WorldStateProxy[W, S], S <: Storage[S]](
       opCode: String,
       from: Address,
       to: Address,
-      gas: BigInt,
+      gas: GasAmount,
       value: BigInt,
       input: ByteString
   ): Unit =

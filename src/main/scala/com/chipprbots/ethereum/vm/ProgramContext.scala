@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.vm
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.*
+import com.chipprbots.ethereum.domain.GasAmount
 
 object ProgramContext:
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
@@ -17,8 +18,15 @@ object ProgramContext:
     val authListSize = tx match
       case sct: SetCodeTransaction => sct.authorizationList.size
       case _                       => 0
-    val gasLimit =
-      tx.gasLimit.value - evmConfig.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, accessList, authListSize)
+    val gasLimit: GasAmount =
+      GasAmount(
+        tx.gasLimit.value - evmConfig.calcTransactionIntrinsicGas(
+          tx.payload,
+          tx.isContractInit,
+          accessList,
+          authListSize
+        )
+      )
 
     val blobHashes = tx match
       case blob: BlobTransaction => blob.blobVersionedHashes.map(_.value)
@@ -99,7 +107,7 @@ case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
     originAddr: Address,
     recipientAddr: Option[Address],
     gasPrice: UInt256,
-    startGas: BigInt,
+    startGas: GasAmount,
     inputData: ByteString,
     value: UInt256,
     endowment: UInt256,

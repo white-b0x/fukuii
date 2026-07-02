@@ -12,6 +12,7 @@ import com.chipprbots.ethereum.crypto.zksnark.BN128Fp
 import com.chipprbots.ethereum.crypto.zksnark.PairingCheck
 import com.chipprbots.ethereum.crypto.zksnark.PairingCheck.G1G2Pair
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.utils.ByteStringUtils.*
 import com.chipprbots.ethereum.utils.ByteUtils
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks
@@ -156,12 +157,12 @@ object PrecompiledContracts:
 
       val g = gas(context.inputData, etcFork, ethFork)
 
-      val (result, error, gasRemaining): (ByteString, Option[ProgramError], BigInt) = (
-        if g <= context.startGas then
+      val (result, error, gasRemaining): (ByteString, Option[ProgramError], GasAmount) = (
+        if g <= context.startGas.value then
           exec(context.inputData) match
-            case Some(returnData) => (returnData, None, context.startGas - g)
-            case None             => (ByteString.empty, Some(PreCompiledContractFail), BigInt(0))
-        else (ByteString.empty, Some(OutOfGas), BigInt(0))
+            case Some(returnData) => (returnData, None, context.startGas - GasAmount(g))
+            case None             => (ByteString.empty, Some(PreCompiledContractFail), GasAmount.Zero)
+        else (ByteString.empty, Some(OutOfGas), GasAmount.Zero)
       ): @unchecked
 
       ProgramResult(
@@ -171,7 +172,7 @@ object PrecompiledContracts:
         Set.empty,
         Nil,
         Nil,
-        0,
+        GasAmount.Zero,
         error,
         Set.empty,
         Set.empty
@@ -258,12 +259,12 @@ object PrecompiledContracts:
           // for a precompile result that feeds state. Keep the short-circuit.
           return ProgramResult( // scalafix:ok DisableSyntax.return
             ByteString.empty,
-            BigInt(0),
+            GasAmount.Zero,
             context.world,
             Set.empty,
             Nil,
             Nil,
-            0,
+            GasAmount.Zero,
             Some(PreCompiledContractFail),
             Set.empty,
             Set.empty
@@ -274,12 +275,12 @@ object PrecompiledContracts:
       // Hive maps London→olympiaBlockNumber, which we must ignore on ETH to avoid firing
       // EIP-7883 pre-Osaka.
       val g = gasWithOsaka(context.inputData, etcFork, ethFork, isOsaka, isEthereum)
-      val (result, error, gasRemaining): (ByteString, Option[ProgramError], BigInt) = (
-        if g <= context.startGas then
+      val (result, error, gasRemaining): (ByteString, Option[ProgramError], GasAmount) = (
+        if g <= context.startGas.value then
           exec(context.inputData) match
-            case Some(returnData) => (returnData, None, context.startGas - g)
-            case None             => (ByteString.empty, Some(PreCompiledContractFail), BigInt(0))
-        else (ByteString.empty, Some(OutOfGas), BigInt(0))
+            case Some(returnData) => (returnData, None, context.startGas - GasAmount(g))
+            case None             => (ByteString.empty, Some(PreCompiledContractFail), GasAmount.Zero)
+        else (ByteString.empty, Some(OutOfGas), GasAmount.Zero)
       ): @unchecked
 
       ProgramResult(
@@ -289,7 +290,7 @@ object PrecompiledContracts:
         Set.empty,
         Nil,
         Nil,
-        0,
+        GasAmount.Zero,
         error,
         Set.empty,
         Set.empty

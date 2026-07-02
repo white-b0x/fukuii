@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.vm
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.TxLogEntry
 
@@ -23,12 +24,12 @@ import com.chipprbots.ethereum.domain.TxLogEntry
   */
 case class ProgramResult[W <: WorldStateProxy[W, S], S <: Storage[S]](
     returnData: ByteString,
-    gasRemaining: BigInt,
+    gasRemaining: GasAmount,
     world: W,
     addressesToDelete: Set[Address],
     logs: Seq[TxLogEntry],
     internalTxs: Seq[InternalTransaction],
-    gasRefund: BigInt,
+    gasRefund: GasAmount,
     error: Option[ProgramError],
     accessedAddresses: Set[Address],
     accessedStorageKeys: Set[(Address, StorageKey)],

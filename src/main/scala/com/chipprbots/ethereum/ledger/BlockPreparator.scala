@@ -265,12 +265,12 @@ class BlockPreparator(
       stx: SignedTransaction,
       result: PR,
       blockNumber: BigInt
-  )(implicit blockchainConfig: BlockchainConfig): BigInt =
+  )(implicit blockchainConfig: BlockchainConfig): GasAmount =
     result.error.map(_.useWholeGas) match
-      case Some(true)  => 0
+      case Some(true)  => GasAmount.Zero
       case Some(false) => result.gasRemaining
       case None =>
-        val gasUsed = stx.tx.gasLimit.value - result.gasRemaining
+        val gasUsed: GasAmount = GasAmount(stx.tx.gasLimit.value) - result.gasRemaining
         val blockchainConfigForEvm = BlockchainConfigForEvm(blockchainConfig)
         val etcFork = blockchainConfigForEvm.etcForkForBlockNumber(blockNumber)
         // EIP-3529: post-London refund cap is gasUsed/5 (not gasUsed/2)
@@ -400,10 +400,12 @@ class BlockPreparator(
     // EIP-7702: Add auth refund to the VM's refund counter before capping
     val resultWithAuthRefund =
       if authExistingAccountRefund > 0 then
-        resultWithErrorHandling.copy(gasRefund = resultWithErrorHandling.gasRefund + authExistingAccountRefund)
+        resultWithErrorHandling.copy(gasRefund =
+          resultWithErrorHandling.gasRefund + GasAmount(authExistingAccountRefund)
+        )
       else resultWithErrorHandling
     val totalGasToRefundBase = calcTotalGasToRefund(stx, resultWithAuthRefund, blockHeader.number.value)
-    val executionGasBase = gasLimit - GasAmount(totalGasToRefundBase)
+    val executionGasBase = gasLimit - totalGasToRefundBase
 
     if DebugTrace.enabledForBlock(blockHeader.number.value) then
       val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)

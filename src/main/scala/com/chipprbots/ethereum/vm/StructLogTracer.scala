@@ -4,13 +4,14 @@ import org.apache.pekko.util.ByteString
 
 import org.json4s.JsonAST.*
 
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.UInt256
 
 /** A single step in EVM execution, matching go-ethereum's structLog format. */
 case class StructLog(
     pc: Int,
     op: String,
-    gas: BigInt,
+    gas: GasAmount,
     gasCost: BigInt,
     depth: Int,
     stack: Seq[BigInt],
@@ -50,7 +51,7 @@ class StructLogTracer(
   ): Unit =
     if limit > 0 && steps.size >= limit then return
 
-    val gasCost = prevState.gas - nextState.gas
+    val gasCost: BigInt = (prevState.gas - nextState.gas).value
 
     val memorySnapshot = if enableMemory then
       val mem = prevState.memory
