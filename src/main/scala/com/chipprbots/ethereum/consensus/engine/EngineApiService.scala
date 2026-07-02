@@ -234,7 +234,7 @@ class EngineApiService(
           else if block.header.excessBlobGas.isDefined then
             val parentExcess = parent.excessBlobGas.getOrElse(BigInt(0))
             val parentUsed = parent.blobGasUsed.getOrElse(BigInt(0))
-            val parentBaseFee = parent.baseFee.getOrElse(BigInt(0))
+            val parentBaseFee = parent.baseFee.map(_.value).getOrElse(BigInt(0))
             val expectedExcess = BlobGasUtils.expectedExcessBlobGas(
               parentExcess,
               parentUsed,
@@ -600,19 +600,19 @@ class EngineApiService(
                       )
                     case Some(parent) =>
                       // Compute EIP-1559 base fee from parent
-                      val parentBaseFee = parent.header.baseFee.getOrElse(BigInt("1000000000"))
+                      val parentBaseFee = parent.header.baseFee.map(_.value).getOrElse(BigInt("1000000000"))
                       val parentGasTarget = parent.header.gasLimit / 2
-                      val baseFee: BigInt =
-                        if parent.header.number == BlockNumber.Zero then parentBaseFee
-                        else if parent.header.gasUsed == parentGasTarget then parentBaseFee
+                      val baseFee: BaseFeePerGas =
+                        if parent.header.number == BlockNumber.Zero then BaseFeePerGas(parentBaseFee)
+                        else if parent.header.gasUsed == parentGasTarget then BaseFeePerGas(parentBaseFee)
                         else if parent.header.gasUsed > parentGasTarget then
                           val delta =
                             parentBaseFee * (parent.header.gasUsed - parentGasTarget).value / parentGasTarget.value / 8
-                          parentBaseFee + (if delta == BigInt(0) then BigInt(1) else delta)
+                          BaseFeePerGas(parentBaseFee + (if delta == BigInt(0) then BigInt(1) else delta))
                         else
                           val delta =
                             parentBaseFee * (parentGasTarget - parent.header.gasUsed).value / parentGasTarget.value / 8
-                          if parentBaseFee - delta < 0 then BigInt(0) else parentBaseFee - delta
+                          if parentBaseFee - delta < 0 then BaseFeePerGas.Zero else BaseFeePerGas(parentBaseFee - delta)
 
                       // Fetch pending transactions from the tx pool using IO.fromFuture so the
                       // CE3 compute thread is not blocked waiting for the actor response.
@@ -708,7 +708,7 @@ class EngineApiService(
                             // EIP-4844 / EIP-7691 / EIP-7892 / EIP-7918 excessBlobGas from parent.
                             val parentExcessBlobGas = parent.header.excessBlobGas.getOrElse(BigInt(0))
                             val parentBlobGasUsed = parent.header.blobGasUsed.getOrElse(BigInt(0))
-                            val parentBlobBaseFee = parent.header.baseFee.getOrElse(BigInt(0))
+                            val parentBlobBaseFee = parent.header.baseFee.map(_.value).getOrElse(BigInt(0))
                             val childExcessBlobGas = BlobGasUtils.expectedExcessBlobGas(
                               parentExcessBlobGas,
                               parentBlobGasUsed,
@@ -1102,7 +1102,7 @@ class EngineApiService(
         case (Some(requests), Some(bgu), Some(ebg), _) =>
           // Prague/Electra: has executionRequests → HefPostPrague with requestsHash
           HefPostPrague(
-            baseFee = payload.baseFeePerGas,
+            baseFee = BaseFeePerGas(payload.baseFeePerGas),
             withdrawalsRoot = withdrawalsRoot,
             blobGasUsed = bgu,
             excessBlobGas = ebg,
@@ -1112,7 +1112,7 @@ class EngineApiService(
         case (None, Some(bgu), Some(ebg), _) =>
           // Cancun: has blob gas fields
           HefPostCancun(
-            baseFee = payload.baseFeePerGas,
+            baseFee = BaseFeePerGas(payload.baseFeePerGas),
             withdrawalsRoot = withdrawalsRoot,
             blobGasUsed = bgu,
             excessBlobGas = ebg,
@@ -1120,11 +1120,11 @@ class EngineApiService(
           )
         case (_, _, _, Some(_)) =>
           HefPostShanghai(
-            baseFee = payload.baseFeePerGas,
+            baseFee = BaseFeePerGas(payload.baseFeePerGas),
             withdrawalsRoot = withdrawalsRoot
           )
         case _ =>
-          HefPostOlympia(baseFee = payload.baseFeePerGas)
+          HefPostOlympia(baseFee = BaseFeePerGas(payload.baseFeePerGas))
 
     val header = BlockHeader(
       parentHash = BlockHash(payload.parentHash),

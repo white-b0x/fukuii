@@ -180,9 +180,11 @@ class GenesisDataLoader(
   ) =
     // Determine the fork era for the genesis block based on the genesis timestamp (0)
     val genesisTimestamp = Timestamp(BigInt(genesisData.timestamp.replace("0x", ""), 16).toLong)
-    val baseFee = genesisData.baseFeePerGas
-      .map(s => BigInt(s.replace("0x", ""), 16))
-      .getOrElse(BigInt("1000000000")) // EIP-1559 default: 1 Gwei
+    val baseFee = BaseFeePerGas(
+      genesisData.baseFeePerGas
+        .map(s => BigInt(s.replace("0x", ""), 16))
+        .getOrElse(BigInt("1000000000")) // EIP-1559 default: 1 Gwei
+    )
     // Empty trie root = keccak256(RLP("")) = keccak256(0x80) — NOT keccak of empty list
     val emptyWithdrawalsRoot = ByteString(crypto.kec256(rlp.encode(RLPValue(Array.empty[Byte]))))
 

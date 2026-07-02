@@ -9,6 +9,7 @@ import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.jsonrpc.BaseBlockResponse
 import com.chipprbots.ethereum.jsonrpc.BaseTransactionResponse
@@ -157,7 +158,7 @@ final case class EthTransactionResponse(
     from: Option[ByteString],
     to: Option[ByteString],
     value: BigInt,
-    gasPrice: BigInt,
+    gasPrice: GasPrice,
     gas: BigInt,
     input: ByteString,
     r: BigInt,
@@ -186,7 +187,7 @@ object EthTransactionResponse:
       from = SignedTransaction.getSender(stx).map(_.bytes),
       to = stx.tx.receivingAddress.map(_.bytes),
       value = stx.tx.value.value,
-      gasPrice = stx.tx.gasPrice.value,
+      gasPrice = stx.tx.gasPrice,
       gas = stx.tx.gasLimit.value,
       input = stx.tx.payload,
       r = stx.signature.r,

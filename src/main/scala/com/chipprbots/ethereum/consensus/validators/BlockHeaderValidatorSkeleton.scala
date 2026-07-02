@@ -77,7 +77,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
         val maxBlobGas = BlobGasUtils.maxBlobGasPerBlock(blockHeader.unixTimestamp, blockchainConfig)
         val parentExcess = parentHeader.excessBlobGas.getOrElse(BigInt(0))
         val parentUsed = parentHeader.blobGasUsed.getOrElse(BigInt(0))
-        val parentBaseFee = parentHeader.baseFee.getOrElse(BigInt(0))
+        val parentBaseFee = parentHeader.baseFee.map(_.value).getOrElse(BigInt(0))
         val expectedExcess = BlobGasUtils.expectedExcessBlobGas(
           parentExcess,
           parentUsed,

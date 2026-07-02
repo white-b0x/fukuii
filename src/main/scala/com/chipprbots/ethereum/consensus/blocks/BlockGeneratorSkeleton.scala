@@ -94,7 +94,7 @@ abstract class BlockGeneratorSkeleton(
       parent.header,
       blockchainConfig
     )
-    val transactionsForBlock = prepareTransactions(transactions, header.gasLimit, nextBlockBaseFee, blockNumber)
+    val transactionsForBlock = prepareTransactions(transactions, header.gasLimit, nextBlockBaseFee.value, blockNumber)
     val body = newBlockBody(transactionsForBlock, x)
     val block = Block(header, body)
 
@@ -140,7 +140,8 @@ abstract class BlockGeneratorSkeleton(
       else
         transactions.filter { tx =>
           val effectiveTip =
-            com.chipprbots.ethereum.domain.Transaction.effectiveGasPrice(tx.tx, Some(blockBaseFee)) - blockBaseFee
+            com.chipprbots.ethereum.domain.Transaction
+              .effectiveGasPrice(tx.tx, Some(com.chipprbots.ethereum.domain.BaseFeePerGas(blockBaseFee))) - blockBaseFee
           effectiveTip >= blockchainConfig.minTip
         }
 

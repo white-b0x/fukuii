@@ -476,11 +476,11 @@ class EngineApiController(
       BlobTransaction,
       SetCodeTransaction
     }
-    val baseFee = block.header.extraFields match
-      case BlockHeader.HeaderExtraFields.HefPostOlympia(bf)               => bf
-      case BlockHeader.HeaderExtraFields.HefPostShanghai(bf, _)           => bf
-      case BlockHeader.HeaderExtraFields.HefPostCancun(bf, _, _, _, _)    => bf
-      case BlockHeader.HeaderExtraFields.HefPostPrague(bf, _, _, _, _, _) => bf
+    val baseFeeValue: BigInt = block.header.extraFields match
+      case BlockHeader.HeaderExtraFields.HefPostOlympia(bf)               => bf.value
+      case BlockHeader.HeaderExtraFields.HefPostShanghai(bf, _)           => bf.value
+      case BlockHeader.HeaderExtraFields.HefPostCancun(bf, _, _, _, _)    => bf.value
+      case BlockHeader.HeaderExtraFields.HefPostPrague(bf, _, _, _, _, _) => bf.value
       case _                                                              => BigInt(0)
     if receipts.isEmpty then "0x0"
     else
@@ -498,12 +498,12 @@ class EngineApiController(
         .zip(gasUsedPerTx)
         .map { case (stx, gasUsed) =>
           val effectiveGasPrice: BigInt = stx.tx match
-            case t: TransactionWithDynamicFee => (baseFee + t.maxPriorityFeePerGas).min(t.maxFeePerGas)
-            case t: BlobTransaction           => (baseFee + t.maxPriorityFeePerGas).min(t.maxFeePerGas)
-            case t: SetCodeTransaction        => (baseFee + t.maxPriorityFeePerGas).min(t.maxFeePerGas)
+            case t: TransactionWithDynamicFee => (baseFeeValue + t.maxPriorityFeePerGas.value).min(t.maxFeePerGas.value)
+            case t: BlobTransaction           => (baseFeeValue + t.maxPriorityFeePerGas.value).min(t.maxFeePerGas.value)
+            case t: SetCodeTransaction        => (baseFeeValue + t.maxPriorityFeePerGas.value).min(t.maxFeePerGas.value)
             case t: TransactionWithAccessList => t.gasPrice.value
             case _                            => stx.tx.gasPrice.value
-          val priorityPerGas = (effectiveGasPrice - baseFee).max(0)
+          val priorityPerGas = (effectiveGasPrice - baseFeeValue).max(0)
           gasUsed * priorityPerGas
         }
         .sum
@@ -530,10 +530,10 @@ class EngineApiController(
       }.toList)
     }
     val (baseFee, blobGasUsed, excessBlobGas) = header.extraFields match
-      case BlockHeader.HeaderExtraFields.HefPostOlympia(bf)                   => (Some(bf), None, None)
-      case BlockHeader.HeaderExtraFields.HefPostShanghai(bf, _)               => (Some(bf), None, None)
-      case BlockHeader.HeaderExtraFields.HefPostCancun(bf, _, bgu, ebg, _)    => (Some(bf), Some(bgu), Some(ebg))
-      case BlockHeader.HeaderExtraFields.HefPostPrague(bf, _, bgu, ebg, _, _) => (Some(bf), Some(bgu), Some(ebg))
+      case BlockHeader.HeaderExtraFields.HefPostOlympia(bf)                   => (Some(bf.value), None, None)
+      case BlockHeader.HeaderExtraFields.HefPostShanghai(bf, _)               => (Some(bf.value), None, None)
+      case BlockHeader.HeaderExtraFields.HefPostCancun(bf, _, bgu, ebg, _)    => (Some(bf.value), Some(bgu), Some(ebg))
+      case BlockHeader.HeaderExtraFields.HefPostPrague(bf, _, bgu, ebg, _, _) => (Some(bf.value), Some(bgu), Some(ebg))
       case _                                                                  => (None, None, None)
     val baseFields = List(
       "parentHash" -> JString(hex(header.parentHash.value)),

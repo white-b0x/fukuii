@@ -15,6 +15,7 @@ import com.google.common.cache.CacheBuilder
 import com.google.common.cache.RemovalNotification
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
 import com.chipprbots.ethereum.jsonrpc.NewPendingTransaction
@@ -214,13 +215,15 @@ object PendingTransactionsManager:
       // Pre-Olympia (Spiral): 1 wei floor — matches core-geth txpool.pricelimit default.
       // At/after Olympia: blockchainConfig.minTip (1 gwei per ECIP-1122).
       val bestBlockOpt = Option(blockchainReader).flatMap(_.getBestBlock)
-      val currentBaseFee = bestBlockOpt.flatMap(_.header.baseFee).getOrElse(blockchainConfig.baseFeeFloor)
+      val currentBaseFee =
+        bestBlockOpt.flatMap(_.header.baseFee).getOrElse(BaseFeePerGas(blockchainConfig.baseFeeFloor))
       val isOlympiaActive =
         bestBlockOpt.exists(_.header.number.value >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber)
       val effectiveMinTip = if isOlympiaActive then blockchainConfig.minTip else BigInt(1)
       val afterTipCheck = afterPendingNonceCheck.filter { stx =>
         val effectiveTip =
-          com.chipprbots.ethereum.domain.Transaction.effectiveGasPrice(stx.tx.tx, Some(currentBaseFee)) - currentBaseFee
+          com.chipprbots.ethereum.domain.Transaction
+            .effectiveGasPrice(stx.tx.tx, Some(currentBaseFee)) - currentBaseFee.value
         if effectiveTip < effectiveMinTip then
           context.log.debug(
             "Rejecting tx {} from {}: effectiveTip {} < minTip {}",

@@ -1343,7 +1343,7 @@ case object SELFBALANCE extends OpCode(0x47, 0, 1, _.G_low) with ConstGas:
   */
 case object BASEFEE extends OpCode(0x48, 0, 1, _.G_base) with ConstGas:
   protected def exec[S <: Storage[S], W <: WorldStateProxy[W, S]](state: ProgramState[W, S]): ProgramState[W, S] =
-    val baseFee = state.env.blockHeader.baseFee.getOrElse(BigInt(0))
+    val baseFee = state.env.blockHeader.baseFee.map(_.value).getOrElse(BigInt(0))
     val stack1 = state.stack.push(UInt256(baseFee))
     state.withStack(stack1).step()
 

@@ -100,16 +100,17 @@ class BlockPreparator(
         )
 
       blockHeader.baseFee match
-        case Some(baseFee) if baseFee > 0 && blockHeader.gasUsed > GasAmount.Zero && treasuryAddress != Address(0) =>
+        case Some(baseFee)
+            if baseFee > BaseFeePerGas.Zero && blockHeader.gasUsed > GasAmount.Zero && treasuryAddress != Address(0) =>
           val treasuryCredit = baseFee * blockHeader.gasUsed.value
           log.debug(
             "Crediting baseFee revenue {} (baseFee={} * gasUsed={}) to treasury {}",
-            treasuryCredit,
+            treasuryCredit.value,
             baseFee,
             blockHeader.gasUsed,
             treasuryAddress
           )
-          increaseAccountBalance(treasuryAddress, UInt256(treasuryCredit))(world)
+          increaseAccountBalance(treasuryAddress, UInt256(treasuryCredit.value))(world)
         case _ => world
 
   /** v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
@@ -439,9 +440,9 @@ class BlockPreparator(
     // EIP-1559: miner receives only the priority fee (effectiveGasPrice - baseFee).
     // The baseFee portion is burned on ETH chains, or credited to treasury on ETC (ECIP-1111).
     val minerGasPrice = blockHeader.baseFee match
-      case Some(baseFee) if gasPrice.toBigInt >= baseFee => UInt256(gasPrice.toBigInt - baseFee)
-      case Some(_)                                       => UInt256.Zero // effectiveGasPrice < baseFee: no priority fee
-      case None                                          => gasPrice
+      case Some(baseFee) if gasPrice.toBigInt >= baseFee.value => UInt256(gasPrice.toBigInt - baseFee.value)
+      case Some(_) => UInt256.Zero // effectiveGasPrice < baseFee: no priority fee
+      case None    => gasPrice
     val payMinerForGasFn =
       pay(
         Address(blockHeader.beneficiary),

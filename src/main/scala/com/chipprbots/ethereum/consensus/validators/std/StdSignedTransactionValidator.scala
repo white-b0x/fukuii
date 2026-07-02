@@ -106,16 +106,16 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
   ): Either[SignedTransactionError, SignedTransactionValid] =
     val feeFields: Option[(BigInt, BigInt)] = stx.tx match
       case dyn: com.chipprbots.ethereum.domain.TransactionWithDynamicFee =>
-        Some((dyn.maxFeePerGas, dyn.maxPriorityFeePerGas))
+        Some((dyn.maxFeePerGas.value, dyn.maxPriorityFeePerGas.value))
       case bt: com.chipprbots.ethereum.domain.BlobTransaction =>
-        Some((bt.maxFeePerGas, bt.maxPriorityFeePerGas))
+        Some((bt.maxFeePerGas.value, bt.maxPriorityFeePerGas.value))
       case sct: com.chipprbots.ethereum.domain.SetCodeTransaction =>
-        Some((sct.maxFeePerGas, sct.maxPriorityFeePerGas))
+        Some((sct.maxFeePerGas.value, sct.maxPriorityFeePerGas.value))
       case _ => None
     feeFields match
       case None => Right(SignedTransactionValid)
       case Some((maxFee, prio)) =>
-        val baseFee = blockHeader.baseFee.getOrElse(BigInt(0))
+        val baseFee = blockHeader.baseFee.map(_.value).getOrElse(BigInt(0))
         if prio > maxFee then Left(TransactionSyntaxError(s"maxPriorityFeePerGas ($prio) > maxFeePerGas ($maxFee)"))
         else if maxFee < baseFee then
           Left(
