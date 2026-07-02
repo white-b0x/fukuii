@@ -44,7 +44,7 @@ case class BlockHeader(
   def dropRightNExtraDataBytes(n: Int): BlockHeader =
     copy(extraData = extraData.dropRight(n))
 
-  val baseFee: Option[BigInt] = extraFields match
+  val baseFee: Option[BaseFeePerGas] = extraFields match
     case HefPostOlympia(fee)               => Some(fee)
     case HefPostShanghai(fee, _)           => Some(fee)
     case HefPostCancun(fee, _, _, _, _)    => Some(fee)
@@ -171,14 +171,14 @@ object BlockHeader:
   sealed trait HeaderExtraFields
   object HeaderExtraFields:
     case object HefEmpty extends HeaderExtraFields
-    case class HefPostOlympia(baseFee: BigInt) extends HeaderExtraFields
+    case class HefPostOlympia(baseFee: BaseFeePerGas) extends HeaderExtraFields
 
     /** Shanghai: adds withdrawalsRoot to the header (EIP-4895). RLP = 17 items. */
-    case class HefPostShanghai(baseFee: BigInt, withdrawalsRoot: ByteString) extends HeaderExtraFields
+    case class HefPostShanghai(baseFee: BaseFeePerGas, withdrawalsRoot: ByteString) extends HeaderExtraFields
 
     /** Cancun: adds blob gas fields and parent beacon block root (EIP-4844, EIP-4788). RLP = 20 items. */
     case class HefPostCancun(
-        baseFee: BigInt,
+        baseFee: BaseFeePerGas,
         withdrawalsRoot: ByteString,
         blobGasUsed: BigInt,
         excessBlobGas: BigInt,
@@ -187,7 +187,7 @@ object BlockHeader:
 
     /** Prague/Electra: adds requestsHash (EIP-7685). RLP = 21 items. */
     case class HefPostPrague(
-        baseFee: BigInt,
+        baseFee: BaseFeePerGas,
         withdrawalsRoot: ByteString,
         blobGasUsed: BigInt,
         excessBlobGas: BigInt,
@@ -228,7 +228,7 @@ object BlockHeaderImplicits:
       val extraItems: Seq[RLPEncodeable] = extraFields match
         case HefPostPrague(bf, wr, bgu, ebg, pbbr, rh) =>
           Seq(
-            RLPValue(ByteUtils.bigIntToUnsignedByteArray(bf)),
+            RLPValue(ByteUtils.bigIntToUnsignedByteArray(bf.value)),
             RLPValue(wr.toArray),
             RLPValue(ByteUtils.bigIntToUnsignedByteArray(bgu)),
             RLPValue(ByteUtils.bigIntToUnsignedByteArray(ebg)),
@@ -237,7 +237,7 @@ object BlockHeaderImplicits:
           )
         case HefPostCancun(bf, wr, bgu, ebg, pbbr) =>
           Seq(
-            RLPValue(ByteUtils.bigIntToUnsignedByteArray(bf)),
+            RLPValue(ByteUtils.bigIntToUnsignedByteArray(bf.value)),
             RLPValue(wr.toArray),
             RLPValue(ByteUtils.bigIntToUnsignedByteArray(bgu)),
             RLPValue(ByteUtils.bigIntToUnsignedByteArray(ebg)),
@@ -245,11 +245,11 @@ object BlockHeaderImplicits:
           )
         case HefPostShanghai(bf, wr) =>
           Seq(
-            RLPValue(ByteUtils.bigIntToUnsignedByteArray(bf)),
+            RLPValue(ByteUtils.bigIntToUnsignedByteArray(bf.value)),
             RLPValue(wr.toArray)
           )
         case HefPostOlympia(bf) =>
-          Seq(RLPValue(ByteUtils.bigIntToUnsignedByteArray(bf)))
+          Seq(RLPValue(ByteUtils.bigIntToUnsignedByteArray(bf.value)))
         case HefEmpty =>
           Seq.empty
 
@@ -286,18 +286,18 @@ object BlockHeaderImplicits:
 
           items.length match
             case 15 => base // HefEmpty
-            case 16 => base.copy(extraFields = HefPostOlympia(bigIntFromEncodeable(items(15))))
+            case 16 => base.copy(extraFields = HefPostOlympia(BaseFeePerGas(bigIntFromEncodeable(items(15)))))
             case 17 =>
               base.copy(extraFields =
                 HefPostShanghai(
-                  baseFee = bigIntFromEncodeable(items(15)),
+                  baseFee = BaseFeePerGas(bigIntFromEncodeable(items(15))),
                   withdrawalsRoot = byteStringFromEncodeable(items(16))
                 )
               )
             case 20 =>
               base.copy(extraFields =
                 HefPostCancun(
-                  baseFee = bigIntFromEncodeable(items(15)),
+                  baseFee = BaseFeePerGas(bigIntFromEncodeable(items(15))),
                   withdrawalsRoot = byteStringFromEncodeable(items(16)),
                   blobGasUsed = bigIntFromEncodeable(items(17)),
                   excessBlobGas = bigIntFromEncodeable(items(18)),
@@ -307,7 +307,7 @@ object BlockHeaderImplicits:
             case n if n >= 21 =>
               base.copy(extraFields =
                 HefPostPrague(
-                  baseFee = bigIntFromEncodeable(items(15)),
+                  baseFee = BaseFeePerGas(bigIntFromEncodeable(items(15))),
                   withdrawalsRoot = byteStringFromEncodeable(items(16)),
                   blobGasUsed = bigIntFromEncodeable(items(17)),
                   excessBlobGas = bigIntFromEncodeable(items(18)),
