@@ -131,8 +131,8 @@ class EngineApiService(
     }
 
   /** Return the latest block number from the blockchain storage. */
-  def getLatestBlockNumber: BigInt =
-    blockchainReader.getBestBlockNumber
+  def getLatestBlockNumber: BlockNumber =
+    BlockNumber(blockchainReader.getBestBlockNumber)
 
   /** engine_newPayloadV1/V2/V3/V4 — Validate and execute a new payload from the CL.
     *
@@ -202,7 +202,7 @@ class EngineApiService(
       val propagatedLvh = invalidBlocks.get(payload.parentHash) // non-null: containsKey guard
       blockchainWriter.removeBlockByHash(BlockHash(payload.blockHash)).commit()
       markInvalidRecursive(payload.blockHash, propagatedLvh)
-      EngineApiMetrics.recordNewPayload("INVALID", payload.blockNumber.toLong, payload.timestamp)
+      EngineApiMetrics.recordNewPayload("INVALID", payload.blockNumber.toLong, payload.timestamp.toLong)
       PayloadStatusV1(
         Invalid,
         latestValidHash = Some(propagatedLvh),
@@ -282,7 +282,7 @@ class EngineApiService(
         val latestValid = parentHeader.map(_.hash.value).getOrElse(zeroHash)
         blockchainWriter.removeBlockByHash(BlockHash(payload.blockHash)).commit()
         markInvalidRecursive(payload.blockHash, latestValid)
-        EngineApiMetrics.recordNewPayload("INVALID", payload.blockNumber.toLong, payload.timestamp)
+        EngineApiMetrics.recordNewPayload("INVALID", payload.blockNumber.toLong, payload.timestamp.toLong)
         PayloadStatusV1(Invalid, latestValidHash = Some(latestValid), validationError = Some(preExecError.get))
       else
 
@@ -377,13 +377,13 @@ class EngineApiService(
         executionResult match
           case Some(true) =>
             // Fully executed and validated
-            EngineApiMetrics.recordNewPayload("VALID", payload.blockNumber.toLong, payload.timestamp)
+            EngineApiMetrics.recordNewPayload("VALID", payload.blockNumber.toLong, payload.timestamp.toLong)
             PayloadStatusV1(Valid, latestValidHash = Some(payload.blockHash))
 
           case Some(false) =>
             // Execution failed — block is invalid. latestValidHash was stored in invalidBlocks above.
             val latestValid = Option(invalidBlocks.get(payload.blockHash))
-            EngineApiMetrics.recordNewPayload("INVALID", payload.blockNumber.toLong, payload.timestamp)
+            EngineApiMetrics.recordNewPayload("INVALID", payload.blockNumber.toLong, payload.timestamp.toLong)
             PayloadStatusV1(
               Invalid,
               latestValidHash = latestValid,
@@ -405,7 +405,7 @@ class EngineApiService(
               )
               .add(payload.blockHash)
             log.info("[ENGINE-API] newPayload #{}: ACCEPTED (parent unknown)", payload.blockNumber)
-            EngineApiMetrics.recordNewPayload("ACCEPTED", payload.blockNumber.toLong, payload.timestamp)
+            EngineApiMetrics.recordNewPayload("ACCEPTED", payload.blockNumber.toLong, payload.timestamp.toLong)
             PayloadStatusV1(Accepted)
       // end headerInvalid else
   }
@@ -537,11 +537,10 @@ class EngineApiService(
             // 'Invalid PayloadAttributes' test, which asserts the forkchoice IS applied
             // even when attrs are rejected with -38003.
             val invalidAttrsMsg: Option[String] = payloadAttributes.flatMap { attrs =>
-              if attrs.timestamp == 0 then Some("invalid payload attributes: zero timestamp")
+              if attrs.timestamp == Timestamp.Zero then Some("invalid payload attributes: zero timestamp")
               else
                 blockchainReader.getBlockHeaderByHash(BlockHash(forkChoiceState.headBlockHash)).flatMap { parent =>
-                  if attrs.timestamp <= parent.unixTimestamp.toLong then
-                    Some("invalid payload attributes: timestamp too low")
+                  if attrs.timestamp <= parent.unixTimestamp then Some("invalid payload attributes: timestamp too low")
                   else None
                 }
             }
@@ -577,7 +576,7 @@ class EngineApiService(
                   val beaconRootBytes = attrs.parentBeaconBlockRoot.map(_.toArray).getOrElse(Array.emptyByteArray)
                   val idBytes = kec256(
                     forkChoiceState.headBlockHash.toArray ++
-                      BigInt(attrs.timestamp).toByteArray ++
+                      BigInt(attrs.timestamp.toLong).toByteArray ++
                       attrs.prevRandao.toArray ++
                       attrs.suggestedFeeRecipient.bytes.toArray ++
                       withdrawalBytes ++
@@ -667,7 +666,7 @@ class EngineApiService(
                             // blobsBundle grows past the test's `ExpectedIncludedBlobCount`.
                             val pendingTxsForBlock =
                               val maxBlobGas =
-                                BlobGasUtils.maxBlobGasPerBlock(Timestamp(attrs.timestamp), blockchainConfig)
+                                BlobGasUtils.maxBlobGasPerBlock(attrs.timestamp, blockchainConfig)
                               pendingTxs
                                 .foldLeft((Seq.empty[SignedTransaction], BigInt(0))) { case ((kept, blobGas), stx) =>
                                   stx.tx match
@@ -695,7 +694,7 @@ class EngineApiService(
 
                             // Determine which fork is active at the proposed block's timestamp so we emit
                             // the correct HeaderExtraFields variant and header fields.
-                            val attrTs = Timestamp(attrs.timestamp)
+                            val attrTs = attrs.timestamp
                             val isShanghai = blockchainConfig.isShanghaiTimestamp(attrTs)
                             val isCancun = blockchainConfig.isCancunTimestamp(attrTs)
                             val isPrague = blockchainConfig.isPragueTimestamp(attrTs)
@@ -770,7 +769,7 @@ class EngineApiService(
                               number = blockNumber,
                               gasLimit = gasLimit,
                               gasUsed = GasAmount.Zero,
-                              unixTimestamp = Timestamp(attrs.timestamp),
+                              unixTimestamp = attrs.timestamp,
                               extraData = ByteString("fukuii".getBytes),
                               mixHash = BlockHash(attrs.prevRandao),
                               nonce = ByteString(new Array[Byte](8)),
@@ -1104,7 +1103,7 @@ class EngineApiService(
         case (Some(requests), Some(bgu), Some(ebg), _) =>
           // Prague/Electra: has executionRequests → HefPostPrague with requestsHash
           HefPostPrague(
-            baseFee = BaseFeePerGas(payload.baseFeePerGas),
+            baseFee = payload.baseFeePerGas,
             withdrawalsRoot = withdrawalsRoot,
             blobGasUsed = bgu,
             excessBlobGas = ebg,
@@ -1114,7 +1113,7 @@ class EngineApiService(
         case (None, Some(bgu), Some(ebg), _) =>
           // Cancun: has blob gas fields
           HefPostCancun(
-            baseFee = BaseFeePerGas(payload.baseFeePerGas),
+            baseFee = payload.baseFeePerGas,
             withdrawalsRoot = withdrawalsRoot,
             blobGasUsed = bgu,
             excessBlobGas = ebg,
@@ -1122,25 +1121,25 @@ class EngineApiService(
           )
         case (_, _, _, Some(_)) =>
           HefPostShanghai(
-            baseFee = BaseFeePerGas(payload.baseFeePerGas),
+            baseFee = payload.baseFeePerGas,
             withdrawalsRoot = withdrawalsRoot
           )
         case _ =>
-          HefPostOlympia(baseFee = BaseFeePerGas(payload.baseFeePerGas))
+          HefPostOlympia(baseFee = payload.baseFeePerGas)
 
     val header = BlockHeader(
       parentHash = BlockHash(payload.parentHash),
       ommersHash = BlockHash(BlockHeader.EmptyOmmers),
       beneficiary = payload.feeRecipient.bytes,
-      stateRoot = TrieRoot(payload.stateRoot),
+      stateRoot = payload.stateRoot,
       transactionsRoot = TrieRoot(computeTransactionsRoot(signedTxs)),
       receiptsRoot = TrieRoot(payload.receiptsRoot),
-      logsBloom = BloomFilter(payload.logsBloom),
+      logsBloom = payload.logsBloom,
       difficulty = Difficulty.Zero,
-      number = BlockNumber(payload.blockNumber),
+      number = payload.blockNumber,
       gasLimit = payload.gasLimit,
       gasUsed = payload.gasUsed,
-      unixTimestamp = Timestamp(payload.timestamp),
+      unixTimestamp = payload.timestamp,
       extraData = payload.extraData,
       mixHash = BlockHash(payload.prevRandao),
       nonce = ByteString(new Array[Byte](8)),

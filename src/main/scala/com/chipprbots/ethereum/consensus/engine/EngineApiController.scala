@@ -13,11 +13,15 @@ import org.json4s.JsonAST.JBool
 import org.json4s.JsonAST.JInt
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.BloomFilter
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.Timestamp
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.domain.Withdrawal
 import com.chipprbots.ethereum.jsonrpc.JsonRpcError
 import com.chipprbots.ethereum.jsonrpc.JsonRpcRequest
@@ -115,7 +119,7 @@ class EngineApiController(
             var payload = decodedPayload
             val hasWithdrawals = payload.withdrawals.isDefined
             val blockchainConfig = com.chipprbots.ethereum.utils.Config.blockchains.blockchainConfig
-            val payloadTimestamp = Timestamp(payload.timestamp)
+            val payloadTimestamp = payload.timestamp
             val isShanghaiPayload = blockchainConfig.isShanghaiTimestamp(payloadTimestamp)
             val isCancunPayload = blockchainConfig.isCancunTimestamp(payloadTimestamp)
             val isPraguePayload = blockchainConfig.isPragueTimestamp(payloadTimestamp)
@@ -273,8 +277,8 @@ class EngineApiController(
             val hasWithdrawals = payloadAttrs.exists(_.withdrawals.isDefined)
             val attrTimestamp = payloadAttrs.map(_.timestamp)
             val blockchainConfig = com.chipprbots.ethereum.utils.Config.blockchains.blockchainConfig
-            val isShanghaiTimestamp = attrTimestamp.exists(ts => blockchainConfig.isShanghaiTimestamp(Timestamp(ts)))
-            val isCancunTimestamp = attrTimestamp.exists(ts => blockchainConfig.isCancunTimestamp(Timestamp(ts)))
+            val isShanghaiTimestamp = attrTimestamp.exists(ts => blockchainConfig.isShanghaiTimestamp(ts))
+            val isCancunTimestamp = attrTimestamp.exists(ts => blockchainConfig.isCancunTimestamp(ts))
 
             // Engine API version matrix. -38005 UNSUPPORTED_FORK only when the RPC method itself is
             // wrong for the current fork; -38003 INVALID_PAYLOAD_ATTRIBUTES for attribute-shape
@@ -655,9 +659,9 @@ class EngineApiController(
       // trailing nulls for numbers past the tip. Hive's GetPayloadBodiesByRange test
       // checks the array length against min(count, latest-start+1).
       val latest = engineApiService.getLatestBlockNumber
-      if start > latest then IO.pure(JsonRpcResponse("2.0", Some(JArray(Nil)), None, reqId(request)))
+      if start > latest.value then IO.pure(JsonRpcResponse("2.0", Some(JArray(Nil)), None, reqId(request)))
       else
-        val effectiveCount = count.min(latest - start + 1).min(1024)
+        val effectiveCount = count.min(latest.value - start + 1).min(1024)
         val bodies = (0L until effectiveCount.toLong).map { offset =>
           engineApiService.getPayloadBodyByNumber(start + offset).map(encodePayloadBody).getOrElse(JNull)
         }.toList
@@ -683,16 +687,16 @@ class EngineApiController(
     ExecutionPayload(
       parentHash = hexToByteString(extractString(fields, "parentHash")),
       feeRecipient = Address(extractString(fields, "feeRecipient")),
-      stateRoot = hexToByteString(extractString(fields, "stateRoot")),
+      stateRoot = TrieRoot(hexToByteString(extractString(fields, "stateRoot"))),
       receiptsRoot = hexToByteString(extractString(fields, "receiptsRoot")),
-      logsBloom = hexToByteString(extractString(fields, "logsBloom")),
+      logsBloom = BloomFilter(hexToByteString(extractString(fields, "logsBloom"))),
       prevRandao = hexToByteString(extractString(fields, "prevRandao")),
-      blockNumber = extractQuantity(fields, "blockNumber"),
+      blockNumber = BlockNumber(extractQuantity(fields, "blockNumber")),
       gasLimit = GasAmount(extractQuantity(fields, "gasLimit")),
       gasUsed = GasAmount(extractQuantity(fields, "gasUsed")),
-      timestamp = extractQuantity(fields, "timestamp").toLong,
+      timestamp = Timestamp(extractQuantity(fields, "timestamp").toLong),
       extraData = hexToByteString(extractString(fields, "extraData")),
-      baseFeePerGas = extractQuantity(fields, "baseFeePerGas"),
+      baseFeePerGas = BaseFeePerGas(extractQuantity(fields, "baseFeePerGas")),
       blockHash = hexToByteString(extractString(fields, "blockHash")),
       transactions = fields
         .get("transactions")
@@ -727,7 +731,7 @@ class EngineApiController(
   private def decodePayloadAttributes(json: JObject): PayloadAttributes =
     val fields = json.obj.toMap
     PayloadAttributes(
-      timestamp = extractQuantity(fields, "timestamp").toLong,
+      timestamp = Timestamp(extractQuantity(fields, "timestamp").toLong),
       prevRandao = hexToByteString(extractString(fields, "prevRandao")),
       suggestedFeeRecipient = Address(extractString(fields, "suggestedFeeRecipient")),
       withdrawals = fields.get("withdrawals").collect { case JArray(items) =>

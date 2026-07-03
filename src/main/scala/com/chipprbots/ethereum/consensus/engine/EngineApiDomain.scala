@@ -3,7 +3,12 @@ package com.chipprbots.ethereum.consensus.engine
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BaseFeePerGas
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.BloomFilter
 import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.Timestamp
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.domain.Withdrawal
 
 /** Engine API domain types per the execution-apis specification. */
@@ -12,16 +17,16 @@ import com.chipprbots.ethereum.domain.Withdrawal
 case class ExecutionPayload(
     parentHash: ByteString,
     feeRecipient: Address,
-    stateRoot: ByteString,
+    stateRoot: TrieRoot,
     receiptsRoot: ByteString,
-    logsBloom: ByteString,
+    logsBloom: BloomFilter,
     prevRandao: ByteString,
-    blockNumber: BigInt,
+    blockNumber: BlockNumber,
     gasLimit: GasAmount,
     gasUsed: GasAmount,
-    timestamp: Long,
+    timestamp: Timestamp,
     extraData: ByteString,
-    baseFeePerGas: BigInt,
+    baseFeePerGas: BaseFeePerGas,
     blockHash: ByteString,
     transactions: Seq[ByteString],
     // Shanghai+
@@ -41,7 +46,7 @@ case class ExecutionPayload(
 
 /** Payload attributes for engine_forkchoiceUpdated (optional payload building). */
 case class PayloadAttributes(
-    timestamp: Long,
+    timestamp: Timestamp,
     prevRandao: ByteString,
     suggestedFeeRecipient: Address,
     // Shanghai+

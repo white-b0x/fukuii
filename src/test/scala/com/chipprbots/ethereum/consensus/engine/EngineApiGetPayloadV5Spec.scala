@@ -13,6 +13,7 @@ import org.json4s.jvalue2monadic
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockBody
@@ -59,7 +60,7 @@ class EngineApiGetPayloadV5Spec extends AnyWordSpec with Matchers:
       mixHash = BlockHash(ByteString(new Array[Byte](32))),
       nonce = ByteString(new Array[Byte](8)),
       extraFields = HefPostPrague(
-        baseFee = BigInt("1000000000"),
+        baseFee = BaseFeePerGas(BigInt("1000000000")),
         withdrawalsRoot = BlockHeader.EmptyMpt,
         blobGasUsed = BigInt(0),
         excessBlobGas = BigInt(0),

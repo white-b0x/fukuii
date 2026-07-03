@@ -13,6 +13,7 @@ import org.json4s.JsonAST.JString
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockBody
@@ -83,13 +84,13 @@ class EngineApiVersionRejectionSpec extends AnyWordSpec with Matchers:
 
   private val shanghaiBlock: Block = makeBlock(
     ShanghaiTs,
-    HefPostShanghai(baseFee = BigInt("1000000000"), withdrawalsRoot = BlockHeader.EmptyMpt)
+    HefPostShanghai(baseFee = BaseFeePerGas(BigInt("1000000000")), withdrawalsRoot = BlockHeader.EmptyMpt)
   )
 
   private val cancunBlock: Block = makeBlock(
     CancunTs,
     HefPostCancun(
-      baseFee = BigInt("1000000000"),
+      baseFee = BaseFeePerGas(BigInt("1000000000")),
       withdrawalsRoot = BlockHeader.EmptyMpt,
       blobGasUsed = BigInt(0),
       excessBlobGas = BigInt(0),

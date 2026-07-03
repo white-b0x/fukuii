@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import com.chipprbots.ethereum.consensus.engine.ForkChoiceManager.BeaconHead
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.*
@@ -48,7 +49,7 @@ class ForkChoiceManagerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLi
       extraData = ByteString.empty,
       mixHash = BlockHash(ByteString(new Array[Byte](32))),
       nonce = ByteString(new Array[Byte](8)),
-      extraFields = HefPostOlympia(BigInt("1000000000"))
+      extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000")))
     )
     blockchainWriter.storeBlockHeader(storedHeader).commit()
 

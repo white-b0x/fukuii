@@ -48,7 +48,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         extraData = ByteString.empty,
         mixHash = BlockHash(ByteString(new Array[Byte](32))),
         nonce = ByteString(new Array[Byte](8)),
-        extraFields = HefPostOlympia(BigInt("1000000000"))
+        extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000")))
       )
       val block = Block(header, BlockBody(Nil, Nil))
 
@@ -83,7 +83,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         extraData = ByteString.empty,
         mixHash = BlockHash(ByteString(new Array[Byte](32))),
         nonce = ByteString(new Array[Byte](8)),
-        extraFields = HefPostOlympia(BigInt("1000000000"))
+        extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000")))
       )
       val block = Block(header, BlockBody(Nil, Nil))
 
@@ -118,7 +118,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         extraData = ByteString.empty,
         mixHash = BlockHash(ByteString(new Array[Byte](32))),
         nonce = ByteString(new Array[Byte](8)),
-        extraFields = HefPostOlympia(BigInt("1000000000"))
+        extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000")))
       )
       val block = Block(header, BlockBody(Nil, Nil))
 
@@ -205,7 +205,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         extraData = ByteString.empty,
         mixHash = BlockHash(ByteString(new Array[Byte](32))),
         nonce = ByteString(new Array[Byte](8)),
-        extraFields = HefPostOlympia(BigInt("1000000000"))
+        extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000")))
       )
 
       // Store genesis block
@@ -233,7 +233,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
           mixHash = BlockHash(ByteString(Array.fill(32)(0x42.toByte))), // prevRandao
           nonce = ByteString(new Array[Byte](8)),
           extraFields = HefPostShanghai(
-            baseFee = BigInt("1000000000"),
+            baseFee = BaseFeePerGas(BigInt("1000000000")),
             withdrawalsRoot = emptyWithdrawalsRoot
           )
         )
@@ -258,16 +258,16 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         ExecutionPayload(
           parentHash = block.header.parentHash.value,
           feeRecipient = Address(block.header.beneficiary),
-          stateRoot = block.header.stateRoot.value,
+          stateRoot = block.header.stateRoot,
           receiptsRoot = block.header.receiptsRoot.value,
-          logsBloom = block.header.logsBloom.value,
+          logsBloom = block.header.logsBloom,
           prevRandao = block.header.mixHash.value,
-          blockNumber = block.header.number.value,
+          blockNumber = block.header.number,
           gasLimit = block.header.gasLimit,
           gasUsed = block.header.gasUsed,
-          timestamp = block.header.unixTimestamp.toLong,
+          timestamp = block.header.unixTimestamp,
           extraData = block.header.extraData,
-          baseFeePerGas = block.header.baseFee.getOrElse(BigInt(0)),
+          baseFeePerGas = block.header.baseFee.getOrElse(BaseFeePerGas.Zero),
           blockHash = block.header.hash.value,
           transactions = block.body.transactionList.map { stx =>
             ByteString(rlpEncode(SignedTransactionEnc(stx).toRLPEncodable))
@@ -278,7 +278,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       /** Create modified payload with random stateRoot, recomputing blockHash */
       def withModifiedStateRoot(payload: ExecutionPayload): ExecutionPayload =
         val randomStateRoot = ByteString(kec256(Array[Byte](1, 2, 3, 4)))
-        val modified = payload.copy(stateRoot = randomStateRoot)
+        val modified = payload.copy(stateRoot = TrieRoot(randomStateRoot))
         // Recompute blockHash from the modified header
         val _ = engineApi.asInstanceOf[{ def payloadToBlock(p: ExecutionPayload): Block }]
         // Instead, manually build the header and compute hash
@@ -286,15 +286,15 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
           parentHash = BlockHash(modified.parentHash),
           ommersHash = BlockHash(BlockHeader.EmptyOmmers),
           beneficiary = modified.feeRecipient.bytes,
-          stateRoot = TrieRoot(modified.stateRoot),
+          stateRoot = modified.stateRoot,
           transactionsRoot = TrieRoot(payload.blockHash), // placeholder, need real txRoot
           receiptsRoot = TrieRoot(modified.receiptsRoot),
-          logsBloom = BloomFilter(modified.logsBloom),
+          logsBloom = modified.logsBloom,
           difficulty = Difficulty.Zero,
-          number = BlockNumber(modified.blockNumber),
+          number = modified.blockNumber,
           gasLimit = modified.gasLimit,
           gasUsed = modified.gasUsed,
-          unixTimestamp = Timestamp(modified.timestamp),
+          unixTimestamp = modified.timestamp,
           extraData = modified.extraData,
           mixHash = BlockHash(modified.prevRandao),
           nonce = ByteString(new Array[Byte](8)),
@@ -352,7 +352,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       val randomStateRoot: ByteString = ByteString(kec256(Array[Byte](1, 2, 3, 4)))
       val modifiedHeader: BlockHeader = validBlock.header.copy(stateRoot = TrieRoot(randomStateRoot))
       val modifiedPayload: ExecutionPayload = payload.copy(
-        stateRoot = randomStateRoot,
+        stateRoot = TrieRoot(randomStateRoot),
         blockHash = modifiedHeader.hash.value
       )
 
@@ -443,7 +443,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       // Set timestamp <= parent timestamp (invalid per spec)
       val modifiedHeader: BlockHeader = validBlock.header.copy(unixTimestamp = genesisHeader.unixTimestamp)
       val modifiedPayload: ExecutionPayload = payload.copy(
-        timestamp = genesisHeader.unixTimestamp.toLong,
+        timestamp = genesisHeader.unixTimestamp,
         blockHash = modifiedHeader.hash.value
       )
 
@@ -459,7 +459,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       // Set number != parent.number + 1
       val modifiedHeader: BlockHeader = validBlock.header.copy(number = BlockNumber(5))
       val modifiedPayload: ExecutionPayload = payload.copy(
-        blockNumber = 5,
+        blockNumber = BlockNumber(5),
         blockHash = modifiedHeader.hash.value
       )
 
@@ -475,7 +475,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       val randomStateRoot: ByteString = ByteString(kec256(Array[Byte](1, 2, 3, 4)))
       val modifiedHeader: BlockHeader = validBlock.header.copy(stateRoot = TrieRoot(randomStateRoot))
       val modifiedPayload: ExecutionPayload = payload.copy(
-        stateRoot = randomStateRoot,
+        stateRoot = TrieRoot(randomStateRoot),
         blockHash = modifiedHeader.hash.value
       )
 
@@ -493,7 +493,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       val randomStateRoot: ByteString = ByteString(kec256(Array[Byte](1, 2, 3, 4)))
       val modifiedHeader: BlockHeader = validBlock.header.copy(stateRoot = TrieRoot(randomStateRoot))
       val invalidPayload: ExecutionPayload = payload.copy(
-        stateRoot = randomStateRoot,
+        stateRoot = TrieRoot(randomStateRoot),
         blockHash = modifiedHeader.hash.value
       )
       val r1: PayloadStatusV1 = engineApi.newPayload(invalidPayload).unsafeRunSync()
@@ -516,21 +516,21 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         extraData = ByteString("fukuii".getBytes),
         mixHash = BlockHash(ByteString(new Array[Byte](32))),
         nonce = ByteString(new Array[Byte](8)),
-        extraFields = HefPostShanghai(BigInt("1000000000"), BlockHeader.EmptyMpt)
+        extraFields = HefPostShanghai(BaseFeePerGas(BigInt("1000000000")), BlockHeader.EmptyMpt)
       )
       val childPayload: ExecutionPayload = ExecutionPayload(
         parentHash = invalidPayload.blockHash,
         feeRecipient = Address(ByteString(new Array[Byte](20))),
-        stateRoot = ByteString(new Array[Byte](32)),
+        stateRoot = TrieRoot(ByteString(new Array[Byte](32))),
         receiptsRoot = BlockHeader.EmptyMpt,
-        logsBloom = BloomFilter.Empty.value,
+        logsBloom = BloomFilter.Empty,
         prevRandao = ByteString(new Array[Byte](32)),
-        blockNumber = 2,
+        blockNumber = BlockNumber(2),
         gasLimit = GasAmount(3000000),
         gasUsed = GasAmount(0),
-        timestamp = 1002,
+        timestamp = Timestamp(1002),
         extraData = ByteString("fukuii".getBytes),
-        baseFeePerGas = BigInt("1000000000"),
+        baseFeePerGas = BaseFeePerGas(BigInt("1000000000")),
         blockHash = childHeader.hash.value,
         transactions = Seq.empty,
         withdrawals = Some(Nil)
