@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.testmode
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
@@ -38,7 +39,7 @@ class TestModeBlockExecution(
     TestModeWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
       nodesKeyValueStorage = blockchain.getBackingMptStorage(block.header.number.value),
-      getBlockHashByNumber = (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+      getBlockHashByNumber = (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
       accountStartNonce = blockchainConfig.accountStartNonce,
       stateRootHash = parentHeader.stateRoot.value,
       noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,

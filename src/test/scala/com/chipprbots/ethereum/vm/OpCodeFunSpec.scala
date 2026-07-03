@@ -436,7 +436,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
 
       withStackVerification(op, stateIn, stateOut) {
         val (offset, _) = stateIn.stack.pop()
-        val data = stateIn.storage.load(offset)
+        val data = stateIn.storage.load(StorageKey(offset.toBigInt))
         val (result, _) = stateOut.stack.pop()
         result.toBigInt shouldEqual data
 
@@ -459,7 +459,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
 
       withStackVerification(op, stateIn, stateOut) {
         val (Seq(offset, value), _) = stateIn.stack.pop(2)
-        val data = stateOut.storage.load(offset)
+        val data = stateOut.storage.load(StorageKey(offset.toBigInt))
         data shouldEqual value.toBigInt
 
         stateOut shouldEqual stateIn

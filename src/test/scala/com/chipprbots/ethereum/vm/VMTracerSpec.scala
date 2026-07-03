@@ -31,7 +31,7 @@ class VMTracerSpec extends AnyFreeSpec with Matchers:
         from: Address,
         to: Address,
         gas: BigInt,
-        value: BigInt,
+        value: Wei,
         input: ByteString
     ): Unit = enterCount += 1
 

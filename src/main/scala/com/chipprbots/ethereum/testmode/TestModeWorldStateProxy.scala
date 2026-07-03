@@ -8,6 +8,8 @@ import com.chipprbots.ethereum.db.storage.MptStorage
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Account.accountSerializer
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BlockHash
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.ledger.InMemorySimpleMapProxy
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
@@ -25,7 +27,7 @@ case class TestModeWorldStateProxy(
     // format: on
     override val evmCodeStorage: EvmCodeStorage,
     override val accountCodes: Map[Address, Code],
-    override val getBlockByNumber: (BigInt) => Option[ByteString],
+    override val getBlockByNumber: BlockNumber => Option[BlockHash],
     override val accountStartNonce: UInt256,
     override val touchedAccounts: Set[Address],
     override val noEmptyAccountsCond: Boolean,
@@ -78,7 +80,7 @@ object TestModeWorldStateProxy:
       evmCodeStorage: EvmCodeStorage,
       nodesKeyValueStorage: MptStorage,
       accountStartNonce: UInt256,
-      getBlockHashByNumber: BigInt => Option[ByteString],
+      getBlockHashByNumber: BlockNumber => Option[BlockHash],
       stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean,

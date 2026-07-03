@@ -113,7 +113,7 @@ abstract class BlockGeneratorSkeleton(
                 stateRoot = TrieRoot(stateRoot),
                 receiptsRoot = TrieRoot(buildMpt(receipts, Receipt.byteArraySerializable)),
                 logsBloom = BloomFilter(bloomFilter),
-                gasUsed = GasAmount(gasUsed)
+                gasUsed = gasUsed
               ),
               body = prepareBlock.body
             ),

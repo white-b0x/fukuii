@@ -11,6 +11,7 @@ import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.TxLogEntry
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.UInt256.*
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.utils.ByteStringUtils.Padding
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.*
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
@@ -616,7 +617,7 @@ case object MSTORE extends OpCode(0x52, 2, 0, _.G_verylow):
 case object SLOAD extends OpCode(0x54, 1, 1, _.G_sload) with StorageAccessGas with ConstGas:
   protected def exec[S <: Storage[S], W <: WorldStateProxy[W, S]](state: ProgramState[W, S]): ProgramState[W, S] =
     val (offset, stack1) = state.stack.pop()
-    val value = state.storage.load(offset)
+    val value = state.storage.load(StorageKey(offset.toBigInt))
     val stack2 = stack1.push(UInt256(value))
     state.withStack(stack2).addAccessedStorageKey(state.ownAddress, StorageKey(offset.toBigInt)).step()
 
@@ -647,10 +648,10 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero):
     val eip1283Enabled = isEip1283Enabled(ethFork)
 
     val (Seq(offset, newValue), stack1) = state.stack.pop(2)
-    val currentValue = state.storage.load(offset)
+    val currentValue = state.storage.load(StorageKey(offset.toBigInt))
 
     val refund: BigInt = if eip2200Enabled || eip1283Enabled then
-      val originalValue = state.originalWorld.getStorage(state.ownAddress).load(offset)
+      val originalValue = state.originalWorld.getStorage(state.ownAddress).load(StorageKey(offset.toBigInt))
       if currentValue != newValue.toBigInt then
         if originalValue == currentValue then // fresh slot
           if originalValue != 0 && newValue.isZero then state.config.feeSchedule.R_sclear
@@ -672,7 +673,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero):
       else BigInt(0)
     else if newValue.isZero && !UInt256(currentValue).isZero then state.config.feeSchedule.R_sclear
     else 0
-    val updatedStorage = state.storage.store(offset, newValue)
+    val updatedStorage = state.storage.store(StorageKey(offset.toBigInt), newValue)
     state
       .addAccessedStorageKey(state.ownAddress, StorageKey(offset.toBigInt))
       .withStack(stack1)
@@ -682,7 +683,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero):
 
   protected def varGas[S <: Storage[S], W <: WorldStateProxy[W, S]](state: ProgramState[W, S]): BigInt =
     val (Seq(offset, newValue), _) = state.stack.pop(2)
-    val currentValue = state.storage.load(offset)
+    val currentValue = state.storage.load(StorageKey(offset.toBigInt))
 
     val currentBlockNumber = state.env.blockHeader.number.value
     val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
@@ -698,7 +699,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero):
         if currentValue == newValue.toBigInt then // no-op
           state.config.feeSchedule.G_sload
         else
-          val originalValue = state.originalWorld.getStorage(state.ownAddress).load(offset)
+          val originalValue = state.originalWorld.getStorage(state.ownAddress).load(StorageKey(offset.toBigInt))
           if originalValue == currentValue then // fresh slot
             if originalValue == 0 then state.config.feeSchedule.G_sset
             else state.config.feeSchedule.G_sreset
@@ -958,7 +959,7 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
               None,
               context.startGas,
               context.inputData,
-              context.endowment
+              Wei(context.endowment.toBigInt)
             )
 
           state
@@ -1124,7 +1125,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
   ): InternalTransaction =
     val from = env.ownerAddr
     val to = if this == CALL then Address(callee) else env.ownerAddr
-    InternalTransaction(this, from, Some(to), startGas, inputData, endowment)
+    InternalTransaction(this, from, Some(to), startGas, inputData, Wei(endowment.toBigInt))
 
   protected def varGas[S <: Storage[S], W <: WorldStateProxy[W, S]](state: ProgramState[W, S]): BigInt =
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), _) = getParams(state)

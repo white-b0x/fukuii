@@ -495,7 +495,7 @@ class BlockPreparator(
          | - Total Gas to Refund: $totalGasToRefund
          | - Execution gas paid to miner: $executionGasToPayToMiner""".stripMargin)
 
-    TxResult(world2, executionGasToPayToMiner.value, resultWithErrorHandling.logs, result.returnData, result.error)
+    TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData, result.error)
 
   // scalastyle:off method.length
   /** This functions executes all the signed transactions from a block (till one of those executions fails)
@@ -524,7 +524,7 @@ class BlockPreparator(
   )(implicit blockchainConfig: BlockchainConfig): Either[TxsExecutionError, BlockResult] =
     signedTransactions match
       case Nil =>
-        Right(BlockResult(worldState = world, gasUsed = acumGas, receipts = acumReceipts))
+        Right(BlockResult(worldState = world, gasUsed = GasAmount(acumGas), receipts = acumReceipts))
 
       case Seq(stx, otherStxs*) =>
         // EIP-4844: upfront balance check must include blob-gas cost too —
@@ -569,7 +569,7 @@ class BlockPreparator(
 
             val legacyReceipt = LegacyReceipt(
               postTransactionStateHash = transactionOutcome,
-              cumulativeGasUsed = GasAmount(acumGas + gasUsed),
+              cumulativeGasUsed = GasAmount(acumGas) + gasUsed,
               logsBloomFilter =
                 com.chipprbots.ethereum.domain.BloomFilter(com.chipprbots.ethereum.ledger.BloomFilter.create(logs)),
               logs = logs
@@ -631,7 +631,8 @@ class BlockPreparator(
         InMemoryWorldStateProxy(
           evmCodeStorage = evmCodeStorage,
           mptStorage = blockchain.getReadOnlyMptStorage(),
-          getBlockHashByNumber = (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+          getBlockHashByNumber =
+            (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
           accountStartNonce = blockchainConfig.accountStartNonce,
           stateRootHash = parent.stateRoot.value,
           noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,

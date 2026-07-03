@@ -5,6 +5,7 @@ import scala.annotation.tailrec
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
@@ -45,7 +46,8 @@ class StxLedger(
       InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
         mptStorage = blockchain.getReadOnlyMptStorage(),
-        getBlockHashByNumber = (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+        getBlockHashByNumber =
+          (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = blockHeader.stateRoot.value,
         noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,
@@ -63,7 +65,7 @@ class StxLedger(
     val result = blockPreparator.runVM(tx, senderAddress, blockHeader, worldForTx, tracer)
     val totalGasToRefund = blockPreparator.calcTotalGasToRefund(tx, result, blockHeader.number.value)
 
-    TxResult(result.world, tx.tx.gasLimit.value - totalGasToRefund.value, result.logs, result.returnData, result.error)
+    TxResult(result.world, tx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
 
   /** Like [[simulateTransaction]] but attaches a tracer and fires the tx-level lifecycle hooks.
     *
@@ -84,7 +86,8 @@ class StxLedger(
       InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
         mptStorage = blockchain.getReadOnlyMptStorage(),
-        getBlockHashByNumber = (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+        getBlockHashByNumber =
+          (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = blockHeader.stateRoot.value,
         noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,
@@ -99,13 +102,13 @@ class StxLedger(
       else world1
 
     val worldForTx = blockPreparator.updateSenderAccountBeforeExecution(tx, senderAddress, world2)
-    tracer.onTxStart(senderAddress, tx.tx.receivingAddress, tx.tx.gasLimit, tx.tx.value.value, tx.tx.payload)
+    tracer.onTxStart(senderAddress, tx.tx.receivingAddress, tx.tx.gasLimit, tx.tx.value, tx.tx.payload)
     val result = blockPreparator.runVMWithTracer(tx, senderAddress, blockHeader, worldForTx, tracer)
     val totalGasToRefund: GasAmount = blockPreparator.calcTotalGasToRefund(tx, result, blockHeader.number.value)
     val gasUsed: GasAmount = tx.tx.gasLimit - totalGasToRefund
     tracer.onTxEnd(gasUsed, result.returnData, result.error.map(_.toString))
 
-    TxResult(result.world, gasUsed.value, result.logs, result.returnData, result.error)
+    TxResult(result.world, gasUsed, result.logs, result.returnData, result.error)
 
   /** Advances a world state through prior transactions in a block to reach the state just before transaction at
     * [[txIndex]]. Used by [[DebugTracingService]] and [[TraceService]] for historical trace replay.
@@ -133,7 +136,7 @@ class StxLedger(
     val world0 = InMemoryWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
       mptStorage = blockchain.getReadOnlyMptStorage(),
-      getBlockHashByNumber = (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+      getBlockHashByNumber = (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
       accountStartNonce = blockchainConfig.accountStartNonce,
       stateRootHash = parentStateRoot,
       noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,

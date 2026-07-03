@@ -11,6 +11,8 @@ import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockchainImpl
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.ledger.VMImpl
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie
@@ -49,7 +51,7 @@ class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory:
   it should "delete account that had storage updated before" taggedAs (UnitTest, StateTest) in new TestSetup:
     val worldStateWithStorage: InMemoryWorldStateProxy = worldState.saveStorage(
       validAccountAddress,
-      worldState.getStorage(validAccountAddress).store(UInt256(1), UInt256(123))
+      worldState.getStorage(validAccountAddress).store(StorageKey(1), UInt256(123))
     )
 
     val updatedWorldState: InMemoryWorldStateProxy =
@@ -80,7 +82,7 @@ class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory:
     val worldStateWithoutPersist: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       DeleteAccountsSpec.this.blockchain.getBackingMptStorage(-1),
-      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = false,

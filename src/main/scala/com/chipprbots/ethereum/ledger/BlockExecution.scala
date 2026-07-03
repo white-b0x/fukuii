@@ -59,7 +59,7 @@ class BlockExecution(
           block,
           result.worldState.stateRootHash,
           result.receipts,
-          GasAmount(result.gasUsed)
+          result.gasUsed
         )
       yield (result.receipts, result.executionRequests)
 
@@ -73,7 +73,7 @@ class BlockExecution(
     */
   def executeBlockNoValidation(
       block: Block
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, (Seq[Receipt], BigInt, ByteString)] =
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, (Seq[Receipt], GasAmount, ByteString)] =
     executeBlock(block).map { result =>
       (result.receipts, result.gasUsed, result.worldState.stateRootHash)
     }
@@ -143,7 +143,7 @@ class BlockExecution(
     InMemoryWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
       blockchain.getBackingMptStorage(block.header.number.value),
-      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
       accountStartNonce = blockchainConfig.accountStartNonce,
       stateRootHash = parentHeader.stateRoot.value,
       noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
@@ -223,8 +223,8 @@ class BlockExecution(
         else world
 
         val storage = w1.getStorage(BeaconRootContractAddress)
-        val s1 = storage.store(timestampIdx.toBigInt, timestamp.toBigInt)
-        val s2 = s1.store(rootIdx.toBigInt, UInt256(beaconRoot.value).toBigInt)
+        val s1 = storage.store(StorageKey(timestampIdx.toBigInt), timestamp.toBigInt)
+        val s2 = s1.store(StorageKey(rootIdx.toBigInt), UInt256(beaconRoot.value).toBigInt)
         w1.saveStorage(BeaconRootContractAddress, s2)
 
       case _ => world
@@ -264,7 +264,7 @@ class BlockExecution(
     val parentHashValue = UInt256(block.header.parentHash.value)
     val slot = (blockNumber - 1) % HistoryServeWindow
     val storage = w1.getStorage(HistoryStorageAddress)
-    val updatedStorage = storage.store(slot, parentHashValue.toBigInt)
+    val updatedStorage = storage.store(StorageKey(slot), parentHashValue.toBigInt)
     w1.saveStorage(HistoryStorageAddress, updatedStorage)
 
   /** This function updates worldState transferring balance from drainList accounts to refundContract address

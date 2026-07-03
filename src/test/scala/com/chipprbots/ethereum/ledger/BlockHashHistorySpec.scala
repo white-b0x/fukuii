@@ -61,7 +61,7 @@ class BlockHashHistorySpec extends AnyFlatSpec with Matchers:
     val emptyWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingMptStorage(-1),
-      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = false,
@@ -90,7 +90,7 @@ class BlockHashHistorySpec extends AnyFlatSpec with Matchers:
     val world: InMemoryWorldStateProxy = runBlock(makeBlock(olympiaBlock, parentHash))
 
     val slot: BigInt = (olympiaBlock - 1) % Window
-    world.getStorage(HistoryStorageAddress).load(slot) shouldBe UInt256(parentHash).toBigInt
+    world.getStorage(HistoryStorageAddress).load(StorageKey(slot)) shouldBe UInt256(parentHash).toBigInt
 
   it should "deploy the history contract and write the slot when processing a post-activation block on a fresh world" taggedAs (
     OlympiaTest,
@@ -104,7 +104,7 @@ class BlockHashHistorySpec extends AnyFlatSpec with Matchers:
 
     world.getCode(HistoryStorageAddress) shouldBe HistoryStorageCode
     val slot: BigInt = olympiaBlock % Window // (olympiaBlock + 1 - 1) % Window
-    world.getStorage(HistoryStorageAddress).load(slot) shouldBe UInt256(parentHash).toBigInt
+    world.getStorage(HistoryStorageAddress).load(StorageKey(slot)) shouldBe UInt256(parentHash).toBigInt
 
   it should "deploy the history storage contract code at the Olympia activation block" taggedAs (
     OlympiaTest,
@@ -124,7 +124,7 @@ class BlockHashHistorySpec extends AnyFlatSpec with Matchers:
     val world2: InMemoryWorldStateProxy = runBlock(makeBlock(olympiaBlock + Window, hashB), world1)
 
     val slot: BigInt = (olympiaBlock - 1) % Window
-    world2.getStorage(HistoryStorageAddress).load(slot) shouldBe UInt256(hashB).toBigInt
+    world2.getStorage(HistoryStorageAddress).load(StorageKey(slot)) shouldBe UInt256(hashB).toBigInt
 
   it should "NOT write history storage for blocks before Olympia activation" taggedAs (
     OlympiaTest,
@@ -135,7 +135,7 @@ class BlockHashHistorySpec extends AnyFlatSpec with Matchers:
     )
 
     val slot: BigInt = (olympiaBlock - 2) % Window
-    world.getStorage(HistoryStorageAddress).load(slot) shouldBe BigInt(0)
+    world.getStorage(HistoryStorageAddress).load(StorageKey(slot)) shouldBe BigInt(0)
     world.getCode(HistoryStorageAddress) shouldBe ByteString.empty
 
   "HistoryStorageCode" should "start with the CALLER opcode (0x33) per EIP-2935 spec" taggedAs (

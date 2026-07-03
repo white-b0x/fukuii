@@ -4,6 +4,7 @@ import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.Wei
 
 /** Pluggable execution tracer interface — Fukuii's equivalent of Besu's OperationTracer.
   *
@@ -40,7 +41,7 @@ trait ExecutionTracer:
 
   /** Called once for the top-level transaction before execution begins. Corresponds to Besu's traceStartTransaction.
     */
-  def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: BigInt, input: ByteString): Unit = ()
+  def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: Wei, input: ByteString): Unit = ()
 
   /** Called once when the top-level transaction returns. Corresponds to Besu's traceEndTransaction.
     */
@@ -67,7 +68,7 @@ trait ExecutionTracer:
       from: Address,
       to: Address,
       gas: GasAmount,
-      value: BigInt,
+      value: Wei,
       input: ByteString
   ): Unit = ()
 

@@ -9,7 +9,9 @@ import org.json4s.JsonDSL.*
 
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.utils.Hex
 
 /** Native prestateTracer matching go-ethereum's eth/tracers/native/prestate.go.
@@ -44,7 +46,7 @@ class PrestateTracer[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def setPostWorld(world: W): Unit =
     postWorld = Some(world)
 
-  override def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: BigInt, input: ByteString): Unit =
+  override def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: Wei, input: ByteString): Unit =
     touchedAddresses += from
     to.foreach(addr => touchedAddresses += addr)
 
@@ -53,7 +55,7 @@ class PrestateTracer[W <: WorldStateProxy[W, S], S <: Storage[S]](
       from: Address,
       to: Address,
       gas: GasAmount,
-      value: BigInt,
+      value: Wei,
       input: ByteString
   ): Unit =
     touchedAddresses += from
@@ -138,7 +140,7 @@ class PrestateTracer[W <: WorldStateProxy[W, S], S <: Storage[S]](
     if storageKeys.nonEmpty then
       val storage = world.getStorage(addr)
       val storageFields = storageKeys.toList.flatMap { key =>
-        val value = storage.load(key.toBigInt)
+        val value = storage.load(StorageKey(key.toBigInt))
         if value != BigInt(0) then
           val keyHex = "0x" + key.toBigInt.toString(16).reverse.padTo(64, '0').reverse
           val valHex = "0x" + value.toString(16).reverse.padTo(64, '0').reverse
@@ -171,8 +173,8 @@ class PrestateTracer[W <: WorldStateProxy[W, S], S <: Storage[S]](
       val preStorage = preWorld.getStorage(addr)
       val postStorage = pw.getStorage(addr)
       val storageFields = storageKeys.toList.flatMap { key =>
-        val preVal = preStorage.load(key.toBigInt)
-        val postVal = postStorage.load(key.toBigInt)
+        val preVal = preStorage.load(StorageKey(key.toBigInt))
+        val postVal = postStorage.load(StorageKey(key.toBigInt))
         if preVal != postVal then
           val keyHex = "0x" + key.toBigInt.toString(16).reverse.padTo(64, '0').reverse
           val valHex = "0x" + postVal.toString(16).reverse.padTo(64, '0').reverse

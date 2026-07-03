@@ -10,6 +10,7 @@ import org.json4s.JsonDSL.*
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.utils.Hex
 
 /** Parity-format vmTrace tracer for trace_replayBlockTransactions / trace_replayTransaction.
@@ -62,7 +63,7 @@ class VmTracer extends ExecutionTracer:
   private val frameStack = mutable.Stack[VmFrame]()
   private var rootFrame: Option[VmFrame] = None
 
-  override def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: BigInt, input: ByteString): Unit =
+  override def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: Wei, input: ByteString): Unit =
     val frame = VmFrame()
     frameStack.push(frame)
     rootFrame = Some(frame)
@@ -118,7 +119,7 @@ class VmTracer extends ExecutionTracer:
       from: Address,
       to: Address,
       gas: GasAmount,
-      value: BigInt,
+      value: Wei,
       input: ByteString
   ): Unit =
     val frame = VmFrame()

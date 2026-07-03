@@ -63,7 +63,7 @@ class Eip4788BeaconRootStorageSpec extends AnyFlatSpec with Matchers:
     val emptyWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingMptStorage(-1),
-      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = false,
@@ -103,8 +103,8 @@ class Eip4788BeaconRootStorageSpec extends AnyFlatSpec with Matchers:
       val rootIdx: BigInt = timestampIdx + Buf
       val storage = world.getStorage(BeaconRootContractAddress)
 
-      storage.load(timestampIdx) shouldBe BigInt(ts)
-      storage.load(rootIdx) shouldBe UInt256(beaconRoot).toBigInt
+      storage.load(StorageKey(timestampIdx)) shouldBe BigInt(ts)
+      storage.load(StorageKey(rootIdx)) shouldBe UInt256(beaconRoot).toBigInt
 
   // Case 2 — Pre-Cancun block: no storage written, contract absent
   it should "NOT write any storage slots for a block without parentBeaconBlockRoot" taggedAs (
@@ -126,8 +126,8 @@ class Eip4788BeaconRootStorageSpec extends AnyFlatSpec with Matchers:
     val rootIdx: BigInt = timestampIdx + Buf
     val storage = world.getStorage(BeaconRootContractAddress)
 
-    storage.load(timestampIdx) shouldBe BigInt(0)
-    storage.load(rootIdx) shouldBe BigInt(0)
+    storage.load(StorageKey(timestampIdx)) shouldBe BigInt(0)
+    storage.load(StorageKey(rootIdx)) shouldBe BigInt(0)
     world.getCode(BeaconRootContractAddress) shouldBe ByteString.empty
 
   // Case 3 — Wrap-around: slot 8190 then slot 0 (new values overwrite, old slot retained)
@@ -154,12 +154,12 @@ class Eip4788BeaconRootStorageSpec extends AnyFlatSpec with Matchers:
     val storage = world2.getStorage(BeaconRootContractAddress)
 
     // Slot 0 written by block B
-    storage.load(slotB_ts) shouldBe BigInt(tsB)
-    storage.load(slotB_root) shouldBe UInt256(rootB).toBigInt
+    storage.load(StorageKey(slotB_ts)) shouldBe BigInt(tsB)
+    storage.load(StorageKey(slotB_root)) shouldBe UInt256(rootB).toBigInt
 
     // Slot 8190 retains block A's values (not overwritten by block B)
-    storage.load(slotA_ts) shouldBe BigInt(tsA)
-    storage.load(slotA_root) shouldBe UInt256(rootA).toBigInt
+    storage.load(StorageKey(slotA_ts)) shouldBe BigInt(tsA)
+    storage.load(StorageKey(slotA_root)) shouldBe UInt256(rootA).toBigInt
 
   // Case 4 — §ETH-T4-C contract deployment: code present and nonce=1 after first Cancun block
   it should "deploy the beacon roots contract with the EIP-4788 bytecode and nonce=1" taggedAs (

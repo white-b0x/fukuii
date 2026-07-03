@@ -7,6 +7,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.UInt256.*
 import com.chipprbots.ethereum.testing.Tags.*
@@ -420,7 +421,7 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
     val petersburgConfig = EvmConfig.PetersburgConfigBuilder(blockchainConfig)
     import petersburgConfig.feeSchedule.*
 
-    val storage = MockStorage.Empty.store(Zero, One)
+    val storage = MockStorage.Empty.store(StorageKey(Zero.toBigInt), One)
     val table = Table[UInt256, UInt256, BigInt, BigInt](
       ("offset", "value", "expectedGas", "expectedRefund"),
       (0, 1, G_sreset, 0),
@@ -460,7 +461,7 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
       val stateOut = op.execute(stateIn)
 
       val (Seq(offset, value), _) = stateIn.stack.pop(2)
-      val oldValue = stateIn.storage.load(offset)
+      val oldValue = stateIn.storage.load(StorageKey(offset.toBigInt))
       val expectedGas: BigInt = if UInt256(oldValue).isZero && !value.isZero then G_sset else G_sreset
       val expectedRefund: BigInt = if value.isZero && !UInt256(oldValue).isZero then R_sclear else Zero
 

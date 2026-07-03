@@ -245,7 +245,7 @@ class EthInfoService(
         // For now, return empty access list with gas used (partial implementation)
         CreateAccessListResponse(
           accessList = Seq.empty,
-          gasUsed = GasAmount(gasUsed),
+          gasUsed = gasUsed,
           error = error
         )
       }

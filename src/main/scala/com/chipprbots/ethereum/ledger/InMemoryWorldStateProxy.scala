@@ -24,7 +24,7 @@ object InMemoryWorldStateProxy:
   def apply(
       evmCodeStorage: EvmCodeStorage,
       mptStorage: MptStorage,
-      getBlockHashByNumber: BigInt => Option[ByteString],
+      getBlockHashByNumber: BlockNumber => Option[BlockHash],
       accountStartNonce: UInt256,
       stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
@@ -45,7 +45,7 @@ object InMemoryWorldStateProxy:
       evmCodeStorage: EvmCodeStorage,
       nodesKeyValueStorage: MptStorage,
       accountStartNonce: UInt256,
-      getBlockHashByNumber: BigInt => Option[ByteString],
+      getBlockHashByNumber: BlockNumber => Option[BlockHash],
       stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean,
@@ -138,23 +138,23 @@ class InMemoryWorldStateProxyStorage(
     val accountHash: Option[ByteString] = None
 ) extends Storage[InMemoryWorldStateProxyStorage]:
 
-  override def store(addr: BigInt, value: BigInt): InMemoryWorldStateProxyStorage =
+  override def store(addr: StorageKey, value: BigInt): InMemoryWorldStateProxyStorage =
     val newWrapped =
-      if value == 0 then wrapped - addr
-      else wrapped + (addr -> value)
+      if value == 0 then wrapped - addr.value
+      else wrapped + (addr.value -> value)
     new InMemoryWorldStateProxyStorage(newWrapped, flatSlotStorage, accountHash)
 
-  override def load(addr: BigInt): BigInt =
+  override def load(addr: StorageKey): BigInt =
     // 1. Check dirty state first (in-memory modifications from current transaction)
-    wrapped.cache.get(addr) match
+    wrapped.cache.get(addr.value) match
       case Some(optValue) => optValue.getOrElse(0)
       case None           =>
         // 2. Try flat storage O(1) lookup before O(log n) MPT traversal
-        flatLookup(addr) match
+        flatLookup(addr.value) match
           case Some(value) => value
           case None        =>
             // 3. Fall back to MPT traversal (handles pre-sync data, missing flat entries)
-            wrapped.get(addr).getOrElse(0)
+            wrapped.get(addr.value).getOrElse(0)
 
   /** O(1) flat storage lookup: accountHash ++ keccak256(pad32(slotIndex)) → RLP(value) */
   private def flatLookup(addr: BigInt): Option[BigInt] =
@@ -181,7 +181,7 @@ class InMemoryWorldStateProxy(
     val evmCodeStorage: EvmCodeStorage,
     // Account's code by Address
     val accountCodes: Map[Address, Code],
-    val getBlockByNumber: (BigInt) => Option[ByteString],
+    val getBlockByNumber: BlockNumber => Option[BlockHash],
     override val accountStartNonce: UInt256,
     // touchedAccounts and noEmptyAccountsCond are introduced by EIP161 to track accounts touched during the transaction
     // execution. Touched account are only added to Set if noEmptyAccountsCond == true, otherwise all other operations
@@ -292,7 +292,8 @@ class InMemoryWorldStateProxy(
       flatSlotStorage
     )
 
-  override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))
+  override def getBlockHash(number: UInt256): Option[UInt256] =
+    getBlockByNumber(BlockNumber(number.toBigInt)).map(bh => UInt256(bh.value))
 
   /** Returns an [[InMemorySimpleMapProxy]] of the contract storage, for `ethCompatibleStorage` defined as "trie as a
     * map-ping from the Keccak 256-bit hash of the 256-bit integer keys to the RLP-encoded256-bit integer values." See

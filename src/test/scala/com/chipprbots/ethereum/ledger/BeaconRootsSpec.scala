@@ -62,7 +62,7 @@ class BeaconRootsSpec extends AnyFlatSpec with Matchers:
     val emptyWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingMptStorage(-1),
-      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = false,
@@ -108,8 +108,8 @@ class BeaconRootsSpec extends AnyFlatSpec with Matchers:
     val timestampIdx: BigInt = BigInt(CancunTs) % BeaconRootHistoryBufferLength
     val rootIdx: BigInt = timestampIdx + BeaconRootHistoryBufferLength
     val storage = world.getStorage(BeaconRootContractAddress)
-    storage.load(timestampIdx) shouldBe BigInt(CancunTs)
-    storage.load(rootIdx) shouldBe UInt256(beaconRoot).toBigInt
+    storage.load(StorageKey(timestampIdx)) shouldBe BigInt(CancunTs)
+    storage.load(StorageKey(rootIdx)) shouldBe UInt256(beaconRoot).toBigInt
 
   it should "not redeploy the contract code on subsequent Cancun blocks" taggedAs (
     EthereumTest,

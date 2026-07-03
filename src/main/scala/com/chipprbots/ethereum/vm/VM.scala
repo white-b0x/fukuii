@@ -12,6 +12,7 @@ import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.SetCodeTransaction
 import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.rlp
 import com.chipprbots.ethereum.rlp.RLPList
 import com.chipprbots.ethereum.rlp.RLPValue
@@ -61,7 +62,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]](
           context.callerAddr,
           context.recipientAddr.getOrElse(Address(0)),
           context.startGas,
-          context.endowment,
+          Wei(context.endowment.toBigInt),
           context.inputData
         )
       )
@@ -126,7 +127,14 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]](
     val opName = if salt.isDefined then "CREATE2" else "CREATE"
     if isSubCall then
       tracer.foreach(
-        _.onCallEnter(opName, context.callerAddr, Address(0), context.startGas, context.endowment, context.inputData)
+        _.onCallEnter(
+          opName,
+          context.callerAddr,
+          Address(0),
+          context.startGas,
+          Wei(context.endowment.toBigInt),
+          context.inputData
+        )
       )
     var exitResult: PR = invalidCallResult(context, Set.empty, Set.empty)
     val (result, newAddress) =

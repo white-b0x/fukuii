@@ -101,14 +101,14 @@ class EthServiceSpec
     val worldStateProxy: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingMptStorage(-1),
-      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
       UInt256.Zero,
       ByteString.empty,
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )
 
-    val txResult: TxResult = TxResult(worldStateProxy, 123, Nil, ByteString("return_value"), None)
+    val txResult: TxResult = TxResult(worldStateProxy, GasAmount(123), Nil, ByteString("return_value"), None)
     stxLedger.simulateTransaction.expects(*, *, *).returning(txResult)
 
     val tx: CallTx = CallTx(
@@ -132,13 +132,13 @@ class EthServiceSpec
     val worldStateProxy: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingMptStorage(-1),
-      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
       UInt256.Zero,
       ByteString.empty,
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )
-    val nonRevertResult: TxResult = TxResult(worldStateProxy, 123, Nil, ByteString.empty, None)
+    val nonRevertResult: TxResult = TxResult(worldStateProxy, GasAmount(123), Nil, ByteString.empty, None)
     stxLedger.simulateTransaction.expects(*, *, *).returning(nonRevertResult)
 
     val estimatedGas: BigInt = BigInt(123)

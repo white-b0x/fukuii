@@ -705,7 +705,7 @@ class BlockExecutionSpec
       InMemoryWorldStateProxy(
         evmCodeStorage = blockchainStorages.evmCodeStorage,
         mptStorage = blockchain.getReadOnlyMptStorage(),
-        getBlockHashByNumber = (n: BigInt) => blockchainReader.getBlockHeaderByNumber(n).map(_.hash.value),
+        getBlockHashByNumber = (n: BlockNumber) => blockchainReader.getBlockHeaderByNumber(n.value).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = validBlockParentHeader.stateRoot.value,
         noEmptyAccounts = false,

@@ -14,6 +14,7 @@ import com.chipprbots.ethereum.domain.CodeHash
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
 
 import MockWorldState.*
@@ -221,7 +222,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
 
         newAccount.balance shouldEqual fxt.endowment
         result.world.getCode(newAccountAddress()) shouldEqual fxt.contractCode.code
-        result.world.getStorage(newAccountAddress()).load(0) shouldEqual BigInt(42)
+        result.world.getStorage(newAccountAddress()).load(StorageKey(0)) shouldEqual BigInt(42)
       }
 
       "update sender (creator) account" in {

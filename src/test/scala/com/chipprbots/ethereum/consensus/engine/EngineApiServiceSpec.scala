@@ -176,7 +176,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         val world = InMemoryWorldStateProxy(
           storagesInstance.storages.evmCodeStorage,
           blockchain.getBackingMptStorage(0),
-          (n: BigInt) => blockchainReader.getBlockHeaderByNumber(n).map(_.hash.value),
+          (n: BlockNumber) => blockchainReader.getBlockHeaderByNumber(n.value).map(_.hash),
           UInt256.Zero,
           ByteString(com.chipprbots.ethereum.mpt.MerklePatriciaTrie.EmptyRootHash),
           noEmptyAccounts = false,
@@ -245,7 +245,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
             // Build the correct header with computed values
             val correctHeader = headerTemplate.copy(
               stateRoot = TrieRoot(computedStateRoot),
-              gasUsed = GasAmount(gasUsed)
+              gasUsed = gasUsed
             )
             (Block(correctHeader, block.body), receipts)
           case Left(error) =>

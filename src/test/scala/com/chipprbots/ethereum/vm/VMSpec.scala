@@ -45,7 +45,7 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers:
         val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
 
         result.world.getBalance(recipientAddr.get) shouldEqual context.value
-        result.world.getStorage(recipientAddr.get).load(0) shouldEqual 42
+        result.world.getStorage(recipientAddr.get).load(StorageKey(0)) shouldEqual 42
     }
 
     "executing contract creation" should {
@@ -56,12 +56,12 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers:
 
         result1.world.getCode(expectedNewAddress) shouldEqual defaultContractCode
         result1.world.getBalance(expectedNewAddress) shouldEqual context1.value
-        result1.world.getStorage(expectedNewAddress).load(storageOffset) shouldEqual storedValue
+        result1.world.getStorage(expectedNewAddress).load(StorageKey(storageOffset)) shouldEqual storedValue
 
         val context2: PC = getContext(Some(expectedNewAddress), result1.world, bEmpty, homesteadConfig)
         val result2: ProgramResult[MockWorldState, MockStorage] = vm.run(context2)
 
-        result2.world.getStorage(expectedNewAddress).load(storageOffset) shouldEqual secondStoredValue
+        result2.world.getStorage(expectedNewAddress).load(StorageKey(storageOffset)) shouldEqual secondStoredValue
 
       "go OOG if new contract's code size exceeds limit and block is after atlantis or eip161" taggedAs (
         UnitTest,

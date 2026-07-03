@@ -9,6 +9,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import com.chipprbots.ethereum.crypto.*
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.utils.ByteUtils
 import com.chipprbots.ethereum.vm.MockWorldState.*
@@ -31,9 +32,9 @@ trait CallOpCodesBehaviors extends Matchers:
     }
 
     "pass correct addresses and value" in {
-      Address(call.extStorage.load(fxt.ownerOffset)) shouldEqual fxt.extAddr
-      Address(call.extStorage.load(fxt.callerOffset)) shouldEqual fxt.ownerAddr
-      call.extStorage.load(fxt.valueOffset) shouldEqual call.value.toBigInt
+      Address(call.extStorage.load(StorageKey(fxt.ownerOffset.toBigInt))) shouldEqual fxt.extAddr
+      Address(call.extStorage.load(StorageKey(fxt.callerOffset.toBigInt))) shouldEqual fxt.ownerAddr
+      call.extStorage.load(StorageKey(fxt.valueOffset.toBigInt)) shouldEqual call.value.toBigInt
     }
 
     "return 1" in {
@@ -205,9 +206,9 @@ trait CallOpCodesBehaviors extends Matchers:
     }
 
     "pass correct addresses and value" in {
-      Address(call.ownStorage.load(fxt.ownerOffset)) shouldEqual fxt.ownerAddr
-      Address(call.ownStorage.load(fxt.callerOffset)) shouldEqual fxt.ownerAddr
-      call.ownStorage.load(fxt.valueOffset) shouldEqual call.value.toBigInt
+      Address(call.ownStorage.load(StorageKey(fxt.ownerOffset.toBigInt))) shouldEqual fxt.ownerAddr
+      Address(call.ownStorage.load(StorageKey(fxt.callerOffset.toBigInt))) shouldEqual fxt.ownerAddr
+      call.ownStorage.load(StorageKey(fxt.valueOffset.toBigInt)) shouldEqual call.value.toBigInt
     }
 
     "return 1" in {
@@ -265,9 +266,9 @@ trait CallOpCodesBehaviors extends Matchers:
     }
 
     "pass correct addresses and value" in {
-      Address(call.ownStorage.load(fxt.ownerOffset)) shouldEqual fxt.ownerAddr
-      Address(call.ownStorage.load(fxt.callerOffset)) shouldEqual fxt.callerAddr
-      call.ownStorage.load(fxt.valueOffset) shouldEqual fxt.context.value.toBigInt
+      Address(call.ownStorage.load(StorageKey(fxt.ownerOffset.toBigInt))) shouldEqual fxt.ownerAddr
+      Address(call.ownStorage.load(StorageKey(fxt.callerOffset.toBigInt))) shouldEqual fxt.callerAddr
+      call.ownStorage.load(StorageKey(fxt.valueOffset.toBigInt)) shouldEqual fxt.context.value.toBigInt
     }
 
     "return 1" in {

@@ -40,7 +40,7 @@ class StructLogTracer(
     limit: Int = 0
 ) extends ExecutionTracer:
   private val steps = scala.collection.mutable.ArrayBuffer[StructLog]()
-  private var _gas: BigInt = 0
+  private var _gas: GasAmount = GasAmount.Zero
   private var _failed: Boolean = false
   private var _returnValue: ByteString = ByteString.empty
 
@@ -96,13 +96,13 @@ class StructLogTracer(
       error = error
     )
 
-  def setResult(gas: BigInt, returnValue: ByteString, failed: Boolean): Unit =
+  def setResult(gas: GasAmount, returnValue: ByteString, failed: Boolean): Unit =
     _gas = gas
     _returnValue = returnValue
     _failed = failed
 
   def getSteps: Seq[StructLog] = steps.toSeq
-  def gas: BigInt = _gas
+  def gas: GasAmount = _gas
   def failed: Boolean = _failed
   def returnValue: ByteString = _returnValue
 

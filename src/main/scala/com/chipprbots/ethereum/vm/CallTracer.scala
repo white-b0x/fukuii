@@ -9,6 +9,7 @@ import org.json4s.JsonDSL.*
 
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.utils.Hex
 
 /** Native callTracer matching go-ethereum's eth/tracers/native/call.go.
@@ -44,7 +45,7 @@ class CallTracer(onlyTopCall: Boolean = false) extends ExecutionTracer:
       from: Address,
       to: Address,
       gas: GasAmount,
-      value: BigInt,
+      value: Wei,
       input: ByteString,
       var gasUsed: GasAmount = GasAmount.Zero,
       var output: ByteString = ByteString.empty,
@@ -56,7 +57,7 @@ class CallTracer(onlyTopCall: Boolean = false) extends ExecutionTracer:
   private val callStack = mutable.Stack[CallFrame]()
   private var rootFrame: Option[CallFrame] = None
 
-  override def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: BigInt, input: ByteString): Unit =
+  override def onTxStart(from: Address, to: Option[Address], gas: GasAmount, value: Wei, input: ByteString): Unit =
     val opCode = if to.isDefined then "CALL" else "CREATE"
     val frame = CallFrame(
       opCode = opCode,
@@ -83,7 +84,7 @@ class CallTracer(onlyTopCall: Boolean = false) extends ExecutionTracer:
       from: Address,
       to: Address,
       gas: GasAmount,
-      value: BigInt,
+      value: Wei,
       input: ByteString
   ): Unit =
     if onlyTopCall then return
@@ -139,8 +140,8 @@ class CallTracer(onlyTopCall: Boolean = false) extends ExecutionTracer:
   private def encodeAddress(addr: Address): JString =
     JString("0x" + Hex.toHexString(addr.bytes.toArray))
 
-  private def encodeHex(value: BigInt): JString =
-    JString("0x" + value.toString(16))
+  private def encodeHex(value: Wei): JString =
+    JString("0x" + value.value.toString(16))
 
   private def encodeHexBytes(bs: ByteString): JString =
     if bs.isEmpty then JString("0x")

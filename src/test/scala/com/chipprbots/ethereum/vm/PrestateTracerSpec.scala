@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.Wei
 
 class PrestateTracerSpec extends AnyFreeSpec with Matchers:
 
@@ -25,7 +26,7 @@ class PrestateTracerSpec extends AnyFreeSpec with Matchers:
       val world = worldWith(from -> account)
       val tracer = new PrestateTracer[MockWorldState, MockStorage](world)
 
-      tracer.onTxStart(from, Some(to), gas = 21000, value = 0, input = ByteString.empty)
+      tracer.onTxStart(from, Some(to), gas = 21000, value = Wei(0), input = ByteString.empty)
 
       val result = tracer.getResult
       result shouldBe a[JObject]
@@ -38,7 +39,7 @@ class PrestateTracerSpec extends AnyFreeSpec with Matchers:
       val world = worldWith(from -> account)
       val tracer = new PrestateTracer[MockWorldState, MockStorage](world)
 
-      tracer.onTxStart(from, Some(to), gas = 21000, value = 0, input = ByteString.empty)
+      tracer.onTxStart(from, Some(to), gas = 21000, value = Wei(0), input = ByteString.empty)
 
       val result = tracer.getResult
       val obj = result.asInstanceOf[JObject]
@@ -54,7 +55,7 @@ class PrestateTracerSpec extends AnyFreeSpec with Matchers:
       val postWorld = worldWith(from -> postAccount)
 
       val tracer = new PrestateTracer[MockWorldState, MockStorage](preWorld, diffMode = true)
-      tracer.onTxStart(from, Some(to), gas = 21000, value = 500, input = ByteString.empty)
+      tracer.onTxStart(from, Some(to), gas = 21000, value = Wei(500), input = ByteString.empty)
       tracer.setPostWorld(postWorld)
 
       val result = tracer.getResult
@@ -69,7 +70,7 @@ class PrestateTracerSpec extends AnyFreeSpec with Matchers:
       val postWorld = worldWith(from -> postAccount)
 
       val tracer = new PrestateTracer[MockWorldState, MockStorage](preWorld, diffMode = true)
-      tracer.onTxStart(from, Some(to), gas = 21000, value = 500, input = ByteString.empty)
+      tracer.onTxStart(from, Some(to), gas = 21000, value = Wei(500), input = ByteString.empty)
       tracer.setPostWorld(postWorld)
 
       val result = tracer.getResult
@@ -86,8 +87,8 @@ class PrestateTracerSpec extends AnyFreeSpec with Matchers:
       val world = worldWith(from -> account, to -> account, inner -> account)
 
       val tracer = new PrestateTracer[MockWorldState, MockStorage](world)
-      tracer.onTxStart(from, Some(to), gas = 100000, value = 0, input = ByteString.empty)
-      tracer.onCallEnter("CALL", to, inner, gas = 50000, value = 0, input = ByteString.empty)
+      tracer.onTxStart(from, Some(to), gas = 100000, value = Wei(0), input = ByteString.empty)
+      tracer.onCallEnter("CALL", to, inner, gas = 50000, value = Wei(0), input = ByteString.empty)
 
       val result = tracer.getResult
       val fields = result.asInstanceOf[JObject].obj.map(_._1)
@@ -98,7 +99,7 @@ class PrestateTracerSpec extends AnyFreeSpec with Matchers:
       val world = worldWith(from -> Account(nonce = 0, balance = UInt256(100)))
       val tracer = new PrestateTracer[MockWorldState, MockStorage](world)
 
-      tracer.onTxStart(from, Some(to), gas = 21000, value = 0, input = ByteString.empty)
+      tracer.onTxStart(from, Some(to), gas = 21000, value = Wei(0), input = ByteString.empty)
 
       val result = tracer.getResult
       val fields = result.asInstanceOf[JObject].obj.map(_._1)
@@ -111,7 +112,7 @@ class PrestateTracerSpec extends AnyFreeSpec with Matchers:
       val postWorld = worldWith(from -> Account(nonce = 2, balance = UInt256(500)), to -> newAccount)
 
       val tracer = new PrestateTracer[MockWorldState, MockStorage](preWorld, diffMode = true)
-      tracer.onTxStart(from, Some(to), gas = 100000, value = 500, input = ByteString.empty)
+      tracer.onTxStart(from, Some(to), gas = 100000, value = Wei(500), input = ByteString.empty)
       tracer.setPostWorld(postWorld)
 
       val result = tracer.getResult

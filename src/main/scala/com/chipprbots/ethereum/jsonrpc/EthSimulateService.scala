@@ -174,8 +174,11 @@ class EthSimulateService(
     var world = InMemoryWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
       mptStorage = blockchain.getReadOnlyMptStorage(),
-      getBlockHashByNumber =
-        (n: BigInt) => simulatedBlockHashes.get(n).orElse(blockchainReader.getBlockHeaderByNumber(n).map(_.hash.value)),
+      getBlockHashByNumber = (n: BlockNumber) =>
+        simulatedBlockHashes
+          .get(n.value)
+          .map(BlockHash.apply)
+          .orElse(blockchainReader.getBlockHeaderByNumber(n.value).map(_.hash)),
       accountStartNonce = blockchainConfig.accountStartNonce,
       stateRootHash = baseBlock.header.stateRoot.value,
       noEmptyAccounts = evmConfig.noEmptyAccounts,
@@ -619,14 +622,14 @@ class EthSimulateService(
           // Write the new slots on fresh (empty) storage
           val storage = w.getStorage(address)
           var s = storage
-          for (key, value) <- slots do s = s.store(key, value)
+          for (key, value) <- slots do s = s.store(StorageKey(key), value)
           w = w.saveStorage(address, s)
         }
 
         ov.stateDiff.foreach { slots =>
           val storage = w.getStorage(address)
           var s = storage
-          for (key, value) <- slots do s = s.store(key, value)
+          for (key, value) <- slots do s = s.store(StorageKey(key), value)
           w = w.saveStorage(address, s)
         }
     Right((w, relocations))
@@ -844,7 +847,7 @@ class EthSimulateService(
       val outcome = if vmError.isDefined then FailureOutcome else SuccessOutcome
       val legacyReceipt = LegacyReceipt(
         postTransactionStateHash = outcome,
-        cumulativeGasUsed = GasAmount(accumGas + gasUsed),
+        cumulativeGasUsed = GasAmount(accumGas) + gasUsed,
         logsBloomFilter =
           com.chipprbots.ethereum.domain.BloomFilter(com.chipprbots.ethereum.ledger.BloomFilter.create(realLogs)),
         logs = realLogs
@@ -855,7 +858,7 @@ class EthSimulateService(
         case _: LegacyTransaction         => legacyReceipt
         case _                            => legacyReceipt
 
-      accumGas += gasUsed
+      accumGas += gasUsed.value
       txs += stx
       senders += sender
       receipts += receipt
@@ -928,8 +931,8 @@ class EthSimulateService(
           SimulateCallResult(
             status = BigInt(0),
             returnData = ByteString.empty,
-            gasUsed = GasAmount(gasUsed),
-            maxUsedGas = gasUsed,
+            gasUsed = gasUsed,
+            maxUsedGas = gasUsed.value,
             logs = Seq.empty,
             error = Some(SimulateError(3, msg, Some(returnData)))
           )
@@ -942,8 +945,8 @@ class EthSimulateService(
           SimulateCallResult(
             status = BigInt(0),
             returnData = returnData,
-            gasUsed = GasAmount(gasUsed),
-            maxUsedGas = gasUsed,
+            gasUsed = gasUsed,
+            maxUsedGas = gasUsed.value,
             logs = Seq.empty,
             error = Some(SimulateError(-32015, errMsg))
           )
@@ -951,8 +954,8 @@ class EthSimulateService(
           SimulateCallResult(
             status = BigInt(1),
             returnData = returnData,
-            gasUsed = GasAmount(gasUsed),
-            maxUsedGas = gasUsed,
+            gasUsed = gasUsed,
+            maxUsedGas = gasUsed.value,
             logs = allLogs
           )
       callResults += callResult
@@ -979,8 +982,8 @@ class EthSimulateService(
             world.saveAccount(BeaconRootContractAddress, account)
           else world
         val storage = w1.getStorage(BeaconRootContractAddress)
-        val s1 = storage.store(timestampIdx.toBigInt, timestamp.toBigInt)
-        val s2 = s1.store(rootIdx.toBigInt, UInt256(beaconRoot.value).toBigInt)
+        val s1 = storage.store(StorageKey(timestampIdx.toBigInt), timestamp.toBigInt)
+        val s2 = s1.store(StorageKey(rootIdx.toBigInt), UInt256(beaconRoot.value).toBigInt)
         w1.saveStorage(BeaconRootContractAddress, s2)
       case None => world
 
@@ -1005,7 +1008,7 @@ class EthSimulateService(
     val parentHashValue = UInt256(blockHeader.parentHash.value)
     val slot = (blockNumber - 1) % HistoryServeWindow
     val storage = w1.getStorage(HistoryStorageAddress)
-    val updatedStorage = storage.store(slot, parentHashValue.toBigInt)
+    val updatedStorage = storage.store(StorageKey(slot), parentHashValue.toBigInt)
     w1.saveStorage(HistoryStorageAddress, updatedStorage)
 
   /** EIP-1559: Compute the base fee for the next block */

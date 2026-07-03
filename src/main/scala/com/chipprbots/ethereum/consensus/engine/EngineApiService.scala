@@ -802,7 +802,12 @@ class EngineApiService(
                                   )
                                 case Left(err) =>
                                   log.error("Proposer-mode execution failed: {}", err)
-                                  (Seq.empty[Receipt], BigInt(0), parent.header.stateRoot.value, Seq.empty[ByteString])
+                                  (
+                                    Seq.empty[Receipt],
+                                    GasAmount.Zero,
+                                    parent.header.stateRoot.value,
+                                    Seq.empty[ByteString]
+                                  )
 
                             val receiptsLogs =
                               BloomFilter.Empty.toArray +: receipts.map(_.logsBloomFilter.toArray)
@@ -860,7 +865,7 @@ class EngineApiService(
                                 buildMpt(skeletonBlock.body.transactionList, SignedTransaction.byteArraySerializable)
                               ),
                               logsBloom = BloomFilter(bloomFilter),
-                              gasUsed = GasAmount(gasUsedTotal),
+                              gasUsed = gasUsedTotal,
                               extraFields = finalExtraFields
                             )
                             val payload = skeletonBlock.copy(header = updatedHeader)

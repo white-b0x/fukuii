@@ -209,7 +209,7 @@ trait OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
   }
 
   test(SSTORE) { op =>
-    val storage = MockStorage.Empty.store(Zero, One)
+    val storage = MockStorage.Empty.store(StorageKey(Zero.toBigInt), One)
     val table = Table[UInt256, UInt256, Boolean, BigInt, BigInt](
       ("offset", "value", "alreadyAccessed", "startGas", "expectedGasConsumption"),
       (0, 1, true, G_callstipend + 1, G_sload),

@@ -182,7 +182,7 @@ object GraphQLSchema:
       InMemoryWorldStateProxy(
         ctx.evmCodeStorage,
         ctx.blockchain.getBackingMptStorage(b.header.number.value),
-        (n: BigInt) => ctx.blockchainReader.getBlockHeaderByNumber(n).map(_.hash.value),
+        (n: BlockNumber) => ctx.blockchainReader.getBlockHeaderByNumber(n.value).map(_.hash),
         ctx.blockchainConfig.accountStartNonce,
         b.header.stateRoot.value,
         noEmptyAccounts = false,

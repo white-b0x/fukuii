@@ -4,6 +4,7 @@ import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.Wei
 
 /** This class may be used for tracing any internal calls (*CALL*, CREATE) during code execution. Currently it's only in
   * Ethereum Test Suite (ets)
@@ -27,5 +28,5 @@ case class InternalTransaction(
     to: Option[Address],
     gasLimit: GasAmount,
     data: ByteString,
-    value: BigInt
+    value: Wei
 )

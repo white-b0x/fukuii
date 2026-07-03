@@ -121,7 +121,7 @@ class ChainImporter(
         Left(s"pre-execution validation failed: $err")
       case Right(_) =>
         blockExecution.executeBlockNoValidation(block).flatMap { case (receipts, gasUsed, stateRootHash) =>
-          blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, GasAmount(gasUsed)) match
+          blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) match
             case Left(err) =>
               receipts.zipWithIndex.foreach { case (r, i) =>
                 log.error(s"Chain import: block ${block.header.number} tx[$i] cumulativeGas=${r.cumulativeGasUsed}")

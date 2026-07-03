@@ -1,5 +1,6 @@
 package com.chipprbots.ethereum.vm
 
+import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
 
 object MockStorage:
@@ -10,15 +11,15 @@ object MockStorage:
     MockStorage(map)
 
 case class MockStorage(data: Map[BigInt, BigInt] = Map()) extends Storage[MockStorage]:
-  def store(offset: BigInt, value: BigInt): MockStorage =
+  def store(offset: StorageKey, value: BigInt): MockStorage =
     val updated =
-      if UInt256(value) == UInt256.Zero then data - offset
-      else data + (offset -> value)
+      if UInt256(value) == UInt256.Zero then data - offset.value
+      else data + (offset.value -> value)
 
     copy(data = updated)
 
-  def load(addr: BigInt): BigInt =
-    data.getOrElse(addr, UInt256.Zero)
+  def load(addr: StorageKey): BigInt =
+    data.getOrElse(addr.value, UInt256.Zero)
 
   def isEmpty: Boolean =
     data.isEmpty
