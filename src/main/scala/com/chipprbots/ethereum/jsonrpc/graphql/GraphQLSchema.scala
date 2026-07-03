@@ -178,11 +178,11 @@ object GraphQLSchema:
       GReceiptBundle(info.block, info.txIndex, receipt, gasUsed.value, receipt.cumulativeGasUsed.value, baseLogIndex)
 
   private def worldStateAt(ctx: GraphQLContext, blockNumber: BigInt): Option[InMemoryWorldStateProxy] =
-    ctx.blockchainReader.getBlockByNumber(ctx.blockchainReader.getBestBranch, blockNumber).map { b =>
+    ctx.blockchainReader.getBlockByNumber(ctx.blockchainReader.getBestBranch, BlockNumber(blockNumber)).map { b =>
       InMemoryWorldStateProxy(
         ctx.evmCodeStorage,
-        ctx.blockchain.getBackingMptStorage(b.header.number.value),
-        (n: BlockNumber) => ctx.blockchainReader.getBlockHeaderByNumber(n.value).map(_.hash),
+        ctx.blockchain.getBackingMptStorage(b.header.number),
+        (n: BlockNumber) => ctx.blockchainReader.getBlockHeaderByNumber(n).map(_.hash),
         ctx.blockchainConfig.accountStartNonce,
         b.header.stateRoot.value,
         noEmptyAccounts = false,
@@ -429,7 +429,7 @@ object GraphQLSchema:
   ): Option[com.chipprbots.ethereum.domain.Account] =
     try
       ctx.blockchainReader
-        .getAccount(ctx.blockchainReader.getBestBranch, Address(address), blockNumber)
+        .getAccount(ctx.blockchainReader.getBestBranch, Address(address), BlockNumber(blockNumber))
     catch case _: MissingNodeException => None
 
   // ---------------------------------------------------------------------------
@@ -638,7 +638,7 @@ object GraphQLSchema:
             c.value.header.baseFee.map { _ =>
               // Best-effort: fetch next block's baseFee if known; otherwise use current.
               c.ctx.blockchainReader
-                .getBlockHeaderByNumber((c.value.number + 1).value)
+                .getBlockHeaderByNumber(c.value.number + 1)
                 .flatMap(_.baseFee)
                 .orElse(c.value.header.baseFee)
                 .map(_.value)
@@ -890,10 +890,10 @@ object GraphQLSchema:
               // post-Cancun block in the hive graphql fixture, which we deliberately don't
               // advance the head into) remain queryable by number.
               val blockOpt = reader
-                .getBlockByNumber(reader.getBestBranch, bn)
+                .getBlockByNumber(reader.getBestBranch, BlockNumber(bn))
                 .orElse {
                   for
-                    header <- reader.getBlockHeaderByNumber(bn)
+                    header <- reader.getBlockHeaderByNumber(BlockNumber(bn))
                     body <- reader.getBlockBodyByHash(header.hash)
                   yield Block(header, body)
                 }
@@ -924,7 +924,7 @@ object GraphQLSchema:
           if to < from then throw GraphQLDataFetchingError.invalidParams("blocks")
           val count = (to - from + 1).min(MaxBlocksPerRange).toInt
           (0 until count).flatMap { i =>
-            reader.getBlockByNumber(reader.getBestBranch, from + i).map(b => buildGBlock(c.ctx, b))
+            reader.getBlockByNumber(reader.getBestBranch, BlockNumber(from + i)).map(b => buildGBlock(c.ctx, b))
           }
       ),
       Field("pending", PendingType, resolve = _ => GPending),
@@ -993,7 +993,7 @@ object GraphQLSchema:
           if to >= from then
             val maxBlocks = (to - from + 1).min(MaxBlocksPerRange).toInt
             (0 until maxBlocks).foreach { i =>
-              reader.getBlockByNumber(reader.getBestBranch, from + i).foreach { block =>
+              reader.getBlockByNumber(reader.getBestBranch, BlockNumber(from + i)).foreach { block =>
                 val receipts = reader.getReceiptsByHash(block.header.hash).getOrElse(Seq.empty)
                 val txs = block.body.transactionList
                 var baseLogIndex = 0
@@ -1102,7 +1102,7 @@ object GraphQLSchema:
               val currentNonce =
                 try
                   reader
-                    .getAccount(reader.getBestBranch, sender, bestNum)
+                    .getAccount(reader.getBestBranch, sender, BlockNumber(bestNum))
                     .map(_.nonce.toBigInt)
                     .getOrElse(c.ctx.blockchainConfig.accountStartNonce.toBigInt)
                 catch case _: MissingNodeException => c.ctx.blockchainConfig.accountStartNonce.toBigInt

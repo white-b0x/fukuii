@@ -152,8 +152,8 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers:
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = postEip161Config.noEmptyAccounts,
@@ -167,8 +167,8 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers:
 
     val worldStateWithoutPersistPreEIP161: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = postEip160Config.noEmptyAccounts,

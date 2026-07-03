@@ -81,8 +81,8 @@ class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory:
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      DeleteAccountsSpec.this.blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      DeleteAccountsSpec.this.blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = false,

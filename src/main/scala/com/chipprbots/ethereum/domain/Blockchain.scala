@@ -50,7 +50,7 @@ trait Blockchain:
     * @return
     *   MptStorage
     */
-  def getBackingMptStorage(blockNumber: BigInt): MptStorage
+  def getBackingMptStorage(blockNumber: BlockNumber): MptStorage
 
   /** Get the MptStorage for read-only
     *
@@ -114,15 +114,15 @@ class BlockchainImpl(
     val proof: Option[Vector[MptNode]] = mpt.getProof(position)
     StorageProof(position, value, proof)
 
-  def getBackingMptStorage(blockNumber: BigInt): MptStorage = stateStorage.getBackingStorage(blockNumber)
+  def getBackingMptStorage(blockNumber: BlockNumber): MptStorage = stateStorage.getBackingStorage(blockNumber.value)
 
   def getReadOnlyMptStorage(): MptStorage = stateStorage.getReadOnlyStorage
 
   override def saveBlockState(bn: BigInt): Unit =
     stateStorage.onBlockSave(bn, appStateStorage.getBestBlockNumber())(() => ())
 
-  private def removeBlockNumberMapping(number: BigInt): DataSourceBatchUpdate =
-    blockNumberMappingStorage.remove(number)
+  private def removeBlockNumberMapping(number: BlockNumber): DataSourceBatchUpdate =
+    blockNumberMappingStorage.remove(number.value)
 
   override def removeBlock(blockHash: BlockHash): Unit =
     val maybeBlock = blockchainReader.getBlockByHash(blockHash)
@@ -142,15 +142,15 @@ class BlockchainImpl(
     val txList = block.body.transactionList
 
     val blockNumberMappingUpdates =
-      if blockchainReader.getHashByBlockNumber(blockchainReader.getBestBranch, block.number.value).contains(blockHash)
-      then removeBlockNumberMapping(block.number.value)
+      if blockchainReader.getHashByBlockNumber(blockchainReader.getBestBranch, block.number).contains(blockHash)
+      then removeBlockNumberMapping(block.number)
       else blockNumberMappingStorage.emptyBatchUpdate
 
-    val potentialNewBestBlockNumber: BigInt = (block.number.value - 1).max(0)
+    val potentialNewBestBlockNumber: BlockNumber = (block.number - 1).max(BlockNumber.Zero)
     val potentialNewBestBlockHash: ByteString = block.header.parentHash.value
 
     val bestBlockNumberUpdates =
-      if appStateStorage.getBestBlockNumber() > potentialNewBestBlockNumber then
+      if appStateStorage.getBestBlockNumber() > potentialNewBestBlockNumber.value then
         appStateStorage.putBestBlockInfo(BlockInfo(potentialNewBestBlockHash, potentialNewBestBlockNumber))
       else appStateStorage.emptyBatchUpdate
 

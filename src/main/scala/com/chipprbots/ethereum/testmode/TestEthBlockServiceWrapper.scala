@@ -94,7 +94,7 @@ class TestEthBlockServiceWrapper(
         val bestBranch = blockchainReader.getBestBranch
         val response = for
           blockResp <- blockByBlockResponse.blockResponse
-          fullBlock <- blockchainReader.getBlockByNumber(bestBranch, blockResp.number.value)
+          fullBlock <- blockchainReader.getBlockByNumber(bestBranch, blockResp.number)
         yield toEthResponse(fullBlock, blockResp)
         BlockByNumberResponse(response)
       }

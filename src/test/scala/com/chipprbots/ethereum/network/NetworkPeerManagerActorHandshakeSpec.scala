@@ -18,6 +18,7 @@ import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.db.dataSource.EphemDataSource
 import com.chipprbots.ethereum.db.storage.AppStateStorage
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerEventCmd
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerInfo
@@ -50,7 +51,7 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
   private val peerStatus = RemoteStatus(
     capability = Capability.ETH69,
     networkId = 61L,
-    chainWeight = ChainWeight.totalDifficultyOnly(10000),
+    chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(10000)),
     bestHash = Fixtures.Blocks.Block3125369.header.hash.value,
     genesisHash = Fixtures.Blocks.Genesis.header.hash.value
   )

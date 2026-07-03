@@ -15,6 +15,7 @@ import com.chipprbots.ethereum.db.cache.Cache
 import com.chipprbots.ethereum.db.cache.LruCache
 import com.chipprbots.ethereum.db.cache.MapCache
 import com.chipprbots.ethereum.db.dataSource.EphemDataSource
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.db.storage.NodeStorage.NodeEncoded
 import com.chipprbots.ethereum.db.storage.NodeStorage.NodeHash
 import com.chipprbots.ethereum.db.storage.pruning.ArchivePruning
@@ -164,7 +165,7 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
     val archiveNodeStorage = new ArchiveNodeStorage(nodeStorage)
     val archiveStateStorage: StateStorage = StateStorage(ArchivePruning, nodeStorage, lruCache)
 
-    val refCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, 10)
+    val refCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, BlockNumber(10))
     val referenceCounteStateStorage: StateStorage = StateStorage(BasicPruning(10), nodeStorage, lruCache)
 
     val cachedStateStorage: StateStorage = StateStorage(InMemoryPruning(10), nodeStorage, lruCache)

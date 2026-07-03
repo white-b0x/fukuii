@@ -1,5 +1,7 @@
 package com.chipprbots.ethereum.db.storage
 
+import com.chipprbots.ethereum.domain.BlockNumber
+
 package object pruning:
 
   enum PruningMode:
@@ -17,7 +19,7 @@ package object pruning:
       * @param nodeStorage
       *   NodeStorage
       */
-    def prune(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit
+    def prune(blockNumber: BlockNumber, nodeStorage: NodesStorage, inMemory: Boolean): Unit
 
     /** Rollbacks blocknumber changes
       * @param blockNumber
@@ -25,4 +27,4 @@ package object pruning:
       * @param nodeStorage
       *   NodeStorage
       */
-    def rollback(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit
+    def rollback(blockNumber: BlockNumber, nodeStorage: NodesStorage, inMemory: Boolean): Unit

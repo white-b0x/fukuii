@@ -10,12 +10,13 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.db.dataSource.RocksDbConfig
 import com.chipprbots.ethereum.db.dataSource.RocksDbDataSource
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.testing.Tags.*
 
 /** Tests for [[SnapSyncProgressStorage]] — SNAP download cursor persistence (account + storage cursors). */
 class SnapSyncProgressStorageSpec extends AnyFlatSpec with Matchers:
 
-  private def root(i: Int): ByteString = ByteString(Array.fill(32)(i.toByte))
+  private def root(i: Int): TrieRoot = TrieRoot(ByteString(Array.fill(32)(i.toByte)))
   private def cursor(i: Int): String = "0" * (64 - i.toString.length) + i.toString
 
   private def withStorage(test: SnapSyncProgressStorage => Unit): Unit =

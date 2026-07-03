@@ -162,11 +162,11 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
       val h10: BlockHeader = chain(3)
 
       // h7 has the valid anchor TD
-      blockchainWriter.storeChainWeight(h7.hash, ChainWeight.totalDifficultyOnly(anchorTD)).commit()
+      blockchainWriter.storeChainWeight(h7.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(anchorTD))).commit()
       // h8–h10 have implausible TDs (well below blockNum × 10^13)
-      blockchainWriter.storeChainWeight(h8.hash, ChainWeight.totalDifficultyOnly(BigInt(8))).commit()
-      blockchainWriter.storeChainWeight(h9.hash, ChainWeight.totalDifficultyOnly(BigInt(9))).commit()
-      blockchainWriter.storeChainWeight(h10.hash, ChainWeight.totalDifficultyOnly(BigInt(10))).commit()
+      blockchainWriter.storeChainWeight(h8.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(8)))).commit()
+      blockchainWriter.storeChainWeight(h9.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(9)))).commit()
+      blockchainWriter.storeChainWeight(h10.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(10)))).commit()
       setBestBlockHeader(h10)
 
       drainRegistration()
@@ -204,7 +204,7 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
       val correctTD: BigInt = BigInt("24000000000000000000000") // 24e21 >> 10 × 10^13
       val chain: Vector[BlockHeader] = buildParentHashChain(startNum = 10, length = 1)
       val h10: BlockHeader = chain(0)
-      blockchainWriter.storeChainWeight(h10.hash, ChainWeight.totalDifficultyOnly(correctTD)).commit()
+      blockchainWriter.storeChainWeight(h10.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(correctTD))).commit()
       setBestBlockHeader(h10)
       drainRegistration()
 
@@ -229,7 +229,7 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
         parentHash = BlockHash(fakeMissingHash) // parentHash for a header that doesn't exist
       )
       blockchainWriter.storeBlockHeader(h10).commit()
-      blockchainWriter.storeChainWeight(h10.hash, ChainWeight.totalDifficultyOnly(BigInt(10))).commit()
+      blockchainWriter.storeChainWeight(h10.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(10)))).commit()
       setBestBlockHeader(h10)
       drainRegistration()
 
@@ -265,7 +265,7 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
       val tightAnchor: BigInt = BigInt("11000000000000") // 1.1×10^13 > 1×10^13 → found as anchor
       val chain: Vector[BlockHeader] = buildParentHashChain(startNum = 1, length = 1)
       val h1: BlockHeader = chain(0)
-      blockchainWriter.storeChainWeight(h1.hash, ChainWeight.totalDifficultyOnly(tightAnchor)).commit()
+      blockchainWriter.storeChainWeight(h1.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(tightAnchor))).commit()
       setBestBlockHeader(h1)
       drainRegistration()
 
@@ -290,10 +290,12 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
       val anchor = chain.head
       val bestHdr = chain.last
 
-      blockchainWriter.storeChainWeight(anchor.hash, ChainWeight.totalDifficultyOnly(anchorTD)).commit()
+      blockchainWriter
+        .storeChainWeight(anchor.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(anchorTD)))
+        .commit()
       // All headers above anchor: implausible TDs
       chain.tail.foreach { h =>
-        blockchainWriter.storeChainWeight(h.hash, ChainWeight.totalDifficultyOnly(BigInt(1))).commit()
+        blockchainWriter.storeChainWeight(h.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1)))).commit()
       }
       setBestBlockHeader(bestHdr)
       drainRegistration()
@@ -317,9 +319,11 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
       val bestHdr = chain.last
       val anchorTD: BigInt = BigInt("10000000000000000")
 
-      blockchainWriter.storeChainWeight(anchor.hash, ChainWeight.totalDifficultyOnly(anchorTD)).commit()
+      blockchainWriter
+        .storeChainWeight(anchor.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(anchorTD)))
+        .commit()
       chain.tail.foreach { h =>
-        blockchainWriter.storeChainWeight(h.hash, ChainWeight.totalDifficultyOnly(BigInt(1))).commit()
+        blockchainWriter.storeChainWeight(h.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1)))).commit()
       }
       setBestBlockHeader(bestHdr)
       drainRegistration()
@@ -343,10 +347,12 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
       val h5: BlockHeader = chain(0); val h10: BlockHeader = chain(5); val h15: BlockHeader = chain(10)
 
       // Store plausible TDs at h5 and h10; implausible at everything else
-      blockchainWriter.storeChainWeight(h5.hash, ChainWeight.totalDifficultyOnly(anchorTD_5)).commit()
-      blockchainWriter.storeChainWeight(h10.hash, ChainWeight.totalDifficultyOnly(anchorTD_10)).commit()
+      blockchainWriter.storeChainWeight(h5.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(anchorTD_5))).commit()
+      blockchainWriter
+        .storeChainWeight(h10.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(anchorTD_10)))
+        .commit()
       chain.filterNot(h => h.hash == h5.hash || h.hash == h10.hash).foreach { h =>
-        blockchainWriter.storeChainWeight(h.hash, ChainWeight.totalDifficultyOnly(BigInt(1))).commit()
+        blockchainWriter.storeChainWeight(h.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1)))).commit()
       }
       setBestBlockHeader(h15)
       drainRegistration()
@@ -401,7 +407,9 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
       val anchorTD: BigInt = BigInt("24000000000000000000000")
       val chain: Vector[BlockHeader] = buildParentHashChain(startNum = 24720000, length = 1)
       val bestHdr: BlockHeader = chain(0)
-      blockchainWriter.storeChainWeight(bestHdr.hash, ChainWeight.totalDifficultyOnly(anchorTD)).commit()
+      blockchainWriter
+        .storeChainWeight(bestHdr.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(anchorTD)))
+        .commit()
       setBestBlockHeader(bestHdr)
 
       // Attempt 2 succeeds → no retry scheduled
@@ -515,7 +523,7 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
     blockchainWriter
       .storeChainWeight(
         Fixtures.Blocks.Genesis.header.hash,
-        ChainWeight.totalDifficultyOnly(Fixtures.Blocks.Genesis.header.difficulty.value)
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(Fixtures.Blocks.Genesis.header.difficulty.value))
       )
       .commit()
     blockchainWriter.storeChainWeight(Fixtures.Blocks.Genesis.header.parentHash, ChainWeight.zero).commit()
@@ -551,13 +559,18 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
     def setupBestBlock(blockNum: BigInt): Unit =
       val hdr = Fixtures.Blocks.Genesis.header.copy(number = BlockNumber(blockNum))
       val blk = Block(hdr, BlockBody(Nil, Nil))
-      blockchainWriter.save(blk, Seq.empty, ChainWeight.totalDifficultyOnly(BigInt(1)), saveAsBestBlock = true)
+      blockchainWriter.save(
+        blk,
+        Seq.empty,
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1))),
+        saveAsBestBlock = true
+      )
 
     /** Store a header as the best block without a full block body. */
     def setBestBlockHeader(hdr: BlockHeader): Unit =
       blockchainWriter.storeBlockHeader(hdr).commit()
       storagesInstance.storages.appStateStorage
-        .putBestBlockInfo(BlockInfo(hdr.hash.value, hdr.number.value))
+        .putBestBlockInfo(BlockInfo(hdr.hash.value, hdr.number))
         .commit()
 
     /** Build an anchor chain: `length` headers starting at `startNum`, each pointing to the previous via parentHash.
@@ -586,10 +599,12 @@ class ChainWeightCalibrationSpec extends AnyFlatSpec with Matchers with BeforeAn
       val chain = buildParentHashChain(anchorNum, length)
       val anchor = chain(0)
       val bestHdr = chain(length - 1)
-      blockchainWriter.storeChainWeight(anchor.hash, ChainWeight.totalDifficultyOnly(anchorTD)).commit()
+      blockchainWriter
+        .storeChainWeight(anchor.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(anchorTD)))
+        .commit()
       // Implausible TDs for all headers above anchor
       chain.tail.foreach { h =>
-        blockchainWriter.storeChainWeight(h.hash, ChainWeight.totalDifficultyOnly(BigInt(1))).commit()
+        blockchainWriter.storeChainWeight(h.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1)))).commit()
       }
       setBestBlockHeader(bestHdr)
 

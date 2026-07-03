@@ -44,8 +44,8 @@ object StateSyncUtils extends EphemBlockchainTestSetup:
     def buildWorld(accountData: Seq[MptNodeData], existingTree: Option[ByteString] = None): ByteString =
       val init = InMemoryWorldStateProxy(
         evmCodeStorage,
-        blockchain.getBackingMptStorage(1),
-        (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+        blockchain.getBackingMptStorage(BlockNumber(1)),
+        (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
         blockchainConfig.accountStartNonce,
         existingTree.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash)),
         noEmptyAccounts = true,
@@ -102,7 +102,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup:
       else
         val dataToCheck = remaining.head
         val address =
-          blockchainReader.getAccount(blockchainReader.getBestBranch, dataToCheck.accountAddress, blNumber)
+          blockchainReader.getAccount(blockchainReader.getBestBranch, dataToCheck.accountAddress, BlockNumber(blNumber))
         val code = address.flatMap(a => evmCodeStorage.get(a.codeHash.value))
 
         val storageCorrect = dataToCheck.accountStorage.forall { case (key, value) =>

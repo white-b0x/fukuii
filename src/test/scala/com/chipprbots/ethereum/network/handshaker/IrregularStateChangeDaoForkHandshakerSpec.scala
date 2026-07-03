@@ -471,7 +471,7 @@ class IrregularStateChangeDaoForkHandshakerSpec extends AnyFlatSpec with Matcher
     val localStatus: RemoteStatus = RemoteStatus(
       Capability.ETH68,
       localStatusMsg.networkId,
-      ChainWeight.totalDifficultyOnly(localStatusMsg.totalDifficulty),
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(localStatusMsg.totalDifficulty)),
       localStatusMsg.bestHash,
       localStatusMsg.genesisHash,
       false,
@@ -490,7 +490,7 @@ class IrregularStateChangeDaoForkHandshakerSpec extends AnyFlatSpec with Matcher
     val localStatus: RemoteStatus = RemoteStatus(
       Capability.ETH68,
       localStatusMsg.networkId,
-      ChainWeight.totalDifficultyOnly(localStatusMsg.totalDifficulty),
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(localStatusMsg.totalDifficulty)),
       localStatusMsg.bestHash,
       localStatusMsg.genesisHash,
       false,
@@ -527,7 +527,7 @@ class IrregularStateChangeDaoForkHandshakerSpec extends AnyFlatSpec with Matcher
     val remoteStatus: RemoteStatus = RemoteStatus(
       Capability.ETH68,
       remoteStatusMsg.networkId,
-      ChainWeight.totalDifficultyOnly(remoteStatusMsg.totalDifficulty),
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(remoteStatusMsg.totalDifficulty)),
       remoteStatusMsg.bestHash,
       remoteStatusMsg.genesisHash,
       false,
@@ -557,7 +557,7 @@ class IrregularStateChangeDaoForkHandshakerSpec extends AnyFlatSpec with Matcher
     val remoteStatus: RemoteStatus = RemoteStatus(
       Capability.ETH68,
       remoteStatusMsg.networkId,
-      ChainWeight.totalDifficultyOnly(remoteStatusMsg.totalDifficulty),
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(remoteStatusMsg.totalDifficulty)),
       remoteStatusMsg.bestHash,
       remoteStatusMsg.genesisHash,
       false,

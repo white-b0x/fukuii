@@ -60,7 +60,7 @@ class BlockchainReader(
       body <- getBlockBodyByHash(hash)
     yield Block(header, body)
 
-  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] =
+  def getBlockHeaderByNumber(number: BlockNumber): Option[BlockHeader] =
     for
       hash <- getHashByBlockNumber(number)
       header <- getBlockHeaderByHash(BlockHash(hash))
@@ -118,14 +118,14 @@ class BlockchainReader(
     getBlockHeaderByHash(BlockHash(bestKnownBlockinfo.hash))
 
   def genesisHeader: BlockHeader =
-    getBlockHeaderByNumber(0).getOrElse(throw new IllegalStateException("Genesis header not found"))
+    getBlockHeaderByNumber(BlockNumber.Genesis).getOrElse(throw new IllegalStateException("Genesis header not found"))
 
   def genesisBlock: Block =
-    getBlockByNumber(0).getOrElse(throw new IllegalStateException("Genesis block not found"))
+    getBlockByNumber(BlockNumber.Genesis).getOrElse(throw new IllegalStateException("Genesis block not found"))
 
   /** Returns a block inside this branch based on its number */
-  def getBlockByNumber(branch: Branch, number: BigInt): Option[Block] = branch match
-    case BestBranch(_, tipBlockNumber) if tipBlockNumber >= number && number >= 0 =>
+  def getBlockByNumber(branch: Branch, number: BlockNumber): Option[Block] = branch match
+    case BestBranch(_, tipBlockNumber) if tipBlockNumber >= number.value && number.value >= 0 =>
       for
         hash <- getHashByBlockNumber(number)
         block <- getBlockByHash(BlockHash(hash))
@@ -133,9 +133,10 @@ class BlockchainReader(
     case EmptyBranch | BestBranch(_, _) => None
 
   /** Returns a block hash for the block at the given height if any */
-  def getHashByBlockNumber(branch: Branch, number: BigInt): Option[BlockHash] = branch match
+  def getHashByBlockNumber(branch: Branch, number: BlockNumber): Option[BlockHash] = branch match
     case BestBranch(_, tipBlockNumber) =>
-      if tipBlockNumber >= number && number >= 0 then blockNumberMappingStorage.get(number).map(BlockHash.apply)
+      if tipBlockNumber >= number.value && number.value >= 0 then
+        blockNumberMappingStorage.get(number.value).map(BlockHash.apply)
       else None
 
     case EmptyBranch => None
@@ -145,7 +146,7 @@ class BlockchainReader(
     case BestBranch(_, tipBlockNumber) =>
       (for
         header <- getBlockHeaderByHash(hash) if header.number.value <= tipBlockNumber
-        hashFromBestChain <- getHashByBlockNumber(branch, header.number.value)
+        hashFromBestChain <- getHashByBlockNumber(branch, header.number)
       yield header.hash == hashFromBestChain).getOrElse(false)
     case EmptyBranch => false
 
@@ -158,16 +159,16 @@ class BlockchainReader(
     * @param blockNumber
     *   the block that determines the state of the account
     */
-  def getAccount(branch: Branch, address: Address, blockNumber: BigInt): Option[Account] = branch match
+  def getAccount(branch: Branch, address: Address, blockNumber: BlockNumber): Option[Account] = branch match
     case BestBranch(_, tipBlockNumber) =>
-      if blockNumber <= tipBlockNumber then getAccountMpt(blockNumber).flatMap(_.get(address))
+      if blockNumber.value <= tipBlockNumber then getAccountMpt(blockNumber).flatMap(_.get(address))
       else None
     case EmptyBranch => None
 
-  def getAccountProof(branch: Branch, address: Address, blockNumber: BigInt): Option[Vector[MptNode]] =
+  def getAccountProof(branch: Branch, address: Address, blockNumber: BlockNumber): Option[Vector[MptNode]] =
     branch match
       case BestBranch(_, tipBlockNumber) =>
-        if blockNumber <= tipBlockNumber then getAccountMpt(blockNumber).flatMap(_.getProof(address))
+        if blockNumber.value <= tipBlockNumber then getAccountMpt(blockNumber).flatMap(_.getProof(address))
         else None
       case EmptyBranch => None
 
@@ -193,9 +194,9 @@ class BlockchainReader(
   ): (ChainWeight, String) =
     getChainWeightByHash(BlockHash(latestBlockHash)) match
       case Some(cw)            => (cw, "DB_LOOKUP")
-      case None if !isPoWChain => (ChainWeight.totalDifficultyOnly(latestBlock), "POS_PROXY")
+      case None if !isPoWChain => (ChainWeight.totalDifficultyOnly(TotalDifficulty(latestBlock)), "POS_PROXY")
       case None =>
-        getBlockHeaderByNumber(latestBlock).flatMap(h => getChainWeightByHash(h.hash)) match
+        getBlockHeaderByNumber(BlockNumber(latestBlock)).flatMap(h => getChainWeightByHash(h.hash)) match
           case Some(cw) => (cw, "CANONICAL_NUMBER")
           case None =>
             val ourBestNum = getBestBlockNumber
@@ -208,11 +209,11 @@ class BlockchainReader(
               val rate = rollingMedianDifficulty.orElse(bestHeaderOpt.map(_.difficulty.value)).getOrElse(BigInt(1))
               val gap = (latestBlock - ourBestNum).max(BigInt(0))
               val estimatedTD = ourBestTD + rate * gap
-              (ChainWeight.totalDifficultyOnly(estimatedTD), "POW_SCALING")
+              (ChainWeight.totalDifficultyOnly(TotalDifficulty(estimatedTD)), "POW_SCALING")
             else
               // DB not yet bootstrapped — TD=0 gives peer lowest priority rather than a
               // wrong-magnitude block-number proxy. ETH69_CHAINWEIGHT_REFRESH corrects within 120s.
-              (ChainWeight.totalDifficultyOnly(BigInt(0)), "COLD_START")
+              (ChainWeight.totalDifficultyOnly(TotalDifficulty.Zero), "COLD_START")
 
   private val RollingMedianCapacity = 1_000
   private val difficultyRingBuffer = scala.collection.mutable.ArrayDeque.empty[BigInt]
@@ -248,7 +249,7 @@ class BlockchainReader(
     * @return
     *   Block if it exists
     */
-  private def getBlockByNumber(number: BigInt): Option[Block] =
+  private def getBlockByNumber(number: BlockNumber): Option[Block] =
     for
       hash <- getHashByBlockNumber(number)
       block <- getBlockByHash(BlockHash(hash))
@@ -261,12 +262,12 @@ class BlockchainReader(
     * @return
     *   Block hash if found
     */
-  private def getHashByBlockNumber(number: BigInt): Option[ByteString] =
-    blockNumberMappingStorage.get(number)
+  private def getHashByBlockNumber(number: BlockNumber): Option[ByteString] =
+    blockNumberMappingStorage.get(number.value)
 
-  private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] =
+  private def getAccountMpt(blockNumber: BlockNumber): Option[MerklePatriciaTrie[Address, Account]] =
     getBlockHeaderByNumber(blockNumber).map { bh =>
-      val storage = stateStorage.getBackingStorage(blockNumber)
+      val storage = stateStorage.getBackingStorage(blockNumber.value)
       MerklePatriciaTrie[Address, Account](
         rootHash = bh.stateRoot.toArray,
         source = storage

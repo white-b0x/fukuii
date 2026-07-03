@@ -14,6 +14,7 @@ import com.chipprbots.ethereum.blockchain.sync.codec.MptNodeCodecs.*
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.PeerEventBusActor.Command as PeerEventBusCommand
@@ -252,7 +253,7 @@ object BlockchainHostActor:
           val blockHeaders: Seq[BlockHeader] =
             LazyList
               .from(range)
-              .map(a => blockchainReader.getBlockHeaderByNumber(a))
+              .map(a => blockchainReader.getBlockHeaderByNumber(BlockNumber(a)))
               .takeWhile(_.isDefined)
               .flatten
               .toSeq

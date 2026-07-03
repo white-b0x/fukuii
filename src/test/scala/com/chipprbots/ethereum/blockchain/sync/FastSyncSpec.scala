@@ -24,6 +24,7 @@ import com.chipprbots.ethereum.blockchain.sync.fast.FastSync
 import com.chipprbots.ethereum.blockchain.sync.fast.SyncStateSchedulerActor
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.Transaction
 import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
@@ -110,7 +111,7 @@ class FastSyncSpec extends ScalaTestWithActorTestKit() with FreeSpecBase with Sp
       blockchainWriter.save(
         BlockHelpers.genesis,
         receipts = Nil,
-        ChainWeight.totalDifficultyOnly(1),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(1)),
         saveAsBestBlock = true
       )
     }
@@ -118,7 +119,7 @@ class FastSyncSpec extends ScalaTestWithActorTestKit() with FreeSpecBase with Sp
     val saveTestBlocksWithWeights: IO[Unit] = IO {
       // Save test blocks with chain weights to prevent "Parent chain weight not found" errors
       // Use cumulative difficulty (each block adds to the total)
-      testBlocks.foldLeft(ChainWeight.totalDifficultyOnly(1)) { (cumulativeWeight, block) =>
+      testBlocks.foldLeft(ChainWeight.totalDifficultyOnly(TotalDifficulty(1))) { (cumulativeWeight, block) =>
         val newWeight = cumulativeWeight.increase(block.header)
         blockchainWriter.save(
           block,

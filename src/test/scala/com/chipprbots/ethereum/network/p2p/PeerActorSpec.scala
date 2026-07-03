@@ -186,7 +186,8 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
     val completeUri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@127.0.0.1:9000?discport=9000")
 
     // Ensure local chain is past the fork so ForkId validation succeeds by persisting the DAO fork block as best
-    val daoForkChainWeight: ChainWeight = ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty)
+    val daoForkChainWeight: ChainWeight =
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(daoForkBlockChainTotalDifficulty))
     blockchainWriter.save(
       Fixtures.Blocks.DaoForkBlock.block,
       Seq.empty,
@@ -348,8 +349,9 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
     val remoteStatus: RemoteStatus = RemoteStatus(
       capability = Capability.ETH63,
       networkId = peerConf.networkId,
-      chainWeight =
-        ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty - 200000), // remote is before the fork
+      chainWeight = ChainWeight.totalDifficultyOnly(
+        TotalDifficulty(daoForkBlockChainTotalDifficulty - 200000)
+      ), // remote is before the fork
       bestHash = ByteString("blockhash"),
       genesisHash = Fixtures.Blocks.Genesis.header.hash.value
     )
@@ -474,7 +476,8 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
     val nodeStatusHolder = new AtomicReference(nodeStatus)
 
     val genesisBlock = Fixtures.Blocks.Genesis.block
-    val genesisWeight: ChainWeight = ChainWeight.totalDifficultyOnly(genesisBlock.header.difficulty.value)
+    val genesisWeight: ChainWeight =
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(genesisBlock.header.difficulty.value))
 
     blockchainWriter.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
 
@@ -561,7 +564,7 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
 
     /** Advance our chain to the DAO fork block so ForkId validation succeeds for ETC mainnet peers. */
     def saveEtcChainAtDaoFork(): Unit =
-      val daoForkChainWeight = ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty)
+      val daoForkChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(daoForkBlockChainTotalDifficulty))
       blockchainWriter.save(Fixtures.Blocks.DaoForkBlock.block, Seq.empty, daoForkChainWeight, saveAsBestBlock = true)
 
     /** Canonical ETH68 handshake with the test's local chain state. */

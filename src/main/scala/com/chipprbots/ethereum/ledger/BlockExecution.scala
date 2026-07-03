@@ -142,8 +142,8 @@ class BlockExecution(
     val _ = isProposer
     InMemoryWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
-      blockchain.getBackingMptStorage(block.header.number.value),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(block.header.number),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       accountStartNonce = blockchainConfig.accountStartNonce,
       stateRootHash = parentHeader.stateRoot.value,
       noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,

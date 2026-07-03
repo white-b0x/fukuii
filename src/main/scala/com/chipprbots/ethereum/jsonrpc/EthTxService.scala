@@ -17,6 +17,7 @@ import com.chipprbots.ethereum.db.storage.TransactionMappingStorage
 import com.chipprbots.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHash
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.Receipt
@@ -114,7 +115,7 @@ class EthTxService(
       txPending.orElse {
         for
           TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(txHash.value)
-          Block(header, body) <- blockchainReader.getBlockByHash(BlockHash(blockHash))
+          Block(header, body) <- blockchainReader.getBlockByHash(blockHash)
           stx <- body.transactionList.lift(txIndex)
         yield TransactionData(stx, Some(header), Some(txIndex))
       }
@@ -124,7 +125,7 @@ class EthTxService(
     IO {
       val result: Option[TransactionReceiptResponse] = for
         TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(req.txHash.value)
-        Block(header, body) <- blockchainReader.getBlockByHash(BlockHash(blockHash))
+        Block(header, body) <- blockchainReader.getBlockByHash(blockHash)
         // Only surface receipts for CANONICAL transactions. Under engine-API, a block
         // may be stored (with receipts + tx-location mapping) immediately after newPayload
         // but not promoted to canonical until a subsequent forkchoiceUpdated — hive's
@@ -133,10 +134,10 @@ class EthTxService(
         // index, AND (b) its number is <= the client's best-block pointer (i.e. FCU has
         // advanced past it). (a) alone is true right after newPayload's storeBlock but
         // (b) flips only when the subsequent FCU updates saveBestKnownBlocks.
-        _ <- blockchainReader.getBlockHeaderByNumber(header.number.value).filter(_.hash.value == blockHash)
+        _ <- blockchainReader.getBlockHeaderByNumber(header.number).filter(_.hash == blockHash)
         bestNum = blockchainReader.getBestBlockNumber if header.number.value <= bestNum
         stx <- body.transactionList.lift(txIndex)
-        receipts <- blockchainReader.getReceiptsByHash(BlockHash(blockHash))
+        receipts <- blockchainReader.getReceiptsByHash(blockHash)
         receipt: Receipt <- receipts.lift(txIndex)
         // another possibility would be to throw an exception and fail hard, as if we cannot calculate sender for transaction
         // included in blockchain it means that something is terribly wrong
@@ -216,7 +217,7 @@ class EthTxService(
     val bestBranch = blockchainReader.getBestBranch
 
     val gasPrices = ((bestBlock - GasPriceCheckBlocks + 1).max(BigInt(0)) to bestBlock)
-      .flatMap(nb => blockchainReader.getBlockByNumber(bestBranch, nb))
+      .flatMap(nb => blockchainReader.getBlockByNumber(bestBranch, BlockNumber(nb)))
       .flatMap { block =>
         val coinbase = block.header.beneficiary
         // Exclude miner self-transactions — matches go-ethereum, core-geth, erigon, Besu, Nethermind.

@@ -1,6 +1,7 @@
 package com.chipprbots.ethereum.network.handshaker
 
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.network.ForkResolver
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerInfo
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
@@ -78,7 +79,7 @@ case class IrregularStateChangeDaoForkBlockExchangeState(
     case ETHPackets.GetBlockHeaders(requestId, Left(number), numHeaders, _, _)
         if number == forkResolver.forkBlockNumber && numHeaders == 1 =>
       log.debug("Received request for fork block")
-      Some(createBlockHeaderResponse(requestId, blockchainReader.getBlockHeaderByNumber(number)))
+      Some(createBlockHeaderResponse(requestId, blockchainReader.getBlockHeaderByNumber(BlockNumber(number))))
 
     case _ => None
 

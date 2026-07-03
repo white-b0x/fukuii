@@ -257,7 +257,9 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       // Now install an anchor so attempt 2 succeeds
       val anchorTD: BigInt = BigInt("24640000000000000000000")
       val chain: Vector[BlockHeader] = buildParentHashChain(startNum = 24720000, length = 1)
-      blockchainWriter.storeChainWeight(chain(0).hash, ChainWeight.totalDifficultyOnly(anchorTD)).commit()
+      blockchainWriter
+        .storeChainWeight(chain(0).hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(anchorTD)))
+        .commit()
       setBestBlockHeader(chain(0))
 
       // Attempt 2: anchor found, TD written
@@ -377,7 +379,7 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     blockchainWriter
       .storeChainWeight(
         Fixtures.Blocks.Genesis.header.hash,
-        ChainWeight.totalDifficultyOnly(Fixtures.Blocks.Genesis.header.difficulty.value)
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(Fixtures.Blocks.Genesis.header.difficulty.value))
       )
       .commit()
     blockchainWriter.storeChainWeight(Fixtures.Blocks.Genesis.header.parentHash, ChainWeight.zero).commit()
@@ -400,7 +402,7 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       blockchainWriter.save(
         blk,
         Seq.empty,
-        ChainWeight.totalDifficultyOnly(storedTD),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(storedTD)),
         saveAsBestBlock = true
       )
 
@@ -408,7 +410,7 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     def setBestBlockHeader(hdr: BlockHeader): Unit =
       blockchainWriter.storeBlockHeader(hdr).commit()
       storagesInstance.storages.appStateStorage
-        .putBestBlockInfo(BlockInfo(hdr.hash.value, hdr.number.value))
+        .putBestBlockInfo(BlockInfo(hdr.hash.value, hdr.number))
         .commit()
 
     def buildParentHashChain(startNum: Int, length: Int): Vector[BlockHeader] =

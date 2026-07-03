@@ -68,7 +68,7 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     setupNewPeer(peer1, peer1Probe, peer1Info)
 
     // given
-    val newBlockWeight: ChainWeight = ChainWeight.totalDifficultyOnly(300)
+    val newBlockWeight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(300))
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = BlockNumber(peer1Info.maxBlockNumber + 4))
     val firstBlock: NewBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), newBlockWeight.totalDifficulty)
 
@@ -187,7 +187,9 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     // then
     peersInfoHolder ! PeerInfoRequestCmd(peer1.id, requestSender.ref)
     requestSender.expectMsg(
-      PeerInfoResponse(Some(peer1Info.withChainWeight(ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty))))
+      PeerInfoResponse(
+        Some(peer1Info.withChainWeight(ChainWeight.totalDifficultyOnly(TotalDifficulty(newBlock.totalDifficulty))))
+      )
     )
 
   it should "update the fork accepted when receiving the fork block" taggedAs (UnitTest, NetworkTest) in new TestSetup:
@@ -503,7 +505,7 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     val peerStatus: RemoteStatus = RemoteStatus(
       capability = Capability.ETH63,
       networkId = 1,
-      chainWeight = ChainWeight.totalDifficultyOnly(10000),
+      chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(10000)),
       bestHash = Fixtures.Blocks.Block3125369.header.hash.value,
       genesisHash = Fixtures.Blocks.Genesis.header.hash.value
     )
@@ -647,13 +649,13 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     val eth69Status: RemoteStatus = peerStatus.copy(capability = Capability.ETH69)
     val eth69PeerInfo: PeerInfo = initialPeerInfo.copy(
       remoteStatus = eth69Status,
-      chainWeight = ChainWeight.totalDifficultyOnly(inflatedTD)
+      chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(inflatedTD))
     )
 
     // Store the low TD for archiveProbeBlock.hash in the test DB.
     def storeArchiveWeight(): Unit =
       blockchainWriter
-        .storeChainWeight(archiveProbeBlock.hash, ChainWeight.totalDifficultyOnly(actualTD))
+        .storeChainWeight(archiveProbeBlock.hash, ChainWeight.totalDifficultyOnly(TotalDifficulty(actualTD)))
         .commit()
 
     // Create a fresh actor wired with the real BlockchainReader.

@@ -2,6 +2,7 @@ package com.chipprbots.ethereum.network.handshaker
 
 import cats.effect.SyncIO
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.forkid.ForkIdValidationResult.Connect
@@ -69,7 +70,10 @@ case class EthNodeStatus68ExchangeState(
     val localBestBlock = blockchainReader.getBestBlockNumber
     val localGenesisHash = blockchainReader.genesisHeader.hash.value
     val storedTimestamp =
-      blockchainReader.getBlockHeaderByNumber(localBestBlock).map(_.unixTimestamp).getOrElse(Timestamp.Zero)
+      blockchainReader
+        .getBlockHeaderByNumber(BlockNumber(localBestBlock))
+        .map(_.unixTimestamp)
+        .getOrElse(Timestamp.Zero)
     val localBestTimestamp =
       if storedTimestamp == Timestamp.Zero then Timestamp(System.currentTimeMillis() / 1000) else storedTimestamp
     val localForkId = ForkId.create(localGenesisHash, blockchainConfig)(localBestBlock, localBestTimestamp.toLong)
@@ -119,7 +123,7 @@ case class EthNodeStatus68ExchangeState(
                 RemoteStatus(
                   negotiatedCapability,
                   networkId,
-                  com.chipprbots.ethereum.domain.ChainWeight.totalDifficultyOnly(totalDifficulty.value),
+                  com.chipprbots.ethereum.domain.ChainWeight.totalDifficultyOnly(totalDifficulty),
                   bestHash,
                   genesisHash,
                   supportsSnap,
@@ -160,7 +164,7 @@ case class EthNodeStatus68ExchangeState(
       .getChainWeightByHash(bestBlockHeader.hash)
       .getOrElse {
         val ttdFallback = blockchainConfig.terminalTotalDifficulty
-          .map(com.chipprbots.ethereum.domain.ChainWeight.totalDifficultyOnly)
+          .map(td => com.chipprbots.ethereum.domain.ChainWeight.totalDifficultyOnly(TotalDifficulty(td)))
           .getOrElse(com.chipprbots.ethereum.domain.ChainWeight.zero)
         log.debug(
           s"Chain weight not stored for best block ${bestBlockHeader.hash} (SNAP-sync state); " +

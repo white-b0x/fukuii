@@ -1,8 +1,8 @@
 package com.chipprbots.ethereum.domain
 
 object ChainWeight:
-  def totalDifficultyOnly(td: BigInt): ChainWeight =
-    ChainWeight(TotalDifficulty(td))
+  def totalDifficultyOnly(td: TotalDifficulty): ChainWeight =
+    ChainWeight(td)
 
   val zero: ChainWeight =
     ChainWeight(TotalDifficulty.Zero)
@@ -34,5 +34,5 @@ case class ChainWeight(
 
   // Test API
 
-  def increaseTotalDifficulty(td: BigInt): ChainWeight =
-    copy(totalDifficulty = TotalDifficulty(totalDifficulty.value + td))
+  def increaseTotalDifficulty(td: TotalDifficulty): ChainWeight =
+    copy(totalDifficulty = TotalDifficulty(totalDifficulty.value + td.value))

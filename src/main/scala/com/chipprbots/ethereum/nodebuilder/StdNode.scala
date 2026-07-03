@@ -276,9 +276,9 @@ abstract class BaseNode extends Node:
 
   def fixDatabase(): Unit =
     val bestBlockInfo = storagesInstance.storages.appStateStorage.getBestBlockInfo()
-    if bestBlockInfo.hash == ByteString.empty && bestBlockInfo.number > 0 then
+    if bestBlockInfo.hash == ByteString.empty && bestBlockInfo.number.value > 0 then
       log.warn("Fixing best block hash into database for block {}", bestBlockInfo.number)
-      storagesInstance.storages.blockNumberMappingStorage.get(bestBlockInfo.number) match
+      storagesInstance.storages.blockNumberMappingStorage.get(bestBlockInfo.number.value) match
         case Some(hash) =>
           log.warn("Putting {} as the best block hash", Hex.toHexString(hash.toArray))
           storagesInstance.storages.appStateStorage.putBestBlockInfo(bestBlockInfo.copy(hash = hash)).commit()

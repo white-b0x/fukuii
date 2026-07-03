@@ -15,6 +15,7 @@ import com.chipprbots.ethereum.db.storage.AppStateStorage
 import com.chipprbots.ethereum.domain.Account.*
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.PeerActor.DisconnectPeer
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.*
@@ -623,7 +624,7 @@ object NetworkPeerManagerActor:
       // PEER-CHAIN-DIVERGE / TD-PROXY-GAP checks
       blockchainReader.foreach { reader =>
         peerInfo.remoteStatus.latestBlock.foreach { peerBlockNum =>
-          reader.getBlockHeaderByNumber(peerBlockNum).foreach { ourHeader =>
+          reader.getBlockHeaderByNumber(BlockNumber(peerBlockNum)).foreach { ourHeader =>
             if ourHeader.hash.value != peerInfo.remoteStatus.bestHash then
               log.warn(
                 "PEER-CHAIN-DIVERGE: Peer {} reports hash={} at block {}; our hash={}. " +
@@ -734,7 +735,7 @@ object NetworkPeerManagerActor:
         else if peerInfo.remoteStatus.capability == Capability.ETH69 then
           // ETH/69 (EIP-7642): announce our block range immediately after STATUS.
           val bestInfo = appStateStorage.getBestBlockInfo()
-          val bru = ETH69.BlockRangeUpdate(BigInt(0), bestInfo.number, bestInfo.hash)
+          val bru = ETH69.BlockRangeUpdate(BigInt(0), bestInfo.number.value, bestInfo.hash)
           log.info(
             "ETH69_BRU_POST_HANDSHAKE: peer={} latestBlock={} latestHash={}",
             peer.id,
@@ -815,7 +816,7 @@ object NetworkPeerManagerActor:
             delta,
             deltaPercent
           )
-          initialPeerInfo.copy(chainWeight = ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty.value))
+          initialPeerInfo.copy(chainWeight = ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty))
         case _ => initialPeerInfo
 
     private def updateForkAccepted(message: Message, peer: Peer)(initialPeerInfo: PeerInfo): PeerInfo =
@@ -933,7 +934,7 @@ object NetworkPeerManagerActor:
         val newCache = scala.collection.mutable.Set.empty[ByteString]
         var n = tip
         while n >= from do
-          reader.getBlockHeaderByNumber(n).foreach(h => newCache += h.stateRoot.value)
+          reader.getBlockHeaderByNumber(BlockNumber(n)).foreach(h => newCache += h.stateRoot.value)
           n = n - 1
         freshRootCache = newCache
         freshRootCacheTip = tip
@@ -1164,7 +1165,7 @@ object NetworkPeerManagerActor:
       RemoteStatus(
         negotiatedCapability,
         status.networkId,
-        ChainWeight.totalDifficultyOnly(status.totalDifficulty),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(status.totalDifficulty)),
         status.bestHash,
         status.genesisHash,
         supportsSnap,
@@ -1176,7 +1177,7 @@ object NetworkPeerManagerActor:
       RemoteStatus(
         Capability.ETH63,
         status.networkId,
-        ChainWeight.totalDifficultyOnly(status.totalDifficulty),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(status.totalDifficulty)),
         status.bestHash,
         status.genesisHash,
         false,

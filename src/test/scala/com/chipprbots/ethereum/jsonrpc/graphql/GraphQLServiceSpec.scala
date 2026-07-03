@@ -33,6 +33,7 @@ import com.chipprbots.ethereum.db.storage.TransactionMappingStorage
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.jsonrpc.EthBlocksService
 import com.chipprbots.ethereum.jsonrpc.EthFilterService
 import com.chipprbots.ethereum.jsonrpc.EthInfoService
@@ -195,4 +196,4 @@ class GraphQLServiceSpec
     val service = new GraphQLService(ctx, maxQueryDepth = maxDepth, executionTimeout = 10.seconds)
 
     val block: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    val weight: ChainWeight = ChainWeight.totalDifficultyOnly(block.header.difficulty.value)
+    val weight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(block.header.difficulty.value))

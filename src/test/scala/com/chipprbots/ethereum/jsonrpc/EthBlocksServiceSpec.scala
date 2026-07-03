@@ -25,6 +25,7 @@ import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockNumber
@@ -465,16 +466,17 @@ class EthBlocksServiceSpec
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number.value
     val blockToRequestHash = blockToRequest.header.hash.value
-    val blockWeight: ChainWeight = ChainWeight.totalDifficultyOnly(blockToRequest.header.difficulty.value)
+    val blockWeight: ChainWeight =
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(blockToRequest.header.difficulty.value))
 
     val uncle = Fixtures.Blocks.DaoForkBlock.header
-    val uncleWeight: ChainWeight = ChainWeight.totalDifficultyOnly(uncle.difficulty.value)
+    val uncleWeight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(uncle.difficulty.value))
     val blockToRequestWithUncles: Block = blockToRequest.copy(body = BlockBody(Nil, Seq(uncle)))
 
     val fakeWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString.empty,
       noEmptyAccounts = false,

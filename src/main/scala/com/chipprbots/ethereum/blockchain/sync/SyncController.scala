@@ -973,7 +973,9 @@ object SyncController:
                 blockchainWriter
                   .storeChainWeight(
                     bestBlock.header.hash,
-                    com.chipprbots.ethereum.domain.ChainWeight.totalDifficultyOnly(calibratedTD)
+                    com.chipprbots.ethereum.domain.ChainWeight.totalDifficultyOnly(
+                      com.chipprbots.ethereum.domain.TotalDifficulty(calibratedTD)
+                    )
                   )
                   .commit()
                 networkBestTD = peerTD
@@ -1403,7 +1405,10 @@ object SyncController:
       // genesis re-sync. Trie nodes are content-addressed, so leftover state from the prior run
       // is automatically reused as SNAP fills in the gaps.
       val persistedBest = appStateStorage.getBestBlockNumber()
-      if persistedBest > 0 && blockchainReader.getBlockHeaderByNumber(persistedBest).isEmpty then
+      if persistedBest > 0 && blockchainReader
+          .getBlockHeaderByNumber(com.chipprbots.ethereum.domain.BlockNumber(persistedBest))
+          .isEmpty
+      then
         log.warn(
           "Persisted best block {} not found in storage — clearing sync-done flags so SNAP can resume from persisted progress",
           persistedBest
@@ -1451,7 +1456,9 @@ object SyncController:
           if existingPivot == 0 || highestBlock > existingPivot then
             import org.apache.pekko.util.ByteString
             val hashBytes = ByteString(com.chipprbots.ethereum.utils.Hex.decode(highestHash.stripPrefix("0x")))
-            appStateStorage.putBootstrapPivotBlock(highestBlock, hashBytes).commit()
+            appStateStorage
+              .putBootstrapPivotBlock(com.chipprbots.ethereum.domain.BlockNumber(highestBlock), hashBytes)
+              .commit()
             log.info(
               s"Loaded bootstrap checkpoint: block $highestBlock (${highestHash.take(10)}...) " +
                 s"from ${checkpoints.size} configured checkpoints"
@@ -1550,7 +1557,8 @@ object SyncController:
             // Diagnostic: log stored SNAP sync state root vs pivot block state root
             val snapStateRoot = appStateStorage.getSnapSyncStateRoot()
             val bestBlockNum = appStateStorage.getBestBlockNumber()
-            val bestBlockHeader = blockchainReader.getBlockHeaderByNumber(bestBlockNum)
+            val bestBlockHeader =
+              blockchainReader.getBlockHeaderByNumber(com.chipprbots.ethereum.domain.BlockNumber(bestBlockNum))
             val pivotStateRoot = bestBlockHeader.map(_.stateRoot)
             log.info(
               "SNAP state root diagnostic: stored snapStateRoot={}, pivotBlockStateRoot={}, bestBlock={}, match={}",
@@ -1758,7 +1766,11 @@ object SyncController:
                       ByteString(com.chipprbots.ethereum.utils.Hex.decode(hashHex.stripPrefix("0x")))
                     )
                   blockchainWriter
-                    .storeChainWeight(hash, com.chipprbots.ethereum.domain.ChainWeight.totalDifficultyOnly(td))
+                    .storeChainWeight(
+                      hash,
+                      com.chipprbots.ethereum.domain.ChainWeight
+                        .totalDifficultyOnly(com.chipprbots.ethereum.domain.TotalDifficulty(td))
+                    )
                     .commit()
                   log.warn("seed-chain-weights: wrote TD={} for hash={}...", td, hashHex.take(16))
                 case None =>
@@ -2437,7 +2449,11 @@ object SyncController:
                 .map(_.totalDifficulty.value)
                 .getOrElse(BigInt(0))
               blockchainWriter
-                .storeChainWeight(bestHeader.hash, com.chipprbots.ethereum.domain.ChainWeight.totalDifficultyOnly(td))
+                .storeChainWeight(
+                  bestHeader.hash,
+                  com.chipprbots.ethereum.domain.ChainWeight
+                    .totalDifficultyOnly(com.chipprbots.ethereum.domain.TotalDifficulty(td))
+                )
                 .commit()
               log.info(
                 "CHAIN_WEIGHT_CALIBRATED_LOCAL: anchor={} gap={} calibratedTD={} source=LOCAL_CHAIN_ACCUMULATION attempt={}",

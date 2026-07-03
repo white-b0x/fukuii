@@ -24,6 +24,7 @@ import com.chipprbots.ethereum.blockchain.sync.regular.BlockFetcher
 import com.chipprbots.ethereum.blockchain.sync.regular.BlockFetcher.AdaptedMessageFromEventBus
 import com.chipprbots.ethereum.blockchain.sync.regular.BlockImporter
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.KnownNodesManager
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
 import com.chipprbots.ethereum.network.PeerActor
@@ -67,7 +68,7 @@ class BlockRangeUpdateDecodePathSpec
   private val dummyStatus: RemoteStatus = RemoteStatus(
     capability = Capability.ETH68,
     networkId = 1L,
-    chainWeight = ChainWeight.totalDifficultyOnly(BigInt(1_000_000)),
+    chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1_000_000))),
     bestHash = validHash,
     genesisHash = ByteString(Array.fill(32)(0xcd.toByte))
   )

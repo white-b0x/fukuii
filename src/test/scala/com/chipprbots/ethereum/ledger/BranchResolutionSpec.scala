@@ -24,6 +24,7 @@ import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.branch.Branch
@@ -327,7 +328,7 @@ class BranchResolutionSpec
           defaultHeader.copy(number = BlockNumber(6), difficulty = Difficulty.Zero, parentHash = BlockHash(parentHash)),
           BlockBody(Nil, Nil)
         ).header
-      val parentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(1000)
+      val parentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(1000))
 
       setBestBlockNumber(5)
       setHeaderInChain(parentHash)
@@ -407,8 +408,11 @@ class BranchResolutionSpec
     override def setHeaderInChain(hash: ByteString, result: Boolean = true): CallHandler2[Branch, BlockHash, Boolean] =
       blockchainReader.isInChain.expects(*, BlockHash(hash)).returning(result)
 
-    override def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler2[Branch, BigInt, Option[Block]] =
-      blockchainReader.getBlockByNumber.expects(*, number).returning(block)
+    override def setBlockByNumber(
+        number: BigInt,
+        block: Option[Block]
+    ): CallHandler2[Branch, BlockNumber, Option[Block]] =
+      blockchainReader.getBlockByNumber.expects(*, BlockNumber(number)).returning(block)
 
     override def setGenesisHeader(header: BlockHeader): Unit =
       (() => blockchainReader.genesisHeader).expects().returning(header)

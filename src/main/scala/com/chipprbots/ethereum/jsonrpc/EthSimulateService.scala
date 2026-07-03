@@ -178,7 +178,7 @@ class EthSimulateService(
         simulatedBlockHashes
           .get(n.value)
           .map(BlockHash.apply)
-          .orElse(blockchainReader.getBlockHeaderByNumber(n.value).map(_.hash)),
+          .orElse(blockchainReader.getBlockHeaderByNumber(n).map(_.hash)),
       accountStartNonce = blockchainConfig.accountStartNonce,
       stateRootHash = baseBlock.header.stateRoot.value,
       noEmptyAccounts = evmConfig.noEmptyAccounts,

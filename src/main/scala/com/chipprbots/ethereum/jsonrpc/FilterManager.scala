@@ -191,7 +191,7 @@ object FilterManager:
       def recur(currentBlockNumber: BigInt, toBlockNumber: BigInt, logsSoFar: Seq[TxLog]): Seq[TxLog] =
         if currentBlockNumber > toBlockNumber then logsSoFar
         else
-          blockchainReader.getBlockHeaderByNumber(currentBlockNumber) match
+          blockchainReader.getBlockHeaderByNumber(BlockNumber(currentBlockNumber)) match
             case Some(header)
                 if bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(
                   header.logsBloom.value,
@@ -227,7 +227,7 @@ object FilterManager:
       def recur(currentBlockNumber: BigInt, hashesSoFar: Seq[ByteString]): Seq[ByteString] =
         if currentBlockNumber > bestBlock then hashesSoFar
         else
-          blockchainReader.getBlockHeaderByNumber(currentBlockNumber) match
+          blockchainReader.getBlockHeaderByNumber(BlockNumber(currentBlockNumber)) match
             case Some(header) => recur(currentBlockNumber + 1, hashesSoFar :+ header.hash.value)
             case None         => hashesSoFar
 

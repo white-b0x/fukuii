@@ -16,7 +16,7 @@ class LegacyTransactionMappingStorageSuite extends AnyFunSuite with ScalaCheckPr
       val blockHashesList = Gen.listOfN(txByteArrayHashes.length, byteStringOfLengthNGen(32)).sample.get
       val txIndexList = Gen.listOfN(txByteArrayHashes.length, intGen).sample.get
       val txLocationList = blockHashesList.zip(txIndexList).map { case (blockHash, txIndex) =>
-        TransactionLocation(blockHash, txIndex)
+        TransactionLocation(com.chipprbots.ethereum.domain.BlockHash(blockHash), txIndex)
       }
 
       val storage = new TransactionMappingStorage(EphemDataSource())
@@ -38,7 +38,7 @@ class LegacyTransactionMappingStorageSuite extends AnyFunSuite with ScalaCheckPr
       val blockHashesList = Gen.listOfN(txByteArrayHashes.length, byteStringOfLengthNGen(32)).sample.get
       val txIndexList = Gen.listOfN(txByteArrayHashes.length, intGen).sample.get
       val txLocationList = blockHashesList.zip(txIndexList).map { case (blockHash, txIndex) =>
-        TransactionLocation(blockHash, txIndex)
+        TransactionLocation(com.chipprbots.ethereum.domain.BlockHash(blockHash), txIndex)
       }
       val txHashAndLocationPair = txHashes.zip(txLocationList)
 

@@ -39,6 +39,7 @@ import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.network.p2p.messages.Capability
 import com.chipprbots.ethereum.network.p2p.messages.SNAP
@@ -988,7 +989,7 @@ private class SNAPSyncControllerImpl(
         val effectivePivot = preservedAtPivotBlock.getOrElse(BlockNumber.Zero)
         stateRoot.foreach { sr =>
           snapProgressStorage.writeAccountCursors(
-            sr.value,
+            sr,
             effectivePivot.toLong,
             progress.map { case (k, v) => k.toHex -> v.toHex }
           )
@@ -1224,7 +1225,7 @@ private class SNAPSyncControllerImpl(
         if currentPhase == AccountRangeSync || currentPhase == ByteCodeAndStorageSync || currentPhase == StateHealing
         then
           ctx.log.info(s"Retrying bootstrap at backtracked block $blockNumber...")
-          blockchainReader.getBlockHeaderByNumber(blockNumber.value) match
+          blockchainReader.getBlockHeaderByNumber(blockNumber) match
             case Some(header) =>
               completePivotRefreshWithStateRoot(blockNumber, header, "backtracked pivot (local header)")
             case None =>
@@ -1285,7 +1286,7 @@ private class SNAPSyncControllerImpl(
           }
 
           // Clear persisted range progress — account phase is done, no need to resume it
-          stateRoot.foreach(root => snapProgressStorage.clearProgress(root.value))
+          stateRoot.foreach(root => snapProgressStorage.clearProgress(root))
           preservedRangeProgress = Map.empty
           preservedAtPivotBlock = None
 
@@ -2054,7 +2055,7 @@ private class SNAPSyncControllerImpl(
                 case Some(targetPivot) =>
                   if pivotTooStaleAgainstNetworkHead(targetPivot) then startSnapSync()
                   else
-                    blockchainReader.getBlockHeaderByNumber(targetPivot) match
+                    blockchainReader.getBlockHeaderByNumber(BlockNumber(targetPivot)) match
                       case Some(header) =>
                         pivotBlock = Some(BlockNumber(targetPivot))
                         stateRoot = Some(header.stateRoot)
@@ -2490,7 +2491,7 @@ private class SNAPSyncControllerImpl(
           val bestBlockNumber = appStateStorage.getBestBlockNumber()
 
           // Header-only bootstrap may not advance bestBlockNumber; allow resume if pivot header exists.
-          val hasPivotHeader = blockchainReader.getBlockHeaderByNumber(bootstrapTarget).isDefined
+          val hasPivotHeader = blockchainReader.getBlockHeaderByNumber(BlockNumber(bootstrapTarget)).isDefined
 
           if bestBlockNumber >= bootstrapTarget || hasPivotHeader then
             // Bootstrap already complete - clear the target and proceed with SNAP sync
@@ -2714,7 +2715,7 @@ private class SNAPSyncControllerImpl(
         ctx.log.info("=" * 80)
 
         // Use genesis block as pivot (like core-geth does)
-        blockchainReader.getBlockHeaderByNumber(0) match
+        blockchainReader.getBlockHeaderByNumber(BlockNumber.Zero) match
           case Some(genesisHeader) =>
             pivotBlock = Some(BlockNumber.Zero)
             stateRoot = Some(genesisHeader.stateRoot)
@@ -2799,7 +2800,7 @@ private class SNAPSyncControllerImpl(
           // Fall through to local-header availability checks below
 
         // Check if we have the pivot block header locally
-        blockchainReader.getBlockHeaderByNumber(pivotBlockNumber) match
+        blockchainReader.getBlockHeaderByNumber(BlockNumber(pivotBlockNumber)) match
           case Some(header) =>
             // Pivot header is available - proceed with SNAP sync
             pivotBlock = Some(BlockNumber(pivotBlockNumber))
@@ -2939,7 +2940,7 @@ private class SNAPSyncControllerImpl(
     progressMonitor.stopPeriodicLogging()
 
     // Clear persisted SNAP progress — fast sync will start fresh
-    stateRoot.foreach(root => snapProgressStorage.clearProgress(root.value))
+    stateRoot.foreach(root => snapProgressStorage.clearProgress(root))
     appStateStorage
       .putSnapSyncAccountsComplete(false)
       .and(appStateStorage.putSnapSyncStorageComplete(false))
@@ -3212,7 +3213,7 @@ private class SNAPSyncControllerImpl(
     // Primary source: SnapSyncProgressStorage (namespace 'p', JSON, account + storage cursors).
     // Migration fallback: AppStateStorage plain-text (namespace 's', account-only, written by older builds).
     if preservedRangeProgress.isEmpty then
-      snapProgressStorage.readProgress(rootHash.value) match
+      snapProgressStorage.readProgress(rootHash) match
         case Some(saved) if saved.accountCursors.nonEmpty =>
           val savedPivot = BigInt(saved.pivotBlock)
           if (currentPivot.value - savedPivot).abs <= MaxPreservedPivotDistance.value then
@@ -3246,7 +3247,7 @@ private class SNAPSyncControllerImpl(
                 preservedAtPivotBlock = Some(BlockNumber(savedPivot))
                 // Write to new storage immediately so subsequent restarts use the new format
                 snapProgressStorage.writeAccountCursors(
-                  rootHash.value,
+                  rootHash,
                   savedPivot.toLong,
                   savedRanges.map { case (k, v) => k.toHex -> v.toHex }
                 )
@@ -3273,7 +3274,7 @@ private class SNAPSyncControllerImpl(
         )
         preservedRangeProgress = Map.empty
         preservedAtPivotBlock = None
-        snapProgressStorage.clearProgress(rootHash.value)
+        snapProgressStorage.clearProgress(rootHash)
         Map.empty
       case None =>
         Map.empty
@@ -4029,7 +4030,7 @@ private class SNAPSyncControllerImpl(
         timers.startSingleTimer(PivotBootstrapRetryKey, RetryPivotRefresh, 30.seconds)
     else
       val newPivotBlock = newPivotOpt.get
-      val newPivotHeaderOpt = blockchainReader.getBlockHeaderByNumber(newPivotBlock)
+      val newPivotHeaderOpt = blockchainReader.getBlockHeaderByNumber(BlockNumber(newPivotBlock))
 
       if newPivotHeaderOpt.isEmpty then
         // Header not available locally — request it from a peer via the bootstrap mechanism.
@@ -4130,12 +4131,12 @@ private class SNAPSyncControllerImpl(
         }
     blockchainWriter.storeBlockHeader(header).commit()
     blockchainWriter
-      .storeChainWeight(pivotHash, ChainWeight.totalDifficultyOnly(estimatedTotalDifficulty))
+      .storeChainWeight(pivotHash, ChainWeight.totalDifficultyOnly(TotalDifficulty(estimatedTotalDifficulty)))
       .commit()
     // Always advance the self-reported best-block pointer so STATUS messages show the correct
     // pivot block number.
     appStateStorage
-      .putBestBlockInfo(com.chipprbots.ethereum.domain.appstate.BlockInfo(pivotHash.value, pivotBlockNumber.value))
+      .putBestBlockInfo(com.chipprbots.ethereum.domain.appstate.BlockInfo(pivotHash.value, pivotBlockNumber))
       .commit()
     ctx.log.info(
       s"Updated best block for ETH status: block=$pivotBlockNumber, hash=${pivotHash.value.toHex.take(16)}..., " +
@@ -4277,7 +4278,7 @@ private class SNAPSyncControllerImpl(
               preservedAtPivotBlock = Some(newPivotBlock)
               if preservedRangeProgress.nonEmpty then
                 snapProgressStorage.writeAccountCursors(
-                  newStateRoot.value,
+                  newStateRoot,
                   newPivotBlock.toLong,
                   preservedRangeProgress.map { case (k, v) => k.toHex -> v.toHex }
                 )
@@ -4627,7 +4628,7 @@ private class SNAPSyncControllerImpl(
       // RegularSync's BranchResolution needs: header, body, number→hash mapping,
       // ChainWeight, and BestBlockInfo (hash + number) to accept blocks that chain
       // from the pivot.
-      blockchainReader.getBlockHeaderByNumber(pivot.value) match
+      blockchainReader.getBlockHeaderByNumber(pivot) match
         case Some(pivotHeader) =>
           // A5: Root match guard — snapStateRoot must equal pivotHeader.stateRoot before
           // marking sync done. Mirrors Besu SnapWorldDownloadState.saveWorldState() implicit
@@ -4674,7 +4675,7 @@ private class SNAPSyncControllerImpl(
           blockchainWriter
             .storeChainWeight(
               pivotHash,
-              ChainWeight.totalDifficultyOnly(finalTD)
+              ChainWeight.totalDifficultyOnly(TotalDifficulty(finalTD))
             )
             .commit()
 
@@ -4682,7 +4683,7 @@ private class SNAPSyncControllerImpl(
           // sets the number, leaving getBestBlockInfo().hash empty).
           appStateStorage
             .putBestBlockInfo(
-              com.chipprbots.ethereum.domain.appstate.BlockInfo(pivotHash.value, pivot.value)
+              com.chipprbots.ethereum.domain.appstate.BlockInfo(pivotHash.value, pivot)
             )
             .commit()
 

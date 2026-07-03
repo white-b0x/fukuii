@@ -135,8 +135,8 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
     val worldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = false,

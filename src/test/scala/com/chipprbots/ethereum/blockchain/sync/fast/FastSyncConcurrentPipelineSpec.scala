@@ -23,6 +23,7 @@ import com.chipprbots.ethereum.blockchain.sync.PeerRateTracker
 import com.chipprbots.ethereum.blockchain.sync.ReceiptsFetcherQueue
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerInfo
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
 import com.chipprbots.ethereum.network.Peer
@@ -175,7 +176,7 @@ class FastSyncConcurrentPipelineSpec extends AnyFlatSpec with Matchers with Befo
         Peer(PeerId(id), new InetSocketAddress("127.0.0.1", 30303), TestProbe().ref.toTyped[PeerActor.Command], false)
       val peerInfo = PeerInfo(
         remoteStatus,
-        ChainWeight.totalDifficultyOnly(BigInt(1000)),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1000))),
         forkAccepted = true,
         maxBlockNumber = 1000,
         bestBlockHash = hash32

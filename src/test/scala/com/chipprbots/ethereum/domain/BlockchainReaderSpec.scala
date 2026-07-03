@@ -22,7 +22,7 @@ class BlockchainReaderSpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     StateTest
   ) in new EphemBlockchainTestSetup:
     forAll(ObjectGenerators.newBlockGen(secureRandom, chainId)) { case NewBlock(block, weight) =>
-      blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(weight), true)
+      blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(TotalDifficulty(weight)), true)
 
       blockchainReader.getBestBlock shouldBe Some(block)
     }
@@ -137,7 +137,7 @@ class BlockchainReaderSpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     val pivotHeader: BlockHeader =
       Fixtures.Blocks.Genesis.header.copy(parentHash = genesis.header.hash, number = BlockNumber(etcBestNum))
     val pivotBlock: Block = Block(pivotHeader, Fixtures.Blocks.Genesis.body)
-    val pivotWeight: ChainWeight = ChainWeight.totalDifficultyOnly(etcBestTD)
+    val pivotWeight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(etcBestTD))
     blockchainWriter.save(pivotBlock, Nil, pivotWeight, saveAsBestBlock = true)
 
     // Peer is 151 blocks ahead — unknown hash, canonical lookup misses (peer ahead of our head)
@@ -162,7 +162,12 @@ class BlockchainReaderSpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     val pivotHeader: BlockHeader =
       Fixtures.Blocks.Genesis.header.copy(parentHash = genesis.header.hash, number = BlockNumber(etcBestNum))
     val pivotBlock: Block = Block(pivotHeader, Fixtures.Blocks.Genesis.body)
-    blockchainWriter.save(pivotBlock, Nil, ChainWeight.totalDifficultyOnly(etcBestTD), saveAsBestBlock = true)
+    blockchainWriter.save(
+      pivotBlock,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(etcBestTD)),
+      saveAsBestBlock = true
+    )
 
     // Peer at our head height with unknown hash:
     // Tier 1 (DB_LOOKUP) misses — hash unknown

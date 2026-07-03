@@ -5,6 +5,7 @@ import org.apache.pekko.util.ByteString
 import com.chipprbots.ethereum.db.dataSource.DataSource
 import com.chipprbots.ethereum.db.dataSource.DataSourceUpdateOptimized
 import com.chipprbots.ethereum.db.storage.Namespaces.BlockFirstSeenNamespace
+import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.utils.ByteStringUtils
 
 /** RocksDB-backed implementation of BlockFirstSeenStorage.
@@ -24,7 +25,7 @@ class BlockFirstSeenRocksDbStorage(val dataSource: DataSource) extends BlockFirs
   private def decodeTimestamp(bytes: Array[Byte]): Long =
     ByteStringUtils.byteStringToLong(ByteString(bytes))
 
-  override def put(blockHash: ByteString, timestamp: Long): Unit =
+  override def put(blockHash: BlockHash, timestamp: Long): Unit =
     val key = blockHash.toArray
     val value = encodeTimestamp(timestamp)
     dataSource.update(
@@ -37,11 +38,11 @@ class BlockFirstSeenRocksDbStorage(val dataSource: DataSource) extends BlockFirs
       )
     )
 
-  override def get(blockHash: ByteString): Option[Long] =
+  override def get(blockHash: BlockHash): Option[Long] =
     val key = blockHash.toArray
     dataSource.getOptimized(BlockFirstSeenNamespace, key).map(decodeTimestamp)
 
-  override def remove(blockHash: ByteString): Unit =
+  override def remove(blockHash: BlockHash): Unit =
     val key = blockHash.toArray
     dataSource.update(
       Seq(

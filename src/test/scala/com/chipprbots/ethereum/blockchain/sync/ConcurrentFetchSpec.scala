@@ -18,6 +18,7 @@ import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BloomFilter
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.TrieRoot
@@ -366,7 +367,7 @@ class ConcurrentFetchSpec extends AnyFlatSpec with Matchers:
         Peer(PeerId(id), new InetSocketAddress("127.0.0.1", 30303), TestProbe().ref.toTyped[PeerActor.Command], false)
       val peerInfo = PeerInfo(
         remoteStatus,
-        ChainWeight.totalDifficultyOnly(BigInt(1000)),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1000))),
         forkAccepted = true,
         maxBlockNumber = 1000,
         bestBlockHash = hash32

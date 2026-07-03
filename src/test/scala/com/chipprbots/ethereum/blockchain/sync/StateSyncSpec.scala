@@ -36,6 +36,7 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.*
 import com.chipprbots.ethereum.network.Peer
@@ -131,7 +132,7 @@ class StateSyncSpec
     val peerStatus: RemoteStatus = RemoteStatus(
       capability = Capability.ETH63,
       networkId = 1,
-      chainWeight = ChainWeight.totalDifficultyOnly(10000),
+      chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(10000)),
       bestHash = Fixtures.Blocks.Block3125369.header.hash.value,
       genesisHash = Fixtures.Blocks.Genesis.header.hash.value
     )

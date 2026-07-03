@@ -176,12 +176,12 @@ class EthProofService(
     for
       blockNumber <- resolveBlock(block).map(_.block.number)
       account <- Either.fromOption(
-        blockchainReader.getAccount(blockchainReader.getBestBranch, address, blockNumber.value),
+        blockchainReader.getAccount(blockchainReader.getBestBranch, address, blockNumber),
         noAccount(address, blockNumber)
       )
       accountProof <- Either.fromOption(
         blockchainReader
-          .getAccountProof(blockchainReader.getBestBranch, address, blockNumber.value)
+          .getAccountProof(blockchainReader.getBestBranch, address, blockNumber)
           .map(_.map(asRlpSerializedNode)),
         noAccountProof(address, blockNumber)
       )
@@ -215,7 +215,7 @@ class EthProofService(
   private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] =
     def getBlock(number: BlockNumber): Either[JsonRpcError, Block] =
       blockchainReader
-        .getBlockByNumber(blockchainReader.getBestBranch, number.value)
+        .getBlockByNumber(blockchainReader.getBestBranch, number)
         .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
 
     def getLatestBlock(): Either[JsonRpcError, Block] =

@@ -11,6 +11,7 @@ import io.circe.parser.decode as circeDecoder
 import io.circe.syntax.*
 
 import com.chipprbots.ethereum.db.dataSource.DataSource
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.utils.ByteStringUtils.ByteStringOps
 
 /** SNAP sync download progress persisted per state root.
@@ -62,18 +63,18 @@ class SnapSyncProgressStorage(val dataSource: DataSource)
       case Right(p)  => p
       case Left(err) => throw new RuntimeException(s"Failed to deserialize SnapSyncProgress: $err")
 
-  def readProgress(stateRoot: ByteString): Option[SnapSyncProgress] = get(stateRoot)
+  def readProgress(stateRoot: TrieRoot): Option[SnapSyncProgress] = get(stateRoot.value)
 
-  def writeProgress(stateRoot: ByteString, progress: SnapSyncProgress): Unit =
-    put(stateRoot, progress).commit()
+  def writeProgress(stateRoot: TrieRoot, progress: SnapSyncProgress): Unit =
+    put(stateRoot.value, progress).commit()
 
-  def clearProgress(stateRoot: ByteString): Unit = remove(stateRoot).commit()
+  def clearProgress(stateRoot: TrieRoot): Unit = remove(stateRoot.value).commit()
 
   /** Read-modify-write a single storage cursor. Idempotent on concurrent callers — worst case on crash is a re-download
     * of one storage range, not corruption.
     */
   def writeStorageCursor(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       accountHash: ByteString,
       nextSlotKey: ByteString
   ): Unit =
@@ -87,7 +88,7 @@ class SnapSyncProgressStorage(val dataSource: DataSource)
     * StorageRangeCoordinator.
     */
   def writeAccountCursors(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       pivotBlock: Long,
       accountCursors: Map[String, String]
   ): Unit =

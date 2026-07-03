@@ -46,8 +46,7 @@ class StxLedger(
       InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
         mptStorage = blockchain.getReadOnlyMptStorage(),
-        getBlockHashByNumber =
-          (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+        getBlockHashByNumber = (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = blockHeader.stateRoot.value,
         noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,
@@ -86,8 +85,7 @@ class StxLedger(
       InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
         mptStorage = blockchain.getReadOnlyMptStorage(),
-        getBlockHashByNumber =
-          (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+        getBlockHashByNumber = (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = blockHeader.stateRoot.value,
         noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,
@@ -136,7 +134,7 @@ class StxLedger(
     val world0 = InMemoryWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
       mptStorage = blockchain.getReadOnlyMptStorage(),
-      getBlockHashByNumber = (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      getBlockHashByNumber = (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       accountStartNonce = blockchainConfig.accountStartNonce,
       stateRootHash = parentStateRoot,
       noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,

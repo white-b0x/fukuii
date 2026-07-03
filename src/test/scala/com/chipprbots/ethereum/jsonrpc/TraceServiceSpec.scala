@@ -20,6 +20,7 @@ import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
 import com.chipprbots.ethereum.jsonrpc.EthInfoService.CallTx
 import com.chipprbots.ethereum.jsonrpc.TraceService.*
@@ -68,7 +69,7 @@ class TraceServiceSpec
       .put(block.header.parentHash.value, block.header.copy(number = block.header.number - 1))
       .commit()
 
-    txMappingStorage.get.expects(txHash).returning(Some(TransactionLocation(block.header.hash.value, txIndex)))
+    txMappingStorage.get.expects(txHash).returning(Some(TransactionLocation(block.header.hash, txIndex)))
     mockLedger.advanceWorldToTx.expects(*, *, *, *).returning(mockWorld)
     (mockLedger
       .simulateTransactionWithTracer(
@@ -124,7 +125,7 @@ class TraceServiceSpec
       .put(block.header.parentHash.value, block.header.copy(number = block.header.number - 1))
       .commit()
 
-    txMappingStorage.get.expects(txHash).returning(Some(TransactionLocation(block.header.hash.value, txIndex)))
+    txMappingStorage.get.expects(txHash).returning(Some(TransactionLocation(block.header.hash, txIndex)))
     mockLedger.advanceWorldToTx.expects(*, *, *, *).returning(mockWorld)
     (mockLedger
       .simulateTransactionWithTracer(
@@ -172,7 +173,7 @@ class TraceServiceSpec
       blockchainWriter.save(
         block,
         Nil,
-        ChainWeight.totalDifficultyOnly(block.header.difficulty.value),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(block.header.difficulty.value)),
         saveAsBestBlock = true
       )
 
@@ -226,7 +227,7 @@ class TraceServiceSpec
     blockchainWriter.save(
       emptyBlock,
       Nil,
-      ChainWeight.totalDifficultyOnly(emptyBlock.header.difficulty.value),
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(emptyBlock.header.difficulty.value)),
       saveAsBestBlock = true
     )
     storagesInstance.storages.blockHeadersStorage

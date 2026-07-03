@@ -18,6 +18,7 @@ import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.*
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
@@ -191,7 +192,7 @@ class BestNetworkTipTrackingSpec extends AnyFlatSpec with Matchers:
       val status = RemoteStatus(
         capability = cap,
         networkId = 1,
-        chainWeight = ChainWeight.totalDifficultyOnly(td),
+        chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(td)),
         bestHash = Fixtures.Blocks.Genesis.header.hash.value,
         genesisHash = Fixtures.Blocks.Genesis.header.hash.value
       )

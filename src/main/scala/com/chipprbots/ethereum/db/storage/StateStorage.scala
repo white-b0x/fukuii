@@ -15,6 +15,7 @@ import com.chipprbots.ethereum.db.storage.StateStorage.FlushSituation
 import com.chipprbots.ethereum.db.storage.StateStorage.GenesisDataLoad
 import com.chipprbots.ethereum.db.storage.pruning.ArchivePruning
 import com.chipprbots.ethereum.db.storage.pruning.PruningMode
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.mpt.MptNode
 import com.chipprbots.ethereum.utils.NodeCacheConfig
 
@@ -60,24 +61,28 @@ class ReferenceCountedStateStorage(
 
   override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit =
     val blockToPrune = bn - pruningHistory
-    ReferenceCountNodeStorage.prune(blockToPrune, nodeStorage, inMemory = blockToPrune > currentBestSavedBlock)
+    ReferenceCountNodeStorage.prune(
+      BlockNumber(blockToPrune),
+      nodeStorage,
+      inMemory = blockToPrune > currentBestSavedBlock
+    )
     updateBestBlocksData()
 
   override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit =
-    ReferenceCountNodeStorage.rollback(bn, nodeStorage, inMemory = bn > currentBestSavedBlock)
+    ReferenceCountNodeStorage.rollback(BlockNumber(bn), nodeStorage, inMemory = bn > currentBestSavedBlock)
     updateBestBlocksData()
 
   override def getBackingStorage(bn: BigInt): MptStorage =
-    new SerializingMptStorage(new ReferenceCountNodeStorage(nodeStorage, bn))
+    new SerializingMptStorage(new ReferenceCountNodeStorage(nodeStorage, BlockNumber(bn)))
 
   override def getReadOnlyStorage: MptStorage =
-    new SerializingMptStorage(ReadOnlyNodeStorage(new FastSyncNodeStorage(nodeStorage, 0)))
+    new SerializingMptStorage(ReadOnlyNodeStorage(new FastSyncNodeStorage(nodeStorage, BlockNumber.Zero)))
 
   override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt): Unit =
-    new FastSyncNodeStorage(nodeStorage, bn).update(Nil, Seq(nodeHash -> nodeEncoded))
+    new FastSyncNodeStorage(nodeStorage, BlockNumber(bn)).update(Nil, Seq(nodeHash -> nodeEncoded))
 
   override def getNode(nodeHash: NodeHash): Option[MptNode] =
-    new FastSyncNodeStorage(nodeStorage, 0).get(nodeHash).map(_.toMptNode)
+    new FastSyncNodeStorage(nodeStorage, BlockNumber.Zero).get(nodeHash).map(_.toMptNode)
 
 class CachedReferenceCountedStateStorage(
     private val nodeStorage: NodeStorage,

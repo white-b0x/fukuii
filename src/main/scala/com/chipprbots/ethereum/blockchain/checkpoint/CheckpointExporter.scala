@@ -54,7 +54,7 @@ final class CheckpointExporter(
       output: Path,
       gzip: Boolean = false
   ): Either[ExportError, ExportResult] =
-    blockchainReader.getBlockHeaderByNumber(blockNumber.value) match
+    blockchainReader.getBlockHeaderByNumber(blockNumber) match
       case None => Left(NoSuchBlock(blockNumber))
       case Some(header) =>
         blockchainReader.getChainWeightByHash(header.hash) match

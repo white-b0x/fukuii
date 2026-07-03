@@ -12,6 +12,7 @@ import com.chipprbots.ethereum.db.dataSource.DataSourceUpdate
 import com.chipprbots.ethereum.db.dataSource.EphemDataSource
 import com.chipprbots.ethereum.db.storage.ChainWeightStorage.LegacyChainWeight
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.ByteUtils.compactPickledBytes
 
@@ -69,7 +70,7 @@ class ChainWeightStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val totalDifficulty = BigInt(5000)
 
     // Create legacy format data (2-field LegacyChainWeight with checkpoint number)
-    val legacyData = LegacyChainWeight(lastCheckpointNumber, totalDifficulty)
+    val legacyData = LegacyChainWeight(lastCheckpointNumber, TotalDifficulty(totalDifficulty))
     val serializedLegacyData = compactPickledBytes(Pickle.intoBytes(legacyData))
 
     // Manually insert legacy data into storage
@@ -94,7 +95,7 @@ class ChainWeightStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
 
   test("ChainWeightStorage round-trips current format", UnitTest, DatabaseTest) {
     val blockHash = byteStringOfLengthNGen(32).sample.get
-    val chainWeight = ChainWeight.totalDifficultyOnly(BigInt(5000))
+    val chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(5000)))
 
     val storage = new ChainWeightStorage(EphemDataSource())
     storage.put(blockHash, chainWeight).commit()

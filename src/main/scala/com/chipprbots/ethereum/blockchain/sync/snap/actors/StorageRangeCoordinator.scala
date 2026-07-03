@@ -1280,7 +1280,7 @@ private[actors] class StorageRangeCoordinatorImpl(
               // subtask writes for the same account may race, but worst case is a partial
               // re-download on resume, never data corruption.
               snapProgressStorage.foreach(
-                _.writeStorageCursor(stateRoot.value, task.accountHash, StorageTask.incrementHash32(lastSlot))
+                _.writeStorageCursor(stateRoot, task.accountHash, StorageTask.incrementHash32(lastSlot))
               )
             else
               // Account fully downloaded — commit the streaming trie if one exists.

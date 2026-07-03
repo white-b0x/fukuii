@@ -6,6 +6,7 @@ import com.chipprbots.ethereum.consensus.mess.ArtificialFinality
 import com.chipprbots.ethereum.consensus.mess.MESSConfig
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.domain.Timestamp
@@ -153,7 +154,7 @@ class BranchResolution(blockchainReader: BlockchainReader) extends Logger:
   private def getTopBlocksFromNumber(from: BigInt): List[Block] =
     val bestBranch = blockchainReader.getBestBranch
     (from to blockchainReader.getBestBlockNumber)
-      .flatMap(nb => blockchainReader.getBlockByNumber(bestBranch, nb))
+      .flatMap(nb => blockchainReader.getBlockByNumber(bestBranch, BlockNumber(nb)))
       .toList
 
 sealed trait BranchResolutionResult

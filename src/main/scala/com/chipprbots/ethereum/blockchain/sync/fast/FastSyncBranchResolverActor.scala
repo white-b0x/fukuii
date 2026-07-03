@@ -17,6 +17,7 @@ import com.chipprbots.ethereum.blockchain.sync.PeerRequestHandler
 import com.chipprbots.ethereum.blockchain.sync.PeerRequestHandler.RequestFailed
 import com.chipprbots.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
@@ -322,7 +323,7 @@ object FastSyncBranchResolverActor:
         childHeader: BlockHeader
     ): Behavior[Command] =
       import BinarySearchSupport.*
-      blockchainReader.getBlockHeaderByNumber(parentOf(childHeader.number.value)) match
+      blockchainReader.getBlockHeaderByNumber(BlockNumber(parentOf(childHeader.number.value))) match
         case Some(parentHeader) =>
           validateBlockHeaders(parentHeader, childHeader, searchState) match
             case NoCommonBlock => stopWithFailure(BranchResolutionFailed.noCommonBlock)

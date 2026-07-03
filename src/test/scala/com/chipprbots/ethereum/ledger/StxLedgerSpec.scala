@@ -189,8 +189,8 @@ trait ScenarioSetup extends EphemBlockchainTestSetup:
   val emptyWorld: InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = false,

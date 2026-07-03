@@ -18,6 +18,7 @@ import com.chipprbots.ethereum.ObjectGenerators
 import com.chipprbots.ethereum.db.dataSource.DataSourceUpdate
 import com.chipprbots.ethereum.db.dataSource.EphemDataSource
 import com.chipprbots.ethereum.db.storage.*
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.db.storage.pruning.BasicPruning
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie.MPTException
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
@@ -499,7 +500,9 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     // Cause pruning of all nodes deleted in the previous inserts
     // This previously caused the temporal extension node to be deleted, and as the temporal version was never inserted
     // it's copy was deleted instead
-    (0 to (10 + pruningOffset + 1)).foreach(ReferenceCountNodeStorage.prune(_, cachedNodeStorage, inMemory = true))
+    (0 to (10 + pruningOffset + 1)).foreach(n =>
+      ReferenceCountNodeStorage.prune(BlockNumber(n), cachedNodeStorage, inMemory = true)
+    )
 
     assert(trieAtBlock10.get(decodeHexString("aaab")).contains(8))
     assert(trieAtBlock10.get(decodeHexString("aaabaaaa")).contains(10))
@@ -538,7 +541,9 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     // Cause pruning of all nodes deleted in the previous inserts
     // This previously caused the temporal leaf node to be deleted, and as the temporal version was never inserted it's
     // copy was deleted instead
-    (0 to (10 + pruningOffset + 1)).foreach(ReferenceCountNodeStorage.prune(_, cachedNodeStorage, inMemory = true))
+    (0 to (10 + pruningOffset + 1)).foreach(n =>
+      ReferenceCountNodeStorage.prune(BlockNumber(n), cachedNodeStorage, inMemory = true)
+    )
 
     assert(trieAtBlock10.get(decodeHexString("ab")).contains(largeByteString))
     assert(trieAtBlock10.get(decodeHexString("bbbb")).contains(largeByteString))

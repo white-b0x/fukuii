@@ -315,6 +315,6 @@ trait ObjectGenerators:
 
   val chainWeightGen: Gen[ChainWeight] =
     for td <- bigIntGen
-    yield ChainWeight.totalDifficultyOnly(td)
+    yield ChainWeight.totalDifficultyOnly(TotalDifficulty(td))
 
 object ObjectGenerators extends ObjectGenerators

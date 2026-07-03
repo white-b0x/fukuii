@@ -1,6 +1,7 @@
 package com.chipprbots.ethereum.network.handshaker
 
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerInfo
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
 import com.chipprbots.ethereum.network.handshaker.Handshaker.NextMessage
@@ -42,6 +43,6 @@ trait NodeStatusExchangeState[T <: Message] extends InProgressState[PeerInfo] wi
 
   protected def getBestBlockHeader(): BlockHeader =
     val bestBlockNumber = blockchainReader.getBestBlockNumber
-    blockchainReader.getBlockHeaderByNumber(bestBlockNumber).getOrElse(blockchainReader.genesisHeader)
+    blockchainReader.getBlockHeaderByNumber(BlockNumber(bestBlockNumber)).getOrElse(blockchainReader.genesisHeader)
 
   protected def createStatusMsg(): MessageSerializable

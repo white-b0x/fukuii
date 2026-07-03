@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.blockchain.sync.fast
 import cats.data.NonEmptyList
 
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Blockchain
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.network.Peer
@@ -22,7 +23,7 @@ trait FastSyncBranchResolver:
     val blocksToBeRemoved = childOf(fromBlock).to(toBlock).reverse.toList
     blocksToBeRemoved.foreach { toBeRemoved =>
       blockchainReader
-        .getBlockHeaderByNumber(toBeRemoved)
+        .getBlockHeaderByNumber(BlockNumber(toBeRemoved))
         .foreach(header => blockchain.removeBlock(header.hash))
     }
 
@@ -49,7 +50,7 @@ class RecentBlocksSearch(blockchainReader: BlockchainReader):
       bestBlockNumber: BigInt
   ): Option[BigInt] =
     def isParent(potentialParent: BigInt, childCandidate: BlockHeader): Boolean =
-      blockchainReader.getBlockHeaderByNumber(potentialParent).exists(_.isParentOf(childCandidate))
+      blockchainReader.getBlockHeaderByNumber(BlockNumber(potentialParent)).exists(_.isParentOf(childCandidate))
     NonEmptyList.fromList(candidateHeaders.reverse.toList).flatMap { remoteHeaders =>
       val blocksToBeCompared = bestBlockNumber.until(bestBlockNumber - remoteHeaders.size).by(-1).toList
       remoteHeaders.toList

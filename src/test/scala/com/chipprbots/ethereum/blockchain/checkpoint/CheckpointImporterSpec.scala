@@ -19,6 +19,7 @@ import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.appstate.BlockInfo
 import com.chipprbots.ethereum.testing.Tags.UnitTest
 
@@ -53,7 +54,7 @@ class CheckpointImporterSpec extends AnyWordSpec with Matchers with EitherValues
 
       // Best-block pointers
       val best: BlockInfo = freshStorage.storages.appStateStorage.getBestBlockInfo()
-      best.number shouldBe header.blockHeader.number.value
+      best.number shouldBe header.blockHeader.number
       best.hash shouldBe header.blockHeader.hash.value
 
       // Phase flags set so SNAP isn't re-entered
@@ -62,7 +63,7 @@ class CheckpointImporterSpec extends AnyWordSpec with Matchers with EitherValues
       freshStorage.storages.appStateStorage.isStorageRecoveryDone() shouldBe true
 
       // Header retrievable
-      blockReader.getBlockHeaderByNumber(header.blockHeader.number.value).value shouldBe header.blockHeader
+      blockReader.getBlockHeaderByNumber(header.blockHeader.number).value shouldBe header.blockHeader
 
       // SerializingMptStorage.get decodes RLP, so it can't verify our random-byte fixtures.
       // Verify via the underlying NodeStorage directly.
@@ -154,7 +155,7 @@ class CheckpointImporterSpec extends AnyWordSpec with Matchers with EitherValues
       CheckpointArchive.Header(
         chainId = ChainId(BigInt(checkpointChainId)),
         blockHeader = Fixtures.Blocks.Block3125369.header,
-        chainWeight = ChainWeight.totalDifficultyOnly(BigInt("987654321"))
+        chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt("987654321")))
       )
 
     def hash(s: String): ByteString = ByteString(s.padTo(32, '_').getBytes("UTF-8"))

@@ -22,6 +22,7 @@ import com.chipprbots.ethereum.blockchain.sync.fast.PivotBlockSelector.SelectPiv
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.HandshakedPeers
@@ -1013,7 +1014,7 @@ class PivotBlockSelectorSpec
       RemoteStatus(
         Capability.ETH68,
         1,
-        ChainWeight.totalDifficultyOnly(20),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(20)),
         ByteString("peer1_bestHash"),
         ByteString("unused")
       )
@@ -1125,7 +1126,7 @@ class PivotBlockSelectorSpec
       PeerInfo(
         status,
         forkAccepted = true,
-        chainWeight = ChainWeight.totalDifficultyOnly(td),
+        chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(td)),
         maxBlockNumber = bestBlock,
         bestBlockHash = status.bestHash
       )

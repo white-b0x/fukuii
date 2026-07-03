@@ -224,7 +224,11 @@ class PersonalService(
     }
 
   private def getCurrentAccount(address: Address): Option[Account] =
-    blockchainReader.getAccount(blockchainReader.getBestBranch, address, blockchainReader.getBestBlockNumber)
+    blockchainReader.getAccount(
+      blockchainReader.getBestBranch,
+      address,
+      com.chipprbots.ethereum.domain.BlockNumber(blockchainReader.getBestBlockNumber)
+    )
 
   private def getMessageToSign(message: ByteString) =
     val prefixed: Array[Byte] =

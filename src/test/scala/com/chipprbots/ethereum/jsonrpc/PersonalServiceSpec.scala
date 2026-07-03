@@ -125,7 +125,7 @@ class PersonalServiceSpec
       .returning(Right(wallet))
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
-    blockchainReader.getAccount.expects(*, address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    blockchainReader.getAccount.expects(*, address, BlockNumber(1234)).returning(Some(Account(nonce, 2 * txValue)))
     (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req: SendTransactionWithPassphraseRequest = SendTransactionWithPassphraseRequest(tx, passphrase)
@@ -148,7 +148,7 @@ class PersonalServiceSpec
       .returning(Right(wallet))
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
-    blockchainReader.getAccount.expects(*, address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    blockchainReader.getAccount.expects(*, address, BlockNumber(1234)).returning(Some(Account(nonce, 2 * txValue)))
     (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req: SendTransactionWithPassphraseRequest = SendTransactionWithPassphraseRequest(tx, passphrase)
@@ -182,7 +182,7 @@ class PersonalServiceSpec
     personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).unsafeRunSync()
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
-    blockchainReader.getAccount.expects(*, address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    blockchainReader.getAccount.expects(*, address, BlockNumber(1234)).returning(Some(Account(nonce, 2 * txValue)))
     (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req: SendTransactionRequest = SendTransactionRequest(tx)
@@ -337,7 +337,7 @@ class PersonalServiceSpec
       .returning(Right(wallet))
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
-    blockchainReader.getAccount.expects(*, address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    blockchainReader.getAccount.expects(*, address, BlockNumber(1234)).returning(Some(Account(nonce, 2 * txValue)))
     (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req: SendTransactionWithPassphraseRequest = SendTransactionWithPassphraseRequest(tx, passphrase)
@@ -355,7 +355,7 @@ class PersonalServiceSpec
       .returning(Right(wallet))
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
-    blockchainReader.getAccount.expects(*, address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    blockchainReader.getAccount.expects(*, address, BlockNumber(1234)).returning(Some(Account(nonce, 2 * txValue)))
     new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber)
 

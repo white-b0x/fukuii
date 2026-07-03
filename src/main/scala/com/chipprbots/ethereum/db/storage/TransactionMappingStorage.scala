@@ -7,6 +7,7 @@ import boopickle.Default.*
 import com.chipprbots.ethereum.db.dataSource.DataSource
 import com.chipprbots.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import com.chipprbots.ethereum.db.storage.TransactionMappingStorage.TxHash
+import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.utils.ByteUtils.byteSequenceToBuffer
 import com.chipprbots.ethereum.utils.ByteUtils.compactPickledBytes
 
@@ -23,7 +24,10 @@ class TransactionMappingStorage(val dataSource: DataSource)
   given byteStringPickler: Pickler[ByteString] =
     transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
 
+  given blockHashPickler: Pickler[BlockHash] =
+    transformPickler[BlockHash, Array[Byte]](bs => BlockHash(ByteString(bs)))(_.value.toArray[Byte])
+
 object TransactionMappingStorage:
   type TxHash = IndexedSeq[Byte]
 
-  case class TransactionLocation(blockHash: ByteString, txIndex: Int)
+  case class TransactionLocation(blockHash: BlockHash, txIndex: Int)

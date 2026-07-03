@@ -96,8 +96,8 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup:
 
   val emptyWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
     storagesInstance.storages.evmCodeStorage,
-    blockchain.getBackingMptStorage(-1),
-    (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+    blockchain.getBackingMptStorage(BlockNumber(-1)),
+    (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
     UInt256.Zero,
     ByteString(MerklePatriciaTrie.EmptyRootHash),
     noEmptyAccounts = false,
@@ -150,8 +150,8 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup:
   ): ByteString =
     val initialWorld = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       stateRootHash,
       noEmptyAccounts = false,
@@ -346,7 +346,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup:
     LegacyReceipt.withHashOutcome(randomHash(), GasAmount(50000), BloomFilter(randomHash()), Nil)
   )
 
-  val currentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(99999)
+  val currentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(99999))
 
   val bestNum: BigInt = BigInt(5)
 
@@ -400,8 +400,8 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup:
         )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] =
           val emptyWorld = InMemoryWorldStateProxy(
             storagesInstance.storages.evmCodeStorage,
-            blockchain.getBackingMptStorage(-1),
-            (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+            blockchain.getBackingMptStorage(BlockNumber(-1)),
+            (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
             blockchainConfig.accountStartNonce,
             ByteString(MerklePatriciaTrie.EmptyRootHash),
             noEmptyAccounts = false,

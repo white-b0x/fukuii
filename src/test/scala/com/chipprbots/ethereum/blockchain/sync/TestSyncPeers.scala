@@ -7,6 +7,7 @@ import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerInfo
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
 import com.chipprbots.ethereum.network.Peer
@@ -35,7 +36,7 @@ trait TestSyncPeers:
     RemoteStatus(
       Capability.ETH66,
       1,
-      ChainWeight.totalDifficultyOnly(20),
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(20)),
       ByteString("peer1_bestHash"),
       ByteString("unused")
     )

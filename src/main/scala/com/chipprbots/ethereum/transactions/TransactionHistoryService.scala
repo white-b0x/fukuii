@@ -33,7 +33,9 @@ class TransactionHistoryService(
   )(implicit blockchainConfig: BlockchainConfig): IO[List[ExtendedTransactionData]] =
     val txnsFromBlocks = Stream
       .emits(fromBlocks.reverse.toSeq)
-      .parEvalMap(10)(blockNr => IO(blockchainReader.getBlockByNumber(blockchainReader.getBestBranch, blockNr)))
+      .parEvalMap(10)(blockNr =>
+        IO(blockchainReader.getBlockByNumber(blockchainReader.getBestBranch, BlockNumber(blockNr)))
+      )
       .collect { case Some(block) => block }
       .flatMap { block =>
         val getBlockReceipts = IO {

@@ -33,6 +33,7 @@ import com.chipprbots.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.
 import com.chipprbots.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.StartBranchResolver
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.*
 import com.chipprbots.ethereum.network.Peer
@@ -263,7 +264,7 @@ class FastSyncBranchResolverActorSpec
         RemoteStatus(
           Capability.ETH68,
           1,
-          ChainWeight.totalDifficultyOnly(1),
+          ChainWeight.totalDifficultyOnly(TotalDifficulty(1)),
           ByteString(s"${peer.id}_bestHash"),
           ByteString("unused")
         )
@@ -280,7 +281,7 @@ class FastSyncBranchResolverActorSpec
 
     def saveBlocks(blocks: List[Block]): Unit =
       blocks.foreach(block =>
-        blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true)
+        blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(TotalDifficulty(1)), saveAsBestBlock = true)
       )
 
     def createNetworkPeerManager(peers: Map[Peer, PeerInfo], blocks: Map[Int, List[Block]])(implicit

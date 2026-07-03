@@ -85,9 +85,9 @@ class FilterManagerSpec
       blockHeader.copy(number = BlockNumber(3), logsBloom = BloomFilter(LedgerBloomFilter.create(Nil)))
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(3).twice()
-    blockchainReader.getBlockHeaderByNumber.expects(bh1.number.value).returning(Some(bh1))
-    blockchainReader.getBlockHeaderByNumber.expects(bh2.number.value).returning(Some(bh2))
-    blockchainReader.getBlockHeaderByNumber.expects(bh3.number.value).returning(Some(bh3))
+    blockchainReader.getBlockHeaderByNumber.expects(bh1.number).returning(Some(bh1))
+    blockchainReader.getBlockHeaderByNumber.expects(bh2.number).returning(Some(bh2))
+    blockchainReader.getBlockHeaderByNumber.expects(bh3.number).returning(Some(bh3))
 
     val bb2: BlockBody = BlockBody(
       transactionList = Seq(
@@ -167,7 +167,7 @@ class FilterManagerSpec
     val bh4: BlockHeader =
       blockHeader.copy(number = BlockNumber(4), logsBloom = BloomFilter(LedgerBloomFilter.create(Seq(log4_1, log4_2))))
 
-    blockchainReader.getBlockHeaderByNumber.expects(BigInt(4)).returning(Some(bh4))
+    blockchainReader.getBlockHeaderByNumber.expects(BlockNumber(4)).returning(Some(bh4))
 
     val bb4: BlockBody = BlockBody(
       transactionList = Seq(
@@ -255,7 +255,7 @@ class FilterManagerSpec
       blockHeader.copy(number = BlockNumber(1), logsBloom = BloomFilter(LedgerBloomFilter.create(logs)))
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1).anyNumberOfTimes()
-    blockchainReader.getBlockHeaderByNumber.expects(bh.number.value).returning(Some(bh))
+    blockchainReader.getBlockHeaderByNumber.expects(bh.number).returning(Some(bh))
     val bb: BlockBody = BlockBody(
       transactionList = Seq(
         SignedTransaction(
@@ -384,9 +384,9 @@ class FilterManagerSpec
     val bh5: BlockHeader = blockHeader.copy(number = BlockNumber(5))
     val bh6: BlockHeader = blockHeader.copy(number = BlockNumber(6))
 
-    blockchainReader.getBlockHeaderByNumber.expects(BigInt(4)).returning(Some(bh4))
-    blockchainReader.getBlockHeaderByNumber.expects(BigInt(5)).returning(Some(bh5))
-    blockchainReader.getBlockHeaderByNumber.expects(BigInt(6)).returning(Some(bh6))
+    blockchainReader.getBlockHeaderByNumber.expects(BlockNumber(4)).returning(Some(bh4))
+    blockchainReader.getBlockHeaderByNumber.expects(BlockNumber(5)).returning(Some(bh5))
+    blockchainReader.getBlockHeaderByNumber.expects(BlockNumber(6)).returning(Some(bh6))
 
     val changesProbe: org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe[FilterChanges] =
       testKit.createTestProbe[FilterChanges]()

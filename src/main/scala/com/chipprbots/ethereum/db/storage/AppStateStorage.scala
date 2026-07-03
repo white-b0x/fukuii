@@ -9,6 +9,7 @@ import scala.collection.immutable.ArraySeq
 import com.chipprbots.ethereum.db.dataSource.DataSource
 import com.chipprbots.ethereum.db.dataSource.DataSourceBatchUpdate
 import com.chipprbots.ethereum.db.storage.AppStateStorage.*
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.appstate.BlockInfo
 import com.chipprbots.ethereum.utils.Hex
 
@@ -32,7 +33,7 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
   def getBestBlockInfo(): BlockInfo =
     BlockInfo(
       get(Keys.BestBlockHash).map(v => ByteString(Hex.decode(v))).getOrElse(ByteString.empty),
-      getBigInt(Keys.BestBlockNumber)
+      BlockNumber(getBigInt(Keys.BestBlockNumber))
     )
 
   def putBestBlockInfo(b: BlockInfo): DataSourceBatchUpdate =
@@ -95,8 +96,8 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
     * @param hash
     *   The block hash of the highest bootstrap checkpoint
     */
-  def putBootstrapPivotBlock(number: BigInt, hash: ByteString): DataSourceBatchUpdate =
-    put(Keys.BootstrapPivotBlock, number.toString)
+  def putBootstrapPivotBlock(number: BlockNumber, hash: ByteString): DataSourceBatchUpdate =
+    put(Keys.BootstrapPivotBlock, number.value.toString)
       .and(put(Keys.BootstrapPivotBlockHash, Hex.toHexString(hash.toArray)))
 
   /** Check if SNAP sync has completed

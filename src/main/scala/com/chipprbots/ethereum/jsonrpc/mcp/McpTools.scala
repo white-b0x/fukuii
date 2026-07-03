@@ -19,6 +19,7 @@ import com.chipprbots.ethereum.blockchain.sync.SyncController
 import com.chipprbots.ethereum.blockchain.sync.SyncProtocol
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHash
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.jsonrpc.AkkaTaskOps
 import com.chipprbots.ethereum.jsonrpc.McpDependencies
 import com.chipprbots.ethereum.jsonrpc.McpService.*
@@ -106,7 +107,7 @@ object BlockchainInfoTool:
       .map(_.totalDifficulty.toString)
       .getOrElse("unknown")
     val genesisHash = deps.blockchainReader
-      .getBlockHeaderByNumber(0)
+      .getBlockHeaderByNumber(BlockNumber.Zero)
       .map(h => ByteStringUtils.hash2string(h.hash.value))
       .getOrElse("unknown")
     s"""Blockchain Information:
@@ -252,7 +253,7 @@ object GetBlockTool:
         val hash = org.apache.pekko.util.ByteString(org.bouncycastle.util.encoders.Hex.decode(s.drop(2)))
         deps.blockchainReader.getBlockByHash(BlockHash(hash)).map(_.header)
       case s =>
-        Try(BigInt(s)).toOption.flatMap(n => deps.blockchainReader.getBlockHeaderByNumber(n))
+        Try(BigInt(s)).toOption.flatMap(n => deps.blockchainReader.getBlockHeaderByNumber(BlockNumber(n)))
     headerOpt match
       case Some(h) =>
         val td = deps.blockchainReader.getChainWeightByHash(h.hash).map(_.totalDifficulty.toString).getOrElse("unknown")
@@ -292,7 +293,7 @@ object GetTransactionTool:
         case Some(loc) =>
           s"""Transaction Found:
             |  Hash: $hashStr
-            |  Block Hash: ${ByteStringUtils.hash2string(loc.blockHash)}
+            |  Block Hash: ${ByteStringUtils.hash2string(loc.blockHash.value)}
             |  Transaction Index: ${loc.txIndex}""".stripMargin
         case None =>
           s"Transaction not found: $hashStr"
@@ -315,7 +316,8 @@ object GetAccountTool:
       val addrBytes = org.bouncycastle.util.encoders.Hex.decode(addrStr.stripPrefix("0x"))
       val address = Address(org.apache.pekko.util.ByteString(addrBytes))
       val blockNum = deps.blockchainReader.getBestBlockNumber
-      val accountOpt = deps.blockchainReader.getAccount(deps.blockchainReader.getBestBranch, address, blockNum)
+      val accountOpt =
+        deps.blockchainReader.getAccount(deps.blockchainReader.getBestBranch, address, BlockNumber(blockNum))
       accountOpt match
         case Some(account) =>
           val balanceEtc = BigDecimal(account.balance.toBigInt) / BigDecimal("1000000000000000000")
@@ -353,7 +355,7 @@ object DetectReorgTool:
     val bestNum = deps.blockchainReader.getBestBlockNumber
     val startNum = (bestNum - depth).max(0)
 
-    val headers = (startNum to bestNum).flatMap(n => deps.blockchainReader.getBlockHeaderByNumber(n))
+    val headers = (startNum to bestNum).flatMap(n => deps.blockchainReader.getBlockHeaderByNumber(BlockNumber(n)))
     val inconsistencies = headers
       .sliding(2)
       .flatMap {

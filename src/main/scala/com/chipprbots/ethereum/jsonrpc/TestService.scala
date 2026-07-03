@@ -32,6 +32,7 @@ import com.chipprbots.ethereum.db.storage.TransactionMappingStorage
 import com.chipprbots.ethereum.domain
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.BlockHash
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.Block.*
@@ -295,7 +296,7 @@ class TestService(
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] =
     pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
     (blockchainReader.getBestBlockNumber until request.blockNum by -1).foreach { n =>
-      blockchainReader.getBlockHeaderByNumber(n).foreach { header =>
+      blockchainReader.getBlockHeaderByNumber(BlockNumber(n)).foreach { header =>
         blockchain.removeBlock(header.hash)
       }
     }
@@ -376,13 +377,13 @@ class TestService(
 
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(
-        number => blockchainReader.getBlockByNumber(blockchainReader.getBestBranch, number),
+        number => blockchainReader.getBlockByNumber(blockchainReader.getBestBranch, BlockNumber(number)),
         blockHash => blockchainReader.getBlockByHash(BlockHash(blockHash))
       )
 
     if blockOpt.isEmpty then AccountsInRangeResponse(Map(), ByteString(0)).rightNow
     else
-      val blockNumber: BigInt = blockOpt.map(_.header.number.value).getOrElse(BigInt(0))
+      val blockNumber: BlockNumber = blockOpt.map(_.header.number).getOrElse(BlockNumber.Zero)
       val accountBatch: Seq[(ByteString, Address)] = accountHashWithAdresses.view
         .dropWhile { case (hash, _) => UInt256(hash) < UInt256(request.parameters.addressHash) }
         .filter { case (_, address) =>
@@ -417,7 +418,7 @@ class TestService(
 
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(
-        number => blockchainReader.getBlockByNumber(blockchainReader.getBestBranch, number),
+        number => blockchainReader.getBlockByNumber(blockchainReader.getBestBranch, BlockNumber(number)),
         hash => blockchainReader.getBlockByHash(BlockHash(hash))
       )
 
@@ -426,7 +427,7 @@ class TestService(
       accountOpt = blockchainReader.getAccount(
         blockchainReader.getBestBranch,
         Address(request.parameters.address),
-        block.header.number.value
+        block.header.number
       )
       account <- accountOpt.toRight(StorageRangeResponse(complete = false, Map.empty, None))
     yield
@@ -462,7 +463,7 @@ class TestService(
 
     val result = for
       transactionLocation <- transactionMappingStorage.get(request.transactionHash)
-      block <- blockchainReader.getBlockByHash(BlockHash(transactionLocation.blockHash))
+      block <- blockchainReader.getBlockByHash(transactionLocation.blockHash)
       _ <- block.body.transactionList.lift(transactionLocation.txIndex)
       receipts <- blockchainReader.getReceiptsByHash(block.header.hash)
       logs = receipts.flatMap(receipt => receipt.logs)

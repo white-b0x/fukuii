@@ -7,6 +7,7 @@ import scala.jdk.CollectionConverters.*
 
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHash
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.ledger.BlockQueue.Leaf
@@ -58,7 +59,7 @@ class BlockQueue(
         log.debug(s"Block (${block.idTag}) already in queue. ")
         None
 
-      case None if isNumberOutOfRange(number.value, bestBlockNumber) =>
+      case None if isNumberOutOfRange(number, BlockNumber(bestBlockNumber)) =>
         log.debug(s"Block (${block.idTag} is outside accepted range. Current best block number is: $bestBlockNumber")
         None
 
@@ -150,7 +151,7 @@ class BlockQueue(
     */
   private def cleanUp(bestBlockNumber: BigInt): Unit =
     val staleHashes = blocks.values.collect {
-      case QueuedBlock(b, _) if isNumberOutOfRange(b.header.number.value, bestBlockNumber) =>
+      case QueuedBlock(b, _) if isNumberOutOfRange(b.header.number, BlockNumber(bestBlockNumber)) =>
         b.header.hash
     }
 
@@ -209,6 +210,6 @@ class BlockQueue(
     val siblings = parentToChildren.getOrElse(parentHash, Set.empty)
     parentToChildren += parentHash -> (siblings + hash)
 
-  private def isNumberOutOfRange(blockNumber: BigInt, bestBlockNumber: BigInt): Boolean =
-    blockNumber - bestBlockNumber > maxQueuedBlockNumberAhead ||
-      bestBlockNumber - blockNumber > maxQueuedBlockNumberBehind
+  private def isNumberOutOfRange(blockNumber: BlockNumber, bestBlockNumber: BlockNumber): Boolean =
+    blockNumber.value - bestBlockNumber.value > maxQueuedBlockNumberAhead ||
+      bestBlockNumber.value - blockNumber.value > maxQueuedBlockNumberBehind

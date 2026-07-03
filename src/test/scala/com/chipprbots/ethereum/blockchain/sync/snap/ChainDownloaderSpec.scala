@@ -14,6 +14,7 @@ import org.scalatest.matchers.should.Matchers
 import com.chipprbots.ethereum.blockchain.sync.TestSyncConfig
 import com.chipprbots.ethereum.db.dataSource.EphemDataSource
 import com.chipprbots.ethereum.db.storage.AppStateStorage
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.testing.Tags.*
@@ -142,7 +143,7 @@ class ChainDownloaderSpec
     val replyToProbe = TestProbe()
 
     blockchainReader.getBlockHeaderByNumber
-      .expects(BigInt(1))
+      .expects(BlockNumber(1))
       .returning(None)
       .anyNumberOfTimes()
 

@@ -20,6 +20,7 @@ import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.ledger.BlockQueue.Leaf
 import com.chipprbots.ethereum.testing.Tags.*
@@ -70,7 +71,7 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory:
     StateTest
   ) in new TestConfig:
     val block1: Block = getBlock(1, 13)
-    val parentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(42)
+    val parentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(42))
     setBestBlockNumber(1)
     setChainWeightForParent(block1, Some(parentWeight))
 
@@ -87,7 +88,7 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory:
     val block2b: Block = getBlock(2, 99, block1.header.hash.value)
     val block3: Block = getBlock(3, 103, block2a.header.hash.value)
 
-    val parentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(42)
+    val parentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(42))
 
     setBestBlockNumber(1).anyNumberOfTimes()
     setChainWeightForParent(block1, Some(parentWeight))

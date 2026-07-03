@@ -616,7 +616,7 @@ final private class BlockImporterLogic(
               )
             if strikes >= ForkDetectThreshold then
               val ourHashAtHeight = blockchainReader
-                .getBlockHeaderByNumber(failedBlock.number.value)
+                .getBlockHeaderByNumber(failedBlock.number)
                 .map(h => ByteStringUtils.hash2string(h.hash.value))
                 .getOrElse("<not found>")
               log.warning(
@@ -761,7 +761,7 @@ final private class BlockImporterLogic(
           try
             // Look up the account directly via blockchainReader
             blockchainReader
-              .getAccount(blockchainReader.getBestBranch, address, parentBlockNumber.value)
+              .getAccount(blockchainReader.getBestBranch, address, parentBlockNumber)
               .flatMap { account =>
                 if account.codeHash != Account.EmptyCodeHash then
                   evmCodeStorage.get(account.codeHash.value) match
@@ -814,7 +814,7 @@ final private class BlockImporterLogic(
   private def resolvingFork(capturedBest: BigInt, snapPivot: BigInt, state: ImporterState): Behavior[Command] =
     Behaviors.receiveMessage {
       case BranchResolverMsg(FastSyncBranchResolverActor.BranchResolvedSuccessful(lca, _)) =>
-        blockchainReader.getBlockHeaderByNumber(lca) match
+        blockchainReader.getBlockHeaderByNumber(BlockNumber(lca)) match
           case Some(lcaHeader) =>
             log.info(
               "SYNC-FORK: branch resolver found LCA at {} — rewinding canonical chain from {}",
@@ -843,7 +843,7 @@ final private class BlockImporterLogic(
 
   private def blindRewind(capturedBest: BigInt, snapPivot: BigInt): Unit =
     val floor = (capturedBest - MaxForkAncestryDepth).max(snapPivot)
-    blockchainReader.getBlockHeaderByNumber(floor) match
+    blockchainReader.getBlockHeaderByNumber(BlockNumber(floor)) match
       case Some(floorHeader) =>
         log.warning(
           "SYNC-FORK: blind rewind from {} to {} (snapPivot={})",

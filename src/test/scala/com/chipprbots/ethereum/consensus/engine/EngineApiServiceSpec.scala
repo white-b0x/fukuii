@@ -175,8 +175,8 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       private val genesisStateRoot =
         val world = InMemoryWorldStateProxy(
           storagesInstance.storages.evmCodeStorage,
-          blockchain.getBackingMptStorage(0),
-          (n: BlockNumber) => blockchainReader.getBlockHeaderByNumber(n.value).map(_.hash),
+          blockchain.getBackingMptStorage(BlockNumber(0)),
+          (n: BlockNumber) => blockchainReader.getBlockHeaderByNumber(n).map(_.hash),
           UInt256.Zero,
           ByteString(com.chipprbots.ethereum.mpt.MerklePatriciaTrie.EmptyRootHash),
           noEmptyAccounts = false,
@@ -434,7 +434,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       // ACCEPTED block IS stored by hash (for later re-validation)
       blockchainReader.getBlockHeaderByHash(BlockHash(modifiedPayload.blockHash)) shouldBe defined
       // But NOT stored by number
-      blockchainReader.getBlockHeaderByNumber(1).map(_.hash) should not be Some(modifiedPayload.blockHash)
+      blockchainReader.getBlockHeaderByNumber(BlockNumber(1)).map(_.hash) should not be Some(modifiedPayload.blockHash)
 
     "return INVALID for block with modified timestamp (header validation)" taggedAs UnitTest in new EngineApiTestSetup:
       val (validBlock, _) = buildValidBlock1()

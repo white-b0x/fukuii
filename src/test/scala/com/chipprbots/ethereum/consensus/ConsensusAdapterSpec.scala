@@ -75,7 +75,7 @@ class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures w
     setBestBlock(bestBlock)
     setChainWeightForBlock(bestBlock, currentWeight)
 
-    val newWeight: ChainWeight = currentWeight.increaseTotalDifficulty(difficulty)
+    val newWeight: ChainWeight = currentWeight.increaseTotalDifficulty(TotalDifficulty(difficulty))
     val blockData: BlockData = BlockData(block, Seq.empty[Receipt], newWeight)
 
     // Just to bypass metrics needs
@@ -190,7 +190,7 @@ class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures w
     val oldBlock2: Block = getBlock(bestNum - 1, difficulty = 102, parent = block1.header.hash.value)
     val oldBlock3: Block = getBlock(bestNum, difficulty = 103, parent = oldBlock2.header.hash.value)
 
-    val weight1: ChainWeight = ChainWeight.totalDifficultyOnly(block1.header.difficulty.value + 999)
+    val weight1: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(block1.header.difficulty.value + 999))
     val newWeight2: ChainWeight = weight1.increase(newBlock2.header)
     val newWeight3: ChainWeight = newWeight2.increase(newBlock3.header)
     val oldWeight2: ChainWeight = weight1.increase(oldBlock2.header)
@@ -201,7 +201,12 @@ class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures w
     blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
 
     val ancestorForValidation: Block = getBlock(0, difficulty = 1)
-    blockchainWriter.save(ancestorForValidation, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = false)
+    blockchainWriter.save(
+      ancestorForValidation,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(1)),
+      saveAsBestBlock = false
+    )
 
     val oldBranch: List[Block] = List(oldBlock2, oldBlock3)
     val newBranch: List[Block] = List(newBlock2, newBlock3)
@@ -239,7 +244,7 @@ class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures w
     val oldBlock2: Block = getBlock(bestNum - 1, difficulty = 102, parent = block1.header.hash.value)
     val oldBlock3: Block = getBlock(bestNum, difficulty = 103, parent = oldBlock2.header.hash.value)
 
-    val weight1: ChainWeight = ChainWeight.totalDifficultyOnly(block1.header.difficulty.value + 999)
+    val weight1: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(block1.header.difficulty.value + 999))
     val newWeight2: ChainWeight = weight1.increase(newBlock2.header)
     newWeight2.increase(newBlock3.header)
     val oldWeight2: ChainWeight = weight1.increase(oldBlock2.header)
@@ -250,7 +255,12 @@ class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures w
     blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
 
     val ancestorForValidation: Block = getBlock(0, difficulty = 1)
-    blockchainWriter.save(ancestorForValidation, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = false)
+    blockchainWriter.save(
+      ancestorForValidation,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(1)),
+      saveAsBestBlock = false
+    )
 
     val newBranch: List[Block] = List(newBlock2, newBlock3)
     val blockData2: BlockData = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
@@ -343,16 +353,31 @@ class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures w
     val newBlock3WithOmmer: Block =
       getBlock(bestNum, difficulty = 105, parent = newBlock2.header.hash.value, ommers = Seq(ommerBlock.header))
 
-    val weight1: ChainWeight = ChainWeight.totalDifficultyOnly(block1.header.difficulty.value + 999)
+    val weight1: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(block1.header.difficulty.value + 999))
     val oldWeight2: ChainWeight = weight1.increase(oldBlock2.header)
     val oldWeight3: ChainWeight = oldWeight2.increase(oldBlock3.header)
 
     val newWeight2: ChainWeight = weight1.increase(newBlock2.header)
     val newWeight3: ChainWeight = newWeight2.increase(newBlock3WithOmmer.header)
 
-    blockchainWriter.save(ancestorForValidation, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = false)
-    blockchainWriter.save(ancestorForValidation1, Nil, ChainWeight.totalDifficultyOnly(3), saveAsBestBlock = false)
-    blockchainWriter.save(ancestorForValidation2, Nil, ChainWeight.totalDifficultyOnly(6), saveAsBestBlock = false)
+    blockchainWriter.save(
+      ancestorForValidation,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(1)),
+      saveAsBestBlock = false
+    )
+    blockchainWriter.save(
+      ancestorForValidation1,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(3)),
+      saveAsBestBlock = false
+    )
+    blockchainWriter.save(
+      ancestorForValidation2,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(6)),
+      saveAsBestBlock = false
+    )
 
     blockchainWriter.save(block1, Nil, weight1, saveAsBestBlock = true)
     blockchainWriter.save(oldBlock2, receipts, oldWeight2, saveAsBestBlock = true)
@@ -390,7 +415,8 @@ class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures w
     val mockExecution: BlockExecution = mock[BlockExecution]
 
     val currentBestBlock: Block = getBlock(bestNum - 2)
-    val block1Weight: ChainWeight = ChainWeight.totalDifficultyOnly(currentBestBlock.header.difficulty.value + 999)
+    val block1Weight: ChainWeight =
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(currentBestBlock.header.difficulty.value + 999))
 
     blockchainWriter.save(currentBestBlock, Nil, block1Weight, saveAsBestBlock = true)
 
@@ -576,8 +602,11 @@ class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures w
     override def setHeaderInChain(hash: ByteString, result: Boolean = true): CallHandler2[Branch, BlockHash, Boolean] =
       blockchainReader.isInChain.expects(*, BlockHash(hash)).returning(result)
 
-    override def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler2[Branch, BigInt, Option[Block]] =
-      blockchainReader.getBlockByNumber.expects(*, number).returning(block)
+    override def setBlockByNumber(
+        number: BigInt,
+        block: Option[Block]
+    ): CallHandler2[Branch, BlockNumber, Option[Block]] =
+      blockchainReader.getBlockByNumber.expects(*, BlockNumber(number)).returning(block)
 
     override def setGenesisHeader(header: BlockHeader): Unit =
       (() => blockchainReader.genesisHeader).expects().returning(header)

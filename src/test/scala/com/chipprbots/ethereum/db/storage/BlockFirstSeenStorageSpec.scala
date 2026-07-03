@@ -7,26 +7,27 @@ import scala.collection.mutable
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.testing.Tags.*
 
 class BlockFirstSeenStorageSpec extends AnyFlatSpec with Matchers:
 
   // In-memory implementation for testing
   class InMemoryBlockFirstSeenStorage extends BlockFirstSeenStorage:
-    private val storage = mutable.Map[ByteString, Long]()
+    private val storage = mutable.Map[BlockHash, Long]()
 
-    override def put(blockHash: ByteString, timestamp: Long): Unit =
+    override def put(blockHash: BlockHash, timestamp: Long): Unit =
       storage(blockHash) = timestamp
 
-    override def get(blockHash: ByteString): Option[Long] =
+    override def get(blockHash: BlockHash): Option[Long] =
       storage.get(blockHash)
 
-    override def remove(blockHash: ByteString): Unit =
+    override def remove(blockHash: BlockHash): Unit =
       storage.remove(blockHash)
 
   "BlockFirstSeenStorage" should "store and retrieve timestamps" taggedAs (IntegrationTest, DatabaseTest) in {
     val storage = new InMemoryBlockFirstSeenStorage()
-    val blockHash = ByteString("block1")
+    val blockHash = BlockHash(ByteString("block1"))
     val timestamp = 1234567890L
 
     storage.put(blockHash, timestamp)
@@ -35,14 +36,14 @@ class BlockFirstSeenStorageSpec extends AnyFlatSpec with Matchers:
 
   it should "return None for non-existent blocks" taggedAs (IntegrationTest, DatabaseTest) in {
     val storage = new InMemoryBlockFirstSeenStorage()
-    val blockHash = ByteString("nonexistent")
+    val blockHash = BlockHash(ByteString("nonexistent"))
 
     storage.get(blockHash) shouldBe None
   }
 
   it should "update existing timestamps" taggedAs (IntegrationTest, DatabaseTest) in {
     val storage = new InMemoryBlockFirstSeenStorage()
-    val blockHash = ByteString("block1")
+    val blockHash = BlockHash(ByteString("block1"))
 
     storage.put(blockHash, 1000L)
     storage.get(blockHash) shouldBe Some(1000L)
@@ -53,7 +54,7 @@ class BlockFirstSeenStorageSpec extends AnyFlatSpec with Matchers:
 
   it should "remove timestamps" taggedAs (IntegrationTest, DatabaseTest) in {
     val storage = new InMemoryBlockFirstSeenStorage()
-    val blockHash = ByteString("block1")
+    val blockHash = BlockHash(ByteString("block1"))
 
     storage.put(blockHash, 1000L)
     storage.get(blockHash) shouldBe Some(1000L)
@@ -64,8 +65,8 @@ class BlockFirstSeenStorageSpec extends AnyFlatSpec with Matchers:
 
   it should "check if block exists using contains" taggedAs (IntegrationTest, DatabaseTest) in {
     val storage = new InMemoryBlockFirstSeenStorage()
-    val blockHash1 = ByteString("block1")
-    val blockHash2 = ByteString("block2")
+    val blockHash1 = BlockHash(ByteString("block1"))
+    val blockHash2 = BlockHash(ByteString("block2"))
 
     storage.put(blockHash1, 1000L)
 
@@ -75,9 +76,9 @@ class BlockFirstSeenStorageSpec extends AnyFlatSpec with Matchers:
 
   it should "handle multiple blocks independently" taggedAs (IntegrationTest, DatabaseTest) in {
     val storage = new InMemoryBlockFirstSeenStorage()
-    val block1 = ByteString("block1")
-    val block2 = ByteString("block2")
-    val block3 = ByteString("block3")
+    val block1 = BlockHash(ByteString("block1"))
+    val block2 = BlockHash(ByteString("block2"))
+    val block3 = BlockHash(ByteString("block3"))
 
     storage.put(block1, 1000L)
     storage.put(block2, 2000L)
@@ -98,8 +99,8 @@ class BlockFirstSeenStorageSpec extends AnyFlatSpec with Matchers:
     val storage = new InMemoryBlockFirstSeenStorage()
 
     // Create different ByteStrings with same content
-    val hash1 = ByteString(Array[Byte](1, 2, 3, 4))
-    val hash2 = ByteString(Array[Byte](1, 2, 3, 4))
+    val hash1 = BlockHash(ByteString(Array[Byte](1, 2, 3, 4)))
+    val hash2 = BlockHash(ByteString(Array[Byte](1, 2, 3, 4)))
 
     storage.put(hash1, 1000L)
 

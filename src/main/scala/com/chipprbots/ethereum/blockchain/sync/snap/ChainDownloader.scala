@@ -22,6 +22,7 @@ import com.chipprbots.ethereum.db.storage.AppStateStorage
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.Receipt
@@ -495,7 +496,7 @@ class ChainDownloader private (
 
     usableOpt.foreach { usable =>
       // Validate parent hash chaining
-      var prevHash = blockchainReader.getBlockHeaderByNumber(bestHeaderNumber).map(_.hash)
+      var prevHash = blockchainReader.getBlockHeaderByNumber(BlockNumber(bestHeaderNumber)).map(_.hash)
       var validCount = 0
       var aborted = false
       val it = usable.iterator
@@ -770,12 +771,12 @@ class ChainDownloader private (
     // back to the binary search.
     val cursorHeader = appStateStorage.getBackfillBestHeader()
     val (low0, best0) =
-      if cursorHeader > 0 && blockchainReader.getBlockHeaderByNumber(cursorHeader).isDefined then
+      if cursorHeader > 0 && blockchainReader.getBlockHeaderByNumber(BlockNumber(cursorHeader)).isDefined then
         (cursorHeader + 1, cursorHeader)
       else (BigInt(0), BigInt(0))
 
     // Quick check: if genesis+1 doesn't exist, start from 0 (only meaningful for fresh runs).
-    if best0 == 0 && blockchainReader.getBlockHeaderByNumber(1).isEmpty then 0
+    if best0 == 0 && blockchainReader.getBlockHeaderByNumber(BlockNumber(1)).isEmpty then 0
     else
       // Binary search above the cursor for the highest stored header. With cursor-fast-skip
       // this almost always finds `best == cursorHeader` after one probe.
@@ -785,7 +786,7 @@ class ChainDownloader private (
 
       while low <= high do
         val mid = (low + high) / 2
-        if blockchainReader.getBlockHeaderByNumber(mid).isDefined then
+        if blockchainReader.getBlockHeaderByNumber(BlockNumber(mid)).isDefined then
           best = mid
           low = mid + 1
         else high = mid - 1
@@ -801,7 +802,7 @@ class ChainDownloader private (
         val needsBodyCheck = i > bodyFloor
         val needsReceiptCheck = i > receiptFloor
         if needsBodyCheck || needsReceiptCheck then
-          blockchainReader.getBlockHeaderByNumber(i) match
+          blockchainReader.getBlockHeaderByNumber(BlockNumber(i)) match
             case Some(header) =>
               if needsBodyCheck && blockchainReader.getBlockBodyByHash(header.hash).isEmpty then
                 bodiesQueue :+= header.hash.value

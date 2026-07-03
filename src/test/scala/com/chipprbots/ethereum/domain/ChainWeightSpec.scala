@@ -33,16 +33,16 @@ class ChainWeightSpec extends AnyFlatSpec with Matchers:
     )
 
   "ChainWeight" should "compare based on total difficulty" taggedAs (UnitTest) in {
-    val weight1 = ChainWeight.totalDifficultyOnly(1000)
-    val weight2 = ChainWeight.totalDifficultyOnly(2000)
+    val weight1 = ChainWeight.totalDifficultyOnly(TotalDifficulty(1000))
+    val weight2 = ChainWeight.totalDifficultyOnly(TotalDifficulty(2000))
 
     weight1 should be < weight2
     weight2 should be > weight1
   }
 
   it should "be equal when total difficulty is the same" taggedAs (UnitTest) in {
-    val weight1 = ChainWeight.totalDifficultyOnly(1000)
-    val weight2 = ChainWeight.totalDifficultyOnly(1000)
+    val weight1 = ChainWeight.totalDifficultyOnly(TotalDifficulty(1000))
+    val weight2 = ChainWeight.totalDifficultyOnly(TotalDifficulty(1000))
 
     weight1.compare(weight2) shouldBe 0
   }
@@ -74,13 +74,13 @@ class ChainWeightSpec extends AnyFlatSpec with Matchers:
   }
 
   "ChainWeight.totalDifficultyOnly" should "create weight with specified difficulty" in {
-    val weight = ChainWeight.totalDifficultyOnly(500)
+    val weight = ChainWeight.totalDifficultyOnly(TotalDifficulty(500))
     weight.totalDifficulty.value shouldBe BigInt(500)
   }
 
   "ChainWeight test API" should "allow increasing total difficulty" in {
     val weight = ChainWeight.zero
-    val increased = weight.increaseTotalDifficulty(100)
+    val increased = weight.increaseTotalDifficulty(TotalDifficulty(100))
 
     increased.totalDifficulty.value shouldBe BigInt(100)
   }

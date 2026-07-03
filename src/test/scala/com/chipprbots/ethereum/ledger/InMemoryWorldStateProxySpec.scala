@@ -134,8 +134,8 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers:
     // Create a new WS instance based on storages and new root state and check
     val newWorldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       persistedWorldState.stateRootHash,
       noEmptyAccounts = true,
@@ -264,7 +264,7 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers:
     val readWorldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getReadOnlyMptStorage(),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       persistedWorldStateWithAnAccount.stateRootHash,
       noEmptyAccounts = false,
@@ -286,7 +286,7 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers:
       val newReadWorld = InMemoryWorldStateProxy(
         storagesInstance.storages.evmCodeStorage,
         blockchain.getReadOnlyMptStorage(),
-        (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+        (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
         UInt256.Zero,
         changedReadWorld.stateRootHash,
         noEmptyAccounts = false,
@@ -315,8 +315,8 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers:
 
     val world2: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       world1.stateRootHash,
       noEmptyAccounts = false,
@@ -342,8 +342,8 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers:
 
     val worldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = false,
@@ -352,8 +352,8 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers:
 
     val postEIP161WorldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingMptStorage(-1),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      blockchain.getBackingMptStorage(BlockNumber(-1)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = postEip161Config.noEmptyAccounts,

@@ -13,6 +13,7 @@ import com.chipprbots.ethereum.db.dataSource.RocksDbDataSource
 import com.chipprbots.ethereum.db.storage.Namespaces
 import com.chipprbots.ethereum.db.storage.SnapSyncProgress
 import com.chipprbots.ethereum.db.storage.SnapSyncProgressStorage
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Hex
 
@@ -30,7 +31,7 @@ class SNAPSyncControllerResumeSpec extends AnyFlatSpec with Matchers:
 
   private val MaxPreservedPivotDistance: BigInt = BigInt(50_000)
 
-  private def stateRoot(i: Int): ByteString = ByteString(Array.fill(32)(i.toByte))
+  private def stateRoot(i: Int): TrieRoot = TrieRoot(ByteString(Array.fill(32)(i.toByte)))
   private def hexStr(i: Int): String = "%064x".format(i)
 
   private def withStorage(test: SnapSyncProgressStorage => Unit): Unit =

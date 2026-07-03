@@ -51,7 +51,7 @@ class BlockchainSpec
     blockchainWriter.storeBlock(validBlock).commit()
     blockchainWriter.saveBestKnownBlocks(validBlock.hash, validBlock.number.value)
     val block: Option[Block] =
-      blockchainReader.getBlockByNumber(blockchainReader.getBestBranch, validBlock.header.number.value)
+      blockchainReader.getBlockByNumber(blockchainReader.getBestBranch, validBlock.header.number)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
 
@@ -60,10 +60,15 @@ class BlockchainSpec
     blockchainWriter.save(
       validBlock.copy(header = validBlock.header.copy(number = validBlock.number - 1)),
       Seq.empty,
-      ChainWeight.totalDifficultyOnly(BigInt(100)),
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(100))),
       saveAsBestBlock = true
     )
-    blockchainWriter.save(validBlock, Seq.empty, ChainWeight.totalDifficultyOnly(BigInt(100)), saveAsBestBlock = true)
+    blockchainWriter.save(
+      validBlock,
+      Seq.empty,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(100))),
+      saveAsBestBlock = true
+    )
     blockchainReader.isInChain(blockchainReader.getBestBranch, validBlock.hash) should ===(true)
     // simulation of node restart
     blockchainWriter.saveBestKnownBlocks(validBlock.header.parentHash, validBlock.header.number.value - 1)
@@ -75,13 +80,13 @@ class BlockchainSpec
   ) in new EphemBlockchainTestSetup:
     val validHeader = Fixtures.Blocks.ValidBlock.header
     blockchainWriter.storeBlockHeader(validHeader).commit()
-    val header: Option[BlockHeader] = blockchainReader.getBlockHeaderByNumber(validHeader.number.value)
+    val header: Option[BlockHeader] = blockchainReader.getBlockHeaderByNumber(validHeader.number)
     header.isDefined should ===(true)
     validHeader should ===(header.get)
 
   it should "not return a value if not stored" taggedAs (UnitTest, StateTest) in new EphemBlockchainTestSetup:
     blockchainReader
-      .getBlockByNumber(blockchainReader.getBestBranch, Fixtures.Blocks.ValidBlock.header.number.value) shouldBe None
+      .getBlockByNumber(blockchainReader.getBestBranch, Fixtures.Blocks.ValidBlock.header.number) shouldBe None
     blockchainReader.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash) shouldBe None
 
   it should "return an account given an address and a block number" taggedAs (
@@ -105,7 +110,7 @@ class BlockchainSpec
     blockchainWriter.saveBestKnownBlocks(headerWithAcc.hash, headerWithAcc.number.value)
 
     val retrievedAccount: Option[Account] =
-      blockchainReader.getAccount(blockchainReader.getBestBranch, address, headerWithAcc.number.value)
+      blockchainReader.getAccount(blockchainReader.getBestBranch, address, headerWithAcc.number)
     retrievedAccount shouldEqual Some(account)
 
   it should "return correct account proof" taggedAs (UnitTest, StateTest, MPTTest) in new EphemBlockchainTestSetup:
@@ -127,7 +132,7 @@ class BlockchainSpec
     // unhappy path
     val wrongAddress: Address = Address(666)
     val retrievedAccountProofWrong: Option[Vector[MptNode]] =
-      blockchainReader.getAccountProof(blockchainReader.getBestBranch, wrongAddress, headerWithAcc.number.value)
+      blockchainReader.getAccountProof(blockchainReader.getBestBranch, wrongAddress, headerWithAcc.number)
     // the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes that we iterated
     retrievedAccountProofWrong.isDefined shouldBe true
     retrievedAccountProofWrong.size shouldBe 1
@@ -135,7 +140,7 @@ class BlockchainSpec
 
     // happy path
     val retrievedAccountProof: Option[Vector[MptNode]] =
-      blockchainReader.getAccountProof(blockchainReader.getBestBranch, address, headerWithAcc.number.value)
+      blockchainReader.getAccountProof(blockchainReader.getBestBranch, address, headerWithAcc.number)
     retrievedAccountProof.isDefined shouldBe true
     retrievedAccountProof.map { proof =>
       MptProofVerifier.verifyProof(mptWithAcc.getRootHash, address, proof) shouldBe ValidProof
@@ -164,7 +169,7 @@ class BlockchainSpec
 
     val wrongAddress: Address = Address(666)
     val retrievedAccountProofWrong: Option[Vector[MptNode]] =
-      blockchainReader.getAccountProof(blockchainReader.getBestBranch, wrongAddress, headerWithAcc.number.value)
+      blockchainReader.getAccountProof(blockchainReader.getBestBranch, wrongAddress, headerWithAcc.number)
 
     // EIP-1186 proof of non-inclusion: the account doesn't exist, but we still receive a
     // non-empty walk — every node visited on the way to the divergence. In this trie the

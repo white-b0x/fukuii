@@ -132,7 +132,7 @@ class RegularSyncSpec
         sub136.subscriber ! MessageFromPeer(
           NewBlock(
             testBlocks.last,
-            ChainWeight.totalDifficultyOnly(testBlocks.last.number.value).totalDifficulty
+            ChainWeight.totalDifficultyOnly(TotalDifficulty(testBlocks.last.number.value)).totalDifficulty
           ),
           defaultPeer.id
         )
@@ -195,7 +195,7 @@ class RegularSyncSpec
           blockFetcher ! MessageFromPeer(
             NewBlock(
               testBlocks.last,
-              ChainWeight.totalDifficultyOnly(testBlocks.last.number.value).totalDifficulty
+              ChainWeight.totalDifficultyOnly(TotalDifficulty(testBlocks.last.number.value)).totalDifficulty
             ),
             defaultPeer.id
           )
@@ -254,7 +254,7 @@ class RegularSyncSpec
         sub249.subscriber ! MessageFromPeer(
           NewBlock(
             testBlocks.last,
-            ChainWeight.totalDifficultyOnly(testBlocks.last.header.difficulty.value).totalDifficulty
+            ChainWeight.totalDifficultyOnly(TotalDifficulty(testBlocks.last.header.difficulty.value)).totalDifficulty
           ),
           defaultPeer.id
         )
@@ -368,7 +368,7 @@ class RegularSyncSpec
           override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
           (() => blockchainReader.getBestBlockNumber).when().returns(capturedBest)
           (() => blockchainReader.getSnapSyncPivotBlock).when().returns(None)
-          (blockchainReader.getBlockHeaderByNumber(_: BigInt)).when(lca).returns(Some(lcaHeader))
+          (blockchainReader.getBlockHeaderByNumber(_: BlockNumber)).when(BlockNumber(lca)).returns(Some(lcaHeader))
 
           override lazy val blockchainWriter: BlockchainWriter = stub[BlockchainWriter]
 
@@ -501,7 +501,7 @@ class RegularSyncSpec
           sub383.subscriber ! MessageFromPeer(
             NewBlock(
               alternativeBlocks.last,
-              ChainWeight.totalDifficultyOnly(alternativeBlocks.last.number.value).totalDifficulty
+              ChainWeight.totalDifficultyOnly(TotalDifficulty(alternativeBlocks.last.number.value)).totalDifficulty
             ),
             defaultPeer.id
           )
@@ -564,7 +564,7 @@ class RegularSyncSpec
         sub445.subscriber ! MessageFromPeer(
           NewBlock(
             originalBranch.last,
-            ChainWeight.totalDifficultyOnly(originalBranch.last.number.value).totalDifficulty
+            ChainWeight.totalDifficultyOnly(TotalDifficulty(originalBranch.last.number.value)).totalDifficulty
           ),
           defaultPeer.id
         )
@@ -575,7 +575,7 @@ class RegularSyncSpec
         blockFetcher ! MessageFromPeer(
           NewBlock(
             betterBranch.last,
-            ChainWeight.totalDifficultyOnly(betterBranch.last.number.value).totalDifficulty
+            ChainWeight.totalDifficultyOnly(TotalDifficulty(betterBranch.last.number.value)).totalDifficulty
           ),
           defaultPeer.id
         )
@@ -722,7 +722,7 @@ class RegularSyncSpec
         val sub576 = peerEventBus.expectMsgType[SubscribeCmd]
 
         sub576.subscriber ! MessageFromPeer(
-          NewBlock(newBlock, ChainWeight.totalDifficultyOnly(BigInt(1)).totalDifficulty),
+          NewBlock(newBlock, ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1))).totalDifficulty),
           defaultPeer.id
         )
 
@@ -748,7 +748,7 @@ class RegularSyncSpec
         sub598.subscriber ! MessageFromPeer(
           NewBlock(
             testBlocks.last,
-            ChainWeight.totalDifficultyOnly(testBlocks.last.number.value).totalDifficulty
+            ChainWeight.totalDifficultyOnly(TotalDifficulty(testBlocks.last.number.value)).totalDifficulty
           ),
           defaultPeer.id
         )
@@ -817,7 +817,7 @@ class RegularSyncSpec
         sub665.subscriber ! MessageFromPeer(
           NewBlock(
             testBlocks.last,
-            ChainWeight.totalDifficultyOnly(testBlocks.last.number.value).totalDifficulty
+            ChainWeight.totalDifficultyOnly(TotalDifficulty(testBlocks.last.number.value)).totalDifficulty
           ),
           defaultPeer.id
         )
@@ -917,7 +917,7 @@ class RegularSyncSpec
             sub766.subscriber ! MessageFromPeer(
               NewBlock(
                 testBlocks.last,
-                ChainWeight.totalDifficultyOnly(testBlocks.last.number.value).totalDifficulty
+                ChainWeight.totalDifficultyOnly(TotalDifficulty(testBlocks.last.number.value)).totalDifficulty
               ),
               defaultPeer.id
             )
@@ -935,7 +935,10 @@ class RegularSyncSpec
           _ <- testBlocks
             .take(5)
             .traverse(block =>
-              IO(blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(10000), saveAsBestBlock = true))
+              IO(
+                blockchainWriter
+                  .save(block, Nil, ChainWeight.totalDifficultyOnly(TotalDifficulty(10000)), saveAsBestBlock = true)
+              )
             )
           _ <- IO {
             regularSync ! SyncProtocol.Start
@@ -944,7 +947,7 @@ class RegularSyncSpec
             sub796.subscriber ! MessageFromPeer(
               NewBlock(
                 testBlocks.last,
-                ChainWeight.totalDifficultyOnly(testBlocks.last.number.value).totalDifficulty
+                ChainWeight.totalDifficultyOnly(TotalDifficulty(testBlocks.last.number.value)).totalDifficulty
               ),
               defaultPeer.id
             )
@@ -971,7 +974,7 @@ class RegularSyncSpec
             sub824.subscriber ! MessageFromPeer(
               NewBlock(
                 testBlocks.last,
-                ChainWeight.totalDifficultyOnly(testBlocks.last.number.value).totalDifficulty
+                ChainWeight.totalDifficultyOnly(TotalDifficulty(testBlocks.last.number.value)).totalDifficulty
               ),
               defaultPeer.id
             )
@@ -1001,7 +1004,7 @@ class RegularSyncSpec
             sub854.subscriber ! MessageFromPeer(
               NewBlock(
                 testBlocks.last,
-                ChainWeight.totalDifficultyOnly(testBlocks.last.number.value).totalDifficulty
+                ChainWeight.totalDifficultyOnly(TotalDifficulty(testBlocks.last.number.value)).totalDifficulty
               ),
               defaultPeer.id
             )

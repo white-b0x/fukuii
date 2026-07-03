@@ -132,8 +132,8 @@ class TraceService(
           .toRight(JsonRpcError.InvalidParams("Transaction not found"))
         TransactionLocation(blockHash, txIndex) = location
         block <- blockchainReader
-          .getBlockByHash(BlockHash(blockHash))
-          .toRight(JsonRpcError.InvalidParams(s"Block not found for hash ${blockHash.toHex}"))
+          .getBlockByHash(blockHash)
+          .toRight(JsonRpcError.InvalidParams(s"Block not found for hash ${blockHash.value.toHex}"))
         parentHeader <- blockchainReader
           .getBlockHeaderByHash(block.header.parentHash)
           .toRight(JsonRpcError.InvalidParams("Parent block not found"))
@@ -195,8 +195,8 @@ class TraceService(
           .toRight(JsonRpcError.InvalidParams("Transaction not found"))
         TransactionLocation(blockHash, txIndex) = location
         block <- blockchainReader
-          .getBlockByHash(BlockHash(blockHash))
-          .toRight(JsonRpcError.InvalidParams(s"Block not found for hash ${blockHash.toHex}"))
+          .getBlockByHash(blockHash)
+          .toRight(JsonRpcError.InvalidParams(s"Block not found for hash ${blockHash.value.toHex}"))
         parentHeader <- blockchainReader
           .getBlockHeaderByHash(block.header.parentHash)
           .toRight(JsonRpcError.InvalidParams("Parent block not found"))
@@ -446,7 +446,7 @@ class TraceService(
           else
             val branch = blockchainReader.getBestBranch
             blockchainReader
-              .getBlockByNumber(branch, blockNum)
+              .getBlockByNumber(branch, BlockNumber(blockNum))
               .flatMap { block =>
                 blockchainReader.getBlockHeaderByHash(block.header.parentHash).map { parentHeader =>
                   val flat = traceAllTxsFlat(block, parentHeader.stateRoot.value)

@@ -44,6 +44,7 @@ import com.chipprbots.ethereum.domain.BlockHeader.getEncodedWithoutNonce
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BloomFilter
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.BlockHash
@@ -90,7 +91,12 @@ class EthMiningServiceSpec
       )(_: BlockchainConfig))
       .expects(parentBlock, *, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty.value), true)
+    blockchainWriter.save(
+      parentBlock,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(parentBlock.header.difficulty.value)),
+      true
+    )
 
     // Start the getWork call asynchronously
     val workFuture: Future[Either[JsonRpcError, GetWorkResponse]] =
@@ -147,7 +153,12 @@ class EthMiningServiceSpec
       )(_: BlockchainConfig))
       .expects(parentBlock, *, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty.value), true)
+    blockchainWriter.save(
+      parentBlock,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(parentBlock.header.difficulty.value)),
+      true
+    )
 
     // Start the getWork call asynchronously
     val workFuture: Future[Either[JsonRpcError, GetWorkResponse]] =
@@ -182,7 +193,12 @@ class EthMiningServiceSpec
       )(_: BlockchainConfig))
       .expects(parentBlock, Nil, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty.value), true)
+    blockchainWriter.save(
+      parentBlock,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(parentBlock.header.difficulty.value)),
+      true
+    )
 
     // Start the getWork call asynchronously
     val workFuture: Future[Either[JsonRpcError, GetWorkResponse]] =
@@ -217,7 +233,12 @@ class EthMiningServiceSpec
       .expects(parentBlock, Nil, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
 
-    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty.value), true)
+    blockchainWriter.save(
+      parentBlock,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(parentBlock.header.difficulty.value)),
+      true
+    )
 
     val workFuture: Future[Either[JsonRpcError, GetWorkResponse]] =
       ethMiningService.getWork(GetWorkRequest()).unsafeToFuture()
@@ -353,7 +374,12 @@ class EthMiningServiceSpec
       .expects(parentBlock, *, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
 
-    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty.value), true)
+    blockchainWriter.save(
+      parentBlock,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(parentBlock.header.difficulty.value)),
+      true
+    )
 
     val workFuture: Future[Either[JsonRpcError, GetWorkResponse]] =
       ethMiningService.getWork(GetWorkRequest()).unsafeToFuture()
@@ -383,10 +409,15 @@ class EthMiningServiceSpec
       blockchainWriter.save(
         parentBlock,
         Nil,
-        ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty.value),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(parentBlock.header.difficulty.value)),
         true
       )
-      blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty.value), true)
+      blockchainWriter.save(
+        block,
+        Nil,
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(block.header.difficulty.value)),
+        true
+      )
 
       // getPrepared returns parentBlock (number=0); best=1; diff=1 > threshold=0 → stale
       blockGenerator.getPrepared.expects(*).returning(Some(PendingBlock(parentBlock, Nil)))
@@ -405,7 +436,12 @@ class EthMiningServiceSpec
     RPCTest
   ) in new TestSetup:
     // Save parentBlock so best = 0; pending block is at number 1 (ahead of best — not stale)
-    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty.value), true)
+    blockchainWriter.save(
+      parentBlock,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(parentBlock.header.difficulty.value)),
+      true
+    )
 
     blockGenerator.getPrepared.expects(*).returning(Some(PendingBlock(block, Nil)))
 
@@ -458,7 +494,12 @@ class EthMiningServiceSpec
       .expects(parentBlock, Nil, testEtherbaseAddress, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
 
-    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty.value), true)
+    blockchainWriter.save(
+      parentBlock,
+      Nil,
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(parentBlock.header.difficulty.value)),
+      true
+    )
 
     // Start the getWork call asynchronously
     val workFuture: Future[Either[JsonRpcError, GetWorkResponse]] =
@@ -591,7 +632,7 @@ class EthMiningServiceSpec
     val fakeWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getReadOnlyMptStorage(),
-      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString.empty,
       noEmptyAccounts = false,

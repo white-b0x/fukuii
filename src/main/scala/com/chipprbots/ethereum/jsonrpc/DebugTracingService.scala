@@ -123,8 +123,8 @@ class DebugTracingService(
           .toRight(JsonRpcError.InvalidParams("Transaction not found"))
         TransactionLocation(blockHash, txIndex) = location
         block <- blockchainReader
-          .getBlockByHash(BlockHash(blockHash))
-          .toRight(JsonRpcError.InvalidParams(s"Block not found for hash ${blockHash.toHex}"))
+          .getBlockByHash(blockHash)
+          .toRight(JsonRpcError.InvalidParams(s"Block not found for hash ${blockHash.value.toHex}"))
         parentHeader <- blockchainReader
           .getBlockHeaderByHash(block.header.parentHash)
           .toRight(JsonRpcError.InvalidParams("Parent block not found"))
@@ -358,7 +358,7 @@ class DebugTracingService(
         _ <- Either.cond(toNum > fromNum, (), JsonRpcError.InvalidParams("end block must come after start block"))
         results = ((fromNum + 1) to toNum).flatMap { blockNum =>
           val branch = blockchainReader.getBestBranch
-          blockchainReader.getBlockByNumber(branch, blockNum).flatMap { block =>
+          blockchainReader.getBlockByNumber(branch, BlockNumber(blockNum)).flatMap { block =>
             blockchainReader.getBlockHeaderByHash(block.header.parentHash).map { parentHeader =>
               val stxs = SignedTransactionWithSender.getSignedTransactions(block.body.transactionList)
               val traces = stxs.zipWithIndex.map { case (stx, txIndex) =>

@@ -103,7 +103,7 @@ class GenesisDataLoader(
 
     log.debug(s"Prepared genesis header: $header")
 
-    blockchainReader.getBlockHeaderByNumber(0) match
+    blockchainReader.getBlockHeaderByNumber(BlockNumber.Zero) match
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
         log.debug("Genesis data already in the database")
         Success(())
@@ -120,7 +120,7 @@ class GenesisDataLoader(
         blockchainWriter.save(
           Block(header, BlockBody(Nil, Nil)),
           Nil,
-          ChainWeight.totalDifficultyOnly(header.difficulty.value),
+          ChainWeight.totalDifficultyOnly(TotalDifficulty(header.difficulty.value)),
           saveAsBestBlock = true
         )
         Success(())

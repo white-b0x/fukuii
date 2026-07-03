@@ -38,8 +38,8 @@ class TestModeBlockExecution(
     val _ = isProposer // see BlockExecution.buildInitialWorld: read-only did not hold invariants
     TestModeWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
-      nodesKeyValueStorage = blockchain.getBackingMptStorage(block.header.number.value),
-      getBlockHashByNumber = (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number.value).map(_.hash),
+      nodesKeyValueStorage = blockchain.getBackingMptStorage(block.header.number),
+      getBlockHashByNumber = (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       accountStartNonce = blockchainConfig.accountStartNonce,
       stateRootHash = parentHeader.stateRoot.value,
       noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,

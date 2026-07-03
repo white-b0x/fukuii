@@ -129,7 +129,7 @@ class EthBlocksService(
     // (a) it lives at its advertised number in the canonical index, or (b) it's a known
     // sidechain (has receipts stored, i.e. was fully executed on the fork-choice sidechain path).
     val isExposed = blockOpt.exists { b =>
-      blockchainReader.getBlockHeaderByNumber(b.header.number.value).exists(_.hash == b.header.hash) ||
+      blockchainReader.getBlockHeaderByNumber(b.header.number).exists(_.hash == b.header.hash) ||
       blockchainReader.getReceiptsByHash(b.header.hash).isDefined
     }
     val blockResponseOpt =
@@ -273,12 +273,12 @@ class EthBlocksService(
     val oldestBlock = (newestBlockNum - count + 1).max(0)
 
     val baseFees = (oldestBlock.toLong to (newestBlockNum + 1).toLong).map { num =>
-      blockchainReader.getBlockHeaderByNumber(num).flatMap(_.baseFee).map(_.value).getOrElse(BigInt(0))
+      blockchainReader.getBlockHeaderByNumber(BlockNumber(num)).flatMap(_.baseFee).map(_.value).getOrElse(BigInt(0))
     }.toSeq
 
     val gasUsedRatios = (oldestBlock.toLong to newestBlockNum.toLong).map { num =>
       blockchainReader
-        .getBlockHeaderByNumber(num)
+        .getBlockHeaderByNumber(BlockNumber(num))
         .map { h =>
           if h.gasLimit > GasAmount.Zero then h.gasUsed.value.toDouble / h.gasLimit.value.toDouble else 0.0
         }
@@ -287,7 +287,7 @@ class EthBlocksService(
 
     val blobBaseFees = (oldestBlock.toLong to (newestBlockNum + 1).toLong).map { num =>
       blockchainReader
-        .getBlockHeaderByNumber(num)
+        .getBlockHeaderByNumber(BlockNumber(num))
         .map { h =>
           h.excessBlobGas
             .map(eg =>
@@ -301,7 +301,7 @@ class EthBlocksService(
 
     val blobGasUsedRatios = (oldestBlock.toLong to newestBlockNum.toLong).map { num =>
       blockchainReader
-        .getBlockHeaderByNumber(num)
+        .getBlockHeaderByNumber(BlockNumber(num))
         .map { h =>
           h.blobGasUsed
             .map { used =>

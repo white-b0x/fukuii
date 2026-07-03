@@ -14,6 +14,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import com.chipprbots.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerInfo
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
 import com.chipprbots.ethereum.network.Peer
@@ -168,7 +169,7 @@ class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     def peerInfo(td: Int, fork: Boolean = true): PeerInfo =
       PeerInfo(
         peerStatus,
-        ChainWeight.totalDifficultyOnly(BigInt(td)),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(td))),
         forkAccepted = fork,
         maxBlockNumber = 42,
         bestBlockHash = chainHeadHash

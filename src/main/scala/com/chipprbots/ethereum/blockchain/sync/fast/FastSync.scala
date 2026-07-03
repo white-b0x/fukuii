@@ -233,7 +233,7 @@ object FastSync:
     // (validateHeaderOnly needs no parent). Defined here so the implicit blockchainConfig (from configBuilder)
     // resolves at this call site rather than leaking consensus types into PivotBlockSelector.
     private def getCanonicalHeaderByNumber(number: BigInt): Option[BlockHeader] =
-      blockchainReader.getBlockHeaderByNumber(number)
+      blockchainReader.getBlockHeaderByNumber(BlockNumber(number))
 
     private def validateHeaderPoW(header: BlockHeader): Boolean =
       validators.blockHeaderValidator.validateHeaderOnly(header).isRight
@@ -983,7 +983,7 @@ object FastSync:
 
     private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit =
       (startBlock to ((startBlock - blocksToDiscard).max(1)) by -1).foreach { n =>
-        blockchainReader.getBlockHeaderByNumber(n).foreach { headerToRemove =>
+        blockchainReader.getBlockHeaderByNumber(BlockNumber(n)).foreach { headerToRemove =>
           blockchain.removeBlock(headerToRemove.hash)
         }
       }
@@ -1708,7 +1708,7 @@ object FastSync:
           // Set best block info with BOTH hash and number (putBestBlockNumber only
           // sets the number, leaving getBestBlockInfo().hash stale/empty).
           appStateStorage
-            .putBestBlockInfo(BlockInfo(bestReceivedBlock.hash.value, bestReceivedBlock.number.value))
+            .putBestBlockInfo(BlockInfo(bestReceivedBlock.hash.value, bestReceivedBlock.number))
             .and(blockNumberMappingStorage.put(bestReceivedBlock.number.value, bestReceivedBlock.hash.value))
             .commit()
         updateSession(s =>

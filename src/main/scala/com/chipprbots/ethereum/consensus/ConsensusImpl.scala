@@ -10,6 +10,7 @@ import com.chipprbots.ethereum.consensus.Consensus.*
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.ChainWeight
@@ -216,7 +217,7 @@ class ConsensusImpl(
   private def collectOldBranch(parent: BlockHash, fromNumber: BigInt): List[BlockData] =
     @tailrec
     def go(parent: BlockHash, fromNumber: BigInt, acc: List[BlockData]): List[BlockData] =
-      blockchainReader.getBlockByNumber(blockchainReader.getBestBranch, fromNumber) match
+      blockchainReader.getBlockByNumber(blockchainReader.getBestBranch, BlockNumber(fromNumber)) match
         case Some(block) if block.header.hash == parent || fromNumber == 0 =>
           acc
 

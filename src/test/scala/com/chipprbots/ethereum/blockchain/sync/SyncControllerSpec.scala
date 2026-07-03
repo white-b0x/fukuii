@@ -666,7 +666,7 @@ class SyncControllerSpec
       assert(syncController.children.exists(_.path.name.startsWith("regular-sync")))
     }
     // SyncController must have rewritten the pivot header's stateRoot from rootA to rootB
-    blockchainReader.getBlockHeaderByNumber(pivotNum).map(_.stateRoot) shouldBe Some(TrieRoot(rootB))
+    blockchainReader.getBlockHeaderByNumber(BlockNumber(pivotNum)).map(_.stateRoot) shouldBe Some(TrieRoot(rootB))
   }
 
   it should "substitute finalized root into pivot header when pivot stateRoot is missing from MPT (SC-1b)" taggedAs (
@@ -695,7 +695,7 @@ class SyncControllerSpec
       someTimePasses()
       assert(syncController.children.exists(_.path.name.startsWith("regular-sync")))
     }
-    blockchainReader.getBlockHeaderByNumber(pivotNum).map(_.stateRoot) shouldBe Some(TrieRoot(rootB))
+    blockchainReader.getBlockHeaderByNumber(BlockNumber(pivotNum)).map(_.stateRoot) shouldBe Some(TrieRoot(rootB))
   }
 
   it should "clear both done flags and restart SNAP when HealingImpossible is received" taggedAs (

@@ -28,7 +28,7 @@ class BlockchainWriter(
         "New best known block number - {}",
         block.header.number
       )
-      appStateStorage.putBestBlockInfo(BlockInfo(block.header.hash.value, block.header.number.value))
+      appStateStorage.putBestBlockInfo(BlockInfo(block.header.hash.value, block.header.number))
     else appStateStorage.emptyBatchUpdate
 
     log.debug("Saving new block {} to database", block.idTag)
@@ -81,7 +81,7 @@ class BlockchainWriter(
       bestBlockHash: BlockHash,
       bestBlockNumber: BigInt
   ): Unit =
-    appStateStorage.putBestBlockInfo(BlockInfo(bestBlockHash.value, bestBlockNumber)).commit()
+    appStateStorage.putBestBlockInfo(BlockInfo(bestBlockHash.value, BlockNumber(bestBlockNumber))).commit()
 
   /** Roll back the canonical chain index to `targetNumber`, removing number→hash entries for all blocks above
     * `targetNumber`. Used by fork recovery (SYNC-FORK) to truncate stale canonical chain entries before re-syncing from
@@ -97,7 +97,7 @@ class BlockchainWriter(
       val batch = ((targetNumber + 1) to currentBest).foldLeft(blockNumberMappingStorage.emptyBatchUpdate) { (acc, n) =>
         acc.and(blockNumberMappingStorage.remove(n))
       }
-      batch.and(appStateStorage.putBestBlockInfo(BlockInfo(targetHash.value, targetNumber))).commit()
+      batch.and(appStateStorage.putBestBlockInfo(BlockInfo(targetHash.value, BlockNumber(targetNumber)))).commit()
 
   /** Promote a block previously stored by hash only (sidechain) to the canonical chain. Walks back from `headHash`
     * along parent pointers until it meets the current canonical chain (i.e. finds a header whose number→hash mapping
@@ -120,7 +120,7 @@ class BlockchainWriter(
       reader.getBlockHeaderByHash(hash) match
         case None => cursor = None
         case Some(header) =>
-          val canonicalHashAtNumber = reader.getBlockHeaderByNumber(header.number.value).map(_.hash)
+          val canonicalHashAtNumber = reader.getBlockHeaderByNumber(header.number).map(_.hash)
           if canonicalHashAtNumber.contains(hash) then
             // reached existing canonical ancestor — stop
             cursor = None
@@ -138,7 +138,7 @@ class BlockchainWriter(
         reader.getBlockBodyByHash(hash) match
           case Some(body) =>
             body.transactionList.zipWithIndex.foldLeft(withNumberMapping) { case (a, (tx, idx)) =>
-              a.and(transactionMappingStorage.put(tx.hash.value, TransactionLocation(hash.value, idx)))
+              a.and(transactionMappingStorage.put(tx.hash.value, TransactionLocation(hash, idx)))
             }
           case None => withNumberMapping
       }
@@ -150,7 +150,7 @@ class BlockchainWriter(
   private def saveTxsLocations(blockHash: BlockHash, blockBody: BlockBody): DataSourceBatchUpdate =
     blockBody.transactionList.zipWithIndex.foldLeft(transactionMappingStorage.emptyBatchUpdate) {
       case (updates, (tx, index)) =>
-        updates.and(transactionMappingStorage.put(tx.hash.value, TransactionLocation(blockHash.value, index)))
+        updates.and(transactionMappingStorage.put(tx.hash.value, TransactionLocation(blockHash, index)))
     }
 
 object BlockchainWriter:

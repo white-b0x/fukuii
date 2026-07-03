@@ -140,7 +140,7 @@ class GasPriceOracleSpec
     (() => r.getBestBranch).expects().returning(branch).anyNumberOfTimes()
     (() => r.getBestBlock).expects().returning(bestBlock).anyNumberOfTimes()
     window.foreach { case (n, bOpt) =>
-      r.getBlockByNumber.expects(branch, n).returning(bOpt).anyNumberOfTimes()
+      r.getBlockByNumber.expects(branch, BlockNumber(n)).returning(bOpt).anyNumberOfTimes()
     }
     r
 

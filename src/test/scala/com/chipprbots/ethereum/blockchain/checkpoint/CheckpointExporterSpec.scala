@@ -29,6 +29,7 @@ import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie
 import com.chipprbots.ethereum.testing.Tags.UnitTest
@@ -95,7 +96,7 @@ class CheckpointExporterSpec
       // Header with the constructed stateRoot — use a fixture for the bulk and override stateRoot.
       val header: BlockHeader =
         Fixtures.Blocks.Block3125369.header.copy(stateRoot = TrieRoot(stateRoot), number = BlockNumber(100))
-      val weight: ChainWeight = ChainWeight.totalDifficultyOnly(BigInt(42))
+      val weight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(42)))
       sourceWriter.storeBlockHeader(header).and(sourceWriter.storeChainWeight(header.hash, weight)).commit()
 
       // Export
@@ -147,7 +148,7 @@ class CheckpointExporterSpec
       targetStorages.storages.evmCodeStorage.get(codeBHash).map(_.toArray.toSeq) shouldBe Some(codeB.toArray.toSeq)
 
       // Header + best-block + chain weight + done-markers
-      targetReader.getBlockHeaderByNumber(header.number.value).value shouldBe header
+      targetReader.getBlockHeaderByNumber(header.number).value shouldBe header
       targetReader.getChainWeightByHash(header.hash).value shouldBe weight
       targetStorages.storages.appStateStorage.getBestBlockNumber() shouldBe header.number.value
       targetStorages.storages.appStateStorage.isSnapSyncDone() shouldBe true
@@ -188,7 +189,7 @@ class CheckpointExporterSpec
 
       val header: BlockHeader =
         Fixtures.Blocks.Block3125369.header.copy(stateRoot = TrieRoot(stateRoot), number = BlockNumber(100))
-      val weight: ChainWeight = ChainWeight.totalDifficultyOnly(BigInt(42))
+      val weight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(42)))
       sourceWriter.storeBlockHeader(header).and(sourceWriter.storeChainWeight(header.hash, weight)).commit()
 
       // Export — must NOT throw MPTException(Invalid Node) when nodes are wrapped.

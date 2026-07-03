@@ -187,7 +187,7 @@ trait RegularSyncFixtures:
     blockchainWriter.save(
       block = BlockHelpers.genesis,
       receipts = Nil,
-      weight = ChainWeight.totalDifficultyOnly(10000),
+      weight = ChainWeight.totalDifficultyOnly(TotalDifficulty(10000)),
       saveAsBestBlock = true
     )
     // scalastyle:on magic.number
@@ -214,7 +214,7 @@ trait RegularSyncFixtures:
         RemoteStatus(
           capability,
           1,
-          ChainWeight.totalDifficultyOnly(1),
+          ChainWeight.totalDifficultyOnly(TotalDifficulty(1)),
           ByteString(s"${peer.id}_bestHash"),
           ByteString("unused")
         )
@@ -424,7 +424,7 @@ trait RegularSyncFixtures:
         then
           importedBlocksSet.add(block)
           BlockImportedToTop(
-            List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty.value)))
+            List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(TotalDifficulty(block.header.difficulty.value))))
           )
         else if block.number > bestBlock.number then
           importedBlocksSet.add(block)
@@ -485,7 +485,9 @@ trait RegularSyncFixtures:
         if block == newBlock then
           importedNewBlock = true
           IO.pure(
-            BlockImportedToTop(List(BlockData(newBlock, Nil, ChainWeight.totalDifficultyOnly(newBlock.number.value))))
+            BlockImportedToTop(
+              List(BlockData(newBlock, Nil, ChainWeight.totalDifficultyOnly(TotalDifficulty(newBlock.number.value))))
+            )
           )
         else
           if block == testBlocks.last then importedLastTestBlock = true
@@ -498,7 +500,8 @@ trait RegularSyncFixtures:
       .onCall { case (nel: (NonEmptyList[Block] @unchecked), _, _) =>
         if nel.toList.contains(testBlocks.last) then importedLastTestBlock = true
         val blockData =
-          nel.toList.map(b => BlockData(b, Nil, ChainWeight.totalDifficultyOnly(b.header.difficulty.value)))
+          nel.toList
+            .map(b => BlockData(b, Nil, ChainWeight.totalDifficultyOnly(TotalDifficulty(b.header.difficulty.value))))
         IO.pure(BlockImportedToTop(blockData))
       }
 
@@ -539,7 +542,8 @@ trait RegularSyncFixtures:
 
     def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit =
       blockFetcher ! MessageFromPeer(
-        ETHPackets.NewBlock(block, ChainWeight.totalDifficultyOnly(block.number.value).totalDifficulty),
+        ETHPackets
+          .NewBlock(block, ChainWeight.totalDifficultyOnly(TotalDifficulty(block.number.value)).totalDifficulty),
         peer.id
       )
 

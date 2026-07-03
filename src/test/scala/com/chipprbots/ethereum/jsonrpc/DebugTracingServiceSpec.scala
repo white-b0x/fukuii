@@ -18,8 +18,10 @@ import com.chipprbots.ethereum.db.storage.TransactionMappingStorage.TransactionL
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.Block
+import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
 import com.chipprbots.ethereum.jsonrpc.DebugTracingService.*
 import com.chipprbots.ethereum.jsonrpc.EthInfoService.CallTx
@@ -63,7 +65,7 @@ class DebugTracingServiceSpec
     new TestSetup:
       val txHash: ByteString = block.body.transactionList.head.hash.value
       val missingBlockHash: ByteString = ByteString(Array.fill(32)(0xee.toByte))
-      txMappingStorage.get.expects(txHash).returning(Some(TransactionLocation(missingBlockHash, 0)))
+      txMappingStorage.get.expects(txHash).returning(Some(TransactionLocation(BlockHash(missingBlockHash), 0)))
 
       val result: Either[JsonRpcError, TraceTransactionResponse] = service
         .traceTransaction(TraceTransactionRequest(txHash))
@@ -82,7 +84,7 @@ class DebugTracingServiceSpec
         .put(block.header.parentHash.value, block.header.copy(number = block.header.number - 1))
         .commit()
 
-      txMappingStorage.get.expects(txHash).returning(Some(TransactionLocation(block.header.hash.value, txIndex)))
+      txMappingStorage.get.expects(txHash).returning(Some(TransactionLocation(block.header.hash, txIndex)))
       mockLedger.advanceWorldToTx.expects(*, *, *, *).returning(mockWorld)
       (mockLedger
         .simulateTransactionWithTracer(
@@ -135,7 +137,7 @@ class DebugTracingServiceSpec
       blockchainWriter.save(
         emptyBlock,
         Nil,
-        ChainWeight.totalDifficultyOnly(emptyBlock.header.difficulty.value),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(emptyBlock.header.difficulty.value)),
         saveAsBestBlock = true
       )
       storagesInstance.storages.blockHeadersStorage
@@ -155,7 +157,7 @@ class DebugTracingServiceSpec
       blockchainWriter.save(
         block,
         Nil,
-        ChainWeight.totalDifficultyOnly(block.header.difficulty.value),
+        ChainWeight.totalDifficultyOnly(TotalDifficulty(block.header.difficulty.value)),
         saveAsBestBlock = true
       )
 

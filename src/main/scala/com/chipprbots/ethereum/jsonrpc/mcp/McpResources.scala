@@ -237,7 +237,7 @@ object BlockByNumberResource:
   val mimeType: Some[String] = Some("application/json")
 
   def read(number: BlockNumber, deps: McpDependencies): IO[String] = IO {
-    deps.blockchainReader.getBlockHeaderByNumber(number.value) match
+    deps.blockchainReader.getBlockHeaderByNumber(number) match
       case Some(h) =>
         val td = deps.blockchainReader
           .getChainWeightByHash(h.hash)
@@ -275,7 +275,7 @@ object TransactionByHashResource:
         case Some(loc) =>
           s"""{
             |  "hash": "$hashStr",
-            |  "blockHash": "${ByteStringUtils.hash2string(loc.blockHash)}",
+            |  "blockHash": "${ByteStringUtils.hash2string(loc.blockHash.value)}",
             |  "transactionIndex": ${loc.txIndex}
             |}""".stripMargin
         case None =>
@@ -293,7 +293,8 @@ object AccountByAddressResource:
       val addrBytes = org.bouncycastle.util.encoders.Hex.decode(addrStr.stripPrefix("0x"))
       val address = Address(org.apache.pekko.util.ByteString(addrBytes))
       val blockNum = deps.blockchainReader.getBestBlockNumber
-      val accountOpt = deps.blockchainReader.getAccount(deps.blockchainReader.getBestBranch, address, blockNum)
+      val accountOpt =
+        deps.blockchainReader.getAccount(deps.blockchainReader.getBestBranch, address, BlockNumber(blockNum))
       accountOpt match
         case Some(account) =>
           val balanceEtc = BigDecimal(account.balance.toBigInt) / BigDecimal("1000000000000000000")

@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory
 
 import com.chipprbots.ethereum.domain.Block.BlockDec
 import com.chipprbots.ethereum.domain.Block.BlockEnc
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.branch.BestBranch
 import com.chipprbots.ethereum.jsonrpc.AkkaTaskOps.*
@@ -329,7 +330,7 @@ class AdminService(
       try
         var i = first
         while i <= last do
-          blockchainReader.getBlockHeaderByNumber(i).foreach { header =>
+          blockchainReader.getBlockHeaderByNumber(BlockNumber(i)).foreach { header =>
             blockchainReader.getBlockByHash(header.hash).foreach { block =>
               val bytes: Array[Byte] = block.toBytes
               val lenBuf = ByteBuffer.allocate(4).putInt(bytes.length).array()

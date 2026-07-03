@@ -7,6 +7,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.forkid.ForkId
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerInfo
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
@@ -46,7 +47,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
   // -------------------------------------------------------------------------
 
   it should "store the resolved chainWeight (not a block-number proxy) in RemoteStatus" taggedAs UnitTest in {
-    val actualTD = ChainWeight.totalDifficultyOnly(BigInt("123456789000000000000000000"))
+    val actualTD = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt("123456789000000000000000000")))
     val status = eth69Status(latestBlockNr, latestHash)
     val remoteStatus = RemoteStatus.fromETH69Status(status, Capability.ETH69, false, Nil, actualTD)
 
@@ -55,7 +56,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "store latestBlock in the dedicated RemoteStatus.latestBlock field" taggedAs UnitTest in {
-    val actualTD = ChainWeight.totalDifficultyOnly(BigInt("123456789000000000000000000"))
+    val actualTD = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt("123456789000000000000000000")))
     val status = eth69Status(latestBlockNr, latestHash)
     val remoteStatus = RemoteStatus.fromETH69Status(status, Capability.ETH69, false, Nil, actualTD)
 
@@ -63,7 +64,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "store block-number proxy in chainWeight when local lookup fails (peer ahead of us)" taggedAs UnitTest in {
-    val proxy = ChainWeight.totalDifficultyOnly(latestBlockNr) // fallback
+    val proxy = ChainWeight.totalDifficultyOnly(TotalDifficulty(latestBlockNr)) // fallback
     val status = eth69Status(latestBlockNr, latestHash)
     val remoteStatus = RemoteStatus.fromETH69Status(status, Capability.ETH69, false, Nil, proxy)
 
@@ -78,7 +79,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
       Capability.ETH69,
       supportsSnap = true,
       Nil,
-      ChainWeight.totalDifficultyOnly(BigInt(0))
+      ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(0)))
     )
 
     remoteStatus.capability shouldBe Capability.ETH69
@@ -92,7 +93,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
   // -------------------------------------------------------------------------
 
   it should "initialise maxBlockNumber from latestBlock, not from chainWeight.totalDifficulty" taggedAs UnitTest in {
-    val actualTD = ChainWeight.totalDifficultyOnly(BigInt("999999999999999999999999999"))
+    val actualTD = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt("999999999999999999999999999")))
     val status = eth69Status(latestBlockNr, latestHash)
     val remoteStatus = RemoteStatus.fromETH69Status(status, Capability.ETH69, false, Nil, actualTD)
     val peerInfo = PeerInfo(remoteStatus, forkAccepted = true)
@@ -103,7 +104,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "initialise maxBlockNumber from latestBlock when chainWeight is a block-number proxy" taggedAs UnitTest in {
-    val proxy = ChainWeight.totalDifficultyOnly(latestBlockNr)
+    val proxy = ChainWeight.totalDifficultyOnly(TotalDifficulty(latestBlockNr))
     val status = eth69Status(latestBlockNr, latestHash)
     val remoteStatus = RemoteStatus.fromETH69Status(status, Capability.ETH69, false, Nil, proxy)
     val peerInfo = PeerInfo(remoteStatus, forkAccepted = true)
@@ -116,7 +117,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
     val eth68Status = RemoteStatus(
       capability = Capability.ETH68,
       networkId = 1L,
-      chainWeight = ChainWeight.totalDifficultyOnly(BigInt("100000000000000000000")),
+      chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt("100000000000000000000"))),
       bestHash = latestHash,
       genesisHash = genesisHash
       // latestBlock defaults to None
@@ -127,7 +128,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "set chainWeight in PeerInfo from RemoteStatus chainWeight" taggedAs UnitTest in {
-    val actualTD = ChainWeight.totalDifficultyOnly(BigInt("123456789000000000000000000"))
+    val actualTD = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt("123456789000000000000000000")))
     val status = eth69Status(latestBlockNr, latestHash)
     val remoteStatus = RemoteStatus.fromETH69Status(status, Capability.ETH69, false, Nil, actualTD)
     val peerInfo = PeerInfo(remoteStatus, forkAccepted = true)
@@ -144,7 +145,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
     val eth68RemoteStatus = RemoteStatus(
       capability = Capability.ETH68,
       networkId = 1L,
-      chainWeight = ChainWeight.totalDifficultyOnly(wireTD),
+      chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(wireTD)),
       bestHash = latestHash,
       genesisHash = genesisHash
     )
@@ -159,7 +160,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
     val eth68RemoteStatus = RemoteStatus(
       capability = Capability.ETH68,
       networkId = 1L,
-      chainWeight = ChainWeight.totalDifficultyOnly(BigInt("100000000000000000000000000")),
+      chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt("100000000000000000000000000"))),
       bestHash = latestHash,
       genesisHash = genesisHash
     )
@@ -174,7 +175,7 @@ class ETH69TDSpec extends AnyFlatSpec with Matchers:
     val eth68RemoteStatus = RemoteStatus(
       capability = Capability.ETH68,
       networkId = 1L,
-      chainWeight = ChainWeight.totalDifficultyOnly(wireTD),
+      chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(wireTD)),
       bestHash = latestHash,
       genesisHash = genesisHash
     )

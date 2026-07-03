@@ -48,7 +48,7 @@ class ChainImporter(
       else
 
         // Log genesis vs first block's expected parent for debugging genesis mismatches
-        val genesisOpt = blockchainReader.getBlockHeaderByNumber(0)
+        val genesisOpt = blockchainReader.getBlockHeaderByNumber(BlockNumber.Zero)
         genesisOpt.foreach { genesis =>
           log.error(s"Chain import: genesis hash=${genesis.hashAsHexString}")
           log.error(
@@ -72,7 +72,7 @@ class ChainImporter(
           val blockHash = block.header.hash
 
           // Skip if already imported
-          val alreadyExists = blockchainReader.getBlockHeaderByNumber(blockNum.value) match
+          val alreadyExists = blockchainReader.getBlockHeaderByNumber(blockNum) match
             case Some(existing) if existing.hash == blockHash => true
             case Some(existing) =>
               log.warn(

@@ -112,7 +112,7 @@ class AppStateStorageSpec extends AnyWordSpec with ScalaCheckPropertyChecks with
       val pivotNumber: BigInt = BigInt(10500000)
       val pivotHash: ByteString = ByteString(Array.fill[Byte](32)(0xab.toByte))
 
-      storage.putBootstrapPivotBlock(pivotNumber, pivotHash).commit()
+      storage.putBootstrapPivotBlock(com.chipprbots.ethereum.domain.BlockNumber(pivotNumber), pivotHash).commit()
 
       assert(storage.getBootstrapPivotBlock() == pivotNumber)
       assert(storage.getBootstrapPivotBlockHash() == pivotHash)

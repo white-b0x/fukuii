@@ -19,6 +19,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.jsonrpc.DebugService.ListPeersInfoRequest
 import com.chipprbots.ethereum.jsonrpc.DebugService.ListPeersInfoResponse
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
@@ -86,7 +87,7 @@ class DebugServiceSpec
     val peerStatus: RemoteStatus = RemoteStatus(
       capability = Capability.ETH63,
       networkId = 1,
-      chainWeight = ChainWeight.totalDifficultyOnly(10000),
+      chainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(10000)),
       bestHash = Fixtures.Blocks.Block3125369.header.hash.value,
       genesisHash = Fixtures.Blocks.Genesis.header.hash.value
     )
