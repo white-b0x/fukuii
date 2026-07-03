@@ -16,7 +16,17 @@ object EthashDifficultyCalculator extends DifficultyCalculator:
   def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Timestamp, parentHeader: BlockHeader)(implicit
       blockchainConfig: BlockchainConfig
   ): Difficulty =
-    import blockchainConfig.forkBlockNumbers.*
+    // This function's own `blockNumber` param is deliberately kept raw BigInt (fake-block-number
+    // ice-age-delay arithmetic, out of IP-CL-I's/IP-CL-G's scope — same precedent as
+    // calculateBombExponent below) — unwrap the now-BlockNumber-typed fork fields at this one
+    // boundary rather than retyping the param.
+    val forkBlockNumbers = blockchainConfig.forkBlockNumbers
+    val homesteadBlockNumber = forkBlockNumbers.homesteadBlockNumber.value
+    val byzantiumBlockNumber = forkBlockNumbers.byzantiumBlockNumber.value
+    val atlantisBlockNumber = forkBlockNumbers.atlantisBlockNumber.value
+    val difficultyBombRemovalBlockNumber = forkBlockNumbers.difficultyBombRemovalBlockNumber.value
+    val muirGlacierBlockNumber = forkBlockNumbers.muirGlacierBlockNumber.value
+    val constantinopleBlockNumber = forkBlockNumbers.constantinopleBlockNumber.value
 
     lazy val timestampDiff: Long = blockTimestamp - parentHeader.unixTimestamp
 
@@ -52,7 +62,8 @@ object EthashDifficultyCalculator extends DifficultyCalculator:
   private def calculateBombExponent(blockNumber: BigInt)(implicit
       blockchainConfig: BlockchainConfig
   ): Int =
-    import blockchainConfig.forkBlockNumbers.*
+    val difficultyBombPauseBlockNumber = blockchainConfig.forkBlockNumbers.difficultyBombPauseBlockNumber.value
+    val difficultyBombContinueBlockNumber = blockchainConfig.forkBlockNumbers.difficultyBombContinueBlockNumber.value
     if blockNumber < difficultyBombPauseBlockNumber then (blockNumber / ExpDifficultyPeriod - 2).toInt
     else if blockNumber < difficultyBombContinueBlockNumber then
       ((difficultyBombPauseBlockNumber / ExpDifficultyPeriod) - 2).toInt

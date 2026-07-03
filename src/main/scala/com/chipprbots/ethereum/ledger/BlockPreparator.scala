@@ -31,8 +31,8 @@ class BlockPreparator(
   //      in some irrelevant test can throw an exception.
   private[ledger] def blockRewardCalculator(implicit blockchainConfig: BlockchainConfig) = new BlockRewardCalculator(
     blockchainConfig.monetaryPolicyConfig,
-    BlockNumber(blockchainConfig.forkBlockNumbers.byzantiumBlockNumber),
-    BlockNumber(blockchainConfig.forkBlockNumbers.constantinopleBlockNumber)
+    blockchainConfig.forkBlockNumbers.byzantiumBlockNumber,
+    blockchainConfig.forkBlockNumbers.constantinopleBlockNumber
   )
 
   /** This function updates the state in order to pay rewards based on YP section 11.3:
@@ -89,7 +89,7 @@ class BlockPreparator(
       treasuryAddress: Address,
       world: InMemoryWorldStateProxy
   )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
-    val isOlympiaActivated = blockHeader.number.value >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
+    val isOlympiaActivated = blockHeader.number >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
     if !isOlympiaActivated then world
     else
       if treasuryAddress == Address(0) && blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETC
@@ -264,7 +264,7 @@ class BlockPreparator(
   private[ledger] def calcTotalGasToRefund(
       stx: SignedTransaction,
       result: PR,
-      blockNumber: BigInt
+      blockNumber: BlockNumber
   )(implicit blockchainConfig: BlockchainConfig): GasAmount =
     result.error.map(_.useWholeGas) match
       case Some(true)  => GasAmount.Zero
@@ -404,7 +404,7 @@ class BlockPreparator(
           resultWithErrorHandling.gasRefund + GasAmount(authExistingAccountRefund)
         )
       else resultWithErrorHandling
-    val totalGasToRefundBase = calcTotalGasToRefund(stx, resultWithAuthRefund, blockHeader.number.value)
+    val totalGasToRefundBase = calcTotalGasToRefund(stx, resultWithAuthRefund, blockHeader.number)
     val executionGasBase = gasLimit - totalGasToRefundBase
 
     if DebugTrace.enabledForBlock(blockHeader.number) then
@@ -427,7 +427,7 @@ class BlockPreparator(
     val eip7623Active =
       blockchainConfig.isPragueTimestamp(blockHeader.unixTimestamp) ||
         (blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETC &&
-          blockHeader.number.value >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber)
+          blockHeader.number >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber)
     val executionGasToPayToMiner =
       if eip7623Active then executionGasBase.max(GasAmount(BlockPreparator.calcFloorDataGas(stx.tx.payload)))
       else executionGasBase
@@ -562,8 +562,8 @@ class BlockPreparator(
 
             // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
             val transactionOutcome =
-              if blockHeader.number.value >= blockchainConfig.forkBlockNumbers.byzantiumBlockNumber ||
-                blockHeader.number.value >= blockchainConfig.forkBlockNumbers.atlantisBlockNumber
+              if blockHeader.number >= blockchainConfig.forkBlockNumbers.byzantiumBlockNumber ||
+                blockHeader.number >= blockchainConfig.forkBlockNumbers.atlantisBlockNumber
               then if vmError.isDefined then FailureOutcome else SuccessOutcome
               else HashOutcome(newWorld.stateRootHash)
 

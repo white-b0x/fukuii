@@ -50,10 +50,10 @@ class GasLimitValidationSpec extends AnyFlatSpec with Matchers:
 
   implicit private val blockchainConfig: BlockchainConfig = BlockchainConfig(
     forkBlockNumbers = ForkBlockNumbers.Empty.copy(
-      frontierBlockNumber = 0,
-      homesteadBlockNumber = 0,
-      eip106BlockNumber = 0,
-      difficultyBombRemovalBlockNumber = 0
+      frontierBlockNumber = BlockNumber(0),
+      homesteadBlockNumber = BlockNumber(0),
+      eip106BlockNumber = BlockNumber(0),
+      difficultyBombRemovalBlockNumber = BlockNumber(0)
     ),
     daoForkConfig = None,
     maxCodeSize = None,
@@ -214,12 +214,12 @@ class GasLimitValidationSpec extends AnyFlatSpec with Matchers:
 
   // ETC config: Spiral from block 0, Olympia from block 500.
   private val etcForkBlockNumbers = ForkBlockNumbers.Empty.copy(
-    frontierBlockNumber = 0,
-    homesteadBlockNumber = 0,
-    eip106BlockNumber = 0,
-    difficultyBombRemovalBlockNumber = 0,
-    spiralBlockNumber = 0,
-    olympiaBlockNumber = 500,
+    frontierBlockNumber = BlockNumber(0),
+    homesteadBlockNumber = BlockNumber(0),
+    eip106BlockNumber = BlockNumber(0),
+    difficultyBombRemovalBlockNumber = BlockNumber(0),
+    spiralBlockNumber = BlockNumber(0),
+    olympiaBlockNumber = BlockNumber(500),
     spiralGasTarget = Some(BigInt(8_000_000)),
     olympiaGasTarget = Some(BigInt(60_000_000))
   )

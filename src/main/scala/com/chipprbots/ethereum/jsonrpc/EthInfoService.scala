@@ -167,16 +167,17 @@ class EthInfoService(
     )
 
     // Build fork schedule: (name, blockNumber, precompiles, systemContracts)
+    // JSON-RPC response boundary (ForkConfig.block: BigInt) — unwrap here.
     val forks: List[(String, BigInt, Map[String, Address], Map[String, Address])] = List(
-      ("Frontier", fbn.frontierBlockNumber, basePrecompiles, noSystemContracts),
-      ("Homestead", fbn.homesteadBlockNumber, basePrecompiles, noSystemContracts),
-      ("Atlantis", fbn.atlantisBlockNumber, byzantiumPrecompiles, noSystemContracts),
-      ("Agharta", fbn.aghartaBlockNumber, byzantiumPrecompiles, noSystemContracts),
-      ("Phoenix", fbn.phoenixBlockNumber, istanbulPrecompiles, noSystemContracts),
-      ("Magneto", fbn.magnetoBlockNumber, istanbulPrecompiles, noSystemContracts),
-      ("Mystique", fbn.mystiqueBlockNumber, istanbulPrecompiles, noSystemContracts),
-      ("Spiral", fbn.spiralBlockNumber, istanbulPrecompiles, noSystemContracts),
-      ("Olympia", fbn.olympiaBlockNumber, olympiaPrecompiles, olympiaSystemContracts)
+      ("Frontier", fbn.frontierBlockNumber.value, basePrecompiles, noSystemContracts),
+      ("Homestead", fbn.homesteadBlockNumber.value, basePrecompiles, noSystemContracts),
+      ("Atlantis", fbn.atlantisBlockNumber.value, byzantiumPrecompiles, noSystemContracts),
+      ("Agharta", fbn.aghartaBlockNumber.value, byzantiumPrecompiles, noSystemContracts),
+      ("Phoenix", fbn.phoenixBlockNumber.value, istanbulPrecompiles, noSystemContracts),
+      ("Magneto", fbn.magnetoBlockNumber.value, istanbulPrecompiles, noSystemContracts),
+      ("Mystique", fbn.mystiqueBlockNumber.value, istanbulPrecompiles, noSystemContracts),
+      ("Spiral", fbn.spiralBlockNumber.value, istanbulPrecompiles, noSystemContracts),
+      ("Olympia", fbn.olympiaBlockNumber.value, olympiaPrecompiles, olympiaSystemContracts)
     ).filter(_._2 < Long.MaxValue) // exclude forks not configured
       .sortBy(_._2)
       .distinctBy(_._2) // deduplicate by block number

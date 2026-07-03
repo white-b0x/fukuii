@@ -171,11 +171,10 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     def sampleBlockAfterByzantium(minerAddress: Address, ommerMiners: Seq[Address] = Nil): Block =
       val baseBlockNumber = forkBlockNumbers.byzantiumBlockNumber
       Block(
-        header =
-          Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = BlockNumber(baseBlockNumber)),
+        header = Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = baseBlockNumber),
         body = Fixtures.Blocks.Genesis.body.copy(
           uncleNodesList = ommerMiners.map { address =>
-            Fixtures.Blocks.Genesis.header.copy(beneficiary = address.bytes, number = BlockNumber(baseBlockNumber + 5))
+            Fixtures.Blocks.Genesis.header.copy(beneficiary = address.bytes, number = baseBlockNumber + 5)
           }
         )
       )

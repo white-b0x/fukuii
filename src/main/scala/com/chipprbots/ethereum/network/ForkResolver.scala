@@ -20,7 +20,7 @@ object ForkResolver:
     case object AcceptedFork extends Fork
     case object RejectedFork extends Fork
 
-    override def forkBlockNumber: BigInt = daoForkConfig.forkBlockNumber
+    override def forkBlockNumber: BigInt = daoForkConfig.forkBlockNumber.value
 
     override def recognizeFork(blockHeader: BlockHeader): Fork =
       if blockHeader.hash.value == daoForkConfig.forkBlockHash then AcceptedFork

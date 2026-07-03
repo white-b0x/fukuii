@@ -213,7 +213,7 @@ class PersonalService(
       )
 
       val stx =
-        if blockchainReader.getBestBlockNumber >= blockchainConfig.forkBlockNumbers.eip155BlockNumber then
+        if blockchainReader.getBestBlockNumber >= blockchainConfig.forkBlockNumbers.eip155BlockNumber.value then
           wallet.signTx(tx, Some(blockchainConfig.chainId))
         else wallet.signTx(tx, None)
       log.debug("Trying to add personal transaction: {}", stx.tx.hash.toHex)

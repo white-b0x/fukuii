@@ -37,7 +37,7 @@ class BlockHashHistorySpec extends AnyFlatSpec with Matchers:
     val olympiaBlock: BigInt = 10
 
     implicit override lazy val blockchainConfig: BlockchainConfig = blockchainConfig0
-      .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = olympiaBlock))
+      .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = BlockNumber(olympiaBlock)))
 
     private lazy val blockchainConfig0: BlockchainConfig = Config.blockchains.blockchainConfig
 

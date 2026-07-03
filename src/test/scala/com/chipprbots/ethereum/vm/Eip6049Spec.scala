@@ -95,18 +95,18 @@ class Eip6049Spec extends AnyWordSpec with Matchers:
     "helper method isEip6049DeprecationEnabled" should {
 
       "return false for pre-Spiral forks" taggedAs (UnitTest, VMTest) in {
-        val mystiqueEtcFork = blockchainConfig.etcForkForBlockNumber(Fixtures.MystiqueBlockNumber)
+        val mystiqueEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MystiqueBlockNumber))
         BlockchainConfigForEvm.isEip6049DeprecationEnabled(mystiqueEtcFork) shouldBe false
 
-        val magnetoEtcFork = blockchainConfig.etcForkForBlockNumber(Fixtures.MagnetoBlockNumber)
+        val magnetoEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MagnetoBlockNumber))
         BlockchainConfigForEvm.isEip6049DeprecationEnabled(magnetoEtcFork) shouldBe false
 
-        val phoenixEtcFork = blockchainConfig.etcForkForBlockNumber(Fixtures.PhoenixBlockNumber)
+        val phoenixEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.PhoenixBlockNumber))
         BlockchainConfigForEvm.isEip6049DeprecationEnabled(phoenixEtcFork) shouldBe false
       }
 
       "return true for Spiral fork and later" taggedAs (UnitTest, VMTest) in {
-        val spiralEtcFork = blockchainConfig.etcForkForBlockNumber(Fixtures.SpiralBlockNumber)
+        val spiralEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.SpiralBlockNumber))
         BlockchainConfigForEvm.isEip6049DeprecationEnabled(spiralEtcFork) shouldBe true
       }
     }

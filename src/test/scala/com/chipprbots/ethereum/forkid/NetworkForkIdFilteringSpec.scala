@@ -10,6 +10,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import scodec.bits.BitVector
 import scodec.bits.ByteVector
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.forkid.ForkId.*
 import com.chipprbots.ethereum.network.discovery.ForkIdTag
 import com.chipprbots.ethereum.rlp.*
@@ -110,7 +111,7 @@ class NetworkForkIdFilteringSpec extends AnyWordSpec with Matchers:
   }
 
   private val olympiaConf = etcConf.copy(
-    forkBlockNumbers = etcConf.forkBlockNumbers.copy(olympiaBlockNumber = 30000000)
+    forkBlockNumbers = etcConf.forkBlockNumbers.copy(olympiaBlockNumber = BlockNumber(30000000))
   )
 
   "Olympia fork signal state machine" must {

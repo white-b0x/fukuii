@@ -6,6 +6,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks
 import com.chipprbots.ethereum.vm.EvmConfig
@@ -28,32 +29,32 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
   private def cfgWith(overrides: BlockchainConfigForEvm => BlockchainConfigForEvm): BlockchainConfigForEvm =
     overrides(
       BlockchainConfigForEvm(
-        frontierBlockNumber = Long.MaxValue,
-        homesteadBlockNumber = Long.MaxValue,
-        eip150BlockNumber = Long.MaxValue,
-        eip160BlockNumber = Long.MaxValue,
-        eip161BlockNumber = Long.MaxValue,
-        byzantiumBlockNumber = Long.MaxValue,
-        constantinopleBlockNumber = Long.MaxValue,
-        istanbulBlockNumber = Long.MaxValue,
+        frontierBlockNumber = BlockNumber(Long.MaxValue),
+        homesteadBlockNumber = BlockNumber(Long.MaxValue),
+        eip150BlockNumber = BlockNumber(Long.MaxValue),
+        eip160BlockNumber = BlockNumber(Long.MaxValue),
+        eip161BlockNumber = BlockNumber(Long.MaxValue),
+        byzantiumBlockNumber = BlockNumber(Long.MaxValue),
+        constantinopleBlockNumber = BlockNumber(Long.MaxValue),
+        istanbulBlockNumber = BlockNumber(Long.MaxValue),
         maxCodeSize = None,
         accountStartNonce = 0,
-        atlantisBlockNumber = Long.MaxValue,
-        aghartaBlockNumber = Long.MaxValue,
-        petersburgBlockNumber = Long.MaxValue,
-        phoenixBlockNumber = Long.MaxValue,
-        magnetoBlockNumber = Long.MaxValue,
-        berlinBlockNumber = Long.MaxValue,
-        mystiqueBlockNumber = Long.MaxValue,
-        spiralBlockNumber = Long.MaxValue,
-        olympiaBlockNumber = Long.MaxValue,
+        atlantisBlockNumber = BlockNumber(Long.MaxValue),
+        aghartaBlockNumber = BlockNumber(Long.MaxValue),
+        petersburgBlockNumber = BlockNumber(Long.MaxValue),
+        phoenixBlockNumber = BlockNumber(Long.MaxValue),
+        magnetoBlockNumber = BlockNumber(Long.MaxValue),
+        berlinBlockNumber = BlockNumber(Long.MaxValue),
+        mystiqueBlockNumber = BlockNumber(Long.MaxValue),
+        spiralBlockNumber = BlockNumber(Long.MaxValue),
+        olympiaBlockNumber = BlockNumber(Long.MaxValue),
         chainId = ChainId(0x3d)
       )
     )
 
   private case class ForkCase(
       label: String,
-      blockNumber: Long,
+      blockNumber: BlockNumber,
       configFn: BlockchainConfigForEvm => BlockchainConfigForEvm,
       assertFn: EvmConfig => Unit
   )
@@ -63,16 +64,16 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
   private val forkCases: Seq[ForkCase] = Seq(
     ForkCase(
       label = "select FrontierFeeSchedule for Frontier blocks",
-      blockNumber = 0,
-      configFn = _.copy(frontierBlockNumber = 0),
+      blockNumber = BlockNumber(0),
+      configFn = _.copy(frontierBlockNumber = BlockNumber(0)),
       assertFn = evm =>
         evm.feeSchedule shouldBe a[FeeSchedule.FrontierFeeSchedule]
         evm.opCodeList shouldBe EvmConfig.FrontierOpCodes
     ),
     ForkCase(
       label = "select HomesteadFeeSchedule for Homestead blocks",
-      blockNumber = 10,
-      configFn = _.copy(frontierBlockNumber = 0, homesteadBlockNumber = 10),
+      blockNumber = BlockNumber(10),
+      configFn = _.copy(frontierBlockNumber = BlockNumber(0), homesteadBlockNumber = BlockNumber(10)),
       assertFn = evm =>
         evm.feeSchedule shouldBe a[FeeSchedule.HomesteadFeeSchedule]
         evm.opCodeList shouldBe EvmConfig.HomesteadOpCodes
@@ -80,13 +81,13 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
     ),
     ForkCase(
       label = "select AtlantisFeeSchedule for Atlantis blocks",
-      blockNumber = 100,
+      blockNumber = BlockNumber(100),
       configFn = _.copy(
-        frontierBlockNumber = 0,
-        homesteadBlockNumber = 10,
-        eip150BlockNumber = 20,
-        eip160BlockNumber = 30,
-        atlantisBlockNumber = 100
+        frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(10),
+        eip150BlockNumber = BlockNumber(20),
+        eip160BlockNumber = BlockNumber(30),
+        atlantisBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
         evm.feeSchedule shouldBe a[FeeSchedule.AtlantisFeeSchedule]
@@ -95,11 +96,11 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
     ),
     ForkCase(
       label = "prefer Atlantis over Byzantium when both activated at same height",
-      blockNumber = 0,
+      blockNumber = BlockNumber(0),
       configFn = _.copy(
-        frontierBlockNumber = 0,
-        byzantiumBlockNumber = 0,
-        atlantisBlockNumber = 0
+        frontierBlockNumber = BlockNumber(0),
+        byzantiumBlockNumber = BlockNumber(0),
+        atlantisBlockNumber = BlockNumber(0)
       ),
       assertFn = evm =>
         evm.feeSchedule shouldBe a[FeeSchedule.AtlantisFeeSchedule]
@@ -107,11 +108,11 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
     ),
     ForkCase(
       label = "select ConstantionopleFeeSchedule for Agharta blocks",
-      blockNumber = 100,
+      blockNumber = BlockNumber(100),
       configFn = _.copy(
-        frontierBlockNumber = 0,
-        atlantisBlockNumber = 10,
-        aghartaBlockNumber = 100
+        frontierBlockNumber = BlockNumber(0),
+        atlantisBlockNumber = BlockNumber(10),
+        aghartaBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
         evm.feeSchedule shouldBe a[FeeSchedule.ConstantionopleFeeSchedule]
@@ -119,12 +120,12 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
     ),
     ForkCase(
       label = "select PhoenixFeeSchedule for Phoenix blocks",
-      blockNumber = 100,
+      blockNumber = BlockNumber(100),
       configFn = _.copy(
-        frontierBlockNumber = 0,
-        atlantisBlockNumber = 10,
-        aghartaBlockNumber = 20,
-        phoenixBlockNumber = 100
+        frontierBlockNumber = BlockNumber(0),
+        atlantisBlockNumber = BlockNumber(10),
+        aghartaBlockNumber = BlockNumber(20),
+        phoenixBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
         evm.feeSchedule shouldBe a[FeeSchedule.PhoenixFeeSchedule]
@@ -132,13 +133,13 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
     ),
     ForkCase(
       label = "select MagnetoFeeSchedule for Magneto blocks",
-      blockNumber = 100,
+      blockNumber = BlockNumber(100),
       configFn = _.copy(
-        frontierBlockNumber = 0,
-        atlantisBlockNumber = 10,
-        aghartaBlockNumber = 20,
-        phoenixBlockNumber = 30,
-        magnetoBlockNumber = 100
+        frontierBlockNumber = BlockNumber(0),
+        atlantisBlockNumber = BlockNumber(10),
+        aghartaBlockNumber = BlockNumber(20),
+        phoenixBlockNumber = BlockNumber(30),
+        magnetoBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
         evm.feeSchedule shouldBe a[FeeSchedule.MagnetoFeeSchedule]
@@ -146,14 +147,14 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
     ),
     ForkCase(
       label = "select MystiqueFeeSchedule for Mystique blocks",
-      blockNumber = 100,
+      blockNumber = BlockNumber(100),
       configFn = _.copy(
-        frontierBlockNumber = 0,
-        atlantisBlockNumber = 10,
-        aghartaBlockNumber = 20,
-        phoenixBlockNumber = 30,
-        magnetoBlockNumber = 40,
-        mystiqueBlockNumber = 100
+        frontierBlockNumber = BlockNumber(0),
+        atlantisBlockNumber = BlockNumber(10),
+        aghartaBlockNumber = BlockNumber(20),
+        phoenixBlockNumber = BlockNumber(30),
+        magnetoBlockNumber = BlockNumber(40),
+        mystiqueBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
         evm.feeSchedule shouldBe a[FeeSchedule.MystiqueFeeSchedule]
@@ -161,15 +162,15 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
     ),
     ForkCase(
       label = "select MystiqueFeeSchedule with Spiral opcodes for Spiral blocks",
-      blockNumber = 100,
+      blockNumber = BlockNumber(100),
       configFn = _.copy(
-        frontierBlockNumber = 0,
-        atlantisBlockNumber = 10,
-        aghartaBlockNumber = 20,
-        phoenixBlockNumber = 30,
-        magnetoBlockNumber = 40,
-        mystiqueBlockNumber = 50,
-        spiralBlockNumber = 100
+        frontierBlockNumber = BlockNumber(0),
+        atlantisBlockNumber = BlockNumber(10),
+        aghartaBlockNumber = BlockNumber(20),
+        phoenixBlockNumber = BlockNumber(30),
+        magnetoBlockNumber = BlockNumber(40),
+        mystiqueBlockNumber = BlockNumber(50),
+        spiralBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
         // Spiral uses MystiqueFeeSchedule (no new fee schedule class)
@@ -194,16 +195,16 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
   it should "not include PUSH0 opcode before Spiral" taggedAs (UnitTest, ConsensusTest) in {
     val cfg = cfgWith(
       _.copy(
-        frontierBlockNumber = 0,
-        atlantisBlockNumber = 10,
-        aghartaBlockNumber = 20,
-        phoenixBlockNumber = 30,
-        magnetoBlockNumber = 40,
-        mystiqueBlockNumber = 50,
-        spiralBlockNumber = Long.MaxValue // Spiral not yet active
+        frontierBlockNumber = BlockNumber(0),
+        atlantisBlockNumber = BlockNumber(10),
+        aghartaBlockNumber = BlockNumber(20),
+        phoenixBlockNumber = BlockNumber(30),
+        magnetoBlockNumber = BlockNumber(40),
+        mystiqueBlockNumber = BlockNumber(50),
+        spiralBlockNumber = BlockNumber(Long.MaxValue) // Spiral not yet active
       )
     )
-    val evm = EvmConfig.forBlock(50, cfg)
+    val evm = EvmConfig.forBlock(BlockNumber(50), cfg)
 
     evm.opCodeList.byteToOpCode.get(PUSH0.code) shouldBe None
   }
@@ -211,16 +212,16 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
   it should "include PUSH0 opcode at and after Spiral" taggedAs (UnitTest, ConsensusTest) in {
     val cfg = cfgWith(
       _.copy(
-        frontierBlockNumber = 0,
-        atlantisBlockNumber = 10,
-        aghartaBlockNumber = 20,
-        phoenixBlockNumber = 30,
-        magnetoBlockNumber = 40,
-        mystiqueBlockNumber = 50,
-        spiralBlockNumber = 100
+        frontierBlockNumber = BlockNumber(0),
+        atlantisBlockNumber = BlockNumber(10),
+        aghartaBlockNumber = BlockNumber(20),
+        phoenixBlockNumber = BlockNumber(30),
+        magnetoBlockNumber = BlockNumber(40),
+        mystiqueBlockNumber = BlockNumber(50),
+        spiralBlockNumber = BlockNumber(100)
       )
     )
-    val evm = EvmConfig.forBlock(100, cfg)
+    val evm = EvmConfig.forBlock(BlockNumber(100), cfg)
 
     evm.opCodeList.byteToOpCode.get(PUSH0.code) shouldBe Some(PUSH0)
   }

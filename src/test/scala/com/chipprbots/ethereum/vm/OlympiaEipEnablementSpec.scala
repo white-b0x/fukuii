@@ -4,6 +4,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.ledger.BlockExecution
 import com.chipprbots.ethereum.testing.Tags.*
 
@@ -21,9 +22,9 @@ class OlympiaEipEnablementSpec extends AnyWordSpec with Matchers:
   val configSpiral: EvmConfig = EvmConfig.SpiralConfigBuilder(blockchainConfig)
 
   val olympiaEtcFork: EtcFork =
-    blockchainConfig.etcForkForBlockNumber(Fixtures.OlympiaBlockNumber)
+    blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.OlympiaBlockNumber))
   val spiralEtcFork: EtcFork =
-    blockchainConfig.etcForkForBlockNumber(Fixtures.SpiralBlockNumber)
+    blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.SpiralBlockNumber))
 
   "Olympia EIP enablement" when {
 

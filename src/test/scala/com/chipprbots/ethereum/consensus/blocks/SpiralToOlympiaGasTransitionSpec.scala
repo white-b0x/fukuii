@@ -56,7 +56,7 @@ class SpiralToOlympiaGasTransitionSpec
   // olympiaGasTarget = Some(60M) is required so gasLimitAdjustmentStartAt(olympiaBlock)
   // returns Some(60M) rather than falling back to miningConfig.gasLimitTarget.
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
-    _.copy(olympiaBlockNumber = olympiaBlock, olympiaGasTarget = Some(BigInt(60_000_000)))
+    _.copy(olympiaBlockNumber = BlockNumber(olympiaBlock), olympiaGasTarget = Some(BigInt(60_000_000)))
   )
 
   private val SpiralGasLimit: BigInt = BigInt(8_000_000)
@@ -277,8 +277,8 @@ class SpiralToOlympiaGasTransitionSpec
       ) in {
         val configWithSpiralSchedule = blockchainConfig.withUpdatedForkBlocks(
           _.copy(
-            spiralBlockNumber = BigInt(0),
-            olympiaBlockNumber = olympiaBlock,
+            spiralBlockNumber = BlockNumber(0),
+            olympiaBlockNumber = BlockNumber(olympiaBlock),
             olympiaGasTarget = Some(BigInt(60_000_000)),
             spiralGasTarget = Some(BigInt(8_000_000))
           )
@@ -296,7 +296,7 @@ class SpiralToOlympiaGasTransitionSpec
       ) in {
         val configNoSchedule = blockchainConfig.withUpdatedForkBlocks(
           _.copy(
-            olympiaBlockNumber = olympiaBlock,
+            olympiaBlockNumber = BlockNumber(olympiaBlock),
             olympiaGasTarget = None,
             spiralGasTarget = None
           )

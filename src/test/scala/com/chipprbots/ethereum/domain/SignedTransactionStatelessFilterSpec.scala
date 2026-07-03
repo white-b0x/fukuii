@@ -39,9 +39,9 @@ class SignedTransactionStatelessFilterSpec extends AnyFlatSpec with Matchers:
   private val ethConfig: BlockchainConfig = etcConfig
     .withUpdatedForkBlocks(
       _.copy(
-        mystiqueBlockNumber = BigInt(5_000_000),
-        olympiaBlockNumber = BigInt(6_000_000),
-        spiralBlockNumber = BigInt("1000000000000000000")
+        mystiqueBlockNumber = BlockNumber(5_000_000),
+        olympiaBlockNumber = BlockNumber(6_000_000),
+        spiralBlockNumber = BlockNumber(BigInt("1000000000000000000"))
       )
     )
     .copy(

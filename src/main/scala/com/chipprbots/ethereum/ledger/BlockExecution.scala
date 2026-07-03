@@ -168,7 +168,7 @@ class BlockExecution(
       initialWorld: InMemoryWorldStateProxy
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError.TxsExecutionError, BlockResult] =
     val worldAfterDao = blockchainConfig.daoForkConfig match
-      case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(blockHeaderNumber) =>
+      case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(BlockNumber(blockHeaderNumber)) =>
         drainDaoForkAccounts(initialWorld, daoForkConfig)
       case _ => initialWorld
 
@@ -243,7 +243,7 @@ class BlockExecution(
     // EIP-2935 activates at Prague on ETH chains (timestamp fork), or at Olympia on ETC chains (block number fork).
     val pragueActive = blockchainConfig.isPragueTimestamp(block.header.unixTimestamp)
     val etcOlympiaActive = blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETC &&
-      blockNumber >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
+      blockNumber >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber.value
     if !pragueActive && !etcOlympiaActive then return world
 
     // Deploy history storage contract only if not already deployed (genesis may pre-deploy it).

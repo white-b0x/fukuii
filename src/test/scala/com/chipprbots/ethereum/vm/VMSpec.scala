@@ -72,8 +72,9 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers:
 
         val context: PC = getContext(
           inputData = initCode(contractCode),
-          evmConfig =
-            homesteadConfig.copy(blockchainConfig = homesteadConfig.blockchainConfig.copy(eip161BlockNumber = 1))
+          evmConfig = homesteadConfig.copy(blockchainConfig =
+            homesteadConfig.blockchainConfig.copy(eip161BlockNumber = BlockNumber(1))
+          )
         )
         val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
 
@@ -81,8 +82,9 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers:
 
         val context1: PC = getContext(
           inputData = initCode(contractCode),
-          evmConfig =
-            homesteadConfig.copy(blockchainConfig = homesteadConfig.blockchainConfig.copy(atlantisBlockNumber = 1))
+          evmConfig = homesteadConfig.copy(blockchainConfig =
+            homesteadConfig.blockchainConfig.copy(atlantisBlockNumber = BlockNumber(1))
+          )
         )
         val result1: ProgramResult[MockWorldState, MockStorage] = vm.run(context1)
 
@@ -159,30 +161,32 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers:
     )
 
     val evmBlockchainConfig: BlockchainConfigForEvm = BlockchainConfigForEvm(
-      frontierBlockNumber = Long.MaxValue,
-      homesteadBlockNumber = Long.MaxValue,
-      eip150BlockNumber = Long.MaxValue,
-      eip160BlockNumber = Long.MaxValue,
-      eip161BlockNumber = Long.MaxValue,
-      byzantiumBlockNumber = Long.MaxValue,
-      constantinopleBlockNumber = Long.MaxValue,
-      istanbulBlockNumber = Long.MaxValue,
+      frontierBlockNumber = BlockNumber(Long.MaxValue),
+      homesteadBlockNumber = BlockNumber(Long.MaxValue),
+      eip150BlockNumber = BlockNumber(Long.MaxValue),
+      eip160BlockNumber = BlockNumber(Long.MaxValue),
+      eip161BlockNumber = BlockNumber(Long.MaxValue),
+      byzantiumBlockNumber = BlockNumber(Long.MaxValue),
+      constantinopleBlockNumber = BlockNumber(Long.MaxValue),
+      istanbulBlockNumber = BlockNumber(Long.MaxValue),
       maxCodeSize = Some(16),
       accountStartNonce = 0,
-      atlantisBlockNumber = Long.MaxValue,
-      aghartaBlockNumber = Long.MaxValue,
-      petersburgBlockNumber = Long.MaxValue,
-      phoenixBlockNumber = Long.MaxValue,
-      magnetoBlockNumber = Long.MaxValue,
-      berlinBlockNumber = Long.MaxValue,
-      mystiqueBlockNumber = Long.MaxValue,
-      spiralBlockNumber = Long.MaxValue,
-      olympiaBlockNumber = Long.MaxValue,
+      atlantisBlockNumber = BlockNumber(Long.MaxValue),
+      aghartaBlockNumber = BlockNumber(Long.MaxValue),
+      petersburgBlockNumber = BlockNumber(Long.MaxValue),
+      phoenixBlockNumber = BlockNumber(Long.MaxValue),
+      magnetoBlockNumber = BlockNumber(Long.MaxValue),
+      berlinBlockNumber = BlockNumber(Long.MaxValue),
+      mystiqueBlockNumber = BlockNumber(Long.MaxValue),
+      spiralBlockNumber = BlockNumber(Long.MaxValue),
+      olympiaBlockNumber = BlockNumber(Long.MaxValue),
       chainId = ChainId(0x3d)
     )
 
-    val homesteadConfig: EvmConfig = EvmConfig.forBlock(0, evmBlockchainConfig.copy(homesteadBlockNumber = 0))
-    val eip161Config: EvmConfig = EvmConfig.forBlock(0, evmBlockchainConfig.copy(eip161BlockNumber = 0))
+    val homesteadConfig: EvmConfig =
+      EvmConfig.forBlock(BlockNumber(0), evmBlockchainConfig.copy(homesteadBlockNumber = BlockNumber(0)))
+    val eip161Config: EvmConfig =
+      EvmConfig.forBlock(BlockNumber(0), evmBlockchainConfig.copy(eip161BlockNumber = BlockNumber(0)))
 
     val senderAddr: Address = Address(0xcafebabeL)
     val senderAcc: Account = Account(nonce = 1, balance = 1000000)

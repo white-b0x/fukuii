@@ -1,5 +1,6 @@
 package com.chipprbots.ethereum.vm
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainId
 
 object Fixtures:
@@ -16,24 +17,24 @@ object Fixtures:
 
   val blockchainConfig: BlockchainConfigForEvm = BlockchainConfigForEvm(
     // block numbers are irrelevant
-    frontierBlockNumber = 0,
-    homesteadBlockNumber = 0,
-    eip150BlockNumber = 0,
-    eip160BlockNumber = 0,
-    eip161BlockNumber = 0,
-    byzantiumBlockNumber = 0,
-    constantinopleBlockNumber = ConstantinopleBlockNumber,
-    istanbulBlockNumber = IstanbulBlockNumber,
+    frontierBlockNumber = BlockNumber(0),
+    homesteadBlockNumber = BlockNumber(0),
+    eip150BlockNumber = BlockNumber(0),
+    eip160BlockNumber = BlockNumber(0),
+    eip161BlockNumber = BlockNumber(0),
+    byzantiumBlockNumber = BlockNumber(0),
+    constantinopleBlockNumber = BlockNumber(ConstantinopleBlockNumber),
+    istanbulBlockNumber = BlockNumber(IstanbulBlockNumber),
     maxCodeSize = Some(24576),
     accountStartNonce = 0,
-    atlantisBlockNumber = 0,
-    aghartaBlockNumber = 0,
-    petersburgBlockNumber = PetersburgBlockNumber,
-    phoenixBlockNumber = PhoenixBlockNumber,
-    magnetoBlockNumber = MagnetoBlockNumber,
-    berlinBlockNumber = BerlinBlockNumber,
-    mystiqueBlockNumber = MystiqueBlockNumber,
-    spiralBlockNumber = SpiralBlockNumber,
-    olympiaBlockNumber = OlympiaBlockNumber,
+    atlantisBlockNumber = BlockNumber(0),
+    aghartaBlockNumber = BlockNumber(0),
+    petersburgBlockNumber = BlockNumber(PetersburgBlockNumber),
+    phoenixBlockNumber = BlockNumber(PhoenixBlockNumber),
+    magnetoBlockNumber = BlockNumber(MagnetoBlockNumber),
+    berlinBlockNumber = BlockNumber(BerlinBlockNumber),
+    mystiqueBlockNumber = BlockNumber(MystiqueBlockNumber),
+    spiralBlockNumber = BlockNumber(SpiralBlockNumber),
+    olympiaBlockNumber = BlockNumber(OlympiaBlockNumber),
     chainId = ChainId(0x3d)
   )

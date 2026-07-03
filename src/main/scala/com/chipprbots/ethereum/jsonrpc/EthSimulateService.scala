@@ -341,7 +341,7 @@ class EthSimulateService(
       val reward = blockchainConfig.monetaryPolicyConfig.firstEraBlockReward
       val byzantiumReward = blockchainConfig.monetaryPolicyConfig.firstEraReducedBlockReward
       val constantinopleReward = blockchainConfig.monetaryPolicyConfig.firstEraConstantinopleReducedBlockReward
-      val n = simHeader.number.value
+      val n = simHeader.number
       val byzantium = blockchainConfig.forkBlockNumbers.byzantiumBlockNumber
       val constantinople = blockchainConfig.forkBlockNumbers.constantinopleBlockNumber
       val finalReward =

@@ -13,6 +13,7 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.Timestamp
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.utils.NumericUtils.*
 
@@ -66,8 +67,8 @@ case class BlockchainConfig(
     terminalTotalDifficulty: Option[BigInt] = None,
     forkTimestamps: ForkTimestamps = ForkTimestamps()
 ):
-  def isPoS(totalDifficulty: BigInt): Boolean =
-    terminalTotalDifficulty.exists(ttd => totalDifficulty >= ttd)
+  def isPoS(totalDifficulty: TotalDifficulty): Boolean =
+    terminalTotalDifficulty.exists(ttd => totalDifficulty.value >= ttd)
 
   def isShanghaiTimestamp(timestamp: Timestamp): Boolean =
     forkTimestamps.shanghaiTimestamp.exists(ts => timestamp.toLong >= ts)
@@ -95,35 +96,35 @@ case class BlockchainConfig(
     copy(forkBlockNumbers = update(forkBlockNumbers))
 
 case class ForkBlockNumbers(
-    frontierBlockNumber: BigInt,
-    homesteadBlockNumber: BigInt,
-    eip106BlockNumber: BigInt,
-    eip150BlockNumber: BigInt,
-    eip155BlockNumber: BigInt,
-    eip160BlockNumber: BigInt,
-    eip161BlockNumber: BigInt,
-    difficultyBombPauseBlockNumber: BigInt,
-    difficultyBombContinueBlockNumber: BigInt,
-    difficultyBombRemovalBlockNumber: BigInt,
-    byzantiumBlockNumber: BigInt,
-    constantinopleBlockNumber: BigInt,
-    istanbulBlockNumber: BigInt,
-    atlantisBlockNumber: BigInt,
-    aghartaBlockNumber: BigInt,
-    phoenixBlockNumber: BigInt,
-    petersburgBlockNumber: BigInt,
-    ecip1099BlockNumber: BigInt,
-    muirGlacierBlockNumber: BigInt,
-    magnetoBlockNumber: BigInt,
-    berlinBlockNumber: BigInt,
-    mystiqueBlockNumber: BigInt,
-    spiralBlockNumber: BigInt,
-    olympiaBlockNumber: BigInt,
+    frontierBlockNumber: BlockNumber,
+    homesteadBlockNumber: BlockNumber,
+    eip106BlockNumber: BlockNumber,
+    eip150BlockNumber: BlockNumber,
+    eip155BlockNumber: BlockNumber,
+    eip160BlockNumber: BlockNumber,
+    eip161BlockNumber: BlockNumber,
+    difficultyBombPauseBlockNumber: BlockNumber,
+    difficultyBombContinueBlockNumber: BlockNumber,
+    difficultyBombRemovalBlockNumber: BlockNumber,
+    byzantiumBlockNumber: BlockNumber,
+    constantinopleBlockNumber: BlockNumber,
+    istanbulBlockNumber: BlockNumber,
+    atlantisBlockNumber: BlockNumber,
+    aghartaBlockNumber: BlockNumber,
+    phoenixBlockNumber: BlockNumber,
+    petersburgBlockNumber: BlockNumber,
+    ecip1099BlockNumber: BlockNumber,
+    muirGlacierBlockNumber: BlockNumber,
+    magnetoBlockNumber: BlockNumber,
+    berlinBlockNumber: BlockNumber,
+    mystiqueBlockNumber: BlockNumber,
+    spiralBlockNumber: BlockNumber,
+    olympiaBlockNumber: BlockNumber,
     // EIP-3675 / Sepolia post-Merge net-split block (1735371). Block-based fork that
     // must be in the EIP-2124 fork-id checksum chain — go-ethereum's params/config.go
     // lists this for Sepolia. Without it, our forkId hashes for Shanghai+ are off by
     // one CRC32 round and ForkIdValidator.checkSuperset rejects all chain-head peers.
-    mergeNetsplitBlockNumber: BigInt = Long.MaxValue,
+    mergeNetsplitBlockNumber: BlockNumber = BlockNumber(Long.MaxValue),
     // Gas limit targets embedded in the fork schedule (EIP-7935 / ECIP-1121).
     // When Some(target), the miner converges toward that target from the fork activation
     // block onward via the standard ±1/1024 mechanism — the schedule is authoritative
@@ -140,38 +141,38 @@ case class ForkBlockNumbers(
     * block number, based on the fork-embedded gas schedule. None means no fork schedule opinion for this era — caller
     * falls back to miningConfig.gasLimitTarget.
     */
-  def gasLimitAdjustmentStartAt(blockNumber: BigInt): Option[BigInt] =
+  def gasLimitAdjustmentStartAt(blockNumber: BlockNumber): Option[BigInt] =
     if blockNumber >= olympiaBlockNumber then olympiaGasTarget
     else if blockNumber >= spiralBlockNumber then spiralGasTarget
     else None
 
 object ForkBlockNumbers:
   val Empty: ForkBlockNumbers = ForkBlockNumbers(
-    frontierBlockNumber = 0,
-    homesteadBlockNumber = Long.MaxValue,
-    difficultyBombPauseBlockNumber = Long.MaxValue,
-    difficultyBombContinueBlockNumber = Long.MaxValue,
-    difficultyBombRemovalBlockNumber = Long.MaxValue,
-    eip106BlockNumber = Long.MaxValue,
-    eip150BlockNumber = Long.MaxValue,
-    eip160BlockNumber = Long.MaxValue,
-    eip155BlockNumber = Long.MaxValue,
-    eip161BlockNumber = Long.MaxValue,
-    byzantiumBlockNumber = Long.MaxValue,
-    constantinopleBlockNumber = Long.MaxValue,
-    istanbulBlockNumber = Long.MaxValue,
-    atlantisBlockNumber = Long.MaxValue,
-    aghartaBlockNumber = Long.MaxValue,
-    phoenixBlockNumber = Long.MaxValue,
-    petersburgBlockNumber = Long.MaxValue,
-    ecip1099BlockNumber = Long.MaxValue,
-    muirGlacierBlockNumber = Long.MaxValue,
-    magnetoBlockNumber = Long.MaxValue,
-    berlinBlockNumber = Long.MaxValue,
-    mystiqueBlockNumber = Long.MaxValue,
-    spiralBlockNumber = Long.MaxValue,
-    olympiaBlockNumber = Long.MaxValue,
-    mergeNetsplitBlockNumber = Long.MaxValue
+    frontierBlockNumber = BlockNumber(0),
+    homesteadBlockNumber = BlockNumber(Long.MaxValue),
+    difficultyBombPauseBlockNumber = BlockNumber(Long.MaxValue),
+    difficultyBombContinueBlockNumber = BlockNumber(Long.MaxValue),
+    difficultyBombRemovalBlockNumber = BlockNumber(Long.MaxValue),
+    eip106BlockNumber = BlockNumber(Long.MaxValue),
+    eip150BlockNumber = BlockNumber(Long.MaxValue),
+    eip160BlockNumber = BlockNumber(Long.MaxValue),
+    eip155BlockNumber = BlockNumber(Long.MaxValue),
+    eip161BlockNumber = BlockNumber(Long.MaxValue),
+    byzantiumBlockNumber = BlockNumber(Long.MaxValue),
+    constantinopleBlockNumber = BlockNumber(Long.MaxValue),
+    istanbulBlockNumber = BlockNumber(Long.MaxValue),
+    atlantisBlockNumber = BlockNumber(Long.MaxValue),
+    aghartaBlockNumber = BlockNumber(Long.MaxValue),
+    phoenixBlockNumber = BlockNumber(Long.MaxValue),
+    petersburgBlockNumber = BlockNumber(Long.MaxValue),
+    ecip1099BlockNumber = BlockNumber(Long.MaxValue),
+    muirGlacierBlockNumber = BlockNumber(Long.MaxValue),
+    magnetoBlockNumber = BlockNumber(Long.MaxValue),
+    berlinBlockNumber = BlockNumber(Long.MaxValue),
+    mystiqueBlockNumber = BlockNumber(Long.MaxValue),
+    spiralBlockNumber = BlockNumber(Long.MaxValue),
+    olympiaBlockNumber = BlockNumber(Long.MaxValue),
+    mergeNetsplitBlockNumber = BlockNumber(Long.MaxValue)
   )
 
 object BlockchainConfig:
@@ -296,31 +297,31 @@ object BlockchainConfig:
     BlockchainConfig(
       powTargetTime = powTargetTime,
       forkBlockNumbers = ForkBlockNumbers(
-        frontierBlockNumber = frontierBlockNumber,
-        homesteadBlockNumber = homesteadBlockNumber,
-        eip106BlockNumber = eip106BlockNumber,
-        eip150BlockNumber = eip150BlockNumber,
-        eip155BlockNumber = eip155BlockNumber,
-        eip160BlockNumber = eip160BlockNumber,
-        eip161BlockNumber = eip161BlockNumber,
-        difficultyBombPauseBlockNumber = difficultyBombPauseBlockNumber,
-        difficultyBombContinueBlockNumber = difficultyBombContinueBlockNumber,
-        difficultyBombRemovalBlockNumber = difficultyBombRemovalBlockNumber,
-        byzantiumBlockNumber = byzantiumBlockNumber,
-        constantinopleBlockNumber = constantinopleBlockNumber,
-        istanbulBlockNumber = istanbulBlockNumber,
-        atlantisBlockNumber = atlantisBlockNumber,
-        aghartaBlockNumber = aghartaBlockNumber,
-        phoenixBlockNumber = phoenixBlockNumber,
-        petersburgBlockNumber = petersburgBlockNumber,
-        ecip1099BlockNumber = ecip1099BlockNumber,
-        muirGlacierBlockNumber = muirGlacierBlockNumber,
-        magnetoBlockNumber = magnetoBlockNumber,
-        berlinBlockNumber = berlinBlockNumber,
-        mystiqueBlockNumber = mystiqueBlockNumber,
-        spiralBlockNumber = spiralBlockNumber,
-        olympiaBlockNumber = olympiaBlockNumber,
-        mergeNetsplitBlockNumber = mergeNetsplitBlockNumber,
+        frontierBlockNumber = BlockNumber(frontierBlockNumber),
+        homesteadBlockNumber = BlockNumber(homesteadBlockNumber),
+        eip106BlockNumber = BlockNumber(eip106BlockNumber),
+        eip150BlockNumber = BlockNumber(eip150BlockNumber),
+        eip155BlockNumber = BlockNumber(eip155BlockNumber),
+        eip160BlockNumber = BlockNumber(eip160BlockNumber),
+        eip161BlockNumber = BlockNumber(eip161BlockNumber),
+        difficultyBombPauseBlockNumber = BlockNumber(difficultyBombPauseBlockNumber),
+        difficultyBombContinueBlockNumber = BlockNumber(difficultyBombContinueBlockNumber),
+        difficultyBombRemovalBlockNumber = BlockNumber(difficultyBombRemovalBlockNumber),
+        byzantiumBlockNumber = BlockNumber(byzantiumBlockNumber),
+        constantinopleBlockNumber = BlockNumber(constantinopleBlockNumber),
+        istanbulBlockNumber = BlockNumber(istanbulBlockNumber),
+        atlantisBlockNumber = BlockNumber(atlantisBlockNumber),
+        aghartaBlockNumber = BlockNumber(aghartaBlockNumber),
+        phoenixBlockNumber = BlockNumber(phoenixBlockNumber),
+        petersburgBlockNumber = BlockNumber(petersburgBlockNumber),
+        ecip1099BlockNumber = BlockNumber(ecip1099BlockNumber),
+        muirGlacierBlockNumber = BlockNumber(muirGlacierBlockNumber),
+        magnetoBlockNumber = BlockNumber(magnetoBlockNumber),
+        berlinBlockNumber = BlockNumber(berlinBlockNumber),
+        mystiqueBlockNumber = BlockNumber(mystiqueBlockNumber),
+        spiralBlockNumber = BlockNumber(spiralBlockNumber),
+        olympiaBlockNumber = BlockNumber(olympiaBlockNumber),
+        mergeNetsplitBlockNumber = BlockNumber(mergeNetsplitBlockNumber),
         spiralGasTarget = spiralGasTarget,
         olympiaGasTarget = olympiaGasTarget
       ),

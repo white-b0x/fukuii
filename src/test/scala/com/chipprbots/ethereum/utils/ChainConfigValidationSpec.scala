@@ -4,6 +4,7 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.testing.Tags.*
 
@@ -31,32 +32,32 @@ class ChainConfigValidationSpec extends AnyFlatSpec with Matchers:
   // ===== ETC Mainnet Fork Block Numbers =====
 
   it should "have correct pre-DAO fork block numbers" taggedAs (UnitTest, ConsensusTest) in {
-    etcConfig.forkBlockNumbers.frontierBlockNumber shouldBe 0
-    etcConfig.forkBlockNumbers.homesteadBlockNumber shouldBe 1150000
-    etcConfig.forkBlockNumbers.eip150BlockNumber shouldBe 2500000
-    etcConfig.forkBlockNumbers.eip155BlockNumber shouldBe 3000000
-    etcConfig.forkBlockNumbers.eip160BlockNumber shouldBe 3000000
+    etcConfig.forkBlockNumbers.frontierBlockNumber shouldBe BlockNumber(0)
+    etcConfig.forkBlockNumbers.homesteadBlockNumber shouldBe BlockNumber(1150000)
+    etcConfig.forkBlockNumbers.eip150BlockNumber shouldBe BlockNumber(2500000)
+    etcConfig.forkBlockNumbers.eip155BlockNumber shouldBe BlockNumber(3000000)
+    etcConfig.forkBlockNumbers.eip160BlockNumber shouldBe BlockNumber(3000000)
   }
 
   it should "have correct ETC-specific fork block numbers" taggedAs (UnitTest, ConsensusTest) in {
-    etcConfig.forkBlockNumbers.atlantisBlockNumber shouldBe 8772000
-    etcConfig.forkBlockNumbers.aghartaBlockNumber shouldBe 9573000
-    etcConfig.forkBlockNumbers.phoenixBlockNumber shouldBe 10500839
-    etcConfig.forkBlockNumbers.magnetoBlockNumber shouldBe 13189133
-    etcConfig.forkBlockNumbers.mystiqueBlockNumber shouldBe 14525000
-    etcConfig.forkBlockNumbers.spiralBlockNumber shouldBe 19250000
+    etcConfig.forkBlockNumbers.atlantisBlockNumber shouldBe BlockNumber(8772000)
+    etcConfig.forkBlockNumbers.aghartaBlockNumber shouldBe BlockNumber(9573000)
+    etcConfig.forkBlockNumbers.phoenixBlockNumber shouldBe BlockNumber(10500839)
+    etcConfig.forkBlockNumbers.magnetoBlockNumber shouldBe BlockNumber(13189133)
+    etcConfig.forkBlockNumbers.mystiqueBlockNumber shouldBe BlockNumber(14525000)
+    etcConfig.forkBlockNumbers.spiralBlockNumber shouldBe BlockNumber(19250000)
   }
 
   it should "have correct difficulty bomb configuration" taggedAs (UnitTest, ConsensusTest) in {
     // ECIP-1010: pause at DieHard (3M), continue at Gotham (5M)
-    etcConfig.forkBlockNumbers.difficultyBombPauseBlockNumber shouldBe 3000000
-    etcConfig.forkBlockNumbers.difficultyBombContinueBlockNumber shouldBe 5000000
+    etcConfig.forkBlockNumbers.difficultyBombPauseBlockNumber shouldBe BlockNumber(3000000)
+    etcConfig.forkBlockNumbers.difficultyBombContinueBlockNumber shouldBe BlockNumber(5000000)
     // ECIP-1041: remove at Defuse (5.9M)
-    etcConfig.forkBlockNumbers.difficultyBombRemovalBlockNumber shouldBe 5900000
+    etcConfig.forkBlockNumbers.difficultyBombRemovalBlockNumber shouldBe BlockNumber(5900000)
   }
 
   it should "have correct ECIP-1099 epoch doubling block" taggedAs (UnitTest, ConsensusTest) in {
-    etcConfig.forkBlockNumbers.ecip1099BlockNumber shouldBe 11700000
+    etcConfig.forkBlockNumbers.ecip1099BlockNumber shouldBe BlockNumber(11700000)
   }
 
   // ===== ETC Mainnet ECBP-1100 (MESS) Configuration =====
@@ -105,13 +106,13 @@ class ChainConfigValidationSpec extends AnyFlatSpec with Matchers:
   // ===== Mordor Fork Block Numbers =====
 
   it should "have correct fork block numbers" taggedAs (UnitTest, ConsensusTest) in {
-    mordorConfig.forkBlockNumbers.atlantisBlockNumber shouldBe 0
-    mordorConfig.forkBlockNumbers.aghartaBlockNumber shouldBe 301243
-    mordorConfig.forkBlockNumbers.phoenixBlockNumber shouldBe 999983
+    mordorConfig.forkBlockNumbers.atlantisBlockNumber shouldBe BlockNumber(0)
+    mordorConfig.forkBlockNumbers.aghartaBlockNumber shouldBe BlockNumber(301243)
+    mordorConfig.forkBlockNumbers.phoenixBlockNumber shouldBe BlockNumber(999983)
   }
 
   it should "have correct ECIP-1099 epoch doubling block" taggedAs (UnitTest, ConsensusTest) in {
-    mordorConfig.forkBlockNumbers.ecip1099BlockNumber shouldBe 2520000
+    mordorConfig.forkBlockNumbers.ecip1099BlockNumber shouldBe BlockNumber(2520000)
   }
 
   // ===== Mordor ECBP-1100 (MESS) Configuration =====
@@ -124,9 +125,9 @@ class ChainConfigValidationSpec extends AnyFlatSpec with Matchers:
   // ===== Mordor Difficulty Bomb (all removed at genesis) =====
 
   it should "have difficulty bomb removed from genesis" taggedAs (UnitTest, ConsensusTest) in {
-    mordorConfig.forkBlockNumbers.difficultyBombPauseBlockNumber shouldBe 0
-    mordorConfig.forkBlockNumbers.difficultyBombContinueBlockNumber shouldBe 0
-    mordorConfig.forkBlockNumbers.difficultyBombRemovalBlockNumber shouldBe 0
+    mordorConfig.forkBlockNumbers.difficultyBombPauseBlockNumber shouldBe BlockNumber(0)
+    mordorConfig.forkBlockNumbers.difficultyBombContinueBlockNumber shouldBe BlockNumber(0)
+    mordorConfig.forkBlockNumbers.difficultyBombRemovalBlockNumber shouldBe BlockNumber(0)
   }
 
 // scalastyle:on magic.number
@@ -151,7 +152,7 @@ class ETCDaoExclusionSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "record fork block number 1,920,000" taggedAs (UnitTest, ConsensusTest) in {
-    etcConfig.daoForkConfig.get.forkBlockNumber shouldBe BigInt(1_920_000)
+    etcConfig.daoForkConfig.get.forkBlockNumber shouldBe BlockNumber(1_920_000)
   }
 
   it should "have an empty drain list (no funds moved on ETC)" taggedAs (UnitTest, ConsensusTest) in {

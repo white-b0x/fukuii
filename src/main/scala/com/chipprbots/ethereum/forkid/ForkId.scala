@@ -67,7 +67,7 @@ object ForkId:
 
   def gatherBlockForks(config: BlockchainConfig): List[BigInt] =
     val maybeDaoBlock: Option[BigInt] = config.daoForkConfig.flatMap { daoConf =>
-      if daoConf.includeOnForkIdList then Some(daoConf.forkBlockNumber)
+      if daoConf.includeOnForkIdList then Some(daoConf.forkBlockNumber.value)
       else None
     }
     val realForks = (maybeDaoBlock.toList ++ config.forkBlockNumbers.all)
@@ -76,7 +76,7 @@ object ForkId:
       .sorted
     // Advertise Olympia sentinel as the next fork when not yet scheduled
     val olympiaNext =
-      if config.forkBlockNumbers.olympiaBlockNumber == olympiaSentinel then List(olympiaSentinel) else Nil
+      if config.forkBlockNumbers.olympiaBlockNumber.value == olympiaSentinel then List(olympiaSentinel) else Nil
     realForks ++ olympiaNext
 
   /** EIP-6122: Timestamp-based forks for post-Merge chains. */

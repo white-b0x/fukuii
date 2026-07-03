@@ -51,7 +51,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers:
   // byzantium's 4370000). Spiral stays at 1e18 so EIP-3860 does NOT activate via the
   // block-based fork on ETC — only the timestamp path enables it on ETH/Sepolia.
   private val etcMystiqueConfig: BlockchainConfig = etcConfig.withUpdatedForkBlocks(
-    _.copy(mystiqueBlockNumber = BigInt(5_000_000))
+    _.copy(mystiqueBlockNumber = BlockNumber(5_000_000))
   )
 
   private val sepoliaLondonConfig: BlockchainConfig = etcMystiqueConfig.copy(

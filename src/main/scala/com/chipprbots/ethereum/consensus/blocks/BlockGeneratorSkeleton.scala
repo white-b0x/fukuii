@@ -62,7 +62,7 @@ abstract class BlockGeneratorSkeleton(
       gasUsed = GasAmount.Zero,
       unixTimestamp = blockTimestamp,
       extraData = blockchainConfig.daoForkConfig
-        .flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber.value))
+        .flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber))
         .getOrElse(headerExtraData),
       mixHash = BlockHash(ByteString.empty),
       nonce = ByteString.empty
@@ -134,7 +134,7 @@ abstract class BlockGeneratorSkeleton(
     // calcBaseFee returns the 1 gwei floor even before Olympia, so an un-gated filter would
     // (a) drop legitimate sub-(floor+minTip) legacy txs and (b) in block production, desync the
     // tx list from a pre-sealed header (→ HeaderPoWError). Gate on the Olympia activation block.
-    val isOlympia = blockNumber.value >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
+    val isOlympia = blockNumber >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
     val eligibleTransactions =
       if !isOlympia then transactions
       else
@@ -192,7 +192,7 @@ abstract class BlockGeneratorSkeleton(
       blockchainConfig: BlockchainConfig
   ): BigInt =
     val target = blockchainConfig.forkBlockNumbers
-      .gasLimitAdjustmentStartAt(blockNumber.value)
+      .gasLimitAdjustmentStartAt(blockNumber)
       .getOrElse(miningConfig.gasLimitTarget)
     val delta = parentGas / BlockHeaderValidator.GasLimitBoundDivisor - 1
     if parentGas < target then

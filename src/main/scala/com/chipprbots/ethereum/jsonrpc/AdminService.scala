@@ -134,7 +134,7 @@ class AdminService(
     * conditional logic. Forks set to Long.MaxValue (not yet activated, e.g. Olympia TBD) are excluded by the <=
     * blockNumber filter. Mirrors Besu's protocolSchedule.getByBlockHeader().getHardforkId() intent.
     */
-  private def activeForkName(blockNumber: BigInt, forks: ForkBlockNumbers): String =
+  private def activeForkName(blockNumber: BlockNumber, forks: ForkBlockNumbers): String =
     List(
       forks.olympiaBlockNumber -> "Olympia",
       forks.spiralBlockNumber -> "Spiral",
@@ -179,7 +179,7 @@ class AdminService(
       head = headHex,
       network = blockchainConfig.networkId
     )
-    val fork = activeForkName(headNumber, blockchainConfig.forkBlockNumbers)
+    val fork = activeForkName(BlockNumber(headNumber), blockchainConfig.forkBlockNumbers)
 
     status.serverStatus match
       case ServerStatus.Listening(address) =>

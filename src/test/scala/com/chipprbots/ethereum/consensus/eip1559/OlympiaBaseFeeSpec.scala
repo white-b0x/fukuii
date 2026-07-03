@@ -29,7 +29,7 @@ class OlympiaBaseFeeSpec
   private val olympiaBlock: BigInt = BigInt(100)
 
   implicit val config: BlockchainConfig = blockchainConfig
-    .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = olympiaBlock))
+    .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = BlockNumber(olympiaBlock)))
     .copy(baseFeeFloor = BaseFeeCalculator.InitialBaseFee)
 
   private val InitialBaseFee: BigInt = BaseFeeCalculator.InitialBaseFee

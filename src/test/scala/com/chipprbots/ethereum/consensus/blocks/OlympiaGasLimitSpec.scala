@@ -14,6 +14,7 @@ import com.chipprbots.ethereum.consensus.pow.blocks.Ommers
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValidator
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
@@ -39,7 +40,7 @@ class OlympiaGasLimitSpec
   private val OlympiaTestBlock: BigInt = BigInt(100)
 
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
-    _.copy(olympiaBlockNumber = OlympiaTestBlock, olympiaGasTarget = Some(BigInt(60_000_000)))
+    _.copy(olympiaBlockNumber = BlockNumber(OlympiaTestBlock), olympiaGasTarget = Some(BigInt(60_000_000)))
   )
 
   private val OlympiaGasTarget = BigInt(60_000_000)
@@ -68,7 +69,7 @@ class OlympiaGasLimitSpec
     override protected def newBlockBody(transactions: Seq[SignedTransaction], x: Ommers): BlockBody =
       BlockBody(transactions, Nil)
     override protected def prepareHeader(
-        blockNumber: BigInt,
+        blockNumber: BlockNumber,
         parent: com.chipprbots.ethereum.domain.Block,
         beneficiary: Address,
         blockTimestamp: Timestamp,
@@ -87,7 +88,7 @@ class OlympiaGasLimitSpec
     def withBlockTimestampProvider(btp: BlockTimestampProvider): TestBlockGenerator =
       throw new UnsupportedOperationException
 
-    def calcGasLimit(parentGas: BigInt, blockNumber: BigInt = BigInt(0))(implicit
+    def calcGasLimit(parentGas: BigInt, blockNumber: BlockNumber = BlockNumber.Zero)(implicit
         bc: BlockchainConfig
     ): BigInt = calculateGasLimit(parentGas, blockNumber)
 
@@ -101,7 +102,7 @@ class OlympiaGasLimitSpec
 
     var blocks = 0
     while limit < threshold && blocks < 200_000 do
-      limit = gen.calcGasLimit(limit, OlympiaTestBlock + blocks)
+      limit = gen.calcGasLimit(limit, BlockNumber(OlympiaTestBlock + blocks))
       blocks += 1
     limit should be >= threshold
     // Must match core-geth: 2,055 blocks
@@ -111,7 +112,7 @@ class OlympiaGasLimitSpec
 
   it should "be stable at 60M target" taggedAs (OlympiaTest, ConsensusTest) in {
     val gen = new TestableGen(OlympiaGasTarget)
-    gen.calcGasLimit(OlympiaGasTarget, OlympiaTestBlock) shouldBe OlympiaGasTarget
+    gen.calcGasLimit(OlympiaGasTarget, BlockNumber(OlympiaTestBlock)) shouldBe OlympiaGasTarget
   }
 
   it should "respect ±1/1024 per-block bound at 60M" taggedAs (OlympiaTest, ConsensusTest) in {
@@ -119,7 +120,7 @@ class OlympiaGasLimitSpec
     val maxDelta = PreOlympiaGasLimit / GasLimitBoundDivisor - 1
 
     // First block adjustment from 8M
-    val next = gen.calcGasLimit(PreOlympiaGasLimit, OlympiaTestBlock)
+    val next = gen.calcGasLimit(PreOlympiaGasLimit, BlockNumber(OlympiaTestBlock))
     val delta = next - PreOlympiaGasLimit
     delta shouldBe maxDelta
     delta shouldBe BigInt(7811) // 8_000_000 / 1024 - 1
@@ -129,7 +130,7 @@ class OlympiaGasLimitSpec
     val gen = new TestableGen(OlympiaGasTarget)
     val aboveTarget = BigInt(80_000_000)
 
-    val next = gen.calcGasLimit(aboveTarget, OlympiaTestBlock)
+    val next = gen.calcGasLimit(aboveTarget, BlockNumber(OlympiaTestBlock))
     next should be < aboveTarget
     next should be >= OlympiaGasTarget
   }
@@ -139,7 +140,7 @@ class OlympiaGasLimitSpec
     ConsensusTest
   ) in {
     val gen = new TestableGen(PreOlympiaGasLimit)
-    val result = gen.calcGasLimit(PreOlympiaGasLimit, OlympiaTestBlock)
+    val result = gen.calcGasLimit(PreOlympiaGasLimit, BlockNumber(OlympiaTestBlock))
     result should be > PreOlympiaGasLimit
   }
 
@@ -153,8 +154,8 @@ class OlympiaGasLimitSpec
     // Simulate 10,000 blocks with 70% honest (60M) / 30% adversary (30M)
     for i <- 1 to 10_000 do
       limit =
-        if rng.nextInt(100) < 70 then honestGen.calcGasLimit(limit, OlympiaTestBlock + i)
-        else adversaryGen.calcGasLimit(limit, OlympiaTestBlock + i)
+        if rng.nextInt(100) < 70 then honestGen.calcGasLimit(limit, BlockNumber(OlympiaTestBlock + i))
+        else adversaryGen.calcGasLimit(limit, BlockNumber(OlympiaTestBlock + i))
 
     // With 70% honest, should converge near 60M (within 5%)
     limit should be >= OlympiaGasTarget * 95 / 100

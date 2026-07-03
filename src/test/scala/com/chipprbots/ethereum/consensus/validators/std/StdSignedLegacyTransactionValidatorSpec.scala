@@ -239,8 +239,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers:
     StdSignedTransactionValidator.validate(
       stx,
       senderAccount = senderAccountAfterHomestead,
-      blockHeader =
-        blockHeaderAfterHomestead.copy(number = BlockNumber(blockchainConfig.forkBlockNumbers.eip155BlockNumber)),
+      blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.forkBlockNumbers.eip155BlockNumber),
       upfrontGasCost = upfrontGasCost,
       accumGasUsed = accumGasUsed
     ) match

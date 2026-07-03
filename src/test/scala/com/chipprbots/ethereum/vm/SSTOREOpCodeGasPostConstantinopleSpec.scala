@@ -162,8 +162,8 @@ trait TestSetup:
     val config: EvmConfig
   object EipToCheck:
     case object EIP1283 extends EipToCheck:
-      override val blockHeader: BlockHeader = prepareBlockHeader(blockchainConfig.constantinopleBlockNumber + 1)
+      override val blockHeader: BlockHeader = prepareBlockHeader((blockchainConfig.constantinopleBlockNumber + 1).value)
       override val config: EvmConfig = EvmConfig.ConstantinopleConfigBuilder(blockchainConfig)
     case object EIP2200 extends EipToCheck:
-      override val blockHeader: BlockHeader = prepareBlockHeader(blockchainConfig.phoenixBlockNumber + 1)
+      override val blockHeader: BlockHeader = prepareBlockHeader((blockchainConfig.phoenixBlockNumber + 1).value)
       override val config: EvmConfig = EvmConfig.PhoenixConfigBuilder(blockchainConfig)

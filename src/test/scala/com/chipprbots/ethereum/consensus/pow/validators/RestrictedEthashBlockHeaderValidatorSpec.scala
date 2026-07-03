@@ -90,15 +90,15 @@ class RestrictedEthashBlockHeaderValidatorSpec
     def createBlockchainConfig(allowedMiners: Set[ByteString]): BlockchainConfig =
       BlockchainConfig(
         forkBlockNumbers = ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 1150000,
-          difficultyBombPauseBlockNumber = 3000000,
-          difficultyBombContinueBlockNumber = 5000000,
-          difficultyBombRemovalBlockNumber = 5900000,
-          byzantiumBlockNumber = 4370000,
-          constantinopleBlockNumber = 7280000,
-          istanbulBlockNumber = 9069000,
-          eip106BlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(1150000),
+          difficultyBombPauseBlockNumber = BlockNumber(3000000),
+          difficultyBombContinueBlockNumber = BlockNumber(5000000),
+          difficultyBombRemovalBlockNumber = BlockNumber(5900000),
+          byzantiumBlockNumber = BlockNumber(4370000),
+          constantinopleBlockNumber = BlockNumber(7280000),
+          istanbulBlockNumber = BlockNumber(9069000),
+          eip106BlockNumber = BlockNumber(0)
         ),
         daoForkConfig = None,
         // unused

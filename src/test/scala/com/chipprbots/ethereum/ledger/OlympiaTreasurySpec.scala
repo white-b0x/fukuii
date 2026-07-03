@@ -5,6 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
@@ -69,13 +70,13 @@ class OlympiaTreasurySpec extends AnyFlatSpec with Matchers:
     OlympiaTest
   ) in {
     // Olympia is pending activation; block number must be far in the future
-    etcConfig.forkBlockNumbers.olympiaBlockNumber should be > BigInt("1000000000000")
+    etcConfig.forkBlockNumbers.olympiaBlockNumber should be > BlockNumber(BigInt("1000000000000"))
   }
 
   "Mordor Olympia block number" should "be set to a future block (not yet activated)" taggedAs (
     UnitTest,
     OlympiaTest
   ) in {
-    mordorConfig.forkBlockNumbers.olympiaBlockNumber should be > BigInt("1000000000000")
+    mordorConfig.forkBlockNumbers.olympiaBlockNumber should be > BlockNumber(BigInt("1000000000000"))
   }
 // scalastyle:on magic.number

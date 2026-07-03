@@ -240,11 +240,11 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
       gasTieBreaker = false,
       ethCompatibleStorage = true,
       forkBlockNumbers = ForkBlockNumbers.Empty.copy(
-        frontierBlockNumber = 0,
-        homesteadBlockNumber = 1150000,
-        difficultyBombPauseBlockNumber = 3000000,
-        difficultyBombContinueBlockNumber = 5000000,
-        difficultyBombRemovalBlockNumber = 5900000
+        frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(1150000),
+        difficultyBombPauseBlockNumber = BlockNumber(3000000),
+        difficultyBombContinueBlockNumber = BlockNumber(5000000),
+        difficultyBombRemovalBlockNumber = BlockNumber(5900000)
       )
     )
 
@@ -300,12 +300,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
   ) in new TestSetup:
     implicit override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers.Empty.copy(
-        frontierBlockNumber = 0,
-        homesteadBlockNumber = 1150000,
-        difficultyBombPauseBlockNumber = 3000000,
-        difficultyBombContinueBlockNumber = 5000000,
-        difficultyBombRemovalBlockNumber = 5900000,
-        eip161BlockNumber = 0
+        frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(1150000),
+        difficultyBombPauseBlockNumber = BlockNumber(3000000),
+        difficultyBombContinueBlockNumber = BlockNumber(5000000),
+        difficultyBombRemovalBlockNumber = BlockNumber(5900000),
+        eip161BlockNumber = BlockNumber(0)
       ),
       chainId = ChainId(0x3d),
       networkId = 1,
@@ -593,11 +593,11 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
 
     val baseBlockchainConfig: BlockchainConfig = BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers.Empty.copy(
-        homesteadBlockNumber = 1150000,
-        eip155BlockNumber = 0,
-        difficultyBombPauseBlockNumber = 3000000,
-        difficultyBombContinueBlockNumber = 5000000,
-        difficultyBombRemovalBlockNumber = 5900000
+        homesteadBlockNumber = BlockNumber(1150000),
+        eip155BlockNumber = BlockNumber(0),
+        difficultyBombPauseBlockNumber = BlockNumber(3000000),
+        difficultyBombContinueBlockNumber = BlockNumber(5000000),
+        difficultyBombRemovalBlockNumber = BlockNumber(5900000)
       ),
       chainId = ChainId(0x3d),
       networkId = 1,

@@ -29,9 +29,9 @@ class EIP1559FeeMarketSpec
 
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
     _.copy(
-      homesteadBlockNumber = 0,
-      eip155BlockNumber = 0,
-      olympiaBlockNumber = 0
+      homesteadBlockNumber = BlockNumber(0),
+      eip155BlockNumber = BlockNumber(0),
+      olympiaBlockNumber = BlockNumber(0)
     )
   )
 

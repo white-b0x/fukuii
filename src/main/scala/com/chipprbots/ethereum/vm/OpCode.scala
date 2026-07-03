@@ -208,7 +208,7 @@ object OpCode:
       postColdGasFn: FeeSchedule => BigInt,
       postWarmGasFn: FeeSchedule => BigInt
   ): BigInt =
-    val currentBlockNumber = state.env.blockHeader.number.value
+    val currentBlockNumber = state.env.blockHeader.number
     val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
     val ethFork = state.config.blockchainConfig.ethForkForBlockNumber(currentBlockNumber)
     val eip2929Enabled = isEip2929Enabled(etcFork, ethFork)
@@ -640,7 +640,7 @@ case object MSTORE8 extends OpCode(0x53, 2, 0, _.G_verylow):
 
 case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero):
   protected def exec[S <: Storage[S], W <: WorldStateProxy[W, S]](state: ProgramState[W, S]): ProgramState[W, S] =
-    val currentBlockNumber = state.env.blockHeader.number.value
+    val currentBlockNumber = state.env.blockHeader.number
     val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
     val ethFork = state.config.blockchainConfig.ethForkForBlockNumber(currentBlockNumber)
 
@@ -685,7 +685,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero):
     val (Seq(offset, newValue), _) = state.stack.pop(2)
     val currentValue = state.storage.load(StorageKey(offset.toBigInt))
 
-    val currentBlockNumber = state.env.blockHeader.number.value
+    val currentBlockNumber = state.env.blockHeader.number
     val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
     val ethFork = state.config.blockchainConfig.ethForkForBlockNumber(currentBlockNumber)
 

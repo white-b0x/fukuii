@@ -5,6 +5,7 @@ import org.apache.pekko.util.ByteString
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -21,7 +22,7 @@ class EIP7702AuthGasSpec
     with BlockchainConfigBuilder
     with com.chipprbots.ethereum.TestInstanceConfigProvider:
 
-  val olympiaBlock: BigInt = 10
+  val olympiaBlock: BlockNumber = BlockNumber(10)
 
   val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
     _.copy(olympiaBlockNumber = olympiaBlock)

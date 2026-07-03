@@ -40,13 +40,13 @@ class OlympiaBlockHeaderValidationSpec
   private val olympiaBlock: BigInt = BigInt(100)
 
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
-    _.copy(olympiaBlockNumber = olympiaBlock)
+    _.copy(olympiaBlockNumber = BlockNumber(olympiaBlock))
   )
 
   // ETH / Hive regime: baseFeeFloor = 0 (Big0). Under this floor the EIP-1559 decrease-branch
   // off-by-one becomes observable end-to-end through header validation.
   private val configFloorZero: BlockchainConfig = blockchainConfig
-    .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = olympiaBlock))
+    .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = BlockNumber(olympiaBlock)))
     .copy(baseFeeFloor = BigInt(0))
 
   private val InitialBaseFee: BigInt = BaseFeeCalculator.InitialBaseFee

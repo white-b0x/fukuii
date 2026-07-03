@@ -59,7 +59,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup:
 
   val defaultBlockHeader: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     difficulty = Difficulty(1000000),
-    number = BlockNumber(blockchainConfig.forkBlockNumbers.homesteadBlockNumber + 1),
+    number = blockchainConfig.forkBlockNumbers.homesteadBlockNumber + 1,
     gasLimit = GasAmount(1000000),
     gasUsed = GasAmount.Zero,
     unixTimestamp = Timestamp(1486752441)
@@ -234,18 +234,18 @@ trait DaoForkTestSetup extends TestSetup:
     override val range: Int = 10
     override val drainList: Seq[Address] = Seq(Address(1), Address(2), Address(3))
     override val forkBlockHash: ByteString = proDaoBlock.header.hash.value
-    override val forkBlockNumber: BigInt = proDaoBlock.header.number.value
+    override val forkBlockNumber: BlockNumber = proDaoBlock.header.number
     override val refundContract: Option[Address] = Some(Address(4))
     override val includeOnForkIdList: Boolean = false
 
   val proDaoBlockchainConfig: BlockchainConfig = blockchainConfig
     .withUpdatedForkBlocks(
       _.copy(
-        eip106BlockNumber = Long.MaxValue,
-        atlantisBlockNumber = Long.MaxValue,
-        aghartaBlockNumber = Long.MaxValue,
-        phoenixBlockNumber = Long.MaxValue,
-        petersburgBlockNumber = Long.MaxValue
+        eip106BlockNumber = BlockNumber(Long.MaxValue),
+        atlantisBlockNumber = BlockNumber(Long.MaxValue),
+        aghartaBlockNumber = BlockNumber(Long.MaxValue),
+        phoenixBlockNumber = BlockNumber(Long.MaxValue),
+        petersburgBlockNumber = BlockNumber(Long.MaxValue)
       )
     )
     .copy(

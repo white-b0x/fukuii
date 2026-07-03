@@ -30,7 +30,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
   // scalastyle:off
   object fxt:
     val fakeHeader: BlockHeader =
-      BlockFixtures.ValidBlock.header.copy(number = BlockNumber(blockchainConfig.constantinopleBlockNumber - 1))
+      BlockFixtures.ValidBlock.header.copy(number = blockchainConfig.constantinopleBlockNumber - 1)
     val addresWithRevert: Address = Address(10)
     val creatorAddr: Address = Address(0xcafe)
     val salt = UInt256.Zero

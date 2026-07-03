@@ -221,23 +221,26 @@ class TestService(
     val byzantiumBlockNumber: BigInt = blockchainParams.byzantiumForkBlock.getOrElse(neverOccurringBlock)
     val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccurringBlock)
     val berlinForkBlockNumber: BigInt = blockchainParams.berlinForkBlock.getOrElse(neverOccurringBlock)
+    val homesteadForkBlockNumber: BigInt = blockchainParams.homesteadForkBlock.getOrElse(neverOccurringBlock)
+    val eip150ForkBlockNumber: BigInt = blockchainParams.EIP150ForkBlock.getOrElse(neverOccurringBlock)
+    val constantinopleForkBlockNumber: BigInt = blockchainParams.constantinopleForkBlock.getOrElse(neverOccurringBlock)
 
     // For block number which are not specified by retesteth, we try to align the number to another fork
     node.blockchainConfig.copy(
       forkBlockNumbers = ForkBlockNumbers.Empty.copy(
-        homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccurringBlock),
-        eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(neverOccurringBlock),
-        eip155BlockNumber = byzantiumBlockNumber,
-        eip160BlockNumber = byzantiumBlockNumber,
-        eip161BlockNumber = byzantiumBlockNumber,
-        byzantiumBlockNumber = byzantiumBlockNumber,
-        constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(neverOccurringBlock),
-        petersburgBlockNumber = istanbulForkBlockNumber,
-        aghartaBlockNumber = istanbulForkBlockNumber,
-        istanbulBlockNumber = istanbulForkBlockNumber,
-        atlantisBlockNumber = istanbulForkBlockNumber,
-        phoenixBlockNumber = istanbulForkBlockNumber,
-        berlinBlockNumber = berlinForkBlockNumber
+        homesteadBlockNumber = BlockNumber(homesteadForkBlockNumber),
+        eip150BlockNumber = BlockNumber(eip150ForkBlockNumber),
+        eip155BlockNumber = BlockNumber(byzantiumBlockNumber),
+        eip160BlockNumber = BlockNumber(byzantiumBlockNumber),
+        eip161BlockNumber = BlockNumber(byzantiumBlockNumber),
+        byzantiumBlockNumber = BlockNumber(byzantiumBlockNumber),
+        constantinopleBlockNumber = BlockNumber(constantinopleForkBlockNumber),
+        petersburgBlockNumber = BlockNumber(istanbulForkBlockNumber),
+        aghartaBlockNumber = BlockNumber(istanbulForkBlockNumber),
+        istanbulBlockNumber = BlockNumber(istanbulForkBlockNumber),
+        atlantisBlockNumber = BlockNumber(istanbulForkBlockNumber),
+        phoenixBlockNumber = BlockNumber(istanbulForkBlockNumber),
+        berlinBlockNumber = BlockNumber(berlinForkBlockNumber)
       ),
       accountStartNonce = UInt256(blockchainParams.accountStartNonce.value),
       networkId = 1,

@@ -17,6 +17,7 @@ import com.chipprbots.ethereum.db.storage.pruning.BasicPruning
 import com.chipprbots.ethereum.db.storage.pruning.InMemoryPruning
 import com.chipprbots.ethereum.db.storage.pruning.PruningMode
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.utils.VmConfig.VmMode
 
@@ -297,7 +298,7 @@ object TxPoolConfig:
 
 trait DaoForkConfig:
 
-  val forkBlockNumber: BigInt
+  val forkBlockNumber: BlockNumber
   val forkBlockHash: ByteString
   val blockExtraData: Option[ByteString]
   val range: Int
@@ -305,26 +306,28 @@ trait DaoForkConfig:
   val drainList: Seq[Address]
   val includeOnForkIdList: Boolean
 
-  private lazy val extratadaBlockRange = forkBlockNumber until (forkBlockNumber + range)
+  // BlockNumber has no Integral/until instance (S11: opaque type, no numeric range support) —
+  // unwrap once here to build the BigInt Range, same idiom as IP-CL-G's StdOmmersValidator fix.
+  private lazy val extratadaBlockRange = forkBlockNumber.value until (forkBlockNumber.value + range)
 
-  def isDaoForkBlock(blockNumber: BigInt): Boolean = forkBlockNumber == blockNumber
+  def isDaoForkBlock(blockNumber: BlockNumber): Boolean = forkBlockNumber == blockNumber
 
-  def requiresExtraData(blockNumber: BigInt): Boolean =
-    blockExtraData.isDefined && (extratadaBlockRange contains blockNumber)
+  def requiresExtraData(blockNumber: BlockNumber): Boolean =
+    blockExtraData.isDefined && (extratadaBlockRange contains blockNumber.value)
 
-  def getExtraData(blockNumber: BigInt): Option[ByteString] =
+  def getExtraData(blockNumber: BlockNumber): Option[ByteString] =
     if requiresExtraData(blockNumber) then blockExtraData
     else None
 
 object DaoForkConfig:
   def apply(daoConfig: TypesafeConfig): DaoForkConfig =
 
-    val theForkBlockNumber = BigInt(daoConfig.getString("fork-block-number"))
+    val theForkBlockNumber = BlockNumber(BigInt(daoConfig.getString("fork-block-number")))
 
     val theForkBlockHash = ByteString(Hex.decode(daoConfig.getString("fork-block-hash")))
 
     new DaoForkConfig:
-      override val forkBlockNumber: BigInt = theForkBlockNumber
+      override val forkBlockNumber: BlockNumber = theForkBlockNumber
       override val forkBlockHash: ByteString = theForkBlockHash
       override val blockExtraData: Option[ByteString] =
         Try(daoConfig.getString("block-extra-data")).toOption.map(ByteString(_))

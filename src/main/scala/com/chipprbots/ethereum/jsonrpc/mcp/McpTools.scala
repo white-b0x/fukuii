@@ -443,17 +443,18 @@ object GetEtcForksTool:
     def status(block: BigInt): String =
       if block <= bestBlock then "ACTIVE" else s"PENDING (in ${block - bestBlock} blocks)"
 
+    // MCP text-tool boundary: unwrap the BlockNumber fork fields to feed the raw-BigInt `status` helper.
     s"""ETC Fork History (Chain ID: ${deps.blockchainConfig.chainId}):
-      |  Frontier:       block ${forks.frontierBlockNumber} [${status(forks.frontierBlockNumber)}]
-      |  Homestead:      block ${forks.homesteadBlockNumber} [${status(forks.homesteadBlockNumber)}]
-      |  EIP-150:        block ${forks.eip150BlockNumber} [${status(forks.eip150BlockNumber)}]
-      |  EIP-155/160:    block ${forks.eip155BlockNumber} [${status(forks.eip155BlockNumber)}]
-      |  Atlantis:       block ${forks.atlantisBlockNumber} [${status(forks.atlantisBlockNumber)}]
-      |  Agharta:        block ${forks.aghartaBlockNumber} [${status(forks.aghartaBlockNumber)}]
-      |  Phoenix:        block ${forks.phoenixBlockNumber} [${status(forks.phoenixBlockNumber)}]
-      |  Magneto:        block ${forks.magnetoBlockNumber} [${status(forks.magnetoBlockNumber)}]
-      |  Mystique:       block ${forks.mystiqueBlockNumber} [${status(forks.mystiqueBlockNumber)}]
-      |  Spiral:         block ${forks.spiralBlockNumber} [${status(forks.spiralBlockNumber)}]
+      |  Frontier:       block ${forks.frontierBlockNumber} [${status(forks.frontierBlockNumber.value)}]
+      |  Homestead:      block ${forks.homesteadBlockNumber} [${status(forks.homesteadBlockNumber.value)}]
+      |  EIP-150:        block ${forks.eip150BlockNumber} [${status(forks.eip150BlockNumber.value)}]
+      |  EIP-155/160:    block ${forks.eip155BlockNumber} [${status(forks.eip155BlockNumber.value)}]
+      |  Atlantis:       block ${forks.atlantisBlockNumber} [${status(forks.atlantisBlockNumber.value)}]
+      |  Agharta:        block ${forks.aghartaBlockNumber} [${status(forks.aghartaBlockNumber.value)}]
+      |  Phoenix:        block ${forks.phoenixBlockNumber} [${status(forks.phoenixBlockNumber.value)}]
+      |  Magneto:        block ${forks.magnetoBlockNumber} [${status(forks.magnetoBlockNumber.value)}]
+      |  Mystique:       block ${forks.mystiqueBlockNumber} [${status(forks.mystiqueBlockNumber.value)}]
+      |  Spiral:         block ${forks.spiralBlockNumber} [${status(forks.spiralBlockNumber.value)}]
       |  Best Block: $bestBlock""".stripMargin
   }
 

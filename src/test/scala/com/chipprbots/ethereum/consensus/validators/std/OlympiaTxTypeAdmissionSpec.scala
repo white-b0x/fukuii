@@ -30,9 +30,9 @@ class OlympiaTxTypeAdmissionSpec
 
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
     _.copy(
-      olympiaBlockNumber = olympiaBlock,
-      homesteadBlockNumber = 0,
-      eip155BlockNumber = 0
+      olympiaBlockNumber = BlockNumber(olympiaBlock),
+      homesteadBlockNumber = BlockNumber(0),
+      eip155BlockNumber = BlockNumber(0)
     )
   )
 

@@ -36,7 +36,11 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
   private val secureRandom = new SecureRandom()
 
   private val olympiaConfig: BlockchainConfig = setup.blockchainConfig.withUpdatedForkBlocks(
-    _.copy(olympiaBlockNumber = BigInt(1), homesteadBlockNumber = BigInt(0), eip155BlockNumber = BigInt(0))
+    _.copy(
+      olympiaBlockNumber = BlockNumber(1),
+      homesteadBlockNumber = BlockNumber(0),
+      eip155BlockNumber = BlockNumber(0)
+    )
   )
 
   private val olympiaHeader: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(

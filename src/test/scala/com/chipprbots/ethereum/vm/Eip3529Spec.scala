@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.vm
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.testing.Tags.*
 
 import Fixtures.blockchainConfig
@@ -11,11 +12,11 @@ import Fixtures.blockchainConfig
   */
 class Eip3529SpecPostMystique extends Eip3529Spec:
   override val config: EvmConfig = EvmConfig.MystiqueConfigBuilder(blockchainConfig)
-  override val forkBlockHeight = Fixtures.MystiqueBlockNumber
+  override val forkBlockHeight: BlockNumber = BlockNumber(Fixtures.MystiqueBlockNumber)
 
 trait Eip3529Spec extends AnyFunSuite with Matchers:
 
-  protected def forkBlockHeight: Int
+  protected def forkBlockHeight: BlockNumber
   protected def config: EvmConfig
 
   test("EIP-3529: R_sclear should be 4800", UnitTest, VMTest) {
@@ -32,9 +33,9 @@ trait Eip3529Spec extends AnyFunSuite with Matchers:
   }
 
   test("EIP-3529: isEip3529Enabled should return false for pre-Mystique forks", UnitTest, VMTest) {
-    val magnetoFork = blockchainConfig.etcForkForBlockNumber(Fixtures.MagnetoBlockNumber)
+    val magnetoFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MagnetoBlockNumber))
     BlockchainConfigForEvm.isEip3529Enabled(magnetoFork) shouldBe false
 
-    val phoenixFork = blockchainConfig.etcForkForBlockNumber(Fixtures.PhoenixBlockNumber)
+    val phoenixFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.PhoenixBlockNumber))
     BlockchainConfigForEvm.isEip3529Enabled(phoenixFork) shouldBe false
   }

@@ -1,5 +1,6 @@
 package com.chipprbots.ethereum.vm
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.UInt256
@@ -25,26 +26,26 @@ import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EthForks.Petersburg
   */
 case class BlockchainConfigForEvm(
     // ETH forks
-    frontierBlockNumber: BigInt,
-    homesteadBlockNumber: BigInt,
-    eip150BlockNumber: BigInt,
-    eip160BlockNumber: BigInt,
-    eip161BlockNumber: BigInt,
-    byzantiumBlockNumber: BigInt,
-    constantinopleBlockNumber: BigInt,
-    istanbulBlockNumber: BigInt,
+    frontierBlockNumber: BlockNumber,
+    homesteadBlockNumber: BlockNumber,
+    eip150BlockNumber: BlockNumber,
+    eip160BlockNumber: BlockNumber,
+    eip161BlockNumber: BlockNumber,
+    byzantiumBlockNumber: BlockNumber,
+    constantinopleBlockNumber: BlockNumber,
+    istanbulBlockNumber: BlockNumber,
     maxCodeSize: Option[BigInt],
     accountStartNonce: UInt256,
     // ETC forks
-    atlantisBlockNumber: BigInt,
-    aghartaBlockNumber: BigInt,
-    petersburgBlockNumber: BigInt,
-    phoenixBlockNumber: BigInt,
-    magnetoBlockNumber: BigInt,
-    berlinBlockNumber: BigInt,
-    mystiqueBlockNumber: BigInt,
-    spiralBlockNumber: BigInt,
-    olympiaBlockNumber: BigInt,
+    atlantisBlockNumber: BlockNumber,
+    aghartaBlockNumber: BlockNumber,
+    petersburgBlockNumber: BlockNumber,
+    phoenixBlockNumber: BlockNumber,
+    magnetoBlockNumber: BlockNumber,
+    berlinBlockNumber: BlockNumber,
+    mystiqueBlockNumber: BlockNumber,
+    spiralBlockNumber: BlockNumber,
+    olympiaBlockNumber: BlockNumber,
     chainId: ChainId,
     // Timestamp-based ETH forks (post-merge)
     pragueTimestamp: Option[Long] = None,
@@ -77,7 +78,7 @@ case class BlockchainConfigForEvm(
   def isBpo2Timestamp(timestamp: Timestamp): Boolean =
     bpo2Timestamp.exists(ts => timestamp.toLong >= ts)
 
-  def etcForkForBlockNumber(blockNumber: BigInt): EtcFork = blockNumber match
+  def etcForkForBlockNumber(blockNumber: BlockNumber): EtcFork = blockNumber match
     case _ if blockNumber < atlantisBlockNumber => BeforeAtlantis
     case _ if blockNumber < aghartaBlockNumber  => Atlantis
     case _ if blockNumber < phoenixBlockNumber  => Agharta
@@ -87,7 +88,7 @@ case class BlockchainConfigForEvm(
     case _ if blockNumber < olympiaBlockNumber  => Spiral
     case _ if blockNumber >= olympiaBlockNumber => Olympia
 
-  def ethForkForBlockNumber(blockNumber: BigInt): BlockchainConfigForEvm.EthForks.Value = blockNumber match
+  def ethForkForBlockNumber(blockNumber: BlockNumber): BlockchainConfigForEvm.EthForks.Value = blockNumber match
     case _ if blockNumber < byzantiumBlockNumber      => BeforeByzantium
     case _ if blockNumber < constantinopleBlockNumber => Byzantium
     case _ if blockNumber < petersburgBlockNumber     => Constantinople

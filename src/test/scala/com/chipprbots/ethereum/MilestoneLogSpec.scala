@@ -3,6 +3,7 @@ package com.chipprbots.ethereum
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.ForkBlockNumbers
 
@@ -10,7 +11,7 @@ import com.chipprbots.ethereum.utils.ForkBlockNumbers
 class MilestoneLogSpec extends AnyFlatSpec with Matchers:
 
   "MilestoneLog.formatMilestones" should "show '[]' when all blocks are Long.MaxValue" taggedAs UnitTest in {
-    val empty = ForkBlockNumbers.Empty.copy(frontierBlockNumber = Long.MaxValue)
+    val empty = ForkBlockNumbers.Empty.copy(frontierBlockNumber = BlockNumber(Long.MaxValue))
     MilestoneLog.formatMilestones(empty) shouldBe "[]"
   }
 
@@ -28,7 +29,7 @@ class MilestoneLogSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "include Olympia when activated" taggedAs UnitTest in {
-    val forks = ForkBlockNumbers.Empty.copy(olympiaBlockNumber = BigInt(30_000_000))
+    val forks = ForkBlockNumbers.Empty.copy(olympiaBlockNumber = BlockNumber(30_000_000))
     val result = MilestoneLog.formatMilestones(forks)
     result should include("Olympia:30000000")
   }
@@ -42,9 +43,9 @@ class MilestoneLogSpec extends AnyFlatSpec with Matchers:
 
   it should "list milestones in order" taggedAs UnitTest in {
     val forks = ForkBlockNumbers.Empty.copy(
-      homesteadBlockNumber = BigInt(1_150_000),
-      spiralBlockNumber = BigInt(19_250_000),
-      olympiaBlockNumber = BigInt(30_000_000)
+      homesteadBlockNumber = BlockNumber(1_150_000),
+      spiralBlockNumber = BlockNumber(19_250_000),
+      olympiaBlockNumber = BlockNumber(30_000_000)
     )
     val result = MilestoneLog.formatMilestones(forks)
     val homesteadIdx = result.indexOf("Homestead")
@@ -60,30 +61,30 @@ class MilestoneLogSpec extends AnyFlatSpec with Matchers:
     // ETH-only forks (EIP-106, EIP-161, Byzantium, Constantinople, Istanbul, Petersburg,
     // Muir Glacier, Berlin) use Long.MaxValue — never activated on ETC mainnet
     val forks = ForkBlockNumbers(
-      frontierBlockNumber = 0,
-      homesteadBlockNumber = 1_150_000,
-      eip106BlockNumber = Long.MaxValue,
-      eip150BlockNumber = 2_500_000,
-      eip155BlockNumber = 3_000_000,
-      eip160BlockNumber = 3_000_000,
-      eip161BlockNumber = Long.MaxValue,
-      difficultyBombPauseBlockNumber = 3_000_000, // ECIP-1010
-      difficultyBombContinueBlockNumber = 5_000_000, // ECIP-1010 pause length 2,000,000
-      difficultyBombRemovalBlockNumber = 5_900_000, // DisposalBlock
-      byzantiumBlockNumber = Long.MaxValue,
-      constantinopleBlockNumber = Long.MaxValue,
-      istanbulBlockNumber = Long.MaxValue,
-      atlantisBlockNumber = 8_772_000,
-      aghartaBlockNumber = 9_573_000,
-      phoenixBlockNumber = 10_500_839,
-      petersburgBlockNumber = Long.MaxValue,
-      ecip1099BlockNumber = 11_700_000,
-      muirGlacierBlockNumber = Long.MaxValue,
-      magnetoBlockNumber = 13_189_133,
-      berlinBlockNumber = Long.MaxValue,
-      mystiqueBlockNumber = 14_525_000,
-      spiralBlockNumber = 19_250_000,
-      olympiaBlockNumber = Long.MaxValue // not yet scheduled on ETC mainnet
+      frontierBlockNumber = BlockNumber(0),
+      homesteadBlockNumber = BlockNumber(1_150_000),
+      eip106BlockNumber = BlockNumber(Long.MaxValue),
+      eip150BlockNumber = BlockNumber(2_500_000),
+      eip155BlockNumber = BlockNumber(3_000_000),
+      eip160BlockNumber = BlockNumber(3_000_000),
+      eip161BlockNumber = BlockNumber(Long.MaxValue),
+      difficultyBombPauseBlockNumber = BlockNumber(3_000_000), // ECIP-1010
+      difficultyBombContinueBlockNumber = BlockNumber(5_000_000), // ECIP-1010 pause length 2,000,000
+      difficultyBombRemovalBlockNumber = BlockNumber(5_900_000), // DisposalBlock
+      byzantiumBlockNumber = BlockNumber(Long.MaxValue),
+      constantinopleBlockNumber = BlockNumber(Long.MaxValue),
+      istanbulBlockNumber = BlockNumber(Long.MaxValue),
+      atlantisBlockNumber = BlockNumber(8_772_000),
+      aghartaBlockNumber = BlockNumber(9_573_000),
+      phoenixBlockNumber = BlockNumber(10_500_839),
+      petersburgBlockNumber = BlockNumber(Long.MaxValue),
+      ecip1099BlockNumber = BlockNumber(11_700_000),
+      muirGlacierBlockNumber = BlockNumber(Long.MaxValue),
+      magnetoBlockNumber = BlockNumber(13_189_133),
+      berlinBlockNumber = BlockNumber(Long.MaxValue),
+      mystiqueBlockNumber = BlockNumber(14_525_000),
+      spiralBlockNumber = BlockNumber(19_250_000),
+      olympiaBlockNumber = BlockNumber(Long.MaxValue) // not yet scheduled on ETC mainnet
     )
     val result = MilestoneLog.formatMilestones(forks)
     result should include("Frontier:0")
@@ -112,30 +113,30 @@ class MilestoneLogSpec extends AnyFlatSpec with Matchers:
     // All genesis forks (Frontier through Atlantis) activated at block 0
     // ETH-only forks use Long.MaxValue — never activated on Mordor
     val forks = ForkBlockNumbers(
-      frontierBlockNumber = 0,
-      homesteadBlockNumber = 0,
-      eip106BlockNumber = Long.MaxValue,
-      eip150BlockNumber = 0,
-      eip155BlockNumber = 0,
-      eip160BlockNumber = 0,
-      eip161BlockNumber = Long.MaxValue,
-      difficultyBombPauseBlockNumber = 0,
-      difficultyBombContinueBlockNumber = 0,
-      difficultyBombRemovalBlockNumber = 0,
-      byzantiumBlockNumber = Long.MaxValue,
-      constantinopleBlockNumber = Long.MaxValue,
-      istanbulBlockNumber = Long.MaxValue,
-      atlantisBlockNumber = 0,
-      aghartaBlockNumber = 301_243,
-      phoenixBlockNumber = 999_983,
-      petersburgBlockNumber = Long.MaxValue,
-      ecip1099BlockNumber = 2_520_000,
-      muirGlacierBlockNumber = Long.MaxValue,
-      magnetoBlockNumber = 3_985_893,
-      berlinBlockNumber = Long.MaxValue,
-      mystiqueBlockNumber = 5_520_000,
-      spiralBlockNumber = 9_957_000,
-      olympiaBlockNumber = Long.MaxValue // not yet activated on Mordor
+      frontierBlockNumber = BlockNumber(0),
+      homesteadBlockNumber = BlockNumber(0),
+      eip106BlockNumber = BlockNumber(Long.MaxValue),
+      eip150BlockNumber = BlockNumber(0),
+      eip155BlockNumber = BlockNumber(0),
+      eip160BlockNumber = BlockNumber(0),
+      eip161BlockNumber = BlockNumber(Long.MaxValue),
+      difficultyBombPauseBlockNumber = BlockNumber(0),
+      difficultyBombContinueBlockNumber = BlockNumber(0),
+      difficultyBombRemovalBlockNumber = BlockNumber(0),
+      byzantiumBlockNumber = BlockNumber(Long.MaxValue),
+      constantinopleBlockNumber = BlockNumber(Long.MaxValue),
+      istanbulBlockNumber = BlockNumber(Long.MaxValue),
+      atlantisBlockNumber = BlockNumber(0),
+      aghartaBlockNumber = BlockNumber(301_243),
+      phoenixBlockNumber = BlockNumber(999_983),
+      petersburgBlockNumber = BlockNumber(Long.MaxValue),
+      ecip1099BlockNumber = BlockNumber(2_520_000),
+      muirGlacierBlockNumber = BlockNumber(Long.MaxValue),
+      magnetoBlockNumber = BlockNumber(3_985_893),
+      berlinBlockNumber = BlockNumber(Long.MaxValue),
+      mystiqueBlockNumber = BlockNumber(5_520_000),
+      spiralBlockNumber = BlockNumber(9_957_000),
+      olympiaBlockNumber = BlockNumber(Long.MaxValue) // not yet activated on Mordor
     )
     val result = MilestoneLog.formatMilestones(forks)
     result should include("Frontier:0")
@@ -156,30 +157,30 @@ class MilestoneLogSpec extends AnyFlatSpec with Matchers:
 
   it should "include all 24 named milestones in the ETC mainnet-equivalent config" taggedAs UnitTest in {
     val forks = ForkBlockNumbers(
-      frontierBlockNumber = 0,
-      homesteadBlockNumber = 1_150_000,
-      eip106BlockNumber = 2_463_000,
-      eip150BlockNumber = 2_500_000,
-      eip155BlockNumber = 3_000_000,
-      eip160BlockNumber = 3_000_000,
-      eip161BlockNumber = 3_000_000,
-      difficultyBombPauseBlockNumber = 3_000_000,
-      difficultyBombContinueBlockNumber = 5_900_000,
-      difficultyBombRemovalBlockNumber = 5_900_000,
-      byzantiumBlockNumber = 8_772_000,
-      constantinopleBlockNumber = 9_573_000,
-      istanbulBlockNumber = 10_500_839,
-      atlantisBlockNumber = 8_772_000,
-      aghartaBlockNumber = 9_573_000,
-      phoenixBlockNumber = 10_500_839,
-      petersburgBlockNumber = 9_573_000,
-      ecip1099BlockNumber = 11_700_000,
-      muirGlacierBlockNumber = Long.MaxValue,
-      magnetoBlockNumber = 13_189_133,
-      berlinBlockNumber = 13_189_133,
-      mystiqueBlockNumber = 14_525_000,
-      spiralBlockNumber = 19_250_000,
-      olympiaBlockNumber = Long.MaxValue // pending
+      frontierBlockNumber = BlockNumber(0),
+      homesteadBlockNumber = BlockNumber(1_150_000),
+      eip106BlockNumber = BlockNumber(2_463_000),
+      eip150BlockNumber = BlockNumber(2_500_000),
+      eip155BlockNumber = BlockNumber(3_000_000),
+      eip160BlockNumber = BlockNumber(3_000_000),
+      eip161BlockNumber = BlockNumber(3_000_000),
+      difficultyBombPauseBlockNumber = BlockNumber(3_000_000),
+      difficultyBombContinueBlockNumber = BlockNumber(5_900_000),
+      difficultyBombRemovalBlockNumber = BlockNumber(5_900_000),
+      byzantiumBlockNumber = BlockNumber(8_772_000),
+      constantinopleBlockNumber = BlockNumber(9_573_000),
+      istanbulBlockNumber = BlockNumber(10_500_839),
+      atlantisBlockNumber = BlockNumber(8_772_000),
+      aghartaBlockNumber = BlockNumber(9_573_000),
+      phoenixBlockNumber = BlockNumber(10_500_839),
+      petersburgBlockNumber = BlockNumber(9_573_000),
+      ecip1099BlockNumber = BlockNumber(11_700_000),
+      muirGlacierBlockNumber = BlockNumber(Long.MaxValue),
+      magnetoBlockNumber = BlockNumber(13_189_133),
+      berlinBlockNumber = BlockNumber(13_189_133),
+      mystiqueBlockNumber = BlockNumber(14_525_000),
+      spiralBlockNumber = BlockNumber(19_250_000),
+      olympiaBlockNumber = BlockNumber(Long.MaxValue) // pending
     )
     val result = MilestoneLog.formatMilestones(forks)
     result should include("Frontier:0")

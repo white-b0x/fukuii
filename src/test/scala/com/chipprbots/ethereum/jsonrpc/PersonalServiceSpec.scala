@@ -126,7 +126,7 @@ class PersonalServiceSpec
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
     blockchainReader.getAccount.expects(*, address, BlockNumber(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
+    (() => blockchainReader.getBestBlockNumber).expects().returning((forkBlockNumbers.eip155BlockNumber - 1).value)
 
     val req: SendTransactionWithPassphraseRequest = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res: Future[Either[JsonRpcError, SendTransactionWithPassphraseResponse]] =
@@ -149,7 +149,7 @@ class PersonalServiceSpec
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
     blockchainReader.getAccount.expects(*, address, BlockNumber(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
+    (() => blockchainReader.getBestBlockNumber).expects().returning((forkBlockNumbers.eip155BlockNumber - 1).value)
 
     val req: SendTransactionWithPassphraseRequest = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res: Future[Either[JsonRpcError, SendTransactionWithPassphraseResponse]] =
@@ -183,7 +183,7 @@ class PersonalServiceSpec
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
     blockchainReader.getAccount.expects(*, address, BlockNumber(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
+    (() => blockchainReader.getBestBlockNumber).expects().returning((forkBlockNumbers.eip155BlockNumber - 1).value)
 
     val req: SendTransactionRequest = SendTransactionRequest(tx)
     val res: Future[Either[JsonRpcError, SendTransactionResponse]] = personal.sendTransaction(req).unsafeToFuture()
@@ -338,7 +338,7 @@ class PersonalServiceSpec
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
     blockchainReader.getAccount.expects(*, address, BlockNumber(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
+    (() => blockchainReader.getBestBlockNumber).expects().returning((forkBlockNumbers.eip155BlockNumber - 1).value)
 
     val req: SendTransactionWithPassphraseRequest = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res: Future[Either[JsonRpcError, SendTransactionWithPassphraseResponse]] =
@@ -357,7 +357,7 @@ class PersonalServiceSpec
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
     blockchainReader.getAccount.expects(*, address, BlockNumber(1234)).returning(Some(Account(nonce, 2 * txValue)))
     new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber)
+    (() => blockchainReader.getBestBlockNumber).expects().returning(forkBlockNumbers.eip155BlockNumber.value)
 
     val req: SendTransactionWithPassphraseRequest = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res: Future[Either[JsonRpcError, SendTransactionWithPassphraseResponse]] =
@@ -454,22 +454,22 @@ class PersonalServiceSpec
 
     val chainId: ChainId = ChainId(BigInt(0x03))
     val forkBlockNumbers: ForkBlockNumbers = ForkBlockNumbers.Empty.copy(
-      eip155BlockNumber = 12345,
-      eip161BlockNumber = 0,
-      frontierBlockNumber = 0,
-      difficultyBombPauseBlockNumber = 0,
-      difficultyBombContinueBlockNumber = 0,
-      homesteadBlockNumber = 0,
-      eip150BlockNumber = 0,
-      eip160BlockNumber = 0,
-      eip106BlockNumber = 0,
-      byzantiumBlockNumber = 0,
-      constantinopleBlockNumber = 0,
-      istanbulBlockNumber = 0,
-      atlantisBlockNumber = 0,
-      aghartaBlockNumber = 0,
-      phoenixBlockNumber = 0,
-      petersburgBlockNumber = 0
+      eip155BlockNumber = BlockNumber(12345),
+      eip161BlockNumber = BlockNumber(0),
+      frontierBlockNumber = BlockNumber(0),
+      difficultyBombPauseBlockNumber = BlockNumber(0),
+      difficultyBombContinueBlockNumber = BlockNumber(0),
+      homesteadBlockNumber = BlockNumber(0),
+      eip150BlockNumber = BlockNumber(0),
+      eip160BlockNumber = BlockNumber(0),
+      eip106BlockNumber = BlockNumber(0),
+      byzantiumBlockNumber = BlockNumber(0),
+      constantinopleBlockNumber = BlockNumber(0),
+      istanbulBlockNumber = BlockNumber(0),
+      atlantisBlockNumber = BlockNumber(0),
+      aghartaBlockNumber = BlockNumber(0),
+      phoenixBlockNumber = BlockNumber(0),
+      petersburgBlockNumber = BlockNumber(0)
     )
 
     val wallet: Wallet = Wallet(address, prvKey)

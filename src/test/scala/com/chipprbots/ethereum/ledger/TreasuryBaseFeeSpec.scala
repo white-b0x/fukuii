@@ -31,7 +31,7 @@ class TreasuryBaseFeeSpec extends AnyFlatSpec with Matchers with MockFactory:
       .copy(
         treasuryAddress = treasuryAddr,
         forkBlockNumbers = baseConfig.forkBlockNumbers.copy(
-          olympiaBlockNumber = olympiaBlock
+          olympiaBlockNumber = BlockNumber(olympiaBlock)
         )
       )
 
@@ -113,7 +113,7 @@ class TreasuryBaseFeeSpec extends AnyFlatSpec with Matchers with MockFactory:
       .copy(
         treasuryAddress = treasuryAddr,
         forkBlockNumbers = baseConfig.forkBlockNumbers.copy(
-          olympiaBlockNumber = olympiaBlock
+          olympiaBlockNumber = BlockNumber(olympiaBlock)
         )
       )
 

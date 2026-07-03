@@ -35,7 +35,9 @@ class OlympiaFeeMarketSpec
   private val olympiaBlock: BigInt = BigInt(100)
 
   implicit val config: BlockchainConfig = blockchainConfig
-    .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = olympiaBlock, olympiaGasTarget = Some(BigInt(60_000_000))))
+    .withUpdatedForkBlocks(
+      _.copy(olympiaBlockNumber = BlockNumber(olympiaBlock), olympiaGasTarget = Some(BigInt(60_000_000)))
+    )
     .copy(baseFeeFloor = BaseFeeCalculator.InitialBaseFee, minTip = BaseFeeCalculator.InitialBaseFee)
 
   private val InitialBaseFee: BigInt = BaseFeeCalculator.InitialBaseFee

@@ -24,7 +24,7 @@ object BaseFeeCalculator:
     *   the expected baseFee for the child block
     */
   def calcBaseFee(parent: BlockHeader, blockchainConfig: BlockchainConfig): BaseFeePerGas =
-    val isParentOlympia = parent.number.value >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
+    val isParentOlympia = parent.number >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
     if !isParentOlympia then return BaseFeePerGas(InitialBaseFee)
 
     val parentBaseFee = parent.baseFee.map(_.value).getOrElse(InitialBaseFee)

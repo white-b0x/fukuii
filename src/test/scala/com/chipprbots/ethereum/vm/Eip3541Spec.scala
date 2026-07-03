@@ -166,15 +166,15 @@ class Eip3541Spec extends AnyWordSpec with Matchers:
     }
 
     "isEip3541Enabled should return true for Mystique fork" taggedAs (UnitTest, VMTest) in {
-      val etcFork = blockchainConfig.etcForkForBlockNumber(Fixtures.MystiqueBlockNumber)
+      val etcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MystiqueBlockNumber))
       BlockchainConfigForEvm.isEip3541Enabled(etcFork) shouldBe true
     }
 
     "isEip3541Enabled should return false for pre-Mystique forks" taggedAs (UnitTest, VMTest) in {
-      val magnetoFork = blockchainConfig.etcForkForBlockNumber(Fixtures.MagnetoBlockNumber)
+      val magnetoFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MagnetoBlockNumber))
       BlockchainConfigForEvm.isEip3541Enabled(magnetoFork) shouldBe false
 
-      val phoenixFork = blockchainConfig.etcForkForBlockNumber(Fixtures.PhoenixBlockNumber)
+      val phoenixFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.PhoenixBlockNumber))
       BlockchainConfigForEvm.isEip3541Enabled(phoenixFork) shouldBe false
     }
   }

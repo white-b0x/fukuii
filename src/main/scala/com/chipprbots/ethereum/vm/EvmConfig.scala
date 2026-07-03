@@ -66,7 +66,7 @@ object EvmConfig:
     val etcForksDisabled = blockchainConfig.spiralBlockNumber > blockchainConfig.olympiaBlockNumber
     val olympiaBuilder = if etcForksDisabled then LondonConfigBuilder else OlympiaConfigBuilder
 
-    val transitionBlockToConfigWithPriorityMapping: List[(BigInt, Int, EvmConfigBuilder)] = List(
+    val transitionBlockToConfigWithPriorityMapping: List[(BlockNumber, Int, EvmConfigBuilder)] = List(
       (blockchainConfig.frontierBlockNumber, 1, FrontierConfigBuilder),
       (blockchainConfig.homesteadBlockNumber, 2, HomesteadConfigBuilder),
       (blockchainConfig.eip150BlockNumber, 3, PostEIP150ConfigBuilder),
@@ -90,7 +90,7 @@ object EvmConfig:
 
     // highest transition block that is less/equal to `blockNumber`
     val evmConfigBuilder = transitionBlockToConfigWithPriorityMapping
-      .filterNot { case (number, _, _) => number > blockNumber.value }
+      .filterNot { case (number, _, _) => number > blockNumber }
       .maxBy { case (number, priority, _) => (number, priority) }
       ._3
 
