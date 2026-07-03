@@ -784,7 +784,7 @@ object NetworkPeerManagerActor:
         case m: ETHPackets.NewBlock =>
           // Track best network tip for timed TD calibration. NewBlock carries exact cumulative TD
           // and block number — more precise than ETH68 STATUS.
-          val newBlockTD = m.totalDifficulty
+          val newBlockTD = m.totalDifficulty.value
           val newBlockNum = m.block.header.number.value
           if bestNetworkTip.forall { case (best, _) => newBlockTD > best } then
             val prevTD = bestNetworkTip.map(_._1).getOrElse(BigInt(0))
@@ -804,7 +804,7 @@ object NetworkPeerManagerActor:
       message match
         case newBlock: ETHPackets.NewBlock =>
           val prevTD = initialPeerInfo.chainWeight.totalDifficulty.value
-          val actualTD = newBlock.totalDifficulty
+          val actualTD = newBlock.totalDifficulty.value
           val delta = actualTD - prevTD
           val deltaPercent = if prevTD > 0 then (delta * 100) / prevTD else BigInt(0)
           log.debug(
@@ -815,7 +815,7 @@ object NetworkPeerManagerActor:
             delta,
             deltaPercent
           )
-          initialPeerInfo.copy(chainWeight = ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty))
+          initialPeerInfo.copy(chainWeight = ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty.value))
         case _ => initialPeerInfo
 
     private def updateForkAccepted(message: Message, peer: Peer)(initialPeerInfo: PeerInfo): PeerInfo =
@@ -880,7 +880,7 @@ object NetworkPeerManagerActor:
         case m: ETHPackets.NewBlock =>
           update(Seq((m.block.header.number.value, m.block.header.hash.value)))
         case m: NewBlockHashes =>
-          update(m.hashes.map(h => (h.number, h.hash)))
+          update(m.hashes.map(h => (h.number.value, h.hash)))
         case m: ETHPackets.BlockRangeUpdate =>
           update(Seq((m.latestBlock, m.latestBlockHash)))
         case _ => initialPeerInfo

@@ -6,6 +6,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import com.chipprbots.ethereum.ObjectGenerators
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.forkid.ForkId
 import com.chipprbots.ethereum.rlp.RLPList
 import com.chipprbots.ethereum.testing.Tags.*
@@ -82,10 +83,22 @@ class ETHPacketsRoundTripSpec extends AnyWordSpec with Matchers with ScalaCheckP
         val blockHashGen = for
           h <- hash32Gen
           n <- blockNumGen
-        yield BlockHash(h, n)
+        yield BlockHash(h, BlockNumber(n))
         forAll(Gen.listOf(blockHashGen)) { hashes =>
           NewBlockHashes(hashes).toBytes.toNewBlockHashes shouldBe NewBlockHashes(hashes)
         }
+      }
+
+      "encode a zero block number as the canonical RLP zero-scalar byte (0x00), not the empty string (0x80)" taggedAs UnitTest in {
+        import ETHPackets.NewBlockHashes.BlockHash
+        import ETHPackets.NewBlockHashes.BlockHash.*
+        import com.chipprbots.ethereum.rlp.RLPValue
+
+        val blockHash = BlockHash(ByteString(Array.fill[Byte](32)(0)), BlockNumber(0))
+        blockHash.toRLPEncodable shouldBe RLPList(
+          RLPValue(blockHash.hash.toArray[Byte]),
+          RLPValue(Array[Byte](0x00))
+        )
       }
     }
 

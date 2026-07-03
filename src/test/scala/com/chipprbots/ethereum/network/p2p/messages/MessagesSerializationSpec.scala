@@ -7,10 +7,12 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.crypto.ECDSASignature
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.Nonce
 import com.chipprbots.ethereum.domain.SignedTransaction
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.TransactionWithAccessList
 import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.forkid.ForkId
@@ -115,14 +117,14 @@ class MessagesSerializationSpec extends AnyWordSpec with Matchers:
 
     "encoding and decoding NewBlock" should {
       "return same result" in {
-        val msg = NewBlock(Fixtures.Blocks.Block3125369.block, 2323)
+        val msg = NewBlock(Fixtures.Blocks.Block3125369.block, TotalDifficulty(BigInt(2323)))
         verify(msg, (m: NewBlock) => m.toBytes, Codes.NewBlockCode, version)
       }
 
       "handle totalDifficulty >= 128 correctly (two's complement edge case)" in {
         val msg = NewBlock(
           Fixtures.Blocks.Block3125369.block,
-          totalDifficulty = BigInt("8000000000000000", 16)
+          totalDifficulty = TotalDifficulty(BigInt("8000000000000000", 16))
         )
         verify(msg, (m: NewBlock) => m.toBytes, Codes.NewBlockCode, version)
       }
@@ -130,7 +132,9 @@ class MessagesSerializationSpec extends AnyWordSpec with Matchers:
 
     "encoding and decoding NewBlockHashes" should {
       "return same result" in {
-        val msg = NewBlockHashes(Seq(BlockHash(ByteString("hash1"), 1), BlockHash(ByteString("hash2"), 2)))
+        val msg = NewBlockHashes(
+          Seq(BlockHash(ByteString("hash1"), BlockNumber(1)), BlockHash(ByteString("hash2"), BlockNumber(2)))
+        )
         verify(msg, (m: NewBlockHashes) => m.toBytes, Codes.NewBlockHashesCode, version)
       }
     }

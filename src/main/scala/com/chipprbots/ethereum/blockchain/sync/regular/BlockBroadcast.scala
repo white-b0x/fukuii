@@ -93,7 +93,7 @@ class BlockBroadcast(
       // the immediate FCU-time announce reached nobody so the recovery path is the one that actually delivers.
       log.info("CANONICAL_HEAD_ANNOUNCE: no handshaked peers yet for block {} — deferring to peer-scan", head.number)
     else
-      val newBlockHashMsg = ETHPackets.NewBlockHashes.NewBlockHashes(Seq(BlockHash(head.hash.value, head.number.value)))
+      val newBlockHashMsg = ETHPackets.NewBlockHashes.NewBlockHashes(Seq(BlockHash(head.hash.value, head.number)))
       val bru = ETH69.BlockRangeUpdate(BigInt(0), head.number.value, head.hash.value)
       log.info(
         "CANONICAL_HEAD_ANNOUNCE: block={} hash={} to {} handshaked peers",
@@ -142,7 +142,7 @@ class BlockBroadcast(
     peer =>
       val newBlockHeader = blockToBroadcast.block.header
       val newBlockHashMsg =
-        ETHPackets.NewBlockHashes.NewBlockHashes(Seq(BlockHash(newBlockHeader.hash.value, newBlockHeader.number.value)))
+        ETHPackets.NewBlockHashes.NewBlockHashes(Seq(BlockHash(newBlockHeader.hash.value, newBlockHeader.number)))
       networkPeerManager ! NetworkPeerManagerActor.SendMessageCmd(newBlockHashMsg, peer.id)
   }
 
@@ -162,4 +162,4 @@ object BlockBroadcast:
     * versions of NewBlock msg)
     */
   case class BlockToBroadcast(block: Block, chainWeight: ChainWeight):
-    def as63: ETHPackets.NewBlock = ETHPackets.NewBlock(block, chainWeight.totalDifficulty.value)
+    def as63: ETHPackets.NewBlock = ETHPackets.NewBlock(block, chainWeight.totalDifficulty)

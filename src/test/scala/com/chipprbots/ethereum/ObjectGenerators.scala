@@ -244,7 +244,7 @@ trait ObjectGenerators:
     stxs <- signedTxSeqGen(10, secureRandom, chainId)
     uncles <- seqBlockHeaderGen
     td <- bigIntGen
-  yield NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), td)
+  yield NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), TotalDifficulty(td))
 
   def extraFieldsGen: Gen[HeaderExtraFields] = Gen.oneOf(
     Gen.const(HefEmpty),

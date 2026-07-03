@@ -539,7 +539,7 @@ trait RegularSyncFixtures:
 
     def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit =
       blockFetcher ! MessageFromPeer(
-        ETHPackets.NewBlock(block, ChainWeight.totalDifficultyOnly(block.number.value).totalDifficulty.value),
+        ETHPackets.NewBlock(block, ChainWeight.totalDifficultyOnly(block.number.value).totalDifficulty),
         peer.id
       )
 

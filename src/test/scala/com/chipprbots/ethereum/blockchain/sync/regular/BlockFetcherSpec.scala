@@ -33,6 +33,7 @@ import com.chipprbots.ethereum.blockchain.sync.regular.BlockImporter
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.HeadersSeq
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.Peer
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerSelector
 import com.chipprbots.ethereum.network.PeerEventBusActor.SubscribeCmd
@@ -444,7 +445,10 @@ class BlockFetcherSpec
       val farAwayBlock =
         Block(FixtureBlocks.ValidBlock.header.copy(number = BlockNumber(startingNumber)), FixtureBlocks.ValidBlock.body)
 
-      blockFetcher ! AdaptedMessageFromEventBus(NewBlock(farAwayBlock, farAwayBlockTotalDifficulty), fakePeer.id)
+      blockFetcher ! AdaptedMessageFromEventBus(
+        NewBlock(farAwayBlock, TotalDifficulty(BigInt(farAwayBlockTotalDifficulty))),
+        fakePeer.id
+      )
 
     val firstBlocksBatch: List[Block] =
       BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)

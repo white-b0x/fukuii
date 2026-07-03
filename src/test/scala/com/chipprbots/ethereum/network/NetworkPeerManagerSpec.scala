@@ -22,6 +22,7 @@ import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.*
 import com.chipprbots.ethereum.network.PeerActor.DisconnectPeer
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -69,10 +70,10 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     // given
     val newBlockWeight: ChainWeight = ChainWeight.totalDifficultyOnly(300)
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = BlockNumber(peer1Info.maxBlockNumber + 4))
-    val firstBlock: NewBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), newBlockWeight.totalDifficulty.value)
+    val firstBlock: NewBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), newBlockWeight.totalDifficulty)
 
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = BlockNumber(peer2Info.maxBlockNumber + 2))
-    val secondBlock: NewBlock = NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), newBlockWeight.totalDifficulty.value)
+    val secondBlock: NewBlock = NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), newBlockWeight.totalDifficulty)
 
     // when
     peersInfoHolder ! PeerEventCmd(MessageFromPeer(firstBlock, peer1.id))
@@ -109,8 +110,10 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     setupNewPeer(peer1, peer1Probe, peer1Info)
 
     // given
-    val firstBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("00" * 32)), peer1Info.maxBlockNumber + 2)
-    val secondBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("01" * 32)), peer1Info.maxBlockNumber + 5)
+    val firstBlockHash: BlockHash =
+      BlockHash(ByteString(Hex.decode("00" * 32)), BlockNumber(peer1Info.maxBlockNumber + 2))
+    val secondBlockHash: BlockHash =
+      BlockHash(ByteString(Hex.decode("01" * 32)), BlockNumber(peer1Info.maxBlockNumber + 5))
 
     // when
     peersInfoHolder ! PeerEventCmd(MessageFromPeer(NewBlockHashes(Seq(firstBlockHash, secondBlockHash)), peer1.id))
@@ -176,7 +179,7 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     setupNewPeer(peer1, peer1Probe, peer1Info)
 
     // given
-    val newBlock: NewBlock = NewBlock(baseBlock, initialPeerInfo.chainWeight.totalDifficulty.value + 1)
+    val newBlock: NewBlock = NewBlock(baseBlock, TotalDifficulty(initialPeerInfo.chainWeight.totalDifficulty.value + 1))
 
     // when
     peersInfoHolder ! PeerEventCmd(MessageFromPeer(newBlock, peer1.id))

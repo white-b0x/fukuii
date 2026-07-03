@@ -353,18 +353,21 @@ object ETHPackets:
   // ── NO-SUFFIX MESSAGES (wire format unchanged ETH68-71) ──────────────────────
 
   object NewBlockHashes:
-    case class BlockHash(hash: ByteString, number: BigInt):
+    case class BlockHash(hash: ByteString, number: BlockNumber):
       override def toString: String =
         s"BlockHash { hash: ${Hex.toHexString(hash.toArray[Byte])} number: $number }"
 
     object BlockHash:
       extension (blockHash: BlockHash)
         def toRLPEncodable: RLPEncodeable =
-          RLPList(RLPValue(blockHash.hash.toArray[Byte]), blockHash.number)
+          RLPList(
+            RLPValue(blockHash.hash.toArray[Byte]),
+            BlockNumber.rlpCodec.encode(blockHash.number)
+          )
       extension (rlpEncodeable: RLPEncodeable)
         def toBlockHash: BlockHash = rlpEncodeable match
           case RLPList(RLPValue(hashBytes), RLPValue(numberBytes)) =>
-            BlockHash(ByteString(hashBytes), ByteUtils.bytesToBigInt(numberBytes))
+            BlockHash(ByteString(hashBytes), BlockNumber(ByteUtils.bytesToBigInt(numberBytes)))
           case _ => throw new RuntimeException("Cannot decode BlockHash")
 
     case class NewBlockHashes(hashes: Seq[BlockHash]) extends Message:
@@ -766,7 +769,7 @@ object ETHPackets:
             RLPList(block.body.transactionList.map(_.toRLPEncodable)*),
             RLPList(block.body.uncleNodesList.map(_.toRLPEncodable)*)
           ),
-          RLPValue(ByteUtils.bigIntToUnsignedByteArray(totalDifficulty))
+          RLPValue(ByteUtils.bigIntToUnsignedByteArray(totalDifficulty.value))
         )
 
     extension (bytes: Array[Byte])
@@ -785,11 +788,11 @@ object ETHPackets:
                 uncleNodesList.items.map(_.toBlockHeader)
               )
             ),
-            ByteUtils.bytesToBigInt(totalDifficultyBytes)
+            TotalDifficulty(ByteUtils.bytesToBigInt(totalDifficultyBytes))
           )
         case _ => throw new RuntimeException("Cannot decode NewBlock")
 
-  case class NewBlock(block: Block, totalDifficulty: BigInt) extends Message:
+  case class NewBlock(block: Block, totalDifficulty: TotalDifficulty) extends Message:
     override def code: Int = Codes.NewBlockCode
     override def toShortString: String =
       s"NewBlock { code: $code, block.header: ${block.header}, totalDifficulty: $totalDifficulty }"

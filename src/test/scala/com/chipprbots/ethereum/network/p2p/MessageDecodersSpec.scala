@@ -8,6 +8,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.ObjectGenerators
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.p2p.messages.Capability
 import com.chipprbots.ethereum.network.p2p.messages.Codes
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets
@@ -65,7 +66,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
 
   it should "decode NewBlock in ETH68" taggedAs (UnitTest, NetworkTest) in {
     import ETHPackets.NewBlock.*
-    val msg = ETHPackets.NewBlock(Fixtures.Blocks.Block3125369.block, BigInt(12345))
+    val msg = ETHPackets.NewBlock(Fixtures.Blocks.Block3125369.block, TotalDifficulty(BigInt(12345)))
     decode(Capability.ETH68).fromBytes(Codes.NewBlockCode, msg.toBytes) shouldBe Right(msg)
   }
 

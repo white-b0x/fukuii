@@ -6,6 +6,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.forkid.ForkId
 import com.chipprbots.ethereum.network.p2p.EthereumMessageDecoder
 import com.chipprbots.ethereum.network.p2p.NetworkMessageDecoder
@@ -218,7 +219,7 @@ class ETH68ComplianceSpec extends AnyWordSpec with Matchers:
       "include a non-zero TD field (PoW ETC — TD is permanent, not removed by EIP-7642)" taggedAs UnitTest in {
         val td = BigInt("24547334712889338862945")
         val block = Fixtures.Blocks.Block3125369.block
-        val msg = ETHPackets.NewBlock(block, td)
+        val msg = ETHPackets.NewBlock(block, TotalDifficulty(td))
         val encoded = msg.toBytes
         // Wire: RLPList([blockHeader, txList, uncleList], TD)
         rawDecode(encoded) match
@@ -232,10 +233,10 @@ class ETH68ComplianceSpec extends AnyWordSpec with Matchers:
       "round-trip correctly via ETH68 decoder" taggedAs UnitTest in {
         val td = BigInt("34359738368")
         val block = Fixtures.Blocks.Block3125369.block
-        val msg = ETHPackets.NewBlock(block, td)
+        val msg = ETHPackets.NewBlock(block, TotalDifficulty(td))
         eth68Decoder.fromBytes(Codes.NewBlockCode, msg.toBytes) match
           case Right(decoded: ETHPackets.NewBlock) =>
-            decoded.totalDifficulty shouldEqual td
+            decoded.totalDifficulty.value shouldEqual td
           case other => fail(s"Expected NewBlock, got $other")
       }
     }

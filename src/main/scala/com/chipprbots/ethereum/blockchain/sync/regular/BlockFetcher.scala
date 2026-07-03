@@ -454,7 +454,7 @@ class BlockFetcher(
               validHashes.size,
               validHashes.lastOption.map(_.number)
             )
-            state.withPossibleNewTopAt(validHashes.lastOption.map(_.number))
+            state.withPossibleNewTopAt(validHashes.lastOption.map(_.number.value))
         supervisor ! ProgressProtocol.GotNewBlock(BlockNumber(newState.knownTop))
         fetchBlocks(newState)
 
