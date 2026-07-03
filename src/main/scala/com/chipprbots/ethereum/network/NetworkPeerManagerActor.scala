@@ -13,6 +13,7 @@ import scala.concurrent.duration.*
 
 import com.chipprbots.ethereum.db.storage.AppStateStorage
 import com.chipprbots.ethereum.domain.Account.*
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.network.PeerActor.DisconnectPeer
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent
@@ -68,7 +69,7 @@ object NetworkPeerManagerActor:
 
   // Wire protocol messages forwarded by the Classic shell:
   final case class SendMessageCmd(message: MessageSerializable, peerId: PeerId) extends Command
-  final case class UpdateClHeadCmd(blockNumber: BigInt) extends Command
+  final case class UpdateClHeadCmd(blockNumber: BlockNumber) extends Command
   final case class ConnectToPeerForwardCmd(uri: java.net.URI) extends Command
 
   // PeerEvent wrapper delivered via messageAdapter from the event bus:
@@ -309,7 +310,7 @@ object NetworkPeerManagerActor:
           handleMessages(newPeersWithInfo)
 
         case UpdateClHeadCmd(blockNumber) =>
-          if !lastKnownClHead.contains(blockNumber) then lastKnownClHead = Some(blockNumber)
+          if !lastKnownClHead.contains(blockNumber.value) then lastKnownClHead = Some(blockNumber.value)
           Behaviors.same
 
         case ConnectToPeerForwardCmd(uri) =>
@@ -1256,7 +1257,7 @@ object NetworkPeerManagerActor:
   case object GetHandshakedPeers
 
   /** Sent by `SNAPSyncController` whenever it ingests a new CL forkchoice head. */
-  case class UpdateClHead(blockNumber: BigInt)
+  case class UpdateClHead(blockNumber: BlockNumber)
 
   /** How often to send each handshaked peer a one-shot `GetBlockHeaders(bestHash, 1)` to refresh
     * `PeerInfo.maxBlockNumber`.

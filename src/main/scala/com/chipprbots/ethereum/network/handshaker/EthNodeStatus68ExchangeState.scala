@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.network.handshaker
 import cats.effect.SyncIO
 
 import com.chipprbots.ethereum.domain.Timestamp
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.forkid.ForkIdValidationResult.Connect
 import com.chipprbots.ethereum.forkid.ForkId
 import com.chipprbots.ethereum.forkid.ForkIdValidator
@@ -39,7 +40,7 @@ case class EthNodeStatus68ExchangeState(
       handleStatus68Fields(
         status.protocolVersion,
         status.networkId.toLong,
-        status.totalDifficulty,
+        TotalDifficulty(status.totalDifficulty),
         status.bestHash,
         status.genesisHash,
         status.forkId
@@ -49,7 +50,7 @@ case class EthNodeStatus68ExchangeState(
   private def handleStatus68Fields(
       protocolVersion: Int,
       networkId: Long,
-      totalDifficulty: BigInt,
+      totalDifficulty: TotalDifficulty,
       bestHash: org.apache.pekko.util.ByteString,
       genesisHash: org.apache.pekko.util.ByteString,
       forkId: ForkId
@@ -118,7 +119,7 @@ case class EthNodeStatus68ExchangeState(
                 RemoteStatus(
                   negotiatedCapability,
                   networkId,
-                  com.chipprbots.ethereum.domain.ChainWeight.totalDifficultyOnly(totalDifficulty),
+                  com.chipprbots.ethereum.domain.ChainWeight.totalDifficultyOnly(totalDifficulty.value),
                   bestHash,
                   genesisHash,
                   supportsSnap,

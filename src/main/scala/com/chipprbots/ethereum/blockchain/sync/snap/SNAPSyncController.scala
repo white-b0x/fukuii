@@ -2213,7 +2213,7 @@ private class SNAPSyncControllerImpl(
     // variant skips this — `knownHeader` is None — and `NetworkPeerManagerActor` correctly
     // treats "never updated" as "pre-merge or unknown" → no-op).
     hint.knownHeader.foreach { header =>
-      networkPeerManager ! com.chipprbots.ethereum.network.NetworkPeerManagerActor.UpdateClHeadCmd(header.number.value)
+      networkPeerManager ! com.chipprbots.ethereum.network.NetworkPeerManagerActor.UpdateClHeadCmd(header.number)
     }
     // Reactive starts: if we're already at idle and a hint arrives during operator-driven
     // startup, the `Start` handler will pick this up. We don't auto-start here because
