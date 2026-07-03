@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 
 import com.chipprbots.ethereum.db.storage.MptStorage
 import com.chipprbots.ethereum.domain.Account
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.mpt.*
 import com.chipprbots.ethereum.utils.ByteStringUtils.ByteStringOps
 
@@ -22,7 +23,7 @@ class StateValidator(mptStorage: MptStorage):
     * @return
     *   Right with missing node hashes if any, or Left with error message
     */
-  def validateAccountTrie(stateRoot: ByteString): Either[String, Seq[ByteString]] =
+  def validateAccountTrie(stateRoot: TrieRoot): Either[String, Seq[ByteString]] =
     try
       val missingNodes = mutable.ArrayBuffer[ByteString]()
 
@@ -34,7 +35,7 @@ class StateValidator(mptStorage: MptStorage):
         else Right(missingNodes.toSeq)
       catch
         case _: MerklePatriciaTrie.MissingNodeException =>
-          Left(s"Missing root node: ${stateRoot.take(8).toHex}")
+          Left(s"Missing root node: ${stateRoot.value.take(8).toHex}")
         case e: Exception =>
           Left(s"Failed to load root node: ${e.getMessage}")
     catch
@@ -42,7 +43,7 @@ class StateValidator(mptStorage: MptStorage):
         Left(s"Validation error: ${e.getMessage}")
 
   /** Validate all storage tries by walking through all accounts and checking their storage. */
-  def validateAllStorageTries(stateRoot: ByteString): Either[String, Seq[ByteString]] =
+  def validateAllStorageTries(stateRoot: TrieRoot): Either[String, Seq[ByteString]] =
     try
       val missingStorageNodes = mutable.ArrayBuffer[ByteString]()
       val accounts = mutable.ArrayBuffer[Account]()
@@ -215,7 +216,7 @@ class StateValidator(mptStorage: MptStorage):
     * Mirrors Besu TrieNodeHealingRequest.getChildRequests() (java:94-125) and go-ethereum trie/sync.go:ProcessNode()
     * (line 419-448): every retrieved node enqueues ALL hash-referenced children before moving on.
     */
-  def findMissingNodesWithPaths(stateRoot: ByteString): Either[String, Seq[(Seq[ByteString], ByteString)]] =
+  def findMissingNodesWithPaths(stateRoot: TrieRoot): Either[String, Seq[(Seq[ByteString], ByteString)]] =
     val result = mutable.ArrayBuffer[(Seq[ByteString], ByteString)]()
 
     try
@@ -225,7 +226,7 @@ class StateValidator(mptStorage: MptStorage):
     catch
       case _: MerklePatriciaTrie.MissingNodeException =>
         val compactPath = ByteString(HexPrefix.encode(Array.empty[Byte], isLeaf = false))
-        result += ((Seq(compactPath), stateRoot))
+        result += ((Seq(compactPath), stateRoot.value))
         Right(result.toSeq)
       case e: Exception =>
         Left(s"Trie walk failed: ${e.getMessage}")
@@ -235,7 +236,7 @@ class StateValidator(mptStorage: MptStorage):
     * hours. Returns total missing nodes found, or Left on fatal error.
     */
   def findMissingNodesStreaming(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       batchSize: Int,
       onBatch: Seq[(Seq[ByteString], ByteString)] => Unit
   ): Either[String, Int] =
@@ -258,7 +259,7 @@ class StateValidator(mptStorage: MptStorage):
     catch
       case _: MerklePatriciaTrie.MissingNodeException =>
         val compactPath = ByteString(HexPrefix.encode(Array.empty[Byte], isLeaf = false))
-        onBatch(Seq((Seq(compactPath), stateRoot)))
+        onBatch(Seq((Seq(compactPath), stateRoot.value)))
         Right(totalSent + 1)
       case e: Exception =>
         Left(s"Trie walk failed: ${e.getMessage}")

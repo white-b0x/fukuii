@@ -13,6 +13,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.crypto.kec256
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.p2p.messages.SNAP.AccountRange
@@ -49,7 +50,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
   ): org.apache.pekko.actor.typed.ActorRef[AccountRangeCoordinator.Command] =
     testKit.spawn(
       AccountRangeCoordinator(
-        stateRoot = stateRoot,
+        stateRoot = TrieRoot(stateRoot),
         networkPeerManager = networkPeerManager,
         requestTracker = requestTracker,
         mptStorage = mptStorage,
@@ -91,7 +92,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
 
     coordinator should not be null
   }
@@ -115,7 +116,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
     coordinator ! AccountRangeCoordinator.PeerAvailable(peer)
 
     networkPeerManager.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
@@ -137,7 +138,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
 
     coordinator ! AccountRangeCoordinator.AccountGetProgress(statusProbe.ref)
     val progress = statusProbe.expectMessageType[AccountRangeStats]
@@ -162,7 +163,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
     coordinator ! AccountRangeCoordinator.CheckCompletion
 
     // Should not complete immediately (tasks pending)
@@ -185,7 +186,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
     coordinator ! AccountRangeCoordinator.TaskFailed(BigInt(123), "Test failure")
 
     // Coordinator should still be operational
@@ -209,7 +210,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
 
     val contractProbe = testKit.createTestProbe[AccountRangeCoordinator.ContractAccountsResponse]()
     coordinator ! AccountRangeCoordinator.AccountGetContractAccounts(contractProbe.ref)
@@ -234,7 +235,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
     coordinator ! AccountRangeCoordinator.AccountGetProgress(statusProbe.ref)
 
     val progress = statusProbe.expectMessageType[AccountRangeStats]
@@ -264,7 +265,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
     coordinator ! AccountRangeCoordinator.PeerAvailable(peer)
 
     // Worker dispatches a GetAccountRange — consume to keep the probe clean.
@@ -305,7 +306,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = syncController.ref
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
     coordinator ! AccountRangeCoordinator.PeerAvailable(peerA)
 
     // First dispatch: real worker → networkPeerManager receives a SendMessage.
@@ -352,7 +353,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       initialMaxInFlightPerPeer = 1
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
     coordinator ! AccountRangeCoordinator.PeerAvailable(peer)
 
     // Route failures through the worker so it properly transitions to idle before each re-dispatch.
@@ -388,14 +389,14 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       initialMaxInFlightPerPeer = 1
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(rootR1)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(rootR1))
     coordinator ! AccountRangeCoordinator.PeerAvailable(peer)
 
     val sendMsg1 = networkPeerManager.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
     val reqId1 = sendMsg1.message.asInstanceOf[GetAccountRangeEnc].underlyingMsg.requestId
 
     // Pivot refreshes while the task is still in-flight at rootR1
-    coordinator ! AccountRangeCoordinator.PivotRefreshed(rootR2)
+    coordinator ! AccountRangeCoordinator.PivotRefreshed(TrieRoot(rootR2))
 
     // Task fails with "Missing proof" — but its rootHash is rootR1 (stale). The rootHash guard must
     // prevent marking peer as stateless for rootR2.
@@ -428,7 +429,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(stateRoot)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
     // Stop the coordinator — PostStop fires and sends AccountRangeProgress
     testKit.stop(coordinator)
 
@@ -462,7 +463,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       initialMaxInFlightPerPeer = 1
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(rootR1)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(rootR1))
     coordinator ! AccountRangeCoordinator.PeerAvailable(peer)
 
     // First dispatch at rootR1.
@@ -470,7 +471,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
 
     // Pivot refresh: the in-flight task is drained back to pending, re-tagged to rootR2, and
     // immediately redispatched to the still-known peer.
-    coordinator ! AccountRangeCoordinator.PivotRefreshed(rootR2)
+    coordinator ! AccountRangeCoordinator.PivotRefreshed(TrieRoot(rootR2))
     networkPeerManager.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
   }
 
@@ -499,7 +500,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       initialMaxInFlightPerPeer = 1
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(root)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(root))
     coordinator ! AccountRangeCoordinator.PeerAvailable(peer1)
     networkPeerManager.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
 
@@ -532,7 +533,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       initialMaxInFlightPerPeer = 1
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(root)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(root))
     coordinator ! AccountRangeCoordinator.PeerAvailable(peer)
     val sendMsg = networkPeerManager.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
     val reqId = sendMsg.message.asInstanceOf[GetAccountRangeEnc].underlyingMsg.requestId
@@ -578,7 +579,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       initialMaxInFlightPerPeer = 1
     )
 
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(root)
+    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(root))
     coordinator ! AccountRangeCoordinator.PeerAvailable(peer1)
 
     val sendMsg1 = networkPeerManager.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
@@ -618,7 +619,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       resumeProgress = Map(rangeLast -> rangeLast) // savedNext == last => fully complete
     )
 
-    coord ! AccountRangeCoordinator.StartAccountRangeSync(root)
+    coord ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(root))
     coord ! AccountRangeCoordinator.PeerAvailable(peer)
 
     // Nothing to download — no GetAccountRange dispatched.
@@ -644,7 +645,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
     val peerProbe = testKit.createTestProbe[Any]()
     val peer = PeerTestHelpers.createTestPeer("backpressure-peer", peerProbe.ref.toClassic)
 
-    coord ! AccountRangeCoordinator.StartAccountRangeSync(root)
+    coord ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(root))
 
     // Engage back-pressure BEFORE peer becomes available — coordinator accepts the peer but dispatches
     // no GetAccountRange requests until back-pressure releases.
@@ -673,7 +674,7 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
     val peerProbe = testKit.createTestProbe[Any]()
     val peer = PeerTestHelpers.createTestPeer("two-source-peer", peerProbe.ref.toClassic)
 
-    coord ! AccountRangeCoordinator.StartAccountRangeSync(root)
+    coord ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(root))
 
     // Engage BOTH sources.
     coord ! AccountRangeCoordinator.StorageQueuePressure(paused = true)

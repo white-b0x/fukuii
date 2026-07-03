@@ -12,6 +12,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.crypto.kec256
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.p2p.messages.SNAP
 import com.chipprbots.ethereum.testing.PeerTestHelpers
@@ -85,7 +86,7 @@ class DecoupledHealServeRootSpec extends ScalaTestWithActorTestKit() with AnyFla
       val peer = PeerTestHelpers.createTestPeer("decoupled-t1-peer", testKit.createTestProbe[Any]().ref.toClassic)
 
       // Advance the serve root, then queue a missing node and make a peer available so a fetch dispatches.
-      coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(serveRoot)
+      coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(TrieRoot(serveRoot))
       val nodeHash = kec256(ByteString("decoupled-t1-missing-node"))
       coordinator ! TrieNodeHealingCoordinator.QueueMissingNodes(Seq((Seq(ByteString(Array[Byte](0x00))), nodeHash)))
       coordinator ! TrieNodeHealingCoordinator.HealingPeerAvailable(peer)
@@ -118,7 +119,7 @@ class DecoupledHealServeRootSpec extends ScalaTestWithActorTestKit() with AnyFla
     pendingBefore shouldBe 2
 
     // The refresh advances the serve root. It MUST NOT clear the frontier or re-seed the walk.
-    coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(serveRoot)
+    coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(TrieRoot(serveRoot))
 
     // The pending frontier is unchanged (NOT cleared the way HealingPivotRefreshed would).
     pendingTasks(coordinator) shouldBe pendingBefore
@@ -147,7 +148,7 @@ class DecoupledHealServeRootSpec extends ScalaTestWithActorTestKit() with AnyFla
       val peer = PeerTestHelpers.createTestPeer("coupled-t6-peer", testKit.createTestProbe[Any]().ref.toClassic)
 
       // A serve-root refresh must be a no-op when the feature is disabled.
-      coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(serveRoot)
+      coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(TrieRoot(serveRoot))
       val nodeHash = kec256(ByteString("coupled-t6-missing-node"))
       coordinator ! TrieNodeHealingCoordinator.QueueMissingNodes(Seq((Seq(ByteString(Array[Byte](0x00))), nodeHash)))
       coordinator ! TrieNodeHealingCoordinator.HealingPeerAvailable(peer)

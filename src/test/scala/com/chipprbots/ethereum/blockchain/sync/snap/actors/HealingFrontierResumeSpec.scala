@@ -18,12 +18,13 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.crypto.kec256
-import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.db.dataSource.RocksDbConfig
 import com.chipprbots.ethereum.db.dataSource.RocksDbDataSource
 import com.chipprbots.ethereum.db.storage.HealingFrontierStorage
 import com.chipprbots.ethereum.db.storage.Namespaces
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.mpt.LeafNode
+import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.testing.TestMptStorage
 
@@ -141,7 +142,7 @@ class HealingFrontierResumeSpec extends ScalaTestWithActorTestKit() with AnyFlat
     "resume from a COMPLETE persisted frontier and skip the full-state DFS" taggedAs UnitTest in {
       val entries = (0 until 7).map(i => hash(i) -> pathset(i))
       withResumeFixture(persistence = true, prePopulate = entries, markComplete = true) { (coordinator, root, _, _) =>
-        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
         // Resume loads the 7 persisted entries (a childless-leaf-root DFS would have found 0).
         eventually(timeout(3.seconds), interval(100.millis))(pendingTasks(coordinator) shouldBe entries.size)
       }
@@ -152,7 +153,7 @@ class HealingFrontierResumeSpec extends ScalaTestWithActorTestKit() with AnyFlat
     // un-walked region and leave gaps; the coordinator must fall back to the full DFS instead.
     val partial = (0 until 5).map(i => hash(i) -> pathset(i))
     withResumeFixture(persistence = true, prePopulate = partial, markComplete = false) { (coordinator, root, _, _) =>
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
       // No resume of the 5 partial entries; the childless-leaf-root DFS finds nothing → pendingTasks stays 0.
       eventually(timeout(2.seconds), interval(100.millis))(pendingTasks(coordinator) shouldBe 0)
     }
@@ -162,7 +163,7 @@ class HealingFrontierResumeSpec extends ScalaTestWithActorTestKit() with AnyFlat
     // Store HAS entries, but the coordinator is wired with None — they must be ignored.
     withResumeFixture(persistence = false, prePopulate = (0 until 5).map(i => hash(i) -> pathset(i))) {
       (coordinator, root, _, _) =>
-        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
         // No resume; the childless-leaf-root DFS finds nothing. Contrast with the resume test (reaches 7).
         eventually(timeout(2.seconds), interval(100.millis))(pendingTasks(coordinator) shouldBe 0)
     }
@@ -170,7 +171,7 @@ class HealingFrontierResumeSpec extends ScalaTestWithActorTestKit() with AnyFlat
 
   it should "fall back to the full-state DFS when the persisted frontier is empty" taggedAs UnitTest in
     withResumeFixture(persistence = true) { (coordinator, root, _, _) =>
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
       eventually(timeout(2.seconds), interval(100.millis))(pendingTasks(coordinator) shouldBe 0)
     }
 
@@ -181,7 +182,7 @@ class HealingFrontierResumeSpec extends ScalaTestWithActorTestKit() with AnyFlat
     // pass directly; on the childless-leaf root it finds nothing and completion flows to the
     // controller — under the old behavior nothing reaches the controller until the watchdog era.
     withResumeFixture(persistence = true, markComplete = true) { (coordinator, root, _, controller) =>
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
       controller.expectMessage(SNAPSyncController.StateHealingComplete)
     }
   }
@@ -208,7 +209,7 @@ class HealingFrontierResumeSpec extends ScalaTestWithActorTestKit() with AnyFlat
     // by "skip the walk and complete via verification ..." above and proven invariant-safe by review.
     withResumeFixture(persistence = true, markComplete = false) { (coordinator, root, store, _) =>
       store.isComplete shouldBe false
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
       eventually(timeout(5.seconds), interval(100.millis))(store.isComplete shouldBe true)
     }
 
@@ -218,7 +219,7 @@ class HealingFrontierResumeSpec extends ScalaTestWithActorTestKit() with AnyFlat
     // refresh (frequent on peer-scarce mainnet), silently defeating the skip-on-restart.
     withResumeFixture(persistence = true, markComplete = true) { (coordinator, root, store, _) =>
       store.isComplete shouldBe true
-      coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(root) // same root as props stateRoot
+      coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(TrieRoot(root)) // same root as props stateRoot
       // The guard is synchronous on the actor thread; give the mailbox a moment and confirm it stayed set.
       eventually(timeout(2.seconds), interval(100.millis))(store.isComplete shouldBe true)
     }
@@ -228,6 +229,8 @@ class HealingFrontierResumeSpec extends ScalaTestWithActorTestKit() with AnyFlat
     // dropped (conservative) and the new root reseeded for re-traversal.
     withResumeFixture(persistence = true, markComplete = true) { (coordinator, _, store, _) =>
       store.isComplete shouldBe true
-      coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(kec256(ByteString("a-genuinely-different-root")))
+      coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(
+        TrieRoot(kec256(ByteString("a-genuinely-different-root")))
+      )
       eventually(timeout(2.seconds), interval(100.millis))(store.isComplete shouldBe false)
     }

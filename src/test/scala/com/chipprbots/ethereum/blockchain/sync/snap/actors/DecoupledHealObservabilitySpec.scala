@@ -13,6 +13,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.crypto.kec256
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.metrics.Metrics
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.p2p.messages.SNAP
@@ -98,7 +99,7 @@ class DecoupledHealObservabilitySpec
       // A serve-root advance updates the serve-root gauge (to the new root's short label) while the walk-root
       // gauge stays pinned to the walk root — the two roots are observably distinct after the advance.
       val newServeRoot = kec256(ByteString("observ-t7-on-serve-root"))
-      coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(newServeRoot)
+      coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(TrieRoot(newServeRoot))
       eventually(timeout(5.seconds), interval(100.millis)) {
         gaugeValue("snapsync.healing.decoupled.serve_root.gauge") shouldBe shortRootLabel(
           newServeRoot

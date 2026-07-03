@@ -35,6 +35,7 @@ import com.chipprbots.ethereum.db.storage.FlatSlotStorage
 import com.chipprbots.ethereum.db.storage.NodeStorage
 import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.domain.Blockchain
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.TrieRoot
@@ -767,7 +768,7 @@ object SyncController:
             log.info(s"[HEAL-SERVE-ROOT] Fetched header for block $block (root $rootHex). Replying to healing.")
             stopHealingServeRootBootstrap()
             healingServeRootRequester.foreach(
-              _ ! SNAPSyncController.HealingServeRoot(block, Some(header.stateRoot))
+              _ ! SNAPSyncController.HealingServeRoot(BlockNumber(block), Some(header.stateRoot))
             )
             healingServeRootRequester = None
             Behaviors.same
@@ -775,7 +776,7 @@ object SyncController:
           case PivotHeaderBootstrap.Failed(reason) if healingServeRootRequester.isDefined =>
             log.warn(s"[HEAL-SERVE-ROOT] Serve-root bootstrap failed ($reason). Replying None (serve root kept).")
             stopHealingServeRootBootstrap()
-            healingServeRootRequester.foreach(_ ! SNAPSyncController.HealingServeRoot(0, None))
+            healingServeRootRequester.foreach(_ ! SNAPSyncController.HealingServeRoot(BlockNumber(0), None))
             healingServeRootRequester = None
             Behaviors.same
 
@@ -785,7 +786,7 @@ object SyncController:
               if gen == healingServeRootGeneration && healingServeRootRequester.isDefined =>
             log.warn("[HEAL-SERVE-ROOT] Serve-root bootstrap timed out. Replying None (serve root kept).")
             stopHealingServeRootBootstrap()
-            healingServeRootRequester.foreach(_ ! SNAPSyncController.HealingServeRoot(0, None))
+            healingServeRootRequester.foreach(_ ! SNAPSyncController.HealingServeRoot(BlockNumber(0), None))
             healingServeRootRequester = None
             Behaviors.same
 
@@ -874,7 +875,7 @@ object SyncController:
           timers.startSingleTimer(HealingServeRootTimeout(gen), 20.seconds)
         case None =>
           log.info("[HEAL-SERVE-ROOT] No usable peer height yet; replying None (serve root kept).")
-          healingServeRootRequester.foreach(_ ! SNAPSyncController.HealingServeRoot(0, None))
+          healingServeRootRequester.foreach(_ ! SNAPSyncController.HealingServeRoot(BlockNumber(0), None))
           healingServeRootRequester = None
 
     private def stopHealingServeRootBootstrap(): Unit =
@@ -904,7 +905,7 @@ object SyncController:
         // A HealingServeRootTimeout self-message scheduled by maybeStartHealingServeRootBootstrap may still be in
         // flight, but it is generation-guarded (gen == healingServeRootGeneration && healingServeRootRequester.isDefined):
         // clearing the requester below — and the generation bump on the next request — makes any late timeout a no-op.
-        healingServeRootRequester.foreach(_ ! SNAPSyncController.HealingServeRoot(0, None))
+        healingServeRootRequester.foreach(_ ! SNAPSyncController.HealingServeRoot(BlockNumber(0), None))
         healingServeRootRequester = None
 
     def runningRegularSync(regularSync: TypedActorRef[RegularSync.Command]): Behavior[Command] = Behaviors.receive {
@@ -1239,7 +1240,7 @@ object SyncController:
         case SNAPSyncController.RequestHealingServeRoot =>
           log.debug("[HEAL-SERVE-ROOT] Request arrived during pivot header bootstrap — declining (serve root kept).")
           // Phase 2 (ROOT-b): reply to the known SNAP child ref (the request's origin) rather than `sender()`.
-          originalSnapSyncRef ! SNAPSyncController.HealingServeRoot(0, None)
+          originalSnapSyncRef ! SNAPSyncController.HealingServeRoot(BlockNumber(0), None)
           Behaviors.same
 
         // SSC requested a hash-based bootstrap while one is already running — restart with new CL hash.
@@ -1953,7 +1954,7 @@ object SyncController:
               Behaviors
                 .supervise(
                   CombinedRecoveryScanActor(
-                    stateRoot,
+                    TrieRoot(stateRoot),
                     stateStorage,
                     evmCodeStorage,
                     appStateStorage,
@@ -1967,7 +1968,7 @@ object SyncController:
               s"combined-recovery-scan-$syncGeneration",
               DispatcherSelector.fromConfig("sync-dispatcher")
             )
-            runningCombinedScan(needBytecode, needStorage, stateRoot, pivotBlock, snapSyncConfig)
+            runningCombinedScan(needBytecode, needStorage, TrieRoot(stateRoot), pivotBlock, snapSyncConfig)
           else
             // Legacy path: each phase scans the full trie independently, then downloads.
             val bytecodeActor =
@@ -1978,7 +1979,7 @@ object SyncController:
                       Behaviors
                         .supervise(
                           BytecodeRecoveryActor(
-                            stateRoot,
+                            TrieRoot(stateRoot),
                             stateStorage,
                             evmCodeStorage,
                             appStateStorage,
@@ -2006,7 +2007,7 @@ object SyncController:
                       Behaviors
                         .supervise(
                           StorageRecoveryActor(
-                            stateRoot,
+                            TrieRoot(stateRoot),
                             stateStorage,
                             appStateStorage,
                             flatSlotStorage,
@@ -2045,7 +2046,7 @@ object SyncController:
     def runningCombinedScan(
         needBytecode: Boolean,
         needStorage: Boolean,
-        stateRoot: ByteString,
+        stateRoot: TrieRoot,
         pivotBlock: BigInt,
         snapSyncConfig: com.chipprbots.ethereum.blockchain.sync.snap.SNAPSyncConfig
     ): Behavior[Command] = Behaviors.receive { (_, cmd) =>
@@ -2251,7 +2252,7 @@ object SyncController:
           val rootHex = header.stateRoot.value.take(4).toArray.map("%02x".format(_)).mkString
           log.info(s"Recovery recent-root: fetched header for block $block (root $rootHex). Replying.")
           stopRecentRootBootstrap()
-          recentRootRequester.foreach(_ ! StorageRecoveryActor.RecentRoot(block, Some(header.stateRoot.value)))
+          recentRootRequester.foreach(_ ! StorageRecoveryActor.RecentRoot(block, Some(header.stateRoot)))
           recentRootRequester = None
           Behaviors.same
 

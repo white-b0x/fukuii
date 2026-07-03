@@ -30,6 +30,7 @@ import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.db.storage.MptStorage
 import com.chipprbots.ethereum.db.storage.PathNodeStorage
 import com.chipprbots.ethereum.domain.Account
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.Peer
@@ -67,7 +68,7 @@ import com.chipprbots.ethereum.utils.ByteStringUtils.ByteStringOps
 private class AccountRangeCoordinatorImpl(
     ctx: ActorContext[AccountRangeCoordinator.Command],
     timers: TimerScheduler[AccountRangeCoordinator.Command],
-    initialStateRoot: ByteString,
+    initialStateRoot: TrieRoot,
     networkPeerManager: org.apache.pekko.actor.typed.ActorRef[NetworkPeerManagerActor.Command],
     requestTracker: SNAPRequestTracker,
     mptStorage: MptStorage,
@@ -96,7 +97,7 @@ private class AccountRangeCoordinatorImpl(
   private type WorkerRef = org.apache.pekko.actor.typed.ActorRef[AccountRangeWorker.Command]
 
   // Mutable state root — updated in-place when the controller refreshes the pivot.
-  private var stateRoot: ByteString = initialStateRoot
+  private var stateRoot: TrieRoot = initialStateRoot
 
   // Per-peer concurrency budget — dynamically adjusted by SNAPSyncController via UpdateMaxInFlightPerPeer.
   // Part of global per-peer request budgeting (Geth-aligned: total 5 per peer across all coordinators).
@@ -168,7 +169,7 @@ private class AccountRangeCoordinatorImpl(
       if strikes < EmptyResponseStrikeThreshold then
         log.info(
           s"Peer ${peer.id.value} empty-proof strike $strikes/$EmptyResponseStrikeThreshold for root " +
-            s"${stateRoot.take(4).toHex} (reason: $reason). Still eligible for dispatch."
+            s"${stateRoot.value.take(4).toHex} (reason: $reason). Still eligible for dispatch."
         )
       else
         // Threshold reached — promote to confirmed snapless + stateless. Snapless is sticky
@@ -185,7 +186,7 @@ private class AccountRangeCoordinatorImpl(
         log.info(
           s"Peer ${peer.id.value} marked SNAPLESS after $strikes consecutive empty-proof responses " +
             s"— will skip for GetAccountRange this session. Bytecode/healing remain available. " +
-            s"(${statelessPeers.size}/${knownAvailablePeers.size} peers stateless for root ${stateRoot.take(4).toHex})"
+            s"(${statelessPeers.size}/${knownAvailablePeers.size} peers stateless for root ${stateRoot.value.take(4).toHex})"
         )
         maybeRequestPivotRefresh()
 
@@ -216,7 +217,7 @@ private class AccountRangeCoordinatorImpl(
             "Bytecode and trie-node healing remain functional."
         )
         snapSyncController ! PivotStateUnservable(
-          rootHash = stateRoot,
+          rootHash = stateRoot.value,
           reason = "all peers snapless (no snapshot tree) for AccountRange root",
           consecutiveEmptyResponses = knownAvailablePeers.size
         )
@@ -246,18 +247,18 @@ private class AccountRangeCoordinatorImpl(
             lastPivotRefreshTimeMs = now
             consecutiveUnproductiveRefreshes += 1
             log.warn(
-              s"All ${statelessPeers.size} known peers are stateless for root ${stateRoot.take(4).toHex}. " +
+              s"All ${statelessPeers.size} known peers are stateless for root ${stateRoot.value.take(4).toHex}. " +
                 s"Requesting pivot refresh from controller (attempt=$consecutiveUnproductiveRefreshes, backoff=${backoffMs / 1000}s)."
             )
             snapSyncController ! PivotStateUnservable(
-              rootHash = stateRoot,
+              rootHash = stateRoot.value,
               reason = "all peers stateless for AccountRange root",
               consecutiveEmptyResponses = statelessPeers.size
             )
 
   // Task management — resume ranges from saved positions (core-geth parity).
   // On restart, each range resumes from its saved `next` position instead of starting from 0x00.
-  private val allInitialTasks = AccountTask.createInitialTasks(stateRoot, concurrency)
+  private val allInitialTasks = AccountTask.createInitialTasks(stateRoot.value, concurrency)
   private val (skippedTasks, remainingTasks) = if resumeProgress.nonEmpty then
     val resumed = allInitialTasks.map { task =>
       resumeProgress.get(task.last) match
@@ -390,7 +391,7 @@ private class AccountRangeCoordinatorImpl(
       val toBI = (bs: ByteString) => BigInt(1, bs.toArray.padTo(32, 0.toByte))
       // Re-create pristine tasks to recover original range starts (keyed by `last` boundary).
       val originalStarts: Map[ByteString, BigInt] =
-        AccountTask.createInitialTasks(initialStateRoot, concurrency).map(t => t.last -> toBI(t.next)).toMap
+        AccountTask.createInitialTasks(initialStateRoot.value, concurrency).map(t => t.last -> toBI(t.next)).toMap
       (skippedTasks ++ remainingTasks).foldLeft(BigInt(0)) { (acc, task) =>
         val orig = originalStarts.getOrElse(task.last, toBI(task.last))
         acc + (toBI(task.next) - orig).max(BigInt(0))
@@ -598,7 +599,7 @@ private class AccountRangeCoordinatorImpl(
     .receiveMessage[Command] { msg =>
       msg match
         case StartAccountRangeSync(root) =>
-          log.info(s"Starting account range sync for state root ${root.take(8).toHex}")
+          log.info(s"Starting account range sync for state root ${root.value.take(8).toHex}")
           // Tasks already initialized in constructor
           Behaviors.same
 
@@ -613,14 +614,14 @@ private class AccountRangeCoordinatorImpl(
           Behaviors.same
 
         case PivotRefreshed(newStateRoot) =>
-          log.info(s"Pivot refreshed: ${stateRoot.take(4).toHex} -> ${newStateRoot.take(4).toHex}")
+          log.info(s"Pivot refreshed: ${stateRoot.value.take(4).toHex} -> ${newStateRoot.value.take(4).toHex}")
           stateRoot = newStateRoot
 
           // #1184: drain unconditionally instead of relying on the worker → TaskFailed cascade
           // that misses silent peers. Drain BEFORE re-applying the root so all drained tasks
           // land in pendingTasks first, then pendingTasks.foreach re-tags them to the new root.
-          drainActiveTasks(s"pivot refresh to ${newStateRoot.take(4).toHex}")
-          val updatedForPivot = pendingTasks.dequeueAll.map(_.copy(rootHash = newStateRoot))
+          drainActiveTasks(s"pivot refresh to ${newStateRoot.value.take(4).toHex}")
+          val updatedForPivot = pendingTasks.dequeueAll.map(_.copy(rootHash = newStateRoot.value))
           pendingTasks.enqueue(updatedForPivot*)
 
           // Clear stateless AND snapless tracking — peers get a fresh slate at the new root.
@@ -801,7 +802,7 @@ private class AccountRangeCoordinatorImpl(
                 s"${statelessPeers.size} stateless, ${snaplessPeers.size} snapless, " +
                 s"${peerCooldownUntilMs.size} cooling" +
                 (if soonestCooldownSec >= 0 then s" (soonest ready in ${soonestCooldownSec}s)" else "") +
-                s". root=${stateRoot.take(4).toHex}"
+                s". root=${stateRoot.value.take(4).toHex}"
             )
             if pendingButIdleTicks >= 3 then
               // 3 × 30 s = 90 s of consecutive ticks with pending tasks and zero dispatches.
@@ -824,7 +825,7 @@ private class AccountRangeCoordinatorImpl(
                     s"Requesting pivot refresh (attempt=$consecutiveUnproductiveRefreshes)."
                 )
                 snapSyncController ! PivotStateUnservable(
-                  rootHash = stateRoot,
+                  rootHash = stateRoot.value,
                   reason =
                     s"tasks pending but no eligible peers after ${consecutiveUnproductiveRefreshes} stall cycles",
                   consecutiveEmptyResponses = knownAvailablePeers.size
@@ -1282,14 +1283,14 @@ private class AccountRangeCoordinatorImpl(
         // Only mark peer stateless if the task was using the CURRENT root.
         // After pivot refresh, in-flight requests with the OLD root will fail
         // with "Missing proof" — but this doesn't mean the peer can't serve the NEW root.
-        if task.rootHash == stateRoot then markPeerStateless(peer, reason)
+        if task.rootHash == stateRoot.value then markPeerStateless(peer, reason)
         else
           log.info(
             s"Ignoring failure from stale-root request " +
-              s"(task root ${task.rootHash.take(4).toHex} != current ${stateRoot.take(4).toHex})"
+              s"(task root ${task.rootHash.take(4).toHex} != current ${stateRoot.value.take(4).toHex})"
           )
         log.warn(s"Task failed: $reason")
-        val failedTask = task.copy(pending = false, rootHash = stateRoot)
+        val failedTask = task.copy(pending = false, rootHash = stateRoot.value)
 
         // Apply cooldown and reduce byte budget for protocol failures; skip for network-level
         // disconnects since the peer is already gone and will reconnect fresh.
@@ -1325,7 +1326,7 @@ private class AccountRangeCoordinatorImpl(
       if !pivotRefreshRequested then
         pivotRefreshRequested = true
         snapSyncController ! PivotStateUnservable(
-          rootHash = stateRoot,
+          rootHash = stateRoot.value,
           reason = s"task ${task.rangeString} hit MaxRequeuesPerTask: $reason",
           consecutiveEmptyResponses = AccountRangeCoordinator.MaxRequeuesPerTask
         )
@@ -1376,7 +1377,7 @@ private class AccountRangeCoordinatorImpl(
             s"workers-known=${knownAvailablePeers.size} stateless=${statelessPeers.size} " +
             s"snapless=${snaplessPeers.size} cooling=${peerCooldownUntilMs.size} " +
             s"eligible=${eligiblePeers.size} strikes=${emptyResponseStrikes.size} " +
-            s"maxInflight=$maxInFlightPerPeer root=${stateRoot.take(4).toHex}"
+            s"maxInflight=$maxInFlightPerPeer root=${stateRoot.value.take(4).toHex}"
         )
       if eligiblePeers.isEmpty then
         // Promoted from silent return to INFO so the first occurrence per 30s window
@@ -1598,9 +1599,9 @@ private class AccountRangeCoordinatorImpl(
       // `stateRoot` regardless.
       futureLog.info(
         s"State trie finalization complete (StackTrie path, 16 fragments). " +
-          s"Reported root: ${stateRoot.take(8).toArray.map("%02x".format(_)).mkString}..."
+          s"Reported root: ${stateRoot.value.take(8).toArray.map("%02x".format(_)).mkString}..."
       )
-      Right(stateRoot)
+      Right(stateRoot.value)
     catch
       case e: Exception =>
         futureLog.error(s"Failed to finalize trie: ${e.getMessage}", e)
@@ -1704,7 +1705,7 @@ private class AccountRangeCoordinatorImpl(
 object AccountRangeCoordinator:
 
   sealed trait Command
-  case class StartAccountRangeSync(stateRoot: ByteString) extends Command
+  case class StartAccountRangeSync(stateRoot: TrieRoot) extends Command
   case class PeerAvailable(peer: Peer) extends Command
   case class TaskComplete(
       requestId: BigInt,
@@ -1737,7 +1738,7 @@ object AccountRangeCoordinator:
   case class CodeHashesFileInfoResponse(filePath: java.nio.file.Path, count: Long)
   case object CheckCompletion extends Command
   case class AccountRangeProgress(progress: Map[ByteString, ByteString]) extends Command
-  case class PivotRefreshed(newStateRoot: ByteString) extends Command
+  case class PivotRefreshed(newStateRoot: TrieRoot) extends Command
   case object RecoverStalledAccountTasks extends Command
   case class StorageQueuePressure(paused: Boolean) extends Command
   case class ByteCodeQueuePressure(paused: Boolean) extends Command
@@ -1786,7 +1787,7 @@ object AccountRangeCoordinator:
       extends Command
 
   def apply(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       networkPeerManager: org.apache.pekko.actor.typed.ActorRef[NetworkPeerManagerActor.Command],
       requestTracker: SNAPRequestTracker,
       mptStorage: MptStorage,

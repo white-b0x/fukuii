@@ -12,6 +12,7 @@ import com.chipprbots.ethereum.db.storage.BfsQueueStorage
 import com.chipprbots.ethereum.db.storage.HealingFrontierStorage
 import com.chipprbots.ethereum.db.storage.MptStorage
 import com.chipprbots.ethereum.db.storage.PathNodeStorage
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.mpt.BranchNode
 import com.chipprbots.ethereum.mpt.ExtensionNode
 import com.chipprbots.ethereum.mpt.HashNode
@@ -89,7 +90,7 @@ object HealingTrieFixtures:
   )(implicit testKit: ActorTestKit): TypedActorRef[TrieNodeHealingCoordinator.Command] =
     testKit.spawn(
       TrieNodeHealingCoordinator(
-        stateRoot = stateRoot,
+        stateRoot = TrieRoot(stateRoot),
         networkPeerManager = networkPeerManager,
         requestTracker = requestTracker,
         mptStorage = mptStorage,

@@ -28,6 +28,7 @@ import com.chipprbots.ethereum.db.storage.AppStateStorage
 import com.chipprbots.ethereum.db.storage.FlatSlotStorage
 import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.domain.Account
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.mpt.*
 import com.chipprbots.ethereum.mpt.MptVisitors.*
 import com.chipprbots.ethereum.network.Peer
@@ -72,7 +73,7 @@ object StorageRecoveryActor:
   /** SyncController → recovery: a recent canonical `(blockNumber, stateRoot)`, or `stateRoot = None` if none could be
     * fetched (no peers / bootstrap failed).
     */
-  final case class RecentRoot(blockNumber: BigInt, stateRoot: Option[ByteString]) extends Command
+  final case class RecentRoot(blockNumber: BigInt, stateRoot: Option[TrieRoot]) extends Command
 
   /** Sealed umbrella for the two message types sent from StorageRecoveryActor to SyncController. Enables a narrow
     * `TypedActorRef[SyncControllerMsg]` adapter instead of `TypedActorRef[Any]`.
@@ -90,7 +91,7 @@ object StorageRecoveryActor:
   case class RequestRecentRoot(replyTo: TypedActorRef[StorageRecoveryActor.Command]) extends SyncControllerMsg
 
   def apply(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       appStateStorage: AppStateStorage,
       flatSlotStorage: FlatSlotStorage,
@@ -115,7 +116,7 @@ object StorageRecoveryActor:
     * by the combined parallel scan). Used by `SyncController` when `parallel-recovery-scan` is on.
     */
   def applyPreloaded(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       appStateStorage: AppStateStorage,
       flatSlotStorage: FlatSlotStorage,
@@ -139,7 +140,7 @@ object StorageRecoveryActor:
 
   /** Test entry point: exposes the preloaded-missing and coordinator-injection hooks. */
   private[sync] def testApply(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       appStateStorage: AppStateStorage,
       flatSlotStorage: FlatSlotStorage,
@@ -163,7 +164,7 @@ object StorageRecoveryActor:
   )
 
   private def scanning(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       appStateStorage: AppStateStorage,
       flatSlotStorage: FlatSlotStorage,
@@ -182,7 +183,7 @@ object StorageRecoveryActor:
         case None =>
           ctx.log.info(
             s"StorageRecoveryActor starting: scanning state trie for missing contract storage " +
-              s"(stateRoot=${stateRoot.take(4).toArray.map("%02x".format(_)).mkString}...)"
+              s"(stateRoot=${stateRoot.value.take(4).toArray.map("%02x".format(_)).mkString}...)"
           )
           ctx.pipeToSelf(
             Future(scanForMissingStorage(stateRoot, stateStorage, pivotBlockNumber, ctx.log))(ctx.executionContext)
@@ -278,7 +279,7 @@ object StorageRecoveryActor:
       ctx: ActorContext[Command],
       coordinator: org.apache.pekko.actor.typed.ActorRef[actors.StorageRangeCoordinator.Command],
       missing: Seq[(ByteString, ByteString)],
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       pivotBlockNumber: BigInt,
       syncController: TypedActorRef[SyncControllerMsg],
@@ -295,7 +296,7 @@ object StorageRecoveryActor:
     var lastRateNanos = System.nanoTime()
     var lastRateRecovered = 0L
 
-    var currentRoot: ByteString = stateRoot
+    var currentRoot: TrieRoot = stateRoot
     var rollsAttempted: Int = 0
     var awaitingRoot: Boolean = false
     val maxRolls: Int = snapSyncConfig.storageRecoveryMaxRootRolls
@@ -361,7 +362,7 @@ object StorageRecoveryActor:
           if unservableCount <= 3 || unservableCount % 100 == 0 then
             ctx.log.info(
               "Storage recovery: coordinator reports root {} unservable ({} events, no progress for {}s).",
-              currentRoot.take(4).toArray.map("%02x".format(_)).mkString,
+              currentRoot.value.take(4).toArray.map("%02x".format(_)).mkString,
               unservableCount,
               (System.nanoTime() - lastProgressNanos) / 1_000_000_000L
             )
@@ -394,8 +395,8 @@ object StorageRecoveryActor:
               currentRoot = root
               timers.cancel("abandon")
               unservableCount = 0
-              val oldHex = oldRoot.take(4).toArray.map("%02x".format(_)).mkString
-              val newHex = root.take(4).toArray.map("%02x".format(_)).mkString
+              val oldHex = oldRoot.value.take(4).toArray.map("%02x".format(_)).mkString
+              val newHex = root.value.take(4).toArray.map("%02x".format(_)).mkString
               ctx.log.warn(
                 s"Storage recovery: rolling download root $oldHex -> $newHex (block $blockNumber, " +
                   s"roll $rollsAttempted/$maxRolls). Re-queuing $expectedCount tasks."
@@ -460,7 +461,7 @@ object StorageRecoveryActor:
       )
 
   private def scanForMissingStorage(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       pivotBlockNumber: BigInt,
       log: Logger

@@ -16,6 +16,7 @@ import org.scalatest.matchers.should.Matchers
 import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.db.storage.InMemoryBfsQueueStorage
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.p2p.messages.SNAP
 import com.chipprbots.ethereum.testing.PeerTestHelpers
@@ -103,7 +104,7 @@ class TrieNodeHealingCoordinatorSpec
     val nodeHash = kec256(ByteString("node1"))
     val missingNodes = Seq((Seq(ByteString(Array[Byte](0x00))), nodeHash))
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(stateRoot)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(stateRoot))
     coordinator ! TrieNodeHealingCoordinator.QueueMissingNodes(missingNodes)
     coordinator ! TrieNodeHealingCoordinator.HealingPeerAvailable(peer)
 
@@ -220,7 +221,7 @@ class TrieNodeHealingCoordinatorSpec
     )
 
     val newStateRoot = kec256(ByteString("new-heal-root"))
-    coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(newStateRoot)
+    coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(TrieRoot(newStateRoot))
 
     // The new root is not in storage, so it is added to pendingTasks.
     // isComplete = false → StateHealingComplete must NOT be sent.
@@ -289,7 +290,7 @@ class TrieNodeHealingCoordinatorSpec
     val nodeCount = 50000
     val nodes = (1 to nodeCount).map(fakeHashedNode)
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(stateRoot)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(stateRoot))
     val queueStart = System.nanoTime()
     coordinator ! TrieNodeHealingCoordinator.QueueMissingNodes(nodes)
     coordinator ! TrieNodeHealingCoordinator.HealingGetProgress(statusProbe.ref)
@@ -323,7 +324,7 @@ class TrieNodeHealingCoordinatorSpec
       healingWriterEcOverride = Some(classicSystem.dispatcher)
     )
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(stateRoot)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(stateRoot))
 
     // Three batches; total 750 nodes queued in O(n) time.
     val batches = Seq.tabulate(3)(g => (g * 250 until (g + 1) * 250).map(fakeHashedNode))
@@ -383,7 +384,7 @@ class TrieNodeHealingCoordinatorSpec
     // Queue tasks and make a peer available so some become active
     val nodeHash1 = kec256(ByteString("node-force-1"))
     val nodeHash2 = kec256(ByteString("node-force-2"))
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(stateRoot)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(stateRoot))
     coordinator ! TrieNodeHealingCoordinator.QueueMissingNodes(
       Seq(
         (Seq(ByteString(Array[Byte](0x00))), nodeHash1),
@@ -543,7 +544,7 @@ class TrieNodeHealingCoordinatorSpec
 
     // Provide a real task and dispatch it to the peer. (The walk root is absent, so StartTrieNodeHealing
     // no longer seeds it — it signals HealingRootUnservable; we supply the frontier via QueueMissingNodes.)
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(stateRoot)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(stateRoot))
     coordinator ! TrieNodeHealingCoordinator.QueueMissingNodes(
       Seq((Seq(ByteString(Array[Byte](0x00))), kec256(ByteString("nb7-task"))))
     )
@@ -581,7 +582,7 @@ class TrieNodeHealingCoordinatorSpec
 
     // The walk root is absent, so StartTrieNodeHealing no longer seeds it (it signals HealingRootUnservable).
     // Provide all 3 tasks explicitly so 3 requests dispatch concurrently (default maxInFlightPerPeer=5).
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(stateRoot)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(stateRoot))
     coordinator ! TrieNodeHealingCoordinator.QueueMissingNodes(
       Seq(
         (Seq(ByteString(Array[Byte](0x00))), kec256(ByteString("missing-node-1"))),
@@ -629,7 +630,7 @@ class TrieNodeHealingCoordinatorSpec
 
     // Make peer stateless. The walk root is absent, so StartTrieNodeHealing no longer seeds it (it
     // signals HealingRootUnservable); provide a real task to dispatch via QueueMissingNodes.
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(stateRoot)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(stateRoot))
     coordinator ! TrieNodeHealingCoordinator.QueueMissingNodes(
       Seq((Seq(ByteString(Array[Byte](0x00))), kec256(ByteString("nb7-readmit-task"))))
     )
@@ -641,7 +642,7 @@ class TrieNodeHealingCoordinatorSpec
     // targets a freshly servable root and KEEPS its own reseed — only the StartTrieNodeHealing seed of an
     // absent walk root is deferred by the complementary guard.)
     val newRoot = kec256(ByteString("nb7-readmit-new-root"))
-    coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(newRoot)
+    coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(TrieRoot(newRoot))
 
     // Peer is no longer stateless — HealingPeerAvailable should trigger dispatch for the new root
     coordinator ! TrieNodeHealingCoordinator.HealingPeerAvailable(peer)
@@ -677,7 +678,7 @@ class TrieNodeHealingCoordinatorSpec
       healingWriterEcOverride = Some(classicSystem.dispatcher)
     )
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
 
     // All 3 missing children should be queued once BFS completes.
     eventually(timeout(5.seconds), interval(100.millis)) {
@@ -733,7 +734,7 @@ class TrieNodeHealingCoordinatorSpec
         statusProbe.receiveMessage(2.seconds).pendingTasks shouldBe 1
       }
 
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
 
       // The walk must still complete and deliver its 3 discovered children (preload + 3 = 4),
       // proving the safety timeout fired and resumed it rather than deadlocking on the gate.
@@ -785,7 +786,7 @@ class TrieNodeHealingCoordinatorSpec
       healingWriterEcOverride = Some(classicSystem.dispatcher)
     )
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
 
     // Both deep frontier nodes (missingL2a, missingL2b) should be found across 3 BFS levels.
     eventually(timeout(5.seconds), interval(100.millis)) {
@@ -830,7 +831,7 @@ class TrieNodeHealingCoordinatorSpec
       healingWriterEcOverride = Some(classicSystem.dispatcher)
     )
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
 
     // Shared missing child should appear in the frontier exactly once, not twice.
     eventually(timeout(5.seconds), interval(100.millis)) {
@@ -874,7 +875,7 @@ class TrieNodeHealingCoordinatorSpec
       bfsQueueStorageOpt = Some(bfsQueue)
     )
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
 
     // All 16 missing L2 hashes must land in the pending frontier.
     eventually(timeout(10.seconds), interval(200.millis)) {
@@ -906,7 +907,7 @@ class TrieNodeHealingCoordinatorSpec
       healingWriterEcOverride = Some(classicSystem.dispatcher)
     )
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
 
     // The shared ancestor is reached via two parents but visited once; the missing grandchild below it
     // is still discovered. It is the ONLY absent node, so the frontier is exactly 1 — not 0 (skipped)
@@ -931,7 +932,7 @@ class TrieNodeHealingCoordinatorSpec
       healingWriterEcOverride = Some(classicSystem.dispatcher)
     )
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
 
     eventually(timeout(5.seconds), interval(100.millis)) {
       coordinator ! TrieNodeHealingCoordinator.HealingGetProgress(statusProbe.ref)
@@ -964,7 +965,7 @@ class TrieNodeHealingCoordinatorSpec
         healingReaderEcOverride = readerEc,
         traversalParallelism = 1 // serial branch
       )
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
       var observed = -1
       eventually(timeout(5.seconds), interval(100.millis)) {
         coordinator ! TrieNodeHealingCoordinator.HealingGetProgress(statusProbe.ref)
@@ -1032,7 +1033,7 @@ class TrieNodeHealingCoordinatorSpec
     )
 
     try
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
 
       // No deadlock: the full frontier lands within a generous-but-bounded timeout. If the parallel
       // Await deadlocked, pendingTasks would never reach the expected count and this would time out.
@@ -1076,7 +1077,7 @@ class TrieNodeHealingCoordinatorSpec
     )
 
     try
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
       eventually(timeout(5.seconds), interval(100.millis)) {
         coordinator ! TrieNodeHealingCoordinator.HealingGetProgress(statusProbe.ref)
         statusProbe.receiveMessage(2.seconds).pendingTasks shouldBe 1
@@ -1176,7 +1177,7 @@ class TrieNodeHealingCoordinatorSpec
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(stateRoot)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(stateRoot))
 
     // The controller is told the root is unservable (handoff signal carries the exact root).
     snapSyncController.expectMessage(SNAPSyncController.HealingRootUnservable(stateRoot))
@@ -1204,7 +1205,7 @@ class TrieNodeHealingCoordinatorSpec
       healingWriterEcOverride = Some(classicSystem.dispatcher)
     )
 
-    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+    coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
 
     // Present root ⇒ normal healing: discover the one missing descendant (frontier == 1, not 0/2).
     val progressProbe = testKit.createTestProbe[HealingStatistics]()
@@ -1262,7 +1263,7 @@ class TrieNodeHealingCoordinatorSpec
       )
 
       // Heal start: absent root ⇒ seed-from-absent-root (C2) enqueues the root and a peer makes it dispatch.
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
       val peerProbe = testKit.createTestProbe[NetworkPeerManagerActor.SendMessageCmd]()
       val peer = PeerTestHelpers.createTestPeer("md-c1-peer", peerProbe.ref.toClassic)
       coordinator ! TrieNodeHealingCoordinator.HealingPeerAvailable(peer)
@@ -1321,7 +1322,7 @@ class TrieNodeHealingCoordinatorSpec
         movingRootDeltaHeal = true
       )
 
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
 
       // The root was SEEDED (frontier == 1), NOT handed off.
       eventually(timeout(5.seconds), interval(100.millis))(healPendingTasks(coordinator) shouldBe 1)
@@ -1357,7 +1358,7 @@ class TrieNodeHealingCoordinatorSpec
         movingRootDeltaHeal = true
       )
 
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
       val peerProbe = testKit.createTestProbe[NetworkPeerManagerActor.SendMessageCmd]()
       val peer = PeerTestHelpers.createTestPeer("md-c4-peer", peerProbe.ref.toClassic)
       coordinator ! TrieNodeHealingCoordinator.HealingPeerAvailable(peer)
@@ -1379,7 +1380,7 @@ class TrieNodeHealingCoordinatorSpec
       // Re-peg to a DIFFERENT root (distinct from fx.rootHash) — the production stale-move signal.
       val newRoot = kec256(ByteString("md-c4-repeg-new-root"))
       newRoot should not be fx.rootHash
-      coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(newRoot)
+      coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(TrieRoot(newRoot))
 
       // INVARIANT (T010/C4): the re-peg cleared in-memory frontier + the optional mirror CF, but DID NOT delete any
       // persisted trie node. The previously-healed ROOT node remains readable — content-addressed, reusable under newRoot.
@@ -1416,7 +1417,7 @@ class TrieNodeHealingCoordinatorSpec
 
       // Root is PRESENT ⇒ StartTrieNodeHealing runs the descent (rebuild BFS), which descends into the present interior
       // node and finds the absent grandchild → enqueues it.
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
 
       // The descent re-enqueued the absent grandchild: pending becomes ≥ 1 and completion is NOT declared.
       eventually(timeout(5.seconds), interval(100.millis))(healPendingTasks(coordinator) should be >= 1)
@@ -1465,7 +1466,7 @@ class TrieNodeHealingCoordinatorSpec
         movingRootDeltaHeal = false // flag OFF — spec-004 path
       )
 
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(fx.rootHash)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(fx.rootHash))
 
       // Flag OFF: the absent root is NOT seeded — the spec-004 handoff fires (byte-identical to pre-spec-009).
       snapSyncController.expectMessage(3.seconds, SNAPSyncController.HealingRootUnservable(fx.rootHash))
@@ -1504,7 +1505,7 @@ class TrieNodeHealingCoordinatorSpec
           movingRootDeltaHeal = flag
         )
 
-        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(rootHash)
+        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(rootHash))
         coordinator ! TrieNodeHealingCoordinator.HealingCheckCompletion
 
         // Both paths: the present root + empty delta ⇒ a clean pruned descent ⇒ completion against THIS root.

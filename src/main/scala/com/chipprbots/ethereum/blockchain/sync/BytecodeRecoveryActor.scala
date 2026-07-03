@@ -26,6 +26,7 @@ import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.CodeHash
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.mpt.*
 import com.chipprbots.ethereum.mpt.MptVisitors.*
 import com.chipprbots.ethereum.network.Peer
@@ -66,7 +67,7 @@ object BytecodeRecoveryActor:
   case object RecoveryComplete
 
   def apply(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       evmCodeStorage: EvmCodeStorage,
       appStateStorage: AppStateStorage,
@@ -91,7 +92,7 @@ object BytecodeRecoveryActor:
     * the combined parallel scan). Used by `SyncController` when `parallel-recovery-scan` is on.
     */
   def applyPreloaded(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       evmCodeStorage: EvmCodeStorage,
       appStateStorage: AppStateStorage,
@@ -115,7 +116,7 @@ object BytecodeRecoveryActor:
 
   /** Test entry point: exposes the preloaded-missing and coordinator-injection hooks. */
   private[sync] def testApply(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       evmCodeStorage: EvmCodeStorage,
       appStateStorage: AppStateStorage,
@@ -139,7 +140,7 @@ object BytecodeRecoveryActor:
   )
 
   private def scanning(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       evmCodeStorage: EvmCodeStorage,
       appStateStorage: AppStateStorage,
@@ -158,7 +159,7 @@ object BytecodeRecoveryActor:
         case None =>
           ctx.log.info(
             s"BytecodeRecoveryActor starting: scanning state trie for missing bytecodes " +
-              s"(stateRoot=${stateRoot.take(4).toArray.map("%02x".format(_)).mkString}...)"
+              s"(stateRoot=${stateRoot.value.take(4).toArray.map("%02x".format(_)).mkString}...)"
           )
           ctx.pipeToSelf(
             Future(scanForMissingBytecodes(stateRoot, stateStorage, evmCodeStorage, pivotBlockNumber, ctx.log))(
@@ -308,7 +309,7 @@ object BytecodeRecoveryActor:
     }
 
   private def scanForMissingBytecodes(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       stateStorage: StateStorage,
       evmCodeStorage: EvmCodeStorage,
       pivotBlockNumber: BigInt,

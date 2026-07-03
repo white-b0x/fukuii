@@ -864,13 +864,13 @@ private class SNAPSyncControllerImpl(
         else
           rootOpt match
             case Some(root) if root.value.nonEmpty =>
-              lastHealingServeRootBlock = Some(BlockNumber(blockNumber))
+              lastHealingServeRootBlock = Some(blockNumber)
               ctx.log.info(
                 s"[HEAL-SERVE-ROOT] Pushing newest-servable serve root ${root.value.take(4).toHex} (block $blockNumber) " +
                   s"to healing coordinator (walk root unchanged)."
               )
               trieNodeHealingCoordinator.foreach(
-                _ ! actors.TrieNodeHealingCoordinator.HealingServeRootRefresh(root.value)
+                _ ! actors.TrieNodeHealingCoordinator.HealingServeRootRefresh(root)
               )
             case _ =>
               ctx.log.info(
@@ -1089,8 +1089,8 @@ private class SNAPSyncControllerImpl(
               s"emptyResponses=$emptyResponses, reason=$reason) — re-arming coordinators"
           )
           stateRoot.foreach { root =>
-            accountRangeCoordinator.foreach(_ ! actors.AccountRangeCoordinator.PivotRefreshed(root.value))
-            storageRangeCoordinator.foreach(_ ! actors.StorageRangeCoordinator.StoragePivotRefreshed(root.value))
+            accountRangeCoordinator.foreach(_ ! actors.AccountRangeCoordinator.PivotRefreshed(root))
+            storageRangeCoordinator.foreach(_ ! actors.StorageRangeCoordinator.StoragePivotRefreshed(root))
           }
         else if currentPhase == AccountRangeSync || currentPhase == ByteCodeAndStorageSync then
           lastPivotRestartMs = now
@@ -1175,7 +1175,7 @@ private class SNAPSyncControllerImpl(
             s"Pivot header bootstrap failed for block $pendingPivot (reason: $reason, original: $originalReason). " +
               s"Backtracking pivot to $backtrackedPivot (Besu pattern: decrement by ${snapSyncConfig.pivotBlockOffset})."
           )
-          timers.startSingleTimer(PivotBootstrapRetryKey, RetryBootstrapAtBlock(backtrackedPivot.value), 5.seconds)
+          timers.startSingleTimer(PivotBootstrapRetryKey, RetryBootstrapAtBlock(backtrackedPivot), 5.seconds)
         else
           ctx.log.warn(
             s"Pivot header bootstrap failed for block $pendingPivot (reason: $reason). " +
@@ -1224,13 +1224,13 @@ private class SNAPSyncControllerImpl(
         if currentPhase == AccountRangeSync || currentPhase == ByteCodeAndStorageSync || currentPhase == StateHealing
         then
           ctx.log.info(s"Retrying bootstrap at backtracked block $blockNumber...")
-          blockchainReader.getBlockHeaderByNumber(blockNumber) match
+          blockchainReader.getBlockHeaderByNumber(blockNumber.value) match
             case Some(header) =>
-              completePivotRefreshWithStateRoot(BlockNumber(blockNumber), header, "backtracked pivot (local header)")
+              completePivotRefreshWithStateRoot(blockNumber, header, "backtracked pivot (local header)")
             case None =>
               chainDownloader.foreach(_ ! ChainDownloader.Pause)
-              pendingPivotRefresh = Some((BlockNumber(blockNumber), "backtracked pivot"))
-              syncController ! StartRegularSyncBootstrap(blockNumber)
+              pendingPivotRefresh = Some((blockNumber, "backtracked pivot"))
+              syncController ! StartRegularSyncBootstrap(blockNumber.value)
               lastAccountProgressMs = System.currentTimeMillis()
         else ctx.log.info(s"Skipping backtracked bootstrap — phase=$currentPhase no longer needs it")
         Behaviors.same
@@ -1562,7 +1562,7 @@ private class SNAPSyncControllerImpl(
           ctx.log.info(s"Account trie validation successful - no missing nodes (${elapsedMs}ms)")
           validationRetryCount = 0
           // Spawn the storage pass on the same generation; result handlers below.
-          for root <- stateRoot; pivot <- pivotBlock do spawnStorageValidation(validationGeneration, root.value, pivot)
+          for root <- stateRoot; pivot <- pivotBlock do spawnStorageValidation(validationGeneration, root, pivot)
         else
           ctx.log.warn(
             s"Account trie validation found ${missing.size} missing nodes — triggering healing"
@@ -2338,7 +2338,7 @@ private class SNAPSyncControllerImpl(
                     Behaviors
                       .supervise(
                         actors.StorageRangeCoordinator(
-                          stateRoot = rootBs,
+                          stateRoot = TrieRoot(rootBs),
                           networkPeerManager = networkPeerManager,
                           requestTracker = requestTracker,
                           mptStorage = storage,
@@ -2364,7 +2364,9 @@ private class SNAPSyncControllerImpl(
                     org.apache.pekko.actor.typed.DispatcherSelector.fromConfig("sync-dispatcher")
                   )
                 )
-                storageRangeCoordinator.foreach(_ ! actors.StorageRangeCoordinator.StartStorageRangeSync(rootBs))
+                storageRangeCoordinator.foreach(
+                  _ ! actors.StorageRangeCoordinator.StartStorageRangeSync(TrieRoot(rootBs))
+                )
                 timers.startTimerWithFixedDelay(RequestStorageRanges, RequestStorageRanges, 1.second)
 
               // Recovery budget: accounts done, bytecode=2, storage=3 (total 5 per peer)
@@ -3287,7 +3289,7 @@ private class SNAPSyncControllerImpl(
         Behaviors
           .supervise(
             actors.AccountRangeCoordinator(
-              stateRoot = rootHash.value,
+              stateRoot = rootHash,
               networkPeerManager = networkPeerManager,
               requestTracker = requestTracker,
               mptStorage = storage,
@@ -3311,7 +3313,7 @@ private class SNAPSyncControllerImpl(
     )
 
     // Start the coordinator
-    accountRangeCoordinator.foreach(_ ! actors.AccountRangeCoordinator.StartAccountRangeSync(rootHash.value))
+    accountRangeCoordinator.foreach(_ ! actors.AccountRangeCoordinator.StartAccountRangeSync(rootHash))
 
     // Periodically send peer availability notifications
     timers.startTimerWithFixedDelay(RequestAccountRanges, RequestAccountRanges, 1.second)
@@ -3358,7 +3360,7 @@ private class SNAPSyncControllerImpl(
           Behaviors
             .supervise(
               actors.StorageRangeCoordinator(
-                stateRoot = rootHash.value,
+                stateRoot = rootHash,
                 networkPeerManager = networkPeerManager,
                 requestTracker = requestTracker,
                 mptStorage = storage,
@@ -3393,7 +3395,7 @@ private class SNAPSyncControllerImpl(
         )
       )
       // Start with empty tasks — tasks arrive incrementally via AddStorageTasks
-      storageRangeCoordinator.foreach(_ ! actors.StorageRangeCoordinator.StartStorageRangeSync(rootHash.value))
+      storageRangeCoordinator.foreach(_ ! actors.StorageRangeCoordinator.StartStorageRangeSync(rootHash))
 
       timers.startTimerWithFixedDelay(RequestStorageRanges, RequestStorageRanges, 1.second)
 
@@ -3501,7 +3503,7 @@ private class SNAPSyncControllerImpl(
           .Future {
             val validator = new StateValidator(storage)
             validator.findMissingNodesStreaming(
-              root.value,
+              root,
               batchSize = 500,
               onBatch = batch => selfRef ! TrieWalkBatch(batch)
             )
@@ -3549,7 +3551,7 @@ private class SNAPSyncControllerImpl(
             Behaviors
               .supervise(
                 actors.TrieNodeHealingCoordinator(
-                  stateRoot = root.value,
+                  stateRoot = root,
                   networkPeerManager = networkPeerManager,
                   requestTracker = requestTracker,
                   mptStorage = storage,
@@ -3586,7 +3588,7 @@ private class SNAPSyncControllerImpl(
 
         // Start the coordinator — give healing full per-peer budget (accounts/storage/bytecode done)
         trieNodeHealingCoordinator.foreach { coordinator =>
-          coordinator ! actors.TrieNodeHealingCoordinator.StartTrieNodeHealing(root.value)
+          coordinator ! actors.TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
           coordinator ! actors.TrieNodeHealingCoordinator.UpdateMaxInFlightPerPeer(
             snapSyncConfig.healingMaxInFlightPerPeer
           )
@@ -3627,7 +3629,7 @@ private class SNAPSyncControllerImpl(
               Behaviors
                 .supervise(
                   actors.TrieNodeHealingCoordinator(
-                    stateRoot = root.value,
+                    stateRoot = root,
                     networkPeerManager = networkPeerManager,
                     requestTracker = requestTracker,
                     mptStorage = storage,
@@ -3662,7 +3664,7 @@ private class SNAPSyncControllerImpl(
             )
           )
           trieNodeHealingCoordinator.foreach { coordinator =>
-            coordinator ! actors.TrieNodeHealingCoordinator.StartTrieNodeHealing(root.value)
+            coordinator ! actors.TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
             coordinator ! actors.TrieNodeHealingCoordinator.UpdateMaxInFlightPerPeer(
               snapSyncConfig.healingMaxInFlightPerPeer
             )
@@ -3830,7 +3832,7 @@ private class SNAPSyncControllerImpl(
     * responsive during the multi-minute walk. `onComplete` (not `.foreach`) ensures every Future outcome — including a
     * throw inside `validatorFactory(storage)` — produces a message; otherwise the in-progress flag could stick.
     */
-  private def spawnAccountValidation(generation: Long, expectedRoot: ByteString, pivot: BlockNumber): Unit =
+  private def spawnAccountValidation(generation: Long, expectedRoot: TrieRoot, pivot: BlockNumber): Unit =
     val storage = getOrCreateMptStorage(pivot)
     val selfRef = ctx.self
     val start = System.currentTimeMillis()
@@ -3846,7 +3848,7 @@ private class SNAPSyncControllerImpl(
           selfRef ! ValidateAccountTrieResult(generation, Left(e.getMessage), -1L)
       }(snapValidationEc)
 
-  private def spawnStorageValidation(generation: Long, expectedRoot: ByteString, pivot: BlockNumber): Unit =
+  private def spawnStorageValidation(generation: Long, expectedRoot: TrieRoot, pivot: BlockNumber): Unit =
     val storage = getOrCreateMptStorage(pivot)
     val selfRef = ctx.self
     val start = System.currentTimeMillis()
@@ -3890,7 +3892,7 @@ private class SNAPSyncControllerImpl(
             validationGeneration += 1
             val gen = validationGeneration
             ctx.log.info(s"Validating state against expected root: ${expectedRoot.value.take(8).toHex} (gen=$gen)")
-            spawnAccountValidation(gen, expectedRoot.value, pivot)
+            spawnAccountValidation(gen, expectedRoot, pivot)
         case _ =>
           ctx.log.error("Missing state root or pivot block for validation — cannot complete sync")
           validationInProgress = false
@@ -4192,8 +4194,8 @@ private class SNAPSyncControllerImpl(
               s"(root $newRoot). Fast-tracking consecutivePivotRefreshes to $MaxConsecutivePivotRefreshes."
           )
           consecutivePivotRefreshes = MaxConsecutivePivotRefreshes
-        accountRangeCoordinator.foreach(_ ! actors.AccountRangeCoordinator.PivotRefreshed(newStateRoot.value))
-        storageRangeCoordinator.foreach(_ ! actors.StorageRangeCoordinator.StoragePivotRefreshed(newStateRoot.value))
+        accountRangeCoordinator.foreach(_ ! actors.AccountRangeCoordinator.PivotRefreshed(newStateRoot))
+        storageRangeCoordinator.foreach(_ ! actors.StorageRangeCoordinator.StoragePivotRefreshed(newStateRoot))
       else
 
         // Pivot readiness probe: for proactive rolls, verify the new root is indexed on at least
@@ -4305,9 +4307,9 @@ private class SNAPSyncControllerImpl(
             SNAPSyncMetrics.incrementPivotRefreshed()
 
             // Geth-aligned: send refresh signal to ALL active coordinators (all 3 run concurrently)
-            accountRangeCoordinator.foreach(_ ! actors.AccountRangeCoordinator.PivotRefreshed(newStateRoot.value))
+            accountRangeCoordinator.foreach(_ ! actors.AccountRangeCoordinator.PivotRefreshed(newStateRoot))
             storageRangeCoordinator.foreach(
-              _ ! actors.StorageRangeCoordinator.StoragePivotRefreshed(newStateRoot.value)
+              _ ! actors.StorageRangeCoordinator.StoragePivotRefreshed(newStateRoot)
             )
             // Bytecodes are content-addressed (hash-keyed) so pivot changes don't invalidate them,
             // but the coordinator should clear stale peer tracking.
@@ -4319,7 +4321,7 @@ private class SNAPSyncControllerImpl(
             // (the budget is never incremented unless movingRootDeltaHeal && StateHealing).
             healRepegNoRootAttempts = 0
             trieNodeHealingCoordinator.foreach { coordinator =>
-              coordinator ! actors.TrieNodeHealingCoordinator.HealingPivotRefreshed(newStateRoot.value)
+              coordinator ! actors.TrieNodeHealingCoordinator.HealingPivotRefreshed(newStateRoot)
             }
             // Chain download target extends to the new pivot (chain data is canonical, never invalidated)
             if chainDownloader.isDefined then
@@ -4429,7 +4431,7 @@ private class SNAPSyncControllerImpl(
       scala.concurrent
         .Future {
           val validator = new StateValidator(storage)
-          validator.findMissingNodesWithPaths(root.value)
+          validator.findMissingNodesWithPaths(root)
         }(ec)
         .foreach {
           case Right(nodes) => ctx.self ! TrieWalkResult(nodes)
@@ -4942,7 +4944,7 @@ object SNAPSyncController:
   private[snap] case object FlushPeerDisconnects
       extends Command // Debounce flush: forward batched PeerUnavailable to coordinators
   private[snap] case object RetryPivotRefresh extends Command
-  final private[snap] case class RetryBootstrapAtBlock(blockNumber: BigInt) extends Command
+  final private[snap] case class RetryBootstrapAtBlock(blockNumber: BlockNumber) extends Command
   private[snap] case object CheckSnapCapability extends Command
   private[snap] case object TuneRateTracker extends Command
   private[snap] case object EvictNonSnapPeers extends Command
@@ -5020,7 +5022,7 @@ object SNAPSyncController:
     * `stateRoot = None` if none could be fetched (no peers / bootstrap failed / timeout). On `None`, the controller
     * keeps the current serve root (U2) and does NOT push a HealingServeRootRefresh.
     */
-  final case class HealingServeRoot(blockNumber: BigInt, stateRoot: Option[TrieRoot]) extends Command
+  final case class HealingServeRoot(blockNumber: BlockNumber, stateRoot: Option[TrieRoot]) extends Command
 
   /** Signal from coordinators that the current pivot/stateRoot is likely not serveable by peers.
     *

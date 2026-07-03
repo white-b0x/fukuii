@@ -20,14 +20,15 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.crypto.kec256
-import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.db.dataSource.RocksDbConfig
 import com.chipprbots.ethereum.db.dataSource.RocksDbDataSource
 import com.chipprbots.ethereum.db.storage.HealingFrontierStorage
 import com.chipprbots.ethereum.db.storage.Namespaces
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.metrics.Metrics
 import com.chipprbots.ethereum.mpt.LeafNode
 import com.chipprbots.ethereum.mpt.MptTraversals
+import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.p2p.messages.SNAP
 import com.chipprbots.ethereum.testing.PeerTestHelpers
 import com.chipprbots.ethereum.testing.Tags.*
@@ -193,7 +194,9 @@ class ScopedVerificationFallbackSpec
     // and an empty set, the next gate can only take the full-root path.
     withFixture(scoped = true, maxPaths = 200000, markComplete = true) { (coordinator, store, _, _) =>
       store.isComplete shouldBe true
-      coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(kec256(ByteString("fallback-different-root")))
+      coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(
+        TrieRoot(kec256(ByteString("fallback-different-root")))
+      )
       eventually(timeout(3.seconds), interval(100.millis))(store.isComplete shouldBe false)
     }
   }

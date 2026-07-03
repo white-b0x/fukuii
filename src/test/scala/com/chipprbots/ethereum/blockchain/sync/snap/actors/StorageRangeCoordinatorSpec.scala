@@ -19,6 +19,7 @@ import com.chipprbots.ethereum.blockchain.sync.snap.SNAPSyncController
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.db.dataSource.EphemDataSource
 import com.chipprbots.ethereum.db.storage.FlatSlotStorage
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.p2p.messages.SNAP.GetStorageRanges.GetStorageRangesEnc
 import com.chipprbots.ethereum.network.p2p.messages.SNAP.StorageRanges
@@ -51,7 +52,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
   ): org.apache.pekko.actor.typed.ActorRef[StorageRangeCoordinator.Command] =
     testKit.spawn(
       StorageRangeCoordinator(
-        stateRoot = stateRoot,
+        stateRoot = TrieRoot(stateRoot),
         networkPeerManager = networkPeerManager,
         requestTracker = requestTracker,
         mptStorage = mptStorage,
@@ -97,7 +98,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
         captured = new StorageRangeCoordinatorImpl(
           ctx,
           timers,
-          initialStateRoot = stateRoot,
+          initialStateRoot = TrieRoot(stateRoot),
           networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]().ref,
           requestTracker = new SNAPRequestTracker()(classicSystem.scheduler),
           mptStorage = new TestMptStorage(),
@@ -161,7 +162,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(stateRoot)
+    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(TrieRoot(stateRoot))
     coordinator ! StorageRangeCoordinator.StoragePeerAvailable(peer)
 
     // Should handle peer availability (may or may not send request depending on tasks)
@@ -214,7 +215,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(stateRoot)
+    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(TrieRoot(stateRoot))
 
     // Signal that no more tasks will arrive (sentinel pattern)
     coordinator ! StorageRangeCoordinator.NoMoreStorageTasks
@@ -301,7 +302,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
     )
 
     val newStateRoot = kec256(ByteString("new-state-root"))
-    coordinator ! StorageRangeCoordinator.StoragePivotRefreshed(newStateRoot)
+    coordinator ! StorageRangeCoordinator.StoragePivotRefreshed(TrieRoot(newStateRoot))
 
     // Coordinator should still respond to progress queries after pivot refresh
     coordinator ! getProgress
@@ -329,7 +330,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(stateRoot)
+    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(TrieRoot(stateRoot))
     coordinator ! StorageRangeCoordinator.NoMoreStorageTasks
     coordinator ! StorageRangeCoordinator.StorageCheckCompletion
 
@@ -376,7 +377,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       initialMaxInFlightPerPeer = 1
     )
 
-    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(stateRoot)
+    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(TrieRoot(stateRoot))
     coordinator ! StorageRangeCoordinator.AddStorageTasks(Seq(task1, task2))
     coordinator ! StorageRangeCoordinator.StoragePeerAvailable(peer)
 
@@ -428,7 +429,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
     val accountHash = kec256(ByteString("account-force"))
     val storageRoot = kec256(ByteString("storage-root-force"))
     val task = StorageTask.createStorageTask(accountHash, storageRoot)
-    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(stateRoot)
+    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(TrieRoot(stateRoot))
     coordinator ! StorageRangeCoordinator.AddStorageTasks(Seq(task))
 
     // Force completion without a peer — should immediately promote to healing
@@ -464,7 +465,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       snapSyncController = snapSyncController.ref
     )
 
-    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(stateRoot)
+    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(TrieRoot(stateRoot))
     // Peer known but no tasks queued — simulates the window during the account-range phase
     coordinator ! StorageRangeCoordinator.StoragePeerAvailable(peer)
     // StorageCheckCompletion tick that arrives before any storage tasks
@@ -496,7 +497,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
     impl.consecutiveTaskFailures = 50
 
     val newStateRoot = kec256(ByteString("pivot-reset-root"))
-    kit.run(StorageRangeCoordinator.StoragePivotRefreshed(newStateRoot))
+    kit.run(StorageRangeCoordinator.StoragePivotRefreshed(TrieRoot(newStateRoot)))
 
     // BehaviorTestKit processes synchronously — counter must be 0 immediately after
     impl.consecutiveTaskFailures shouldBe 0
@@ -522,7 +523,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
 
     // Pivot refresh (mirrors what happens when SNAPSyncController updates the pivot block)
     val newRoot = kec256(ByteString("mid-session-pivot"))
-    kit.run(StorageRangeCoordinator.StoragePivotRefreshed(newRoot))
+    kit.run(StorageRangeCoordinator.StoragePivotRefreshed(TrieRoot(newRoot)))
 
     // Counter is now 0. Set it to 99 again (simulating another near-threshold accumulation
     // after the pivot — still one below the threshold from this epoch).
@@ -659,7 +660,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
     impl.inFlightFlatBatches = 1
     val staleRoot = kec256(ByteString("a-stale-root"))
 
-    kit.run(StorageRangeCoordinator.FlatBatchFlushComplete(staleRoot, entryCount = 7, elapsedMs = 5L))
+    kit.run(StorageRangeCoordinator.FlatBatchFlushComplete(TrieRoot(staleRoot), entryCount = 7, elapsedMs = 5L))
 
     impl.inFlightFlatBatches shouldBe 0
   }
@@ -676,7 +677,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
     impl.pendingFlatBatchEntries shouldBe 4
 
     // Pivot refresh: must commit the accumulator THEN advance the root.
-    kit.run(StorageRangeCoordinator.StoragePivotRefreshed(newRoot))
+    kit.run(StorageRangeCoordinator.StoragePivotRefreshed(TrieRoot(newRoot)))
 
     drainSelf(kit)
     impl.inFlightFlatBatches shouldBe 0
@@ -696,7 +697,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
 
     kit.run(
       StorageRangeCoordinator.FlatBatchFlushFailed(
-        forStateRoot = kec256(ByteString("flat-batch-test-root")),
+        forStateRoot = TrieRoot(kec256(ByteString("flat-batch-test-root"))),
         entryCount = 11,
         error = "synthetic write failure"
       )
@@ -740,7 +741,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
     coordinator should not be null
 
     // Smoke: accept the basic lifecycle messages without error.
-    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(stateRoot)
+    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(TrieRoot(stateRoot))
     coordinator ! getProgress
     statusProbe.expectMessageType[StorageRangeCoordinator.SyncStatistics]
 
@@ -777,7 +778,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       backpressureLowWatermark = 2
     )
 
-    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(stateRoot)
+    coordinator ! StorageRangeCoordinator.StartStorageRangeSync(TrieRoot(stateRoot))
 
     // Build a small batch of tasks, enough to push the queue to 5 entries.
     val tasks =
@@ -809,7 +810,7 @@ class StorageRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
       backpressureLowWatermark = 2
     )
 
-    kit.run(StorageRangeCoordinator.StartStorageRangeSync(stateRoot))
+    kit.run(StorageRangeCoordinator.StartStorageRangeSync(TrieRoot(stateRoot)))
 
     // Drive across the high-water mark first.
     val tasks =

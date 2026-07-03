@@ -23,6 +23,7 @@ import com.chipprbots.ethereum.db.storage.NodeStorage
 import com.chipprbots.ethereum.db.storage.NodeStorage.NodeHash
 import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.db.storage.pruning.ArchivePruning
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
 
@@ -71,7 +72,7 @@ class BytecodeRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlat
       val actor: TypedActorRef[BytecodeRecoveryActor.Command] = testKit
         .spawn(
           BytecodeRecoveryActor.testApply(
-            stateRoot = fakeStateRoot,
+            stateRoot = TrieRoot(fakeStateRoot),
             stateStorage = stateStorage,
             evmCodeStorage = evmCodeStorage,
             appStateStorage = appStateStorage,
@@ -103,7 +104,7 @@ class BytecodeRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlat
       val actor: TypedActorRef[BytecodeRecoveryActor.Command] = testKit
         .spawn(
           BytecodeRecoveryActor.testApply(
-            stateRoot = fakeStateRoot,
+            stateRoot = TrieRoot(fakeStateRoot),
             stateStorage = stateStorage,
             evmCodeStorage = evmCodeStorage,
             appStateStorage = appStateStorage,
@@ -140,7 +141,7 @@ class BytecodeRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlat
       val actor: TypedActorRef[BytecodeRecoveryActor.Command] = testKit
         .spawn(
           BytecodeRecoveryActor.testApply(
-            stateRoot = fakeStateRoot,
+            stateRoot = TrieRoot(fakeStateRoot),
             stateStorage = stateStorage,
             evmCodeStorage = evmCodeStorage,
             appStateStorage = appStateStorage,
@@ -173,7 +174,7 @@ class BytecodeRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlat
       val actor: TypedActorRef[BytecodeRecoveryActor.Command] = testKit
         .spawn(
           BytecodeRecoveryActor.testApply(
-            stateRoot = fakeStateRoot,
+            stateRoot = TrieRoot(fakeStateRoot),
             stateStorage = stateStorage,
             evmCodeStorage = evmCodeStorage,
             appStateStorage = appStateStorage,
@@ -213,7 +214,7 @@ class BytecodeRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlat
       val actor: TypedActorRef[BytecodeRecoveryActor.Command] = testKit
         .spawn(
           BytecodeRecoveryActor.testApply(
-            stateRoot = fakeStateRoot,
+            stateRoot = TrieRoot(fakeStateRoot),
             stateStorage = stateStorage,
             evmCodeStorage = evmCodeStorage,
             appStateStorage = appStateStorage,

@@ -16,10 +16,11 @@ import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import com.chipprbots.ethereum.db.storage.{HealingFrontierStorage, Namespaces}
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.metrics.Metrics
 import com.chipprbots.ethereum.mpt.{BranchNode, HashNode, LeafNode, MptNode, NullNode}
-import com.chipprbots.ethereum.testing.TestMptStorage
 import com.chipprbots.ethereum.testing.Tags.*
+import com.chipprbots.ethereum.testing.TestMptStorage
 
 import java.io.File
 import java.nio.file.Files
@@ -165,7 +166,7 @@ class SubtreeCompleteSeedingSpec extends ScalaTestWithActorTestKit() with AnyFla
         SNAPSyncMetrics.setHealingPrunedVerification(-1L)
         SNAPSyncMetrics.setHealingPrunedSubtrees(-1L)
         // FIRST verification — the only walk this fresh node has run.
-        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
         awaitStateHealingComplete(controller)
 
         // Both seeded subtrees pruned on the first pass; pruned path engaged.

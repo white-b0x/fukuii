@@ -16,6 +16,7 @@ import com.chipprbots.ethereum.db.storage.FlatSlotStorage
 import com.chipprbots.ethereum.db.storage.MptStorage
 import com.chipprbots.ethereum.db.storage.PathNodeStorage
 import com.chipprbots.ethereum.db.storage.SnapSyncProgressStorage
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.Peer
 import com.chipprbots.ethereum.network.p2p.MessageSerializable
@@ -48,7 +49,7 @@ import com.chipprbots.ethereum.utils.ByteStringUtils.ByteStringOps
 private[actors] class StorageRangeCoordinatorImpl(
     context: ActorContext[StorageRangeCoordinator.Command],
     timers: TimerScheduler[StorageRangeCoordinator.Command],
-    initialStateRoot: ByteString,
+    initialStateRoot: TrieRoot,
     networkPeerManager: org.apache.pekko.actor.typed.ActorRef[NetworkPeerManagerActor.Command],
     requestTracker: SNAPRequestTracker,
     mptStorage: MptStorage,
@@ -87,7 +88,7 @@ private[actors] class StorageRangeCoordinatorImpl(
   private val self: org.apache.pekko.actor.typed.ActorRef[Command] = context.self
 
   // Mutable state root — updated in-place when the controller refreshes the pivot.
-  private var stateRoot: ByteString = initialStateRoot
+  private var stateRoot: TrieRoot = initialStateRoot
 
   // Per-peer concurrency budget — dynamically adjusted by SNAPSyncController via UpdateMaxInFlightPerPeer.
   private var maxInFlightPerPeer: Int = initialMaxInFlightPerPeer
@@ -240,7 +241,7 @@ private[actors] class StorageRangeCoordinatorImpl(
       if strikes < EmptyResponseStrikeThreshold then
         log.info(
           s"Peer $id empty-storage strike $strikes/$EmptyResponseStrikeThreshold for root " +
-            s"${stateRoot.take(4).toHex}. Still eligible for dispatch."
+            s"${stateRoot.value.take(4).toHex}. Still eligible for dispatch."
         )
       else
         val wasStateless = statelessPeers.contains(id)
@@ -249,7 +250,7 @@ private[actors] class StorageRangeCoordinatorImpl(
           com.chipprbots.ethereum.blockchain.sync.snap.SNAPSyncMetrics.incrementStatelessPeerConfirmed()
         log.info(
           s"Peer $id marked stateless after $strikes consecutive empty storage responses for root " +
-            s"${stateRoot.take(4).toHex} (${statelessPeers.size}/${knownAvailablePeers.size} stateless)"
+            s"${stateRoot.value.take(4).toHex} (${statelessPeers.size}/${knownAvailablePeers.size} stateless)"
         )
         maybeRequestPivotRefresh()
 
@@ -330,21 +331,21 @@ private[actors] class StorageRangeCoordinatorImpl(
         if lowEligible then
           log.warn(
             s"Low-eligible storage peers: ${eligibleCount}/${knownAvailablePeers.size} eligible, " +
-              s"${statelessPeers.size} stateless for root ${stateRoot.take(4).toHex}. " +
+              s"${stateRoot.value.take(4).toHex}. " +
               s"Requesting pivot refresh to restore peer pool (attempt $consecutiveUnproductiveRefreshes)."
           )
           snapSyncController ! SNAPSyncController.PivotStateUnservable(
-            rootHash = stateRoot,
+            rootHash = stateRoot.value,
             reason = "low-eligible peers for StorageRange root",
             consecutiveEmptyResponses = statelessPeers.size
           )
         else
           log.warn(
-            s"All ${statelessPeers.size} known peers are stateless for root ${stateRoot.take(4).toHex}. " +
+            s"All ${statelessPeers.size} known peers are stateless for root ${stateRoot.value.take(4).toHex}. " +
               s"Requesting pivot refresh from controller (attempt $consecutiveUnproductiveRefreshes)."
           )
           snapSyncController ! SNAPSyncController.PivotStateUnservable(
-            rootHash = stateRoot,
+            rootHash = stateRoot.value,
             reason = "all peers stateless for StorageRange root",
             consecutiveEmptyResponses = statelessPeers.size
           )
@@ -691,7 +692,7 @@ private[actors] class StorageRangeCoordinatorImpl(
   def active(): Behavior[Command] = Behaviors
     .receiveMessage[Command] {
       case StartStorageRangeSync(root) =>
-        log.info(s"Starting storage range sync for state root ${root.take(8).toHex}")
+        log.info(s"Starting storage range sync for state root ${root.value.take(8).toHex}")
 
         Behaviors.same
 
@@ -834,7 +835,7 @@ private[actors] class StorageRangeCoordinatorImpl(
         Behaviors.same
 
       case StoragePivotRefreshed(newStateRoot) =>
-        log.info(s"Storage pivot refreshed: ${stateRoot.take(4).toHex} -> ${newStateRoot.take(4).toHex}")
+        log.info(s"Storage pivot refreshed: ${stateRoot.value.take(4).toHex} -> ${newStateRoot.value.take(4).toHex}")
         log.debug(s"Storage consecutive task failures reset on pivot refresh (was $consecutiveTaskFailures)")
         consecutiveTaskFailures = 0
 
@@ -926,7 +927,7 @@ private[actors] class StorageRangeCoordinatorImpl(
         inFlightFlatBatches = (inFlightFlatBatches - 1).max(0)
         if forStateRoot != stateRoot then
           log.debug(
-            s"Flat batch flush completed for stale root ${forStateRoot.take(4).toHex} " +
+            s"Flat batch flush completed for stale root ${forStateRoot.value.take(4).toHex} " +
               s"($entryCount entries) — bookkeeping ignored, data on disk"
           )
         else
@@ -940,7 +941,7 @@ private[actors] class StorageRangeCoordinatorImpl(
         inFlightFlatBatches = (inFlightFlatBatches - 1).max(0)
         log.error(
           s"Flat batch flush failed for $entryCount slots " +
-            s"(root ${forStateRoot.take(4).toHex}): $error. Healing phase will recover."
+            s"(root ${forStateRoot.value.take(4).toHex}): $error. Healing phase will recover."
         )
         self ! StorageCheckCompletion
         Behaviors.same
@@ -1016,7 +1017,7 @@ private[actors] class StorageRangeCoordinatorImpl(
 
         val request = GetStorageRanges(
           requestId = requestId,
-          rootHash = stateRoot,
+          rootHash = stateRoot.value,
           accountHashes = accountHashes,
           startingHash = firstTask.next,
           limitHash = firstTask.last,
@@ -1041,7 +1042,7 @@ private[actors] class StorageRangeCoordinatorImpl(
 
         // Full request details at DEBUG level for troubleshooting
         log.debug(
-          s"GetStorageRanges detail: requestId=$requestId root=${stateRoot.toHex} " +
+          s"GetStorageRanges detail: requestId=$requestId root=${stateRoot.value.toHex} " +
             s"start=${firstTask.next.toHex} limit=${firstTask.last.toHex} " +
             s"accounts=${accountHashes.map(_.take(4).toHex).mkString(",")}"
         )
@@ -1279,7 +1280,7 @@ private[actors] class StorageRangeCoordinatorImpl(
               // subtask writes for the same account may race, but worst case is a partial
               // re-download on resume, never data corruption.
               snapProgressStorage.foreach(
-                _.writeStorageCursor(stateRoot, task.accountHash, StorageTask.incrementHash32(lastSlot))
+                _.writeStorageCursor(stateRoot.value, task.accountHash, StorageTask.incrementHash32(lastSlot))
               )
             else
               // Account fully downloaded — commit the streaming trie if one exists.
@@ -1392,7 +1393,7 @@ private[actors] class StorageRangeCoordinatorImpl(
           s"completed=$completedTaskCount " +
           s"workers-known=${knownAvailablePeers.size} stateless=${statelessPeers.size} " +
           s"cooling=${knownAvailablePeers.count(isPeerCoolingDown)} eligible=${eligiblePeers.size} " +
-          s"strikes=${emptyResponseStrikes.size} root=${stateRoot.take(4).toHex}"
+          s"strikes=${emptyResponseStrikes.size} root=${stateRoot.value.take(4).toHex}"
       )
       if noMoreTasksExpected then
         val activeCount = activeTasks.values.map(_._2.size).sum
@@ -1514,7 +1515,7 @@ object StorageRangeCoordinator:
 
   // ── Coordinator Commands (SSC-sent and external) ───────────────────────────
 
-  case class StartStorageRangeSync(stateRoot: ByteString) extends Command
+  case class StartStorageRangeSync(stateRoot: TrieRoot) extends Command
   case class AddStorageTasks(tasks: Seq[StorageTask]) extends Command
   case class AddStorageTask(task: StorageTask) extends Command
   case class StoragePeerAvailable(peer: Peer) extends Command
@@ -1527,7 +1528,7 @@ object StorageRangeCoordinator:
   /** Sent by SNAPSyncController when a fresher pivot has been selected during storage sync. Coordinator updates state
     * root and clears per-peer adaptive state.
     */
-  case class StoragePivotRefreshed(newStateRoot: ByteString) extends Command
+  case class StoragePivotRefreshed(newStateRoot: TrieRoot) extends Command
 
   /** Signal that no more storage tasks will arrive (all accounts downloaded). Coordinator may now report completion
     * when pending + active tasks drain.
@@ -1548,14 +1549,14 @@ object StorageRangeCoordinator:
     * `forStateRoot` lets the coordinator drop completion messages from a superseded generation.
     */
   private[actors] case class FlatBatchFlushComplete(
-      forStateRoot: ByteString,
+      forStateRoot: TrieRoot,
       entryCount: Int,
       elapsedMs: Long
   ) extends Command
 
   /** Aggregated flat-slot batch failed to commit. Healing phase is expected to re-fetch the missing slots. */
   private[actors] case class FlatBatchFlushFailed(
-      forStateRoot: ByteString,
+      forStateRoot: TrieRoot,
       entryCount: Int,
       error: String
   ) extends Command
@@ -1574,7 +1575,7 @@ object StorageRangeCoordinator:
     * no child workers — it dispatches GetStorageRanges directly to `networkPeerManager` (still Classic).
     */
   def apply(
-      stateRoot: ByteString,
+      stateRoot: TrieRoot,
       networkPeerManager: org.apache.pekko.actor.typed.ActorRef[NetworkPeerManagerActor.Command],
       requestTracker: SNAPRequestTracker,
       mptStorage: MptStorage,

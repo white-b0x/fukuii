@@ -33,7 +33,7 @@ class StateValidatorSpec extends AnyFlatSpec with Matchers:
 
     // Validate the trie
     val validator = new StateValidator(storage)
-    val result = validator.validateAccountTrie(stateRoot)
+    val result = validator.validateAccountTrie(TrieRoot(stateRoot))
 
     // Should have no missing nodes
     result shouldBe Right(Seq.empty)
@@ -54,7 +54,7 @@ class StateValidatorSpec extends AnyFlatSpec with Matchers:
 
     // Try to validate the trie with incomplete storage - should detect missing root
     val validator = new StateValidator(incompleteStorage)
-    val result = validator.validateAccountTrie(stateRoot)
+    val result = validator.validateAccountTrie(TrieRoot(stateRoot))
 
     result match
       case Right(_) =>
@@ -88,7 +88,7 @@ class StateValidatorSpec extends AnyFlatSpec with Matchers:
     val stateRoot = ByteString(trie.getRootHash)
 
     val validator = new StateValidator(storage)
-    val result = validator.validateAllStorageTries(stateRoot)
+    val result = validator.validateAllStorageTries(TrieRoot(stateRoot))
 
     // Should succeed with no missing nodes since storage trie is complete
     result shouldBe Right(Seq.empty)
@@ -111,7 +111,7 @@ class StateValidatorSpec extends AnyFlatSpec with Matchers:
     val stateRoot = ByteString(trie.getRootHash)
 
     val validator = new StateValidator(storage)
-    val result = validator.validateAllStorageTries(stateRoot)
+    val result = validator.validateAllStorageTries(TrieRoot(stateRoot))
 
     // Should succeed with no missing nodes (empty storage is valid)
     result shouldBe Right(Seq.empty)
@@ -122,7 +122,7 @@ class StateValidatorSpec extends AnyFlatSpec with Matchers:
     val nonExistentRoot = kec256(ByteString("nonexistent"))
 
     val validator = new StateValidator(storage)
-    val result = validator.validateAccountTrie(nonExistentRoot)
+    val result = validator.validateAccountTrie(TrieRoot(nonExistentRoot))
 
     // Should return error about missing root
     result.isLeft shouldBe true
@@ -148,7 +148,7 @@ class StateValidatorSpec extends AnyFlatSpec with Matchers:
     val validator = new StateValidator(storage)
 
     // Validate should traverse all accounts
-    val result = validator.validateAccountTrie(stateRoot)
+    val result = validator.validateAccountTrie(TrieRoot(stateRoot))
 
     // Should complete without errors
     result.isRight shouldBe true
@@ -187,7 +187,7 @@ class StateValidatorSpec extends AnyFlatSpec with Matchers:
     val stateRoot = ByteString(trie.getRootHash)
 
     val validator = new StateValidator(storage)
-    val result = validator.validateAllStorageTries(stateRoot)
+    val result = validator.validateAllStorageTries(TrieRoot(stateRoot))
 
     // Should detect the missing storage root for account2
     result match

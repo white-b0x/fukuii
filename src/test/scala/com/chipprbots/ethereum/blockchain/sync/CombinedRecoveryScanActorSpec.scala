@@ -81,7 +81,7 @@ class CombinedRecoveryScanActorSpec extends ScalaTestWithActorTestKit() with Any
 
     testKit.spawn(
       CombinedRecoveryScanActor(
-        stateRoot = root,
+        stateRoot = TrieRoot(root),
         stateStorage = stateStorage,
         evmCodeStorage = evm,
         appStateStorage = appState,

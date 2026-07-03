@@ -23,6 +23,7 @@ import com.chipprbots.ethereum.db.storage.NodeStorage
 import com.chipprbots.ethereum.db.storage.NodeStorage.NodeHash
 import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.db.storage.pruning.ArchivePruning
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
 
@@ -79,7 +80,7 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
     val actor = testKit
       .spawn(
         StorageRecoveryActor.testApply(
-          stateRoot = fakeStateRoot,
+          stateRoot = TrieRoot(fakeStateRoot),
           stateStorage = stateStorage,
           appStateStorage = appStateStorage,
           flatSlotStorage = flatSlots,
@@ -129,10 +130,10 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
     syncController.expectMsgType[StorageRecoveryActor.RequestRecentRoot](2.seconds)
 
     val recentRoot = ByteString(Array.fill[Byte](32)(0x44))
-    actor ! StorageRecoveryActor.RecentRoot(BigInt(200), Some(recentRoot))
+    actor ! StorageRecoveryActor.RecentRoot(BigInt(200), Some(TrieRoot(recentRoot)))
 
     // The coordinator is re-armed against the recent root instead of the actor abandoning.
-    coordinator.expectMsg(2.seconds, actors.StorageRangeCoordinator.StoragePivotRefreshed(recentRoot))
+    coordinator.expectMsg(2.seconds, actors.StorageRangeCoordinator.StoragePivotRefreshed(TrieRoot(recentRoot)))
     // The roll cancelled the abandon timer → no RecoveryComplete follows.
     syncController.expectNoMessage(1.second)
     appStateStorage.isStorageRecoveryDone() shouldBe false
@@ -150,7 +151,7 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
 
     actor ! pivotUnservable()
     syncController.expectMsgType[StorageRecoveryActor.RequestRecentRoot](2.seconds)
-    actor ! StorageRecoveryActor.RecentRoot(BigInt(0), Some(fakeStateRoot)) // == current root → no-op roll
+    actor ! StorageRecoveryActor.RecentRoot(BigInt(0), Some(TrieRoot(fakeStateRoot))) // == current root → no-op roll
 
     // No StoragePivotRefreshed sent (the initial AddStorageTasks was already consumed).
     coordinator.expectNoMessage(300.millis)
@@ -171,8 +172,11 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
     actor ! pivotUnservable()
     syncController.expectMsgType[StorageRecoveryActor.RequestRecentRoot](2.seconds) // roll 1 requested
     val root1 = ByteString(Array.fill[Byte](32)(0x55))
-    actor ! StorageRecoveryActor.RecentRoot(BigInt(10), Some(root1))
-    coordinator.expectMsg(2.seconds, actors.StorageRangeCoordinator.StoragePivotRefreshed(root1)) // roll 1 applied
+    actor ! StorageRecoveryActor.RecentRoot(BigInt(10), Some(TrieRoot(root1)))
+    coordinator.expectMsg(
+      2.seconds,
+      actors.StorageRangeCoordinator.StoragePivotRefreshed(TrieRoot(root1))
+    ) // roll 1 applied
 
     actor ! pivotUnservable() // still unservable, but the single roll is spent → no new request
     syncController.expectMsg(3.seconds, StorageRecoveryActor.RecoveryComplete) // abandons the residue

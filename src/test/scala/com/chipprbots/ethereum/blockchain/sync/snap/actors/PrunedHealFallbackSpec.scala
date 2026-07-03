@@ -16,6 +16,7 @@ import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import com.chipprbots.ethereum.db.storage.{HealingFrontierStorage, Namespaces, PathNodeStorage}
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.metrics.Metrics
 import com.chipprbots.ethereum.mpt.{BranchNode, HashNode, LeafNode, MptNode, MptTraversals, NullNode}
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
@@ -190,7 +191,7 @@ class PrunedHealFallbackSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
         store.markSubtreeComplete(subtreeRoot) // a record EXISTS, but the flag is off ⇒ it must be ignored
         SNAPSyncMetrics.setHealingPrunedVerification(-1L)
         SNAPSyncMetrics.setHealingPrunedSubtrees(-1L)
-        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
         awaitStateHealingComplete(controller)
         // Pruning disabled: engagement gauge 0, zero subtrees pruned (the recorded subtree was descended anyway).
         gaugeValue("snapsync.healing.pruned_verification.gauge") shouldBe 0.0 +- 1e-9
@@ -213,7 +214,7 @@ class PrunedHealFallbackSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
       store.markSubtreeComplete(subtreeRoot)
       SNAPSyncMetrics.setHealingPrunedVerification(-1L)
       SNAPSyncMetrics.setHealingPrunedSubtrees(-1L)
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
       awaitStateHealingComplete(controller)
       gaugeValue("snapsync.healing.pruned_verification.gauge") shouldBe 0.0 +- 1e-9
       gaugeValue("snapsync.healing.pruned_subtrees.gauge") shouldBe 0.0 +- 1e-9
@@ -229,7 +230,7 @@ class PrunedHealFallbackSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
     withVerificationFixture(root, storage, storageScheme = StorageScheme.Hash) { (coordinator, store, controller) =>
       store.isSubtreeComplete(subtreeRoot) shouldBe false // NO record seeded
       SNAPSyncMetrics.setHealingPrunedSubtrees(-1L)
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
       awaitStateHealingComplete(controller)
       gaugeValue("snapsync.healing.pruned_verification.gauge") shouldBe 1.0 +- 1e-9 // engaged …
       gaugeValue("snapsync.healing.pruned_subtrees.gauge") shouldBe 0.0 +- 1e-9 // … but pruned nothing

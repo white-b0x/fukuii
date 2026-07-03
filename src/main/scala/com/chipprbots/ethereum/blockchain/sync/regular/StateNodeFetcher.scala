@@ -22,6 +22,7 @@ import com.chipprbots.ethereum.blockchain.sync.regular.BlockFetcher.FetchCommand
 import com.chipprbots.ethereum.blockchain.sync.regular.BlockFetcher.FetchResponse
 import com.chipprbots.ethereum.blockchain.sync.regular.BlockFetcher.FetchedStateNode
 import com.chipprbots.ethereum.crypto.kec256
+import com.chipprbots.ethereum.domain.CodeHash
 import com.chipprbots.ethereum.network.Peer
 import com.chipprbots.ethereum.network.PeerId
 import com.chipprbots.ethereum.network.p2p.Message
@@ -296,7 +297,7 @@ class StateNodeFetcher(
       isByteCode: Boolean,
       excludePeers: Set[PeerId]
   ): Unit =
-    if isByteCode then sendGetByteCodes(hash, excludePeers)
+    if isByteCode then sendGetByteCodes(CodeHash(hash), excludePeers)
     else
       (stateRoot, paths) match
         case (Some(root), Some(pathGroups)) if pathGroups.nonEmpty =>
@@ -348,15 +349,15 @@ class StateNodeFetcher(
     * is served by every snap-capable peer regardless of their ETH version, so this works even when the entire peer set
     * is ETH68+ (no GetNodeData).
     */
-  private def sendGetByteCodes(codeHash: ByteString, excludePeers: Set[PeerId]): Unit =
+  private def sendGetByteCodes(codeHash: CodeHash, excludePeers: Set[PeerId]): Unit =
     log.info(
       "Requesting missing bytecode via SNAP GetByteCodes (codeHash={}, excluding {} tried peer(s))",
-      ByteStringUtils.hash2string(codeHash),
+      ByteStringUtils.hash2string(codeHash.value),
       excludePeers.size
     )
     val request = GetByteCodes(
       requestId = ETHPackets.nextRequestId,
-      hashes = Seq(codeHash),
+      hashes = Seq(codeHash.value),
       responseBytes = BigInt(512 * 1024)
     )
     val resp = makeRequest(

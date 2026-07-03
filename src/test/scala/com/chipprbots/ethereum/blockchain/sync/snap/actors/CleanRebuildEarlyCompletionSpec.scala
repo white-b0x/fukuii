@@ -14,6 +14,7 @@ import org.scalatest.matchers.should.Matchers
 import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import com.chipprbots.ethereum.db.storage.{HealingFrontierStorage, Namespaces}
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.mpt.LeafNode
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.testing.TestMptStorage
@@ -152,7 +153,7 @@ class CleanRebuildEarlyCompletionSpec
       val storage = new TestMptStorage()
       val root = storedLeafRoot(storage, seed = 1)
       withRebuildFixture(storage, root) { (coordinator, r, store, controller) =>
-        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(r)
+        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(r))
         controller.expectMessage(5.seconds, SNAPSyncController.StateHealingComplete)
         // The same clean rebuild set the CF `g` completeness marker (already true today; asserted for parity).
         eventually(timeout(5.seconds), interval(100.millis))(store.isComplete shouldBe true)
@@ -168,7 +169,7 @@ class CleanRebuildEarlyCompletionSpec
     // would normally take over, but no completion may be declared while a node is missing.
     val fixture = HealingTrieFixtures.sharedAncestor()
     withRebuildFixture(fixture.storage, fixture.rootHash) { (coordinator, r, _, controller) =>
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(r)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(r))
       // The single missing grandchild is discovered and queued.
       eventually(timeout(5.seconds), interval(100.millis))(pendingTasks(coordinator) should be > 0)
       // And no early completion is declared while that node is still missing.
@@ -199,9 +200,9 @@ class CleanRebuildEarlyCompletionSpec
     // rootB intentionally NOT put into storage — forces the deterministic reseed branch in HealingPivotRefreshed.
     val rootB = ByteString(LeafNode(ByteString(Array[Byte](2.toByte)), ByteString(Array[Byte](2.toByte))).hash)
     withRebuildFixture(storage, rootA) { (coordinator, _, _, controller) =>
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(rootA)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(rootA))
       coordinator ! TrieNodeHealingCoordinator.HealingPivotRefreshed(
-        rootB
+        TrieRoot(rootB)
       ) // flips stateRoot A → B before the stale A-walk lands
       // The stale FrontierRebuildComplete(walkRoot = A) must NOT complete against the new root B.
       controller.expectNoMessage(5.seconds)
@@ -218,7 +219,7 @@ class CleanRebuildEarlyCompletionSpec
     val storage = new TestMptStorage()
     val root = storedLeafRoot(storage, seed = 1)
     withRebuildFixture(storage, root) { (coordinator, r, store, controller) =>
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(r)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(r))
       controller.expectMessage(5.seconds, SNAPSyncController.StateHealingComplete)
       val earlyPathMarker =
         eventually(timeout(5.seconds), interval(100.millis))(store.isComplete shouldBe true)
@@ -239,7 +240,7 @@ class CleanRebuildEarlyCompletionSpec
     val storage = new TestMptStorage()
     val root = storedLeafRoot(storage, seed = 1)
     withRebuildFixture(storage, root) { (coordinator, r, _, controller) =>
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(r)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(r))
       controller.expectMessage(5.seconds, SNAPSyncController.StateHealingComplete)
       controller.expectNoMessage(2.seconds)
     }

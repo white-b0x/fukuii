@@ -24,6 +24,7 @@ import com.chipprbots.ethereum.db.dataSource.RocksDbConfig
 import com.chipprbots.ethereum.db.dataSource.RocksDbDataSource
 import com.chipprbots.ethereum.db.storage.HealingFrontierStorage
 import com.chipprbots.ethereum.db.storage.Namespaces
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.metrics.Metrics
 import com.chipprbots.ethereum.mpt.LeafNode
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie
@@ -208,7 +209,9 @@ class DecoupledHealSafetySpec extends ScalaTestWithActorTestKit() with AnyFlatSp
 
       // A serve-root advance is the legitimate retry trigger: it clears the per-task attempt counters and
       // resets the unservable gauge to 0 (the task gets a fresh budget under the new serve root).
-      coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(kec256(ByteString("safety-t4-new-serve-root")))
+      coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(
+        TrieRoot(kec256(ByteString("safety-t4-new-serve-root")))
+      )
       eventually(timeout(5.seconds), interval(100.millis)) {
         gaugeValue("snapsync.healing.decoupled.unservable_tasks.gauge") shouldBe 0.0 +- 1e-9
       }
@@ -274,7 +277,7 @@ class DecoupledHealSafetySpec extends ScalaTestWithActorTestKit() with AnyFlatSp
       // walk root's expectation either way (content-hash-verified), so the final stored state is identical.
       if decoupled then
         coordinator ! TrieNodeHealingCoordinator.HealingServeRootRefresh(
-          kec256(ByteString("decoupled-parity-serve-root"))
+          TrieRoot(kec256(ByteString("decoupled-parity-serve-root")))
         )
       val peer = PeerTestHelpers.createTestPeer(s"parity-peer-$decoupled", testKit.createTestProbe[Any]().ref.toClassic)
       coordinator ! TrieNodeHealingCoordinator.QueueMissingNodes(nodes.map { case (ps, h, _) => (ps, h) })

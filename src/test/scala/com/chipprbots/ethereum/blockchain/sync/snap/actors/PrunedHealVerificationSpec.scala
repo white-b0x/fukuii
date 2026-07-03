@@ -17,6 +17,7 @@ import com.chipprbots.ethereum.blockchain.sync.snap.*
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import com.chipprbots.ethereum.db.storage.{HealingFrontierStorage, Namespaces}
+import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.metrics.Metrics
 import com.chipprbots.ethereum.mpt.{BranchNode, HashNode, LeafNode, MptNode, MptTraversals, NullNode}
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
@@ -216,7 +217,7 @@ class PrunedHealVerificationSpec extends ScalaTestWithActorTestKit() with AnyFla
 
         SNAPSyncMetrics.setHealingPrunedVerification(-1L)
         SNAPSyncMetrics.setHealingPrunedSubtrees(-1L)
-        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(stateRoot)
+        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(stateRoot))
         awaitStateHealingComplete(controller)
 
         // The pruned (descend-and-stop) path engaged on this verification.
@@ -248,7 +249,7 @@ class PrunedHealVerificationSpec extends ScalaTestWithActorTestKit() with AnyFla
         // Seed the gauge to a sentinel so "0" can only come from THIS walk's startVerificationBFS reset, not a
         // leftover from another test (the gauge is a static global).
         SNAPSyncMetrics.setHealingPrunedSubtrees(-1L)
-        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(stateRoot)
+        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(stateRoot))
 
         // The walk descends X and discovers the missing grandchild — it must surface in the open frontier
         // (queued via FrontierRebuilt → queueNodes), keeping the round open.
@@ -270,7 +271,7 @@ class PrunedHealVerificationSpec extends ScalaTestWithActorTestKit() with AnyFla
     withVerificationFixture(root, storage) { (coordinator, store, controller) =>
       store.isSubtreeComplete(subtreeRoot) shouldBe false
       SNAPSyncMetrics.setHealingPrunedSubtrees(-1L)
-      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+      coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
       awaitStateHealingComplete(controller)
       // Descended everything; pruned nothing.
       gaugeValue("snapsync.healing.pruned_subtrees.gauge") shouldBe 0.0 +- 1e-9
@@ -321,7 +322,7 @@ class PrunedHealVerificationSpec extends ScalaTestWithActorTestKit() with AnyFla
         store.markSubtreeComplete(subtreeRoot)
         SNAPSyncMetrics.setHealingPrunedVerification(-1L)
         SNAPSyncMetrics.setHealingPrunedSubtrees(-1L)
-        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(root)
+        coordinator ! TrieNodeHealingCoordinator.StartTrieNodeHealing(TrieRoot(root))
         awaitStateHealingComplete(controller)
 
         // Engagement flag = 1 (pruned path), pruned-subtree count > 0, duration recorded, and the shared
