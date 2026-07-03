@@ -14,6 +14,7 @@ import scala.util.Success
 
 import org.bouncycastle.util.encoders.Hex
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.utils.Logger
 
 /** Pushes new PoW work packages to configured HTTP endpoints.
@@ -31,7 +32,7 @@ object WorkNotifier extends Logger:
       powHeaderHash: ByteString,
       dagSeed: ByteString,
       target: ByteString,
-      blockNumber: BigInt
+      blockNumber: BlockNumber
   )
 
   /** Posts the work package to every configured URL. Each POST is independent; one failure does not affect others.
@@ -61,5 +62,5 @@ object WorkNotifier extends Logger:
     val sealhash = "0x" + Hex.toHexString(work.powHeaderHash.toArray)
     val seed = "0x" + Hex.toHexString(work.dagSeed.toArray)
     val target = "0x" + Hex.toHexString(work.target.toArray)
-    val blockNum = "0x" + work.blockNumber.toString(16)
+    val blockNum = "0x" + work.blockNumber.value.toString(16)
     s"""["$sealhash","$seed","$target","$blockNum"]"""

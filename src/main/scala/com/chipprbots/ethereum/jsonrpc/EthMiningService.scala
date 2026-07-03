@@ -121,7 +121,7 @@ class EthMiningService(
       reportActive()
       blockchainReader.getBestBlock match
         case Some(block) =>
-          (getOmmersFromPool(block.hash.value), getTransactionsFromPool).parMapN { case (ommers, pendingTxs) =>
+          (getOmmersFromPool(block.hash), getTransactionsFromPool).parMapN { case (ommers, pendingTxs) =>
             val blockGenerator = ethash.blockGenerator
             val PendingBlockAndState(pb, _) = blockGenerator.generateBlock(
               block,
@@ -143,7 +143,7 @@ class EthMiningService(
             if notifyUrls.nonEmpty then
               WorkNotifier.notify(
                 notifyUrls,
-                WorkNotifier.WorkPackage(powHeaderHash, dagSeed, target, blockNumber.value)
+                WorkNotifier.WorkPackage(powHeaderHash, dagSeed, target, blockNumber)
               )(system)
             Right(workResponse)
           }
@@ -270,7 +270,7 @@ class EthMiningService(
     val now = new Date()
     lastActive.updateAndGet(_ => Some(now))
 
-  private def getOmmersFromPool(parentBlockHash: ByteString): IO[OmmersPool.Ommers] =
+  private def getOmmersFromPool(parentBlockHash: BlockHash): IO[OmmersPool.Ommers] =
     mining.ifEthash { ethash =>
       val miningConfig = ethash.config.specific
       import org.apache.pekko.actor.typed.scaladsl.AskPattern.*

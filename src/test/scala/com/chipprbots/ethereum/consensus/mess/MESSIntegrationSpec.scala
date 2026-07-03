@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.consensus.mess
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.testing.Tags.*
 
 // ── L6: MESS blockchain-level reorg boundary (ECBP-1100 + Spiral deactivation + Olympia re-activation) ─────
@@ -26,20 +27,20 @@ import com.chipprbots.ethereum.testing.Tags.*
 class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
 
   // ETC mainnet ECBP-1100 canonical block numbers
-  private val MessActivation = BigInt(11_380_000)
-  private val MessDeactivation = BigInt(19_250_000) // Spiral fork deactivates MESS
-  private val OlympiaBlock = BigInt(25_000_000) // hypothetical; actual TBD
+  private val MessActivation = BlockNumber(11_380_000)
+  private val MessDeactivation = BlockNumber(19_250_000) // Spiral fork deactivates MESS
+  private val OlympiaBlock = BlockNumber(25_000_000) // hypothetical; actual TBD
 
   private val etcMainnetConfig = MESSConfig(
     enabled = true,
-    activationBlock = Some(MessActivation.toLong),
-    deactivationBlock = Some(MessDeactivation.toLong),
+    activationBlock = Some(MessActivation),
+    deactivationBlock = Some(MessDeactivation),
     reactivationBlock = Some(OlympiaBlock)
   )
 
   // Helper: the full MESS guard as used in production
   private def wouldRejectReorg(
-      localHeadBlock: BigInt,
+      localHeadBlock: BlockNumber,
       timeDeltaSeconds: Long,
       localSubchainTD: BigInt,
       proposedSubchainTD: BigInt
@@ -66,7 +67,7 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
 
   it should "accept any reorg at block 0 (genesis)" taggedAs (UnitTest, ConsensusTest) in {
     wouldRejectReorg(
-      localHeadBlock = BigInt(0),
+      localHeadBlock = BlockNumber(0),
       timeDeltaSeconds = 100_000,
       localSubchainTD = BigInt(1_000_000),
       proposedSubchainTD = BigInt(1)
@@ -80,7 +81,7 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
     ConsensusTest
   ) in {
     // timeDelta=0 → polynomial=128/128=1x → any TD >= local is accepted
-    val midWindow = MessActivation + BigInt(1_000_000)
+    val midWindow = MessActivation + 1_000_000
     wouldRejectReorg(
       localHeadBlock = midWindow,
       timeDeltaSeconds = 0,
@@ -100,7 +101,7 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
     UnitTest,
     ConsensusTest
   ) in {
-    val midWindow = MessActivation + BigInt(1_000_000)
+    val midWindow = MessActivation + 1_000_000
     wouldRejectReorg(
       localHeadBlock = midWindow,
       timeDeltaSeconds = 0,
@@ -115,7 +116,7 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
     UnitTest,
     ConsensusTest
   ) in {
-    val midWindow = MessActivation + BigInt(2_000_000)
+    val midWindow = MessActivation + 2_000_000
     // polynomialV(25132) = 3968; 3968/128 = 31x threshold
     wouldRejectReorg(
       localHeadBlock = midWindow,
@@ -129,7 +130,7 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
     UnitTest,
     ConsensusTest
   ) in {
-    val midWindow = MessActivation + BigInt(2_000_000)
+    val midWindow = MessActivation + 2_000_000
     wouldRejectReorg(
       localHeadBlock = midWindow,
       timeDeltaSeconds = 25132,
@@ -143,7 +144,7 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
     ConsensusTest
   ) in {
     // At 1 hour (~3600s) the polynomial requires ~2.66x → 3x safely clears it
-    val midWindow = MessActivation + BigInt(3_000_000)
+    val midWindow = MessActivation + 3_000_000
     wouldRejectReorg(
       localHeadBlock = midWindow,
       timeDeltaSeconds = 3600,
@@ -156,7 +157,7 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
     UnitTest,
     ConsensusTest
   ) in {
-    val midWindow = MessActivation + BigInt(3_000_000)
+    val midWindow = MessActivation + 3_000_000
     wouldRejectReorg(
       localHeadBlock = midWindow,
       timeDeltaSeconds = 3600,
@@ -197,7 +198,7 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "accept any reorg after Spiral deactivation block" taggedAs (UnitTest, ConsensusTest) in {
-    val postSpiral = MessDeactivation + BigInt(500_000)
+    val postSpiral = MessDeactivation + 500_000
     wouldRejectReorg(
       localHeadBlock = postSpiral,
       timeDeltaSeconds = 25132,
@@ -209,7 +210,7 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
   // ── Olympia re-activation boundary ───────────────────────────────────────
 
   it should "accept any reorg in the deactivated gap [Spiral, Olympia)" taggedAs (UnitTest, ConsensusTest) in {
-    val inGap = OlympiaBlock - BigInt(100_000)
+    val inGap = OlympiaBlock - 100_000
     wouldRejectReorg(
       localHeadBlock = inGap,
       timeDeltaSeconds = 25132,
@@ -239,7 +240,7 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "apply MESS far past the Olympia re-activation block" taggedAs (UnitTest, ConsensusTest) in {
-    val farFuture = OlympiaBlock + BigInt(10_000_000)
+    val farFuture = OlympiaBlock + 10_000_000
     wouldRejectReorg(
       localHeadBlock = farFuture,
       timeDeltaSeconds = 25132,
@@ -253,16 +254,16 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
   it should "correctly toggle MESS across the full ETC mainnet lifecycle" taggedAs (UnitTest, ConsensusTest) in {
     // Use a definitively rejectable reorg: 7-hour, 1x TD vs 1,000,000x local.
     // When MESS is inactive → false. When active → true (1x is nowhere near 31x).
-    def rejectsWith1xReorg(block: BigInt): Boolean =
+    def rejectsWith1xReorg(block: BlockNumber): Boolean =
       wouldRejectReorg(block, 25132, BigInt(1_000_000), BigInt(1_000_000))
 
     // Pre-MESS: accepted
-    rejectsWith1xReorg(BigInt(0)) shouldBe false
+    rejectsWith1xReorg(BlockNumber(0)) shouldBe false
     rejectsWith1xReorg(MessActivation - 1) shouldBe false
 
     // MESS active: rejected (1x TD, 7-hour reorg)
     rejectsWith1xReorg(MessActivation) shouldBe true
-    rejectsWith1xReorg(MessActivation + BigInt(4_000_000)) shouldBe true
+    rejectsWith1xReorg(MessActivation + 4_000_000) shouldBe true
     rejectsWith1xReorg(MessDeactivation - 1) shouldBe true
 
     // Deactivated: accepted
@@ -271,5 +272,5 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
 
     // Re-activated: rejected again
     rejectsWith1xReorg(OlympiaBlock) shouldBe true
-    rejectsWith1xReorg(OlympiaBlock + BigInt(5_000_000)) shouldBe true
+    rejectsWith1xReorg(OlympiaBlock + 5_000_000) shouldBe true
   }

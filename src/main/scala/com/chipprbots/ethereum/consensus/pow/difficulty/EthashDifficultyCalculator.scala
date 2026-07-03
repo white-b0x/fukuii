@@ -20,8 +20,8 @@ object EthashDifficultyCalculator extends DifficultyCalculator:
 
     lazy val timestampDiff: Long = blockTimestamp - parentHeader.unixTimestamp
 
-    val parentDiff: BigInt = parentHeader.difficulty.value
-    val x: BigInt = parentDiff / DifficultyBoundDivision
+    val parentDiff: Difficulty = parentHeader.difficulty
+    val x: BigInt = parentDiff.value / DifficultyBoundDivision
     val c: BigInt =
       if blockNumber < homesteadBlockNumber then if blockTimestamp < parentHeader.unixTimestamp + 13 then 1 else -1
       else if blockNumber >= byzantiumBlockNumber || blockNumber >= atlantisBlockNumber then
@@ -46,8 +46,8 @@ object EthashDifficultyCalculator extends DifficultyCalculator:
         else 0
       else 0
 
-    val difficultyWithoutBomb = MinimumDifficulty.max(Difficulty(parentDiff + x * c))
-    Difficulty(difficultyWithoutBomb.value + extraDifficulty)
+    val difficultyWithoutBomb: BigInt = MinimumDifficulty.value.max(parentDiff.value + x * c)
+    Difficulty(difficultyWithoutBomb + extraDifficulty)
 
   private def calculateBombExponent(blockNumber: BigInt)(implicit
       blockchainConfig: BlockchainConfig

@@ -10,6 +10,7 @@ import com.typesafe.config.ConfigRenderOptions
 
 import com.chipprbots.ethereum.consensus.mess.MESSConfig
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.UInt256
@@ -283,10 +284,12 @@ object BlockchainConfig:
       val messConf = blockchainConfig.getConfig("mess")
       MESSConfig(
         enabled = Try(messConf.getBoolean("enabled")).getOrElse(false),
-        activationBlock = Try(BigInt(messConf.getString("ecbp1100-block-number"))).toOption,
-        deactivationBlock = Try(BigInt(messConf.getString("ecbp1100-deactivate-block-number"))).toOption,
+        activationBlock = Try(BigInt(messConf.getString("ecbp1100-block-number"))).toOption.map(BlockNumber.apply),
+        deactivationBlock =
+          Try(BigInt(messConf.getString("ecbp1100-deactivate-block-number"))).toOption.map(BlockNumber.apply),
         reactivationBlock = Try(BigInt(messConf.getString("ecbp1100-reactivate-block-number"))).toOption
           .orElse(Try(BigInt(blockchainConfig.getString("olympia-block-number"))).toOption)
+          .map(BlockNumber.apply)
       )
     }.getOrElse(MESSConfig())
 

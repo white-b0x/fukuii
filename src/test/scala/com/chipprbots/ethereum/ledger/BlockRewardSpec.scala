@@ -34,7 +34,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val block: Block = sampleBlock(Address(0xdeadbeef))
     val afterRewardWorldState: InMemoryWorldStateProxy = mining.blockPreparator.payBlockReward(block, worldState)
     val expectedRewardAsBigInt: BigInt =
-      mining.blockPreparator.blockRewardCalculator.calculateMiningReward(block.header.number.value, 0)
+      mining.blockPreparator.blockRewardCalculator.calculateMiningReward(block.header.number, 0)
     val expectedReward: UInt256 = UInt256(expectedRewardAsBigInt)
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual expectedReward
 

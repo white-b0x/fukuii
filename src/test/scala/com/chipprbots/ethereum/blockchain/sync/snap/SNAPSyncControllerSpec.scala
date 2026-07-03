@@ -26,6 +26,7 @@ import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.domain.ChainId
+import com.chipprbots.ethereum.domain.Wei
 
 class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
   import SNAPSyncController.SyncPhase.*
@@ -1267,8 +1268,8 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
     monetaryPolicyConfig = MonetaryPolicyConfig(
       eraDuration = 0,
       rewardReductionRate = 0.0,
-      firstEraBlockReward = BigInt(0),
-      firstEraReducedBlockReward = BigInt(0)
+      firstEraBlockReward = Wei(0),
+      firstEraReducedBlockReward = Wei(0)
     ),
     gasTieBreaker = false,
     ethCompatibleStorage = true,

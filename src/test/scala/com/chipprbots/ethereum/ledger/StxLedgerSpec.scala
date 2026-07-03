@@ -170,7 +170,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup:
     customGenesisFileOpt = None,
     customGenesisJsonOpt = None,
     accountStartNonce = UInt256.Zero,
-    monetaryPolicyConfig = MonetaryPolicyConfig(5, 0, 0, 0),
+    monetaryPolicyConfig = MonetaryPolicyConfig(5, 0, Wei(0), Wei(0)),
     daoForkConfig = None,
     gasTieBreaker = false,
     ethCompatibleStorage = true,

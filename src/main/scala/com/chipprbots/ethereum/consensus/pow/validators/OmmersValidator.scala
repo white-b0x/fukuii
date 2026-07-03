@@ -17,7 +17,7 @@ import com.chipprbots.ethereum.utils.BlockchainConfig
 trait OmmersValidator:
 
   def validate(
-      parentHash: ByteString,
+      parentHash: BlockHash,
       blockNumber: BlockNumber,
       ommers: Seq[BlockHeader],
       getBlockByHash: GetBlockHeaderByHash,
@@ -25,7 +25,7 @@ trait OmmersValidator:
   )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid]
 
   def validate(
-      parentHash: ByteString,
+      parentHash: BlockHash,
       blockNumber: BlockNumber,
       ommers: Seq[BlockHeader],
       blockchainReader: BlockchainReader

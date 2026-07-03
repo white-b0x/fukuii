@@ -347,7 +347,7 @@ class EthSimulateService(
         else reward
       val minerAddr = Address(simHeader.beneficiary)
       val acct = world.getAccount(minerAddr).getOrElse(Account.empty(blockchainConfig.accountStartNonce))
-      world = world.saveAccount(minerAddr, acct.increaseBalance(UInt256(finalReward)))
+      world = world.saveAccount(minerAddr, acct.increaseBalance(UInt256(finalReward.value)))
 
     // Compute Merkle roots
     val transactionsRoot = computeTransactionsRoot(txs)

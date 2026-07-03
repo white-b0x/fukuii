@@ -225,8 +225,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
       customGenesisJsonOpt = None,
-      monetaryPolicyConfig =
-        MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
+      monetaryPolicyConfig = MonetaryPolicyConfig(
+        5000000,
+        0.2,
+        Wei(5000000000000000000L),
+        Wei(3000000000000000000L),
+        Wei(2000000000000000000L)
+      ),
       // unused
       maxCodeSize = None,
       accountStartNonce = UInt256.Zero,
@@ -306,8 +311,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
       customGenesisJsonOpt = None,
-      monetaryPolicyConfig =
-        MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
+      monetaryPolicyConfig = MonetaryPolicyConfig(
+        5000000,
+        0.2,
+        Wei(5000000000000000000L),
+        Wei(3000000000000000000L),
+        Wei(2000000000000000000L)
+      ),
       // unused
       maxCodeSize = None,
       accountStartNonce = UInt256.Zero,
@@ -593,8 +603,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
       customGenesisJsonOpt = None,
-      monetaryPolicyConfig =
-        MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
+      monetaryPolicyConfig = MonetaryPolicyConfig(
+        5000000,
+        0.2,
+        Wei(5000000000000000000L),
+        Wei(3000000000000000000L),
+        Wei(2000000000000000000L)
+      ),
       // unused
       maxCodeSize = None,
       accountStartNonce = UInt256.Zero,

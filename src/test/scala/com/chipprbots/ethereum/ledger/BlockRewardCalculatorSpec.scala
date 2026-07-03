@@ -4,6 +4,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.ledger.BlockRewardCalculatorOps.*
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.MonetaryPolicyConfig
@@ -13,17 +15,23 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
 
   "BlockRewardCalculator" should "correctly calculate block and ommer rewards" taggedAs (UnitTest, StateTest) in {
     val standardMP =
-      MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L)
+      MonetaryPolicyConfig(
+        5000000,
+        0.2,
+        Wei(5000000000000000000L),
+        Wei(3000000000000000000L),
+        Wei(2000000000000000000L)
+      )
 
     val standardByzantiumBN = BigInt("965000002")
     val standardConstantinopleBN = BigInt("1000000000")
 
-    val testMP = MonetaryPolicyConfig(10, 0.5, 5000000, 3000000, 2000000)
+    val testMP = MonetaryPolicyConfig(10, 0.5, Wei(5000000), Wei(3000000), Wei(2000000))
     val testByzantiumBN = BigInt(33)
     val testConstantinopleBN = BigInt(100)
 
     val lowEraDurationMP =
-      MonetaryPolicyConfig(3, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L)
+      MonetaryPolicyConfig(3, 0.2, Wei(5000000000000000000L), Wei(3000000000000000000L), Wei(2000000000000000000L))
     val lowByzantiumBN = BigInt(80)
 
     val table = Table[MonetaryPolicyConfig, BigInt, List[BigInt], BigInt, List[BigInt], BigInt, BigInt](
@@ -125,10 +133,12 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
           byzantiumBlockNumber,
           constantinopleBlockNumber
       ) =>
-        val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
+        val calculator =
+          new BlockRewardCalculator(config, BlockNumber(byzantiumBlockNumber), BlockNumber(constantinopleBlockNumber))
+        val bn = BlockNumber(blockNumber)
 
-        val blockReward = calculator.calculateMiningReward(blockNumber, ommersNumbers.size)
-        val ommersRewards = ommersNumbers.map(calculator.calculateOmmerRewardForInclusion(blockNumber, _))
+        val blockReward = calculator.calculateMiningReward(bn, ommersNumbers.size)
+        val ommersRewards = ommersNumbers.map(n => calculator.calculateOmmerRewardForInclusion(bn, BlockNumber(n)))
 
         blockReward shouldEqual expectedBlockReward
         ommersRewards shouldEqual expectedOmmersRewards
@@ -142,7 +152,7 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
 
     val standardEraDuration = 5000000
 
-    val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L)
+    val standardMP = MonetaryPolicyConfig(5000000, 0.2, Wei(5000000000000000000L), Wei(3000000000000000000L))
 
     val byzantiumBlockNumber = standardEraDuration * 50
     val constantinopleBlockNumber = standardEraDuration * 100
@@ -202,11 +212,13 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
 
     forAll(ecip1039table) {
       (config, blockNumber, expectedBlockReward, expectedWinnerOneUncleReward, expectedWinnerTwoUnclesReward) =>
-        val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
+        val calculator =
+          new BlockRewardCalculator(config, BlockNumber(byzantiumBlockNumber), BlockNumber(constantinopleBlockNumber))
+        val bn = BlockNumber(blockNumber)
 
-        val blockReward = calculator.calculateMiningReward(blockNumber, 0)
-        val winnerOneUncleReward = calculator.calculateMiningReward(blockNumber, 1)
-        val winnerTwoUnclesReward = calculator.calculateMiningReward(blockNumber, 2)
+        val blockReward = calculator.calculateMiningReward(bn, 0)
+        val winnerOneUncleReward = calculator.calculateMiningReward(bn, 1)
+        val winnerTwoUnclesReward = calculator.calculateMiningReward(bn, 2)
 
         blockReward shouldEqual expectedBlockReward
         winnerOneUncleReward shouldEqual expectedWinnerOneUncleReward
@@ -221,7 +233,7 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
 
     val standardEraDuration = 5000000
 
-    val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L)
+    val standardMP = MonetaryPolicyConfig(5000000, 0.2, Wei(5000000000000000000L), Wei(3000000000000000000L))
 
     val byzantiumBlockNumber = standardEraDuration * 200
 
@@ -431,9 +443,10 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
     )
 
     forAll(ecip1039table) { (config, blockNumber, expectedWinnerTwoUnclesReward) =>
-      val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
+      val calculator =
+        new BlockRewardCalculator(config, BlockNumber(byzantiumBlockNumber), BlockNumber(constantinopleBlockNumber))
 
-      val winnerTwoUnclesReward = calculator.calculateMiningReward(blockNumber, 2)
+      val winnerTwoUnclesReward = calculator.calculateMiningReward(BlockNumber(blockNumber), 2)
 
       winnerTwoUnclesReward shouldEqual expectedWinnerTwoUnclesReward
     }
@@ -448,11 +461,18 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
     StateTest
   ) in {
     val standardMP =
-      MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L)
-    val calculator = new BlockRewardCalculator(standardMP, BigInt(Long.MaxValue), BigInt(Long.MaxValue))
+      MonetaryPolicyConfig(
+        5000000,
+        0.2,
+        Wei(5000000000000000000L),
+        Wei(3000000000000000000L),
+        Wei(2000000000000000000L)
+      )
+    val calculator =
+      new BlockRewardCalculator(standardMP, BlockNumber(Long.MaxValue), BlockNumber(Long.MaxValue))
 
     // Era 4: base reward = 5 ETC * 0.8^4 = 5 * 0.4096 = 2.048 ETC
-    val era4Block = BigInt(20000001) // First block of era 4
+    val era4Block = BlockNumber(20000001) // First block of era 4
     val era4Reward = calculator.calculateMiningRewardForBlock(era4Block)
     era4Reward shouldEqual BigInt("2048000000000000000")
 
@@ -465,7 +485,7 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
     era4With2Uncles shouldEqual BigInt("2176000000000000000")
 
     // Last block of era 4
-    val era4LastBlock = BigInt(25000000)
+    val era4LastBlock = BlockNumber(25000000)
     calculator.calculateMiningRewardForBlock(era4LastBlock) shouldEqual BigInt("2048000000000000000")
   }
 
@@ -474,11 +494,18 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
     StateTest
   ) in {
     val standardMP =
-      MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L)
-    val calculator = new BlockRewardCalculator(standardMP, BigInt(Long.MaxValue), BigInt(Long.MaxValue))
+      MonetaryPolicyConfig(
+        5000000,
+        0.2,
+        Wei(5000000000000000000L),
+        Wei(3000000000000000000L),
+        Wei(2000000000000000000L)
+      )
+    val calculator =
+      new BlockRewardCalculator(standardMP, BlockNumber(Long.MaxValue), BlockNumber(Long.MaxValue))
 
     // Era 5: base reward = 5 ETC * 0.8^5 = 5 * 0.32768 = 1.6384 ETC
-    val era5Block = BigInt(25000001) // First block of era 5
+    val era5Block = BlockNumber(25000001) // First block of era 5
     val era5Reward = calculator.calculateMiningRewardForBlock(era5Block)
     era5Reward shouldEqual BigInt("1638400000000000000")
 
@@ -493,12 +520,19 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
 
   it should "calculate correct ommer rewards in era 4" taggedAs (UnitTest, StateTest) in {
     val standardMP =
-      MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L)
-    val calculator = new BlockRewardCalculator(standardMP, BigInt(Long.MaxValue), BigInt(Long.MaxValue))
+      MonetaryPolicyConfig(
+        5000000,
+        0.2,
+        Wei(5000000000000000000L),
+        Wei(3000000000000000000L),
+        Wei(2000000000000000000L)
+      )
+    val calculator =
+      new BlockRewardCalculator(standardMP, BlockNumber(Long.MaxValue), BlockNumber(Long.MaxValue))
 
     // Era 2+: ommer reward = minerReward / 32
-    val blockNumber = BigInt(21000000)
-    val ommerNumber = BigInt(20999999) // 1 block behind
+    val blockNumber = BlockNumber(21000000)
+    val ommerNumber = BlockNumber(20999999) // 1 block behind
     val ommerReward = calculator.calculateOmmerRewardForInclusion(blockNumber, ommerNumber)
 
     // 2,048,000,000,000,000,000 / 32 = 64,000,000,000,000,000
@@ -507,15 +541,22 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
 
   it should "verify era boundary transitions are exact" taggedAs (UnitTest, StateTest) in {
     val standardMP =
-      MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L)
-    val calculator = new BlockRewardCalculator(standardMP, BigInt(Long.MaxValue), BigInt(Long.MaxValue))
+      MonetaryPolicyConfig(
+        5000000,
+        0.2,
+        Wei(5000000000000000000L),
+        Wei(3000000000000000000L),
+        Wei(2000000000000000000L)
+      )
+    val calculator =
+      new BlockRewardCalculator(standardMP, BlockNumber(Long.MaxValue), BlockNumber(Long.MaxValue))
 
     // Last block of era 3 (block 20,000,000)
-    val era3LastReward = calculator.calculateMiningRewardForBlock(BigInt(20000000))
+    val era3LastReward = calculator.calculateMiningRewardForBlock(BlockNumber(20000000))
     era3LastReward shouldEqual BigInt("2560000000000000000") // 2.56 ETC
 
     // First block of era 4 (block 20,000,001)
-    val era4FirstReward = calculator.calculateMiningRewardForBlock(BigInt(20000001))
+    val era4FirstReward = calculator.calculateMiningRewardForBlock(BlockNumber(20000001))
     era4FirstReward shouldEqual BigInt("2048000000000000000") // 2.048 ETC
 
     // Reduction is exactly 20%

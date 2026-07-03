@@ -19,6 +19,7 @@ import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.TrieRoot
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.ForkBlockNumbers
@@ -58,7 +59,7 @@ class GasLimitValidationSpec extends AnyFlatSpec with Matchers:
     maxCodeSize = None,
     chainId = ChainId(0x3d),
     networkId = 1,
-    monetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L),
+    monetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, Wei(5000000000000000000L), Wei(3000000000000000000L)),
     customGenesisFileOpt = None,
     customGenesisJsonOpt = None,
     accountStartNonce = UInt256.Zero,

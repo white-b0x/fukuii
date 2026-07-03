@@ -24,8 +24,8 @@ class TargetTimeDifficultyCalculator(powTargetTime: Long) extends DifficultyCalc
   ): Difficulty =
     val timestampDiff: Long = blockTimestamp - parentHeader.unixTimestamp
 
-    val parentDiff: BigInt = parentHeader.difficulty.value
-    val x: BigInt = parentDiff / DifficultyBoundDivision
+    val parentDiff: Difficulty = parentHeader.difficulty
+    val x: BigInt = parentDiff.value / DifficultyBoundDivision
     val c: BigInt = math.max(1 - (timestampDiff / lowerBoundExpectedRatio), FrontierTimestampDiffLimit)
 
-    MinimumDifficulty.max(Difficulty(parentDiff + x * c))
+    Difficulty(MinimumDifficulty.value.max(parentDiff.value + x * c))

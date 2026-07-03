@@ -4,6 +4,7 @@ import org.scalatest.ParallelTestExecution
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.testing.Tags.*
 
 class MESSConfigSpec extends AnyFlatSpec with Matchers with ParallelTestExecution:
@@ -25,58 +26,70 @@ class MESSConfigSpec extends AnyFlatSpec with Matchers with ParallelTestExecutio
   // ECBP-1100 block-based activation window tests
 
   it should "report inactive when enabled=false regardless of block number" taggedAs (UnitTest, ConsensusTest) in {
-    val config = MESSConfig(enabled = false, activationBlock = Some(100), deactivationBlock = Some(200))
-    config.isActiveAtBlock(150) shouldBe false
+    val config =
+      MESSConfig(enabled = false, activationBlock = Some(BlockNumber(100)), deactivationBlock = Some(BlockNumber(200)))
+    config.isActiveAtBlock(BlockNumber(150)) shouldBe false
   }
 
   it should "report active when enabled=true and within activation window" taggedAs (UnitTest, ConsensusTest) in {
-    val config = MESSConfig(enabled = true, activationBlock = Some(100), deactivationBlock = Some(200))
-    config.isActiveAtBlock(100) shouldBe true // activation is inclusive
-    config.isActiveAtBlock(150) shouldBe true
-    config.isActiveAtBlock(199) shouldBe true
+    val config =
+      MESSConfig(enabled = true, activationBlock = Some(BlockNumber(100)), deactivationBlock = Some(BlockNumber(200)))
+    config.isActiveAtBlock(BlockNumber(100)) shouldBe true // activation is inclusive
+    config.isActiveAtBlock(BlockNumber(150)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(199)) shouldBe true
   }
 
   it should "report inactive before activation block" taggedAs (UnitTest, ConsensusTest) in {
-    val config = MESSConfig(enabled = true, activationBlock = Some(100), deactivationBlock = Some(200))
-    config.isActiveAtBlock(99) shouldBe false
-    config.isActiveAtBlock(0) shouldBe false
+    val config =
+      MESSConfig(enabled = true, activationBlock = Some(BlockNumber(100)), deactivationBlock = Some(BlockNumber(200)))
+    config.isActiveAtBlock(BlockNumber(99)) shouldBe false
+    config.isActiveAtBlock(BlockNumber(0)) shouldBe false
   }
 
   it should "report inactive at and after deactivation block" taggedAs (UnitTest, ConsensusTest) in {
-    val config = MESSConfig(enabled = true, activationBlock = Some(100), deactivationBlock = Some(200))
-    config.isActiveAtBlock(200) shouldBe false // deactivation is exclusive
-    config.isActiveAtBlock(201) shouldBe false
+    val config =
+      MESSConfig(enabled = true, activationBlock = Some(BlockNumber(100)), deactivationBlock = Some(BlockNumber(200)))
+    config.isActiveAtBlock(BlockNumber(200)) shouldBe false // deactivation is exclusive
+    config.isActiveAtBlock(BlockNumber(201)) shouldBe false
   }
 
   it should "report active with no deactivation block (never deactivates)" taggedAs (UnitTest, ConsensusTest) in {
-    val config = MESSConfig(enabled = true, activationBlock = Some(100))
-    config.isActiveAtBlock(100) shouldBe true
-    config.isActiveAtBlock(BigInt("99999999999")) shouldBe true
+    val config = MESSConfig(enabled = true, activationBlock = Some(BlockNumber(100)))
+    config.isActiveAtBlock(BlockNumber(100)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(BigInt("99999999999"))) shouldBe true
   }
 
   it should "report active with no activation block (always active)" taggedAs (UnitTest, ConsensusTest) in {
-    val config = MESSConfig(enabled = true, deactivationBlock = Some(200))
-    config.isActiveAtBlock(0) shouldBe true
-    config.isActiveAtBlock(199) shouldBe true
-    config.isActiveAtBlock(200) shouldBe false
+    val config = MESSConfig(enabled = true, deactivationBlock = Some(BlockNumber(200)))
+    config.isActiveAtBlock(BlockNumber(0)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(199)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(200)) shouldBe false
   }
 
   it should "match Mordor ECBP-1100 activation window" taggedAs (UnitTest, ConsensusTest) in {
-    val config = MESSConfig(enabled = true, activationBlock = Some(2380000), deactivationBlock = Some(10400000))
-    config.isActiveAtBlock(2379999) shouldBe false
-    config.isActiveAtBlock(2380000) shouldBe true
-    config.isActiveAtBlock(5000000) shouldBe true
-    config.isActiveAtBlock(10399999) shouldBe true
-    config.isActiveAtBlock(10400000) shouldBe false
+    val config = MESSConfig(
+      enabled = true,
+      activationBlock = Some(BlockNumber(2380000)),
+      deactivationBlock = Some(BlockNumber(10400000))
+    )
+    config.isActiveAtBlock(BlockNumber(2379999)) shouldBe false
+    config.isActiveAtBlock(BlockNumber(2380000)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(5000000)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(10399999)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(10400000)) shouldBe false
   }
 
   it should "match ETC mainnet ECBP-1100 activation window" taggedAs (UnitTest, ConsensusTest) in {
-    val config = MESSConfig(enabled = true, activationBlock = Some(11380000), deactivationBlock = Some(19250000))
-    config.isActiveAtBlock(11379999) shouldBe false
-    config.isActiveAtBlock(11380000) shouldBe true
-    config.isActiveAtBlock(15000000) shouldBe true
-    config.isActiveAtBlock(19249999) shouldBe true
-    config.isActiveAtBlock(19250000) shouldBe false
+    val config = MESSConfig(
+      enabled = true,
+      activationBlock = Some(BlockNumber(11380000)),
+      deactivationBlock = Some(BlockNumber(19250000))
+    )
+    config.isActiveAtBlock(BlockNumber(11379999)) shouldBe false
+    config.isActiveAtBlock(BlockNumber(11380000)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(15000000)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(19249999)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(19250000)) shouldBe false
   }
 
   // ── Olympia re-activation (second MESS window) ────────────────────────────
@@ -84,105 +97,105 @@ class MESSConfigSpec extends AnyFlatSpec with Matchers with ParallelTestExecutio
   it should "be inactive at reactivationBlock-1 (deactivated gap)" taggedAs (UnitTest, ConsensusTest) in {
     val config = MESSConfig(
       enabled = true,
-      activationBlock = Some(100),
-      deactivationBlock = Some(200),
-      reactivationBlock = Some(300)
+      activationBlock = Some(BlockNumber(100)),
+      deactivationBlock = Some(BlockNumber(200)),
+      reactivationBlock = Some(BlockNumber(300))
     )
-    config.isActiveAtBlock(299) shouldBe false
+    config.isActiveAtBlock(BlockNumber(299)) shouldBe false
   }
 
   it should "be active at reactivationBlock (inclusive)" taggedAs (UnitTest, ConsensusTest) in {
     val config = MESSConfig(
       enabled = true,
-      activationBlock = Some(100),
-      deactivationBlock = Some(200),
-      reactivationBlock = Some(300)
+      activationBlock = Some(BlockNumber(100)),
+      deactivationBlock = Some(BlockNumber(200)),
+      reactivationBlock = Some(BlockNumber(300))
     )
-    config.isActiveAtBlock(300) shouldBe true
+    config.isActiveAtBlock(BlockNumber(300)) shouldBe true
   }
 
   it should "remain active arbitrarily far past reactivationBlock" taggedAs (UnitTest, ConsensusTest) in {
     val config = MESSConfig(
       enabled = true,
-      activationBlock = Some(100),
-      deactivationBlock = Some(200),
-      reactivationBlock = Some(300)
+      activationBlock = Some(BlockNumber(100)),
+      deactivationBlock = Some(BlockNumber(200)),
+      reactivationBlock = Some(BlockNumber(300))
     )
-    config.isActiveAtBlock(300) shouldBe true
-    config.isActiveAtBlock(1000000) shouldBe true
-    config.isActiveAtBlock(BigInt("99999999999")) shouldBe true
+    config.isActiveAtBlock(BlockNumber(300)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(1000000)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(BigInt("99999999999"))) shouldBe true
   }
 
   it should "not activate the second window when reactivationBlock is None" taggedAs (UnitTest, ConsensusTest) in {
     val config = MESSConfig(
       enabled = true,
-      activationBlock = Some(100),
-      deactivationBlock = Some(200),
+      activationBlock = Some(BlockNumber(100)),
+      deactivationBlock = Some(BlockNumber(200)),
       reactivationBlock = None
     )
-    config.isActiveAtBlock(200) shouldBe false
-    config.isActiveAtBlock(500) shouldBe false
+    config.isActiveAtBlock(BlockNumber(200)) shouldBe false
+    config.isActiveAtBlock(BlockNumber(500)) shouldBe false
   }
 
   it should "keep reactivationBlock inactive when enabled=false" taggedAs (UnitTest, ConsensusTest) in {
     val config = MESSConfig(
       enabled = false,
-      activationBlock = Some(100),
-      deactivationBlock = Some(200),
-      reactivationBlock = Some(300)
+      activationBlock = Some(BlockNumber(100)),
+      deactivationBlock = Some(BlockNumber(200)),
+      reactivationBlock = Some(BlockNumber(300))
     )
-    config.isActiveAtBlock(300) shouldBe false
-    config.isActiveAtBlock(1000000) shouldBe false
+    config.isActiveAtBlock(BlockNumber(300)) shouldBe false
+    config.isActiveAtBlock(BlockNumber(1000000)) shouldBe false
   }
 
   // ── ETC mainnet full MESS lifecycle (ECBP-1100 + Olympia re-activation) ──
 
   it should "trace the full ETC mainnet MESS lifecycle through Olympia" taggedAs (UnitTest, ConsensusTest) in {
     // Hypothetical Olympia block — actual value TBD before mainnet activation.
-    val OlympiaBlock = BigInt("25000000")
+    val OlympiaBlock = BlockNumber(BigInt("25000000"))
     val config = MESSConfig(
       enabled = true,
-      activationBlock = Some(11380000),
-      deactivationBlock = Some(19250000),
+      activationBlock = Some(BlockNumber(11380000)),
+      deactivationBlock = Some(BlockNumber(19250000)),
       reactivationBlock = Some(OlympiaBlock)
     )
 
     // Pre-ECBP-1100: inactive
-    config.isActiveAtBlock(BigInt(0)) shouldBe false
-    config.isActiveAtBlock(BigInt("11379999")) shouldBe false
+    config.isActiveAtBlock(BlockNumber(BigInt(0))) shouldBe false
+    config.isActiveAtBlock(BlockNumber(BigInt("11379999"))) shouldBe false
 
     // ECBP-1100 active window: [11,380,000, 19,250,000)
-    config.isActiveAtBlock(BigInt("11380000")) shouldBe true
-    config.isActiveAtBlock(BigInt("15000000")) shouldBe true
-    config.isActiveAtBlock(BigInt("19249999")) shouldBe true
+    config.isActiveAtBlock(BlockNumber(BigInt("11380000"))) shouldBe true
+    config.isActiveAtBlock(BlockNumber(BigInt("15000000"))) shouldBe true
+    config.isActiveAtBlock(BlockNumber(BigInt("19249999"))) shouldBe true
 
     // Deactivated gap: [19,250,000, OlympiaBlock)
-    config.isActiveAtBlock(BigInt("19250000")) shouldBe false
-    config.isActiveAtBlock(BigInt("22000000")) shouldBe false
+    config.isActiveAtBlock(BlockNumber(BigInt("19250000"))) shouldBe false
+    config.isActiveAtBlock(BlockNumber(BigInt("22000000"))) shouldBe false
     config.isActiveAtBlock(OlympiaBlock - 1) shouldBe false
 
     // Olympia re-activation: [OlympiaBlock, ∞)
     config.isActiveAtBlock(OlympiaBlock) shouldBe true
     config.isActiveAtBlock(OlympiaBlock + 1) shouldBe true
-    config.isActiveAtBlock(BigInt("99999999999")) shouldBe true
+    config.isActiveAtBlock(BlockNumber(BigInt("99999999999"))) shouldBe true
   }
 
   // ── Mordor full MESS lifecycle (ECBP-1100 + Olympia re-activation) ───────
 
   it should "trace the full Mordor MESS lifecycle through Olympia" taggedAs (UnitTest, ConsensusTest) in {
-    val OlympiaBlockMordor = BigInt("12000000")
+    val OlympiaBlockMordor = BlockNumber(BigInt("12000000"))
     val config = MESSConfig(
       enabled = true,
-      activationBlock = Some(2380000),
-      deactivationBlock = Some(10400000),
+      activationBlock = Some(BlockNumber(2380000)),
+      deactivationBlock = Some(BlockNumber(10400000)),
       reactivationBlock = Some(OlympiaBlockMordor)
     )
 
-    config.isActiveAtBlock(BigInt("2379999")) shouldBe false
-    config.isActiveAtBlock(BigInt("2380000")) shouldBe true
-    config.isActiveAtBlock(BigInt("6000000")) shouldBe true
-    config.isActiveAtBlock(BigInt("10399999")) shouldBe true
-    config.isActiveAtBlock(BigInt("10400000")) shouldBe false
+    config.isActiveAtBlock(BlockNumber(BigInt("2379999"))) shouldBe false
+    config.isActiveAtBlock(BlockNumber(BigInt("2380000"))) shouldBe true
+    config.isActiveAtBlock(BlockNumber(BigInt("6000000"))) shouldBe true
+    config.isActiveAtBlock(BlockNumber(BigInt("10399999"))) shouldBe true
+    config.isActiveAtBlock(BlockNumber(BigInt("10400000"))) shouldBe false
     config.isActiveAtBlock(OlympiaBlockMordor - 1) shouldBe false
     config.isActiveAtBlock(OlympiaBlockMordor) shouldBe true
     config.isActiveAtBlock(OlympiaBlockMordor + 1000) shouldBe true

@@ -31,8 +31,8 @@ class BlockPreparator(
   //      in some irrelevant test can throw an exception.
   private[ledger] def blockRewardCalculator(implicit blockchainConfig: BlockchainConfig) = new BlockRewardCalculator(
     blockchainConfig.monetaryPolicyConfig,
-    blockchainConfig.forkBlockNumbers.byzantiumBlockNumber,
-    blockchainConfig.forkBlockNumbers.constantinopleBlockNumber
+    BlockNumber(blockchainConfig.forkBlockNumbers.byzantiumBlockNumber),
+    BlockNumber(blockchainConfig.forkBlockNumbers.constantinopleBlockNumber)
   )
 
   /** This function updates the state in order to pay rewards based on YP section 11.3:

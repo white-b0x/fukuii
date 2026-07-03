@@ -18,6 +18,7 @@ import org.scalatest.time.Millis
 import org.scalatest.time.Seconds
 import org.scalatest.time.Span
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.testing.Tags.*
 
 class WorkNotifierSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike with Matchers with Eventually:
@@ -31,7 +32,7 @@ class WorkNotifierSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike wi
     powHeaderHash = ByteString(Array.fill(32)(0xab.toByte)),
     dagSeed = ByteString(Array.fill(32)(0xcd.toByte)),
     target = ByteString(Array.fill(32)(0xef.toByte)),
-    blockNumber = BigInt(12345)
+    blockNumber = BlockNumber(12345)
   )
 
   "WorkNotifier" should "POST a 4-element JSON array to the configured URL" taggedAs UnitTest in {

@@ -89,8 +89,8 @@ object Mocks:
 
     override val ommersValidator: OmmersValidator = new OmmersValidator:
       def validate(
-          parentHash: ByteString,
-          blockNumber: BigInt,
+          parentHash: BlockHash,
+          blockNumber: BlockNumber,
           ommers: Seq[BlockHeader],
           getBlockByHash: GetBlockHeaderByHash,
           getNBlocksBack: GetNBlocksBack
@@ -139,8 +139,8 @@ object Mocks:
 
     override val ommersValidator: OmmersValidator = new OmmersValidator:
       def validate(
-          parentHash: ByteString,
-          blockNumber: BigInt,
+          parentHash: BlockHash,
+          blockNumber: BlockNumber,
           ommers: Seq[BlockHeader],
           getBlockByHash: GetBlockHeaderByHash,
           getNBlocksBack: GetNBlocksBack

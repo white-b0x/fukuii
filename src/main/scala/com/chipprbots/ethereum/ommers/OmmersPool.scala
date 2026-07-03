@@ -3,7 +3,6 @@ package com.chipprbots.ethereum.ommers
 import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.Behavior
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
-import org.apache.pekko.util.ByteString
 
 import scala.annotation.tailrec
 
@@ -21,7 +20,7 @@ object OmmersPool:
   object AddOmmers:
     def apply(b: BlockHeader*): AddOmmers = AddOmmers(b.toList)
 
-  case class GetOmmers(parentBlockHash: ByteString, replyTo: ActorRef[Ommers]) extends Command
+  case class GetOmmers(parentBlockHash: BlockHash, replyTo: ActorRef[Ommers]) extends Command
 
   case class Ommers(headers: Seq[BlockHeader])
 
@@ -71,7 +70,7 @@ object OmmersPool:
 
   private def collectAncestors(
       blockchainReader: BlockchainReader,
-      parentHash: ByteString,
+      parentHash: BlockHash,
       generationLimit: Int
   ): List[BlockHeader] =
     @tailrec
@@ -81,7 +80,7 @@ object OmmersPool:
           case Some(bh) => rec(bh.parentHash, limit - 1, acc :+ bh)
           case None     => acc
       else acc
-    rec(BlockHash(parentHash), generationLimit, List.empty)
+    rec(parentHash, generationLimit, List.empty)
 
   private def logStatus(
       context: org.apache.pekko.actor.typed.scaladsl.ActorContext[Command],

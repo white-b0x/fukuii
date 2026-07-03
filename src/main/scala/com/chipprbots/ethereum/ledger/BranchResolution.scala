@@ -97,7 +97,7 @@ class BranchResolution(blockchainReader: BlockchainReader) extends Logger:
     messConfig match
       case Some(config) if oldBlocks.nonEmpty =>
         val currentHeadNumber = oldBlocks.last.header.number
-        if !config.isActiveAtBlock(currentHeadNumber.value) then return false
+        if !config.isActiveAtBlock(currentHeadNumber) then return false
 
         val commonAncestorTimestamp = blockchainReader
           .getBlockHeaderByHash(oldBlocks.head.header.parentHash)

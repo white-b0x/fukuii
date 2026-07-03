@@ -17,6 +17,7 @@ import com.chipprbots.ethereum.db.storage.pruning.BasicPruning
 import com.chipprbots.ethereum.db.storage.pruning.InMemoryPruning
 import com.chipprbots.ethereum.db.storage.pruning.PruningMode
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.utils.VmConfig.VmMode
 
 import ConfigUtils.*
@@ -394,9 +395,9 @@ object BlockchainsConfig extends Logger:
 case class MonetaryPolicyConfig(
     eraDuration: Int,
     rewardReductionRate: Double,
-    firstEraBlockReward: BigInt,
-    firstEraReducedBlockReward: BigInt,
-    firstEraConstantinopleReducedBlockReward: BigInt = 0
+    firstEraBlockReward: Wei,
+    firstEraReducedBlockReward: Wei,
+    firstEraConstantinopleReducedBlockReward: Wei = Wei.Zero
 ):
   require(
     rewardReductionRate >= 0.0 && rewardReductionRate <= 1.0,
@@ -408,9 +409,9 @@ object MonetaryPolicyConfig:
     MonetaryPolicyConfig(
       mpConfig.getInt("era-duration"),
       mpConfig.getDouble("reward-reduction-rate"),
-      BigInt(mpConfig.getString("first-era-block-reward")),
-      BigInt(mpConfig.getString("first-era-reduced-block-reward")),
-      BigInt(mpConfig.getString("first-era-constantinople-reduced-block-reward"))
+      Wei(BigInt(mpConfig.getString("first-era-block-reward"))),
+      Wei(BigInt(mpConfig.getString("first-era-reduced-block-reward"))),
+      Wei(BigInt(mpConfig.getString("first-era-constantinople-reduced-block-reward")))
     )
 
 trait PruningConfig:

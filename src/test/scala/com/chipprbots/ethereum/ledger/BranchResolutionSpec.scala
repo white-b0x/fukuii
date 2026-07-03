@@ -222,7 +222,7 @@ class BranchResolutionSpec
       branchResolution.messConfig = Some(
         MESSConfig(
           enabled = true,
-          activationBlock = Some(BigInt(1000)),
+          activationBlock = Some(BlockNumber(1000)),
           deactivationBlock = None,
           reactivationBlock = None
         )
@@ -239,8 +239,8 @@ class BranchResolutionSpec
       // ETC mainnet: MESS deactivated at block 19,250,000 (Spiral fork)
       val deactivatedConfig: MESSConfig = MESSConfig(
         enabled = true,
-        activationBlock = Some(BigInt(11_380_000)),
-        deactivationBlock = Some(BigInt(19_250_000)),
+        activationBlock = Some(BlockNumber(11_380_000)),
+        deactivationBlock = Some(BlockNumber(19_250_000)),
         reactivationBlock = None
       )
       val deactivatedBlock: Block = Block(oldBlock.header.copy(number = BlockNumber(BigInt(20_000_000))), oldBlock.body)
@@ -258,9 +258,9 @@ class BranchResolutionSpec
     "reactivate in the Olympia window" taggedAs (UnitTest, StateTest) in new MessTestSetup:
       val olympiaConfig: MESSConfig = MESSConfig(
         enabled = true,
-        activationBlock = Some(BigInt(11_380_000)),
-        deactivationBlock = Some(BigInt(19_250_000)),
-        reactivationBlock = Some(BigInt(25_000_000)) // Olympia reactivation
+        activationBlock = Some(BlockNumber(11_380_000)),
+        deactivationBlock = Some(BlockNumber(19_250_000)),
+        reactivationBlock = Some(BlockNumber(25_000_000)) // Olympia reactivation
       )
       val olympiaBlock: Block = Block(
         oldBlock.header.copy(number = BlockNumber(BigInt(25_000_001)), unixTimestamp = Timestamp(headTs)),
@@ -282,7 +282,7 @@ class BranchResolutionSpec
       setBestBlockNumber(10)
       setChainWeightByHash(commonParentHash, ChainWeight.zero)
       setBlockByNumber(10, Some(oldBlock))
-      branchResolution.messConfig = Some(MESSConfig(enabled = false, activationBlock = Some(BigInt(10))))
+      branchResolution.messConfig = Some(MESSConfig(enabled = false, activationBlock = Some(BlockNumber(10))))
 
       // enabled=false → MESS never fires regardless of TD ratio
       val newHeader: BlockHeader = getBlock(number = 10, difficulty = 200, parent = commonParentHash).header
@@ -437,7 +437,7 @@ class BranchResolutionSpec
     /** Standard ETC/Mordor MESS config: active from block 10, no deactivation. */
     val ETCMessConfig: MESSConfig = MESSConfig(
       enabled = true,
-      activationBlock = Some(BigInt(10)),
+      activationBlock = Some(BlockNumber(10)),
       deactivationBlock = None,
       reactivationBlock = None
     )

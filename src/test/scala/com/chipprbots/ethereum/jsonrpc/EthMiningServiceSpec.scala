@@ -99,7 +99,7 @@ class EthMiningServiceSpec
     // Handle the actor messages
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
     ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash.value =>
+      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
         replyTo ! OmmersPool.Ommers(Nil)
     }
 
@@ -156,7 +156,7 @@ class EthMiningServiceSpec
     // Handle the actor messages
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
     ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash.value =>
+      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
         replyTo ! OmmersPool.Ommers(Nil)
     }
 
@@ -192,7 +192,7 @@ class EthMiningServiceSpec
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
     ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash.value =>
+      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
         replyTo ! OmmersPool.Ommers(Nil)
     }
 
@@ -225,7 +225,7 @@ class EthMiningServiceSpec
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
     ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash.value =>
+      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
         replyTo ! OmmersPool.Ommers(Nil)
     }
 
@@ -360,7 +360,7 @@ class EthMiningServiceSpec
 
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
     ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash.value =>
+      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
         replyTo ! OmmersPool.Ommers(Nil)
     }
 
@@ -468,7 +468,7 @@ class EthMiningServiceSpec
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
     ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash.value =>
+      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
         replyTo ! OmmersPool.Ommers(Nil)
     }
 

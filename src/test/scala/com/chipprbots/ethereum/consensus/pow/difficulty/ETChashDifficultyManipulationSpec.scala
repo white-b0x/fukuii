@@ -16,6 +16,7 @@ import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.TrieRoot
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.ForkBlockNumbers
@@ -80,7 +81,11 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
     chainId = ChainId(61),
     networkId = 1,
     monetaryPolicyConfig = com.chipprbots.ethereum.utils.MonetaryPolicyConfig(
-      5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L
+      5000000,
+      0.2,
+      Wei(5000000000000000000L),
+      Wei(3000000000000000000L),
+      Wei(2000000000000000000L)
     ),
     gasTieBreaker = false,
     ethCompatibleStorage = true,
@@ -513,15 +518,15 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
     "cover the entire observable oscillation period" taggedAs (UnitTest, ConsensusTest) in {
       val messConfig = MESSConfig(
         enabled = true,
-        activationBlock = Some(BigInt(11_380_000)),
-        deactivationBlock = Some(BigInt(19_250_000))
+        activationBlock = Some(BlockNumber(11_380_000)),
+        deactivationBlock = Some(BlockNumber(19_250_000))
       )
       // All oscillation-era blocks are post-Spiral (> 19,250,000)
-      messConfig.isActiveAtBlock(cycleStart.number) shouldBe false
-      messConfig.isActiveAtBlock(cycleMid.number) shouldBe false
-      messConfig.isActiveAtBlock(cycleEnd.number) shouldBe false
-      messConfig.isActiveAtBlock(flexOnPhase.head.number) shouldBe false
-      messConfig.isActiveAtBlock(flexOffPhase.head.number) shouldBe false
+      messConfig.isActiveAtBlock(BlockNumber(cycleStart.number)) shouldBe false
+      messConfig.isActiveAtBlock(BlockNumber(cycleMid.number)) shouldBe false
+      messConfig.isActiveAtBlock(BlockNumber(cycleEnd.number)) shouldBe false
+      messConfig.isActiveAtBlock(BlockNumber(flexOnPhase.head.number)) shouldBe false
+      messConfig.isActiveAtBlock(BlockNumber(flexOffPhase.head.number)) shouldBe false
     }
 
   "MESS deactivated window" should "leave chain exposed to ASIC flex-load reorg attempts" taggedAs (
@@ -530,15 +535,15 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
   ) in {
     val messConfig = MESSConfig(
       enabled = true,
-      activationBlock = Some(BigInt(11_380_000)),
-      deactivationBlock = Some(BigInt(19_250_000))
+      activationBlock = Some(BlockNumber(11_380_000)),
+      deactivationBlock = Some(BlockNumber(19_250_000))
     )
     // With MESS off, shouldRejectReorg is not called; verify WOULD have rejected
     val timeDelta = 500L * expectedBlockTimeAfterExit(flexMaxHrFrac)
     val localTD = cycleStart.difficulty * 500
     val proposedTD = (cycleStart.difficulty * 8 / 10) * 500
     // MESS would protect — but deactivation means the check is skipped
-    messConfig.isActiveAtBlock(cycleStart.number) shouldBe false
+    messConfig.isActiveAtBlock(BlockNumber(cycleStart.number)) shouldBe false
     ArtificialFinality.shouldRejectReorg(timeDelta, localTD, proposedTD) shouldBe true
   }
 
@@ -546,15 +551,15 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
     UnitTest,
     ConsensusTest
   ) in {
-    val olympiaActivation = BigInt(25_000_000)
+    val olympiaActivation = BlockNumber(25_000_000)
     val messConfig = MESSConfig(
       enabled = true,
-      activationBlock = Some(BigInt(11_380_000)),
-      deactivationBlock = Some(BigInt(19_250_000)),
+      activationBlock = Some(BlockNumber(11_380_000)),
+      deactivationBlock = Some(BlockNumber(19_250_000)),
       reactivationBlock = Some(olympiaActivation)
     )
     // Pre-Olympia oscillation blocks are unprotected
-    messConfig.isActiveAtBlock(cycleStart.number) shouldBe false
+    messConfig.isActiveAtBlock(BlockNumber(cycleStart.number)) shouldBe false
     // Post-Olympia blocks are protected again
     messConfig.isActiveAtBlock(olympiaActivation) shouldBe true
     messConfig.isActiveAtBlock(olympiaActivation + 1) shouldBe true

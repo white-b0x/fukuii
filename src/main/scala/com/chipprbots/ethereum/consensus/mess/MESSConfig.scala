@@ -1,5 +1,7 @@
 package com.chipprbots.ethereum.consensus.mess
 
+import com.chipprbots.ethereum.domain.BlockNumber
+
 /** Configuration for MESS (Modified Exponential Subjective Scoring).
   *
   * ECBP-1100 defines block-based activation windows per network:
@@ -20,9 +22,9 @@ package com.chipprbots.ethereum.consensus.mess
   */
 case class MESSConfig(
     enabled: Boolean = false,
-    activationBlock: Option[BigInt] = None,
-    deactivationBlock: Option[BigInt] = None,
-    reactivationBlock: Option[BigInt] = None
+    activationBlock: Option[BlockNumber] = None,
+    deactivationBlock: Option[BlockNumber] = None,
+    reactivationBlock: Option[BlockNumber] = None
 ):
 
   /** True when MESS is active at `blockNumber`.
@@ -30,8 +32,8 @@ case class MESSConfig(
     * Active in the first window [activationBlock, deactivationBlock) OR in the Olympia second window
     * [reactivationBlock, ∞).
     */
-  def isActiveAtBlock(blockNumber: BigInt): Boolean =
+  def isActiveAtBlock(blockNumber: BlockNumber): Boolean =
     enabled && (firstWindowActive(blockNumber) || reactivationBlock.exists(blockNumber >= _))
 
-  private def firstWindowActive(blockNumber: BigInt): Boolean =
+  private def firstWindowActive(blockNumber: BlockNumber): Boolean =
     activationBlock.forall(blockNumber >= _) && deactivationBlock.forall(blockNumber < _)
