@@ -13,6 +13,7 @@ import com.monovore.decline.Opts
 import com.chipprbots.ethereum.db.components.RocksDbDataSourceComponent
 import com.chipprbots.ethereum.db.components.Storages
 import com.chipprbots.ethereum.db.components.Storages.DefaultStorages
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.nodebuilder.PruningConfigBuilder
@@ -34,8 +35,9 @@ import com.chipprbots.ethereum.utils.Logger
   */
 object CheckpointCli extends Logger:
 
-  private val blockOpt: Opts[Option[BigInt]] = Opts
+  private val blockOpt: Opts[Option[BlockNumber]] = Opts
     .option[BigInt]("block", "Block number to export. Defaults to the current best block.")
+    .map(BlockNumber.apply)
     .orNone
 
   private val outputOpt: Opts[Path] = Opts
@@ -81,7 +83,7 @@ object CheckpointCli extends Logger:
     val blockNumber = args.block.getOrElse {
       val best = storages.appStateStorage.getBestBlockNumber()
       log.info(s"--block not given; using current best block: $best")
-      best
+      BlockNumber(best)
     }
     val chainId = builder.blockchainConfig.chainId
     val exporter = new CheckpointExporter(
@@ -113,7 +115,7 @@ object CheckpointCli extends Logger:
         with InstanceConfigProvider:
         override def instanceConfig: InstanceConfig = Config
 
-  final private case class ExportArgs(block: Option[BigInt], output: Path, gzip: Boolean)
+  final private case class ExportArgs(block: Option[BlockNumber], output: Path, gzip: Boolean)
 
   sealed private trait Action
   private object Action:

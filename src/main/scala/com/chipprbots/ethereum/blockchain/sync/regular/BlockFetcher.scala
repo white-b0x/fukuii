@@ -455,13 +455,13 @@ class BlockFetcher(
               validHashes.lastOption.map(_.number)
             )
             state.withPossibleNewTopAt(validHashes.lastOption.map(_.number))
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+        supervisor ! ProgressProtocol.GotNewBlock(BlockNumber(newState.knownTop))
         fetchBlocks(newState)
 
       case AdaptedMessageFromEventBus(msg: ETHPackets.BlockRangeUpdate, _) =>
         log.debug("Received BlockRangeUpdate earliest={} latest={}", msg.earliestBlock, msg.latestBlock)
         val newState = state.withPossibleNewTopAt(msg.latestBlock)
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+        supervisor ! ProgressProtocol.GotNewBlock(BlockNumber(newState.knownTop))
         fetchBlocks(newState)
 
       case AdaptedMessageFromEventBus(ETHPackets.NewBlock(block, _), peerId) =>
@@ -518,7 +518,7 @@ class BlockFetcher(
         .withLastBlock(newBlockNr)
         .withKnownTopAt(newBlockNr)
       state.importer ! ImportNewBlock(block, peerId)
-      supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+      supervisor ! ProgressProtocol.GotNewBlock(BlockNumber(newState.knownTop))
       processFetchCommands(newState)
     else
       log.debug(
@@ -540,7 +540,7 @@ class BlockFetcher(
       state.isOnTop
     )
     val newState = state.withPossibleNewTopAt(block.number.value)
-    supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+    supervisor ! ProgressProtocol.GotNewBlock(BlockNumber(newState.knownTop))
     fetchBlocks(newState)
 
   private def handlePickedBlocks(

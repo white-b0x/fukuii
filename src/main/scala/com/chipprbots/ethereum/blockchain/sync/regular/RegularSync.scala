@@ -210,22 +210,22 @@ object RegularSync:
         running(progressState.copy(startedFetching = true), fetcher, importer, supervisor, broadcaster, ctx, respawn)
 
       case ProgressProtocol.StartingFrom(blockNumber) =>
-        val newState = progressState.copy(initialBlock = blockNumber, currentBlock = blockNumber)
-        RegularSyncMetrics.setCurrentBlock(blockNumber)
+        val newState = progressState.copy(initialBlock = blockNumber.value, currentBlock = blockNumber.value)
+        RegularSyncMetrics.setCurrentBlock(blockNumber.value)
         running(newState, fetcher, importer, supervisor, broadcaster, ctx, respawn)
 
       case ProgressProtocol.GotNewBlock(blockNumber) =>
         ctx.log.debug("Got information about new block [number = {}]", blockNumber)
-        val newState = progressState.copy(bestKnownNetworkBlock = blockNumber)
-        RegularSyncMetrics.setBestKnownNetworkBlock(blockNumber)
+        val newState = progressState.copy(bestKnownNetworkBlock = blockNumber.value)
+        RegularSyncMetrics.setBestKnownNetworkBlock(blockNumber.value)
         running(newState, fetcher, importer, supervisor, broadcaster, ctx, respawn)
 
       case ProgressProtocol.ImportedBlock(blockNumber, internally) =>
         ctx.log.debug("Imported new block [number = {}, internally = {}]", blockNumber, internally)
-        val newState = progressState.copy(currentBlock = blockNumber)
-        RegularSyncMetrics.setCurrentBlock(blockNumber)
+        val newState = progressState.copy(currentBlock = blockNumber.value)
+        RegularSyncMetrics.setCurrentBlock(blockNumber.value)
         RegularSyncMetrics.incrementBlocksImported()
-        if internally then fetcher ! InternalLastBlockImport(blockNumber)
+        if internally then fetcher ! InternalLastBlockImport(blockNumber.value)
         running(newState, fetcher, importer, supervisor, broadcaster, ctx, respawn)
 
       case msg: SyncProtocol.RegularSyncStuck =>

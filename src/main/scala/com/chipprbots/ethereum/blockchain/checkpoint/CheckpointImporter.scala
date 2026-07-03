@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory
 import com.chipprbots.ethereum.db.storage.AppStateStorage
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.db.storage.StateStorage
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.appstate.BlockInfo
 
@@ -68,8 +69,8 @@ final class CheckpointImporter(
       case Left(err) => Left(BadFormat(err))
       case Right(h) =>
         expectedChainId match
-          case Some(want) if want != h.chainId => Left(ChainIdMismatch(want, h.chainId))
-          case _                               => streamEntries(reader, h)
+          case Some(want) if want != h.chainId.value.toLong => Left(ChainIdMismatch(want, h.chainId.value.toLong))
+          case _                                            => streamEntries(reader, h)
 
   private def streamEntries(
       reader: CheckpointArchive.Reader,
@@ -172,7 +173,7 @@ final class CheckpointImporter(
               blockNum + 1L
             )
 
-            Right(ImportResult(blockNum.value, totalNodes, totalBytecodes, elapsed))
+            Right(ImportResult(blockNum, totalNodes, totalBytecodes, elapsed))
 
   private def hex8(bs: ByteString): String =
     bs.take(8).toArray.map("%02x".format(_)).mkString
@@ -188,7 +189,7 @@ object CheckpointImporter:
   final case class ChainIdMismatch(expected: Long, found: Long) extends ImportError
 
   final case class ImportResult(
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       nodesImported: Long,
       bytecodesImported: Long,
       elapsedMs: Long

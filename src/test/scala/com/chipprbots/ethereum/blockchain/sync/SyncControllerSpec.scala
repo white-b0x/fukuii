@@ -744,7 +744,7 @@ class SyncControllerSpec
     }
 
     syncController ! SyncController.WrappedSyncProtocol(
-      SyncProtocol.RegularSyncStuck(BigInt(24601125), "deadbeefdeadbeef")
+      SyncProtocol.RegularSyncStuck(BlockNumber(24601125), "deadbeefdeadbeef")
     )
 
     storagesInstance.storages.appStateStorage.isSnapSyncDone() shouldBe false

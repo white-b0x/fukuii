@@ -948,7 +948,7 @@ object SyncController:
           ctx.stop(regularSync)
           appStateStorage.clearSnapSyncDone().commit()
           appStateStorage.clearFastSyncDone().commit()
-          startSnapSync(minPivotBlock = Some(blockNumber))
+          startSnapSync(minPivotBlock = Some(blockNumber.value))
         case SyncProtocol.CalibrateChainWeightFromPeer(peerTD, peerMaxBlock) =>
           // Three-tier calibration cascade:
           //   Tier 1 (peerTD > 0, peerMaxBlock > 0): exact interpolation from NewBlock TD+blockNum

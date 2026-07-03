@@ -4,6 +4,7 @@ import org.apache.pekko.event.Logging.{DebugLevel, ErrorLevel, InfoLevel, LogLev
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Block
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import com.chipprbots.ethereum.network.PeerId
 import com.chipprbots.ethereum.utils.ByteStringUtils.*
@@ -11,7 +12,7 @@ import com.chipprbots.ethereum.utils.ByteStringUtils.*
 sealed abstract class ImportMessages(block: Block):
   import ImportMessages.*
   protected lazy val hash: ByteString = block.header.hash.value
-  protected lazy val number: BigInt = block.number.value
+  protected lazy val number: BlockNumber = block.number
 
   def preImport(): LogEntry
   def importedToTheTop(): LogEntry

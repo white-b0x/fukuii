@@ -12,6 +12,7 @@ import org.apache.pekko.util.ByteString
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockHeaderImplicits.BlockHeaderByteArrayDec
 import com.chipprbots.ethereum.domain.BlockHeaderImplicits.BlockHeaderEnc
+import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.utils.ByteUtils
@@ -52,7 +53,7 @@ object CheckpointArchive:
 
   /** Header section of an archive — small, always loaded into memory. */
   final case class Header(
-      chainId: Long,
+      chainId: ChainId,
       blockHeader: BlockHeader,
       chainWeight: ChainWeight
   )
@@ -97,7 +98,7 @@ object CheckpointArchive:
       headerWritten = true
       w(Magic)
       wb(Version.toInt & 0xff)
-      wLong(h.chainId)
+      wLong(h.chainId.value.toLong)
       val hdrBytes = h.blockHeader.toBytes
       wInt(hdrBytes.length)
       w(hdrBytes)
@@ -186,7 +187,7 @@ object CheckpointArchive:
               else
                 val weightBytes = r(weightLen)
                 val totalDifficulty = if weightBytes.isEmpty then BigInt(0) else BigInt(1, weightBytes)
-                Right(Header(chainId, header, ChainWeight(TotalDifficulty(totalDifficulty))))
+                Right(Header(ChainId(BigInt(chainId)), header, ChainWeight(TotalDifficulty(totalDifficulty))))
       catch case _: EOFException => Left(Truncated("header-section"))
 
     def nextEntry(): Either[DecodeError, Entry] =

@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures
+import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.testing.Tags.UnitTest
 
@@ -17,7 +18,7 @@ class CheckpointArchiveSpec extends AnyWordSpec with Matchers with EitherValues:
 
   private def sample: CheckpointArchive.Header =
     CheckpointArchive.Header(
-      chainId = 61L,
+      chainId = ChainId(BigInt(61)),
       blockHeader = Fixtures.Blocks.Block3125369.header,
       chainWeight = ChainWeight.totalDifficultyOnly(BigInt("123456789012345678901234567890"))
     )

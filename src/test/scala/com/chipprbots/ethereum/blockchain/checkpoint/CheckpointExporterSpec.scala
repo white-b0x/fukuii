@@ -106,7 +106,7 @@ class CheckpointExporterSpec
         sourceReader,
         chainId = ChainId(BigInt(1337L))
       )
-      val exportResult: ExportResult = exporter.exportArchive(header.number.value, outputPath).value
+      val exportResult: ExportResult = exporter.exportArchive(header.number, outputPath).value
       exportResult.nodesExported should be > 0L
       exportResult.bytecodesExported shouldBe 2L
 
@@ -118,7 +118,7 @@ class CheckpointExporterSpec
         targetStorages.storages.appStateStorage
       )
       val importResult: ImportResult = importer.importFromFile(outputPath, Some(1337L)).value
-      importResult.blockNumber shouldBe header.number.value
+      importResult.blockNumber shouldBe header.number
       importResult.nodesImported shouldBe exportResult.nodesExported
       importResult.bytecodesImported shouldBe exportResult.bytecodesExported
 
@@ -160,8 +160,8 @@ class CheckpointExporterSpec
         chainId = ChainId(BigInt(1L))
       )
       val r: Either[ExportError, ExportResult] =
-        exporter.exportArchive(blockNumber = 9999, output = tmpRoot.resolve("nope.checkpoint"))
-      r shouldBe Left(CheckpointExporter.NoSuchBlock(9999))
+        exporter.exportArchive(blockNumber = BlockNumber(9999), output = tmpRoot.resolve("nope.checkpoint"))
+      r shouldBe Left(CheckpointExporter.NoSuchBlock(BlockNumber(9999)))
 
     // Regression for Bug 33 — exporter must unwrap ReferenceCountNodeStorage wrapper bytes.
     // Reading raw nodeStorage bytes on a BasicPruning chain surfaces the ref-count metadata,
@@ -199,7 +199,7 @@ class CheckpointExporterSpec
         sourceReader,
         chainId = ChainId(BigInt(1L))
       )
-      val exportResult: ExportResult = exporter.exportArchive(header.number.value, outputPath).value
+      val exportResult: ExportResult = exporter.exportArchive(header.number, outputPath).value
       exportResult.nodesExported should be > 0L
 
       // Import into a fresh (ArchivePruning) storage and re-derive the same trie.
@@ -210,7 +210,7 @@ class CheckpointExporterSpec
         targetStorages.storages.appStateStorage
       )
       val importResult: ImportResult = importer.importFromFile(outputPath, Some(1L)).value
-      importResult.blockNumber shouldBe header.number.value
+      importResult.blockNumber shouldBe header.number
 
       val importedTrie: MerklePatriciaTrie[Array[Byte], Account] = MerklePatriciaTrie[Array[Byte], Account](
         stateRoot.toArray,

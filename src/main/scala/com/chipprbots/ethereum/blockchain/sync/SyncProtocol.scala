@@ -4,6 +4,7 @@ import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
 
 object SyncProtocol:
 
@@ -29,9 +30,9 @@ object SyncProtocol:
   sealed trait ProgressProtocol extends RegularSyncCommand
   object ProgressProtocol:
     case object StartedFetching extends ProgressProtocol
-    case class StartingFrom(blockNumber: BigInt) extends ProgressProtocol
-    case class GotNewBlock(blockNumber: BigInt) extends ProgressProtocol
-    case class ImportedBlock(blockNumber: BigInt, internally: Boolean) extends ProgressProtocol
+    case class StartingFrom(blockNumber: BlockNumber) extends ProgressProtocol
+    case class GotNewBlock(blockNumber: BlockNumber) extends ProgressProtocol
+    case class ImportedBlock(blockNumber: BlockNumber, internally: Boolean) extends ProgressProtocol
 
   sealed trait SyncProtocolMsg
   case object Start extends SyncProtocolMsg with RegularSyncCommand
@@ -60,7 +61,7 @@ object SyncProtocol:
     * snap-serve window of every connected peer has moved far past us). The controller responds by clearing the
     * SnapSyncDone flag and re-running SNAP sync from a recent pivot, which is the only viable recovery path.
     */
-  final case class RegularSyncStuck(blockNumber: BigInt, missingHash: String)
+  final case class RegularSyncStuck(blockNumber: BlockNumber, missingHash: String)
       extends SyncProtocolMsg
       with RegularSyncCommand
 

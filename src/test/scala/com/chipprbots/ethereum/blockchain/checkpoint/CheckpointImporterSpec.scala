@@ -17,6 +17,7 @@ import com.chipprbots.ethereum.blockchain.checkpoint.CheckpointImporter.ImportRe
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
+import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.domain.appstate.BlockInfo
 import com.chipprbots.ethereum.testing.Tags.UnitTest
@@ -46,7 +47,7 @@ class CheckpointImporterSpec extends AnyWordSpec with Matchers with EitherValues
       val result: ImportResult =
         importer.importFromStream(new ByteArrayInputStream(bytes), Some(checkpointChainId)).value
 
-      result.blockNumber shouldBe header.blockHeader.number.value
+      result.blockNumber shouldBe header.blockHeader.number
       result.nodesImported shouldBe nodes.length
       result.bytecodesImported shouldBe bytecodes.length
 
@@ -137,7 +138,7 @@ class CheckpointImporterSpec extends AnyWordSpec with Matchers with EitherValues
           freshStorage.storages.appStateStorage
         )
         val result = importer.importFromFile(tmp, Some(checkpointChainId)).value
-        result.blockNumber shouldBe header.blockHeader.number.value
+        result.blockNumber shouldBe header.blockHeader.number
         result.nodesImported shouldBe nodes.length
       finally Files.deleteIfExists(tmp)
   }
@@ -151,7 +152,7 @@ class CheckpointImporterSpec extends AnyWordSpec with Matchers with EitherValues
 
     val checkpointHeader: CheckpointArchive.Header =
       CheckpointArchive.Header(
-        chainId = checkpointChainId,
+        chainId = ChainId(BigInt(checkpointChainId)),
         blockHeader = Fixtures.Blocks.Block3125369.header,
         chainWeight = ChainWeight.totalDifficultyOnly(BigInt("987654321"))
       )

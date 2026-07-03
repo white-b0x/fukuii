@@ -312,7 +312,7 @@ final private class BlockImporterLogic(
           )
           BlockImporter.survivedExhausts = 0
           pendingStateNodeHash = None
-          supervisor ! SyncProtocol.RegularSyncStuck(blockNum, missingHashStr)
+          supervisor ! SyncProtocol.RegularSyncStuck(BlockNumber(blockNum), missingHashStr)
           // Don't transition further — SyncController will PoisonPill regular sync.
           Behaviors.same
         else
@@ -369,7 +369,7 @@ final private class BlockImporterLogic(
   private def start(): Behavior[Command] =
     log.info("Starting Regular Sync, current best block is {}", bestKnownBlockNumber)
     fetcher ! BlockFetcher.Start(selfRef, bestKnownBlockNumber)
-    supervisor ! ProgressProtocol.StartingFrom(bestKnownBlockNumber)
+    supervisor ! ProgressProtocol.StartingFrom(BlockNumber(bestKnownBlockNumber))
     running(ImporterState.initial)
 
   private def nextBehavior(
@@ -563,7 +563,7 @@ final private class BlockImporterLogic(
     NonEmptyList.fromList(blocks) match
       case None =>
         importedBlocks.headOption.foreach(block =>
-          supervisor ! ProgressProtocol.ImportedBlock(block.number.value, internally = false)
+          supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
         )
         IO.pure((importedBlocks, None))
       case Some(nel) =>
@@ -573,14 +573,14 @@ final private class BlockImporterLogic(
             importedNow.foreach(b => unknownParentStrikes -= b.hash.value)
             val imported = importedNow.reverse ::: importedBlocks
             imported.headOption
-              .foreach(b => supervisor ! ProgressProtocol.ImportedBlock(b.number.value, internally = false))
+              .foreach(b => supervisor ! ProgressProtocol.ImportedBlock(b.number, internally = false))
             IO.pure((imported, None))
 
           case ChainReorganised(_, newBranch, _) =>
             newBranch.foreach(b => unknownParentStrikes -= b.hash.value)
             val imported = newBranch.reverse ::: importedBlocks
             imported.headOption
-              .foreach(b => supervisor ! ProgressProtocol.ImportedBlock(b.number.value, internally = false))
+              .foreach(b => supervisor ! ProgressProtocol.ImportedBlock(b.number, internally = false))
             IO.pure((imported, None))
 
           case DuplicateBlock | BlockEnqueued =>
@@ -648,14 +648,12 @@ final private class BlockImporterLogic(
             broadcastBlocks(blocks, weights)
             updateTxPool(importedBlocksData.map(_.block), Seq.empty)
             blocks.foreach(b => blockTopic ! Topic.Publish(NewBlockImported(b)))
-            supervisor ! ProgressProtocol.ImportedBlock(block.number.value, internally)
+            supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
           case ChainReorganised(oldBranch, newBranch, weights) =>
             updateTxPool(newBranch, oldBranch)
             broadcastBlocks(newBranch, weights)
             newBranch.foreach(b => blockTopic ! Topic.Publish(NewBlockImported(b)))
-            newBranch.lastOption.foreach(block =>
-              supervisor ! ProgressProtocol.ImportedBlock(block.number.value, internally)
-            )
+            newBranch.lastOption.foreach(block => supervisor ! ProgressProtocol.ImportedBlock(block.number, internally))
           case BlockImportFailedDueToMissingNode(missingNodeException) if syncConfig.redownloadMissingStateNodes =>
             // state node re-download will be handled when downloading headers
             doLog(importMessages.missingStateNode(missingNodeException))
@@ -861,7 +859,7 @@ final private class BlockImporterLogic(
           "SYNC-FORK: no header at fork recovery floor bno={} — escalating to SNAP re-sync",
           floor
         )
-        supervisor ! SyncProtocol.RegularSyncStuck(floor, s"no header at fork recovery floor $floor")
+        supervisor ! SyncProtocol.RegularSyncStuck(BlockNumber(floor), s"no header at fork recovery floor $floor")
 
   private def bestKnownBlockNumber: BigInt = blockchainReader.getBestBlockNumber
 

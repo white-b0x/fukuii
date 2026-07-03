@@ -13,6 +13,7 @@ import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.db.storage.MptStorage
 import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.domain.Account
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.mpt.BranchNode
@@ -48,8 +49,12 @@ final class CheckpointExporter(
   import CheckpointExporter.*
   private val log = LoggerFactory.getLogger(getClass)
 
-  def exportArchive(blockNumber: BigInt, output: Path, gzip: Boolean = false): Either[ExportError, ExportResult] =
-    blockchainReader.getBlockHeaderByNumber(blockNumber) match
+  def exportArchive(
+      blockNumber: BlockNumber,
+      output: Path,
+      gzip: Boolean = false
+  ): Either[ExportError, ExportResult] =
+    blockchainReader.getBlockHeaderByNumber(blockNumber.value) match
       case None => Left(NoSuchBlock(blockNumber))
       case Some(header) =>
         blockchainReader.getChainWeightByHash(header.hash) match
@@ -75,7 +80,7 @@ final class CheckpointExporter(
             try
               writer.writeHeader(
                 CheckpointArchive.Header(
-                  chainId = chainId.value.toLong,
+                  chainId = chainId,
                   blockHeader = header,
                   chainWeight = weight
                 )
@@ -250,13 +255,13 @@ object CheckpointExporter:
   val LogInterval: Long = 100000L
 
   sealed trait ExportError extends Product with Serializable
-  final case class NoSuchBlock(blockNumber: BigInt) extends ExportError
-  final case class NoChainWeight(blockNumber: BigInt) extends ExportError
+  final case class NoSuchBlock(blockNumber: BlockNumber) extends ExportError
+  final case class NoChainWeight(blockNumber: BlockNumber) extends ExportError
   final case class MissingTrieNode(hash: ByteString, isMainTrie: Boolean) extends ExportError
   final case class MissingBytecode(hash: ByteString) extends ExportError
 
   final case class ExportResult(
-      blockNumber: BigInt,
+      blockNumber: BlockNumber,
       nodesExported: Long,
       bytecodesExported: Long,
       elapsedMs: Long
