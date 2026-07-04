@@ -3,8 +3,16 @@
 # Usage: sprint-clear.sh [--apply]
 # Dry-run by default (no --apply): reports what would move, changes nothing.
 # Batch header convention: "### Batch <N> — <STATUS>" where STATUS is one of
-# OPEN / GATED-ON-<x> / BLOCKED / CLOSED. A batch's section runs from its header
-# to the next "### Batch" header or the next "## " (level-2) header, whichever comes first.
+# OPEN / GATED-ON-<x> / BLOCKED / CLOSED. A batch's section runs from its header to the
+# next "### Batch" header (or EOF). Deliberately NOT bounded by the next level-2"## "
+# header: batch bodies (IP-CL-* prompts) use "## CONTEXT"/"## INSTRUCTIONS"/etc. as
+# internal sub-headers, so treating any "## " as a section end truncated a CLOSED batch
+# to just its intro paragraph (caught during BATCH-1-CLOSE, 2026-07-04 — see QUEUE-PATH-01
+# in QUEUE.md's Chase & Deferred Items for the sibling path-drift issue found same session).
+# Caveat: if the LAST batch in the file is ever closed with nothing after it, this will
+# also sweep trailing standalone sections (e.g. "## REPO-*", "## Chase & Deferred Items")
+# into the extract — fine as long as a later batch or a trailing "### " marker exists
+# after it; re-check this edge case before closing the final batch in the queue.
 # Used by: fukuii-sprint-queue skill. Referenced by: sprint-lifecycle.md Rule 5.
 
 set -euo pipefail
@@ -35,11 +43,10 @@ EXTRACT_FILE=$(mktemp)
 trap 'rm -f "$KEEP_FILE" "$EXTRACT_FILE"' EXIT
 
 # Single pass: lines inside a "### Batch N — CLOSED" section go to EXTRACT_FILE,
-# everything else goes to KEEP_FILE. A batch section ends at the next "### Batch"
-# header or the next level-2 "## " header.
+# everything else goes to KEEP_FILE. A batch section ends only at the next "### Batch"
+# header (not at nested "## " sub-headers inside the batch body — see header comment).
 awk '
   /^### Batch / { in_closed = ($0 ~ / — CLOSED[[:space:]]*$/) ? 1 : 0 }
-  /^## [^#]/ { in_closed = 0 }
   { if (in_closed) print > "'"$EXTRACT_FILE"'"; else print > "'"$KEEP_FILE"'" }
 ' "$QUEUE"
 
