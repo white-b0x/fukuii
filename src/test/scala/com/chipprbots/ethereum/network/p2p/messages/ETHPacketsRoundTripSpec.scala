@@ -100,12 +100,11 @@ class ETHPacketsRoundTripSpec extends AnyWordSpec with Matchers with ScalaCheckP
         // custom equals, so a nested `shouldBe` falls back to Java's reference-identity array
         // equality. ScalaTest's content-aware Array equality only applies to top-level Array
         // comparisons, hence the destructure-then-compare here.
-        blockHash.toRLPEncodable match {
+        blockHash.toRLPEncodable match
           case RLPList(RLPValue(hashBytes), RLPValue(numberBytes)) =>
             hashBytes shouldBe blockHash.hash.toArray[Byte]
             numberBytes shouldBe Array.empty[Byte]
           case other => fail(s"expected RLPList(RLPValue, RLPValue), got: $other")
-        }
       }
     }
 
