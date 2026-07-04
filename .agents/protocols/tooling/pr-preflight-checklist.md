@@ -41,7 +41,8 @@ checks still gate you and which just quietly don't run:
 | `autofix.yml` scalafmt auto-commit | Runs, pushes a fix commit | **Skipped** (fork guard) — `ci.yml`'s `scalafmtCheckAll` is the only backstop, and it's a hard failure, not an auto-fix |
 | `pr-management.yml` auto-label / milestone-check / issue-link-comment | Runs | **Skipped** (fork guard) — non-blocking either way, cosmetic only |
 | `ci.yml` (`scalafmtCheckAll`, `compile-all`, test tiers, KPI, Gating IT, `assembly`/`dist`) | Runs, blocking | **Runs, blocking** — identical on both, this is the real gate |
-| `docs-preview.yml` (`mkdocs build --strict`) | Runs, blocking, only if `docs/**`/`mkdocs.yml` changed | **Runs, blocking**, same trigger condition — identical on both |
+| `docs-preview.yml`'s `mkdocs build --strict` step | Runs, blocking, only if `docs/**`/`mkdocs.yml` changed | **Runs, blocking**, same trigger condition — identical on both; this is the real correctness gate |
+| `docs-preview.yml`'s "Deploy Preview" step | Runs, pushes preview to `gh-pages` | **Skipped** (fork guard, once the fix below merges) — pushing to `gh-pages` needs a write token forks don't get; a red job here (before the fix) was the deploy step 403ing, not the `mkdocs build --strict` step above it failing |
 | `docs-link-check.yml` (Link Checker + PR comment) | Runs; comment step succeeds | **Currently broken on both** — see "Known upstream bugs" below; not caused by your diff |
 
 Net effect: a fork PR gets **less help** (no auto-fix, no auto-label) but faces the
@@ -71,6 +72,18 @@ editing docs. Cross-reference the fix PR once it exists: **`chippr-robotics/fuku
 PR fixing `docs-link-check.yml`'s lychee args + fork-guard** (opened separately per
 `github-workflows.md`'s "no workflow-logic changes without explicit request" rule —
 do not bundle a workflow-logic fix into an unrelated feature/fix PR).
+
+A third, related bug: `docs-preview.yml`'s "Deploy Preview" step
+(`rossjrw/pr-preview-action@v1`, which pushes the built site to `gh-pages`) 403s on
+every fork PR with `Permission to chippr-robotics/fukuii.git denied to
+github-actions[bot]` — the default `GITHUB_TOKEN` is read-only on a fork PR
+regardless of the workflow's own `permissions:` block; this is a GitHub
+platform-level restriction, not a config mistake fixable by granting more scope. If
+`Documentation Preview` is red on your fork PR, check which step failed first: the
+earlier `mkdocs build --strict` step (a real, fixable regression in your diff) or
+this later Deploy Preview step (a known upstream issue, not yours). Fixed in the
+same PR as the two `docs-link-check.yml` bugs above by adding the same fork-guard to
+this step.
 
 ## Local repro commands
 
