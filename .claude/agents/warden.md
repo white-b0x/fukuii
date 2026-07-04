@@ -46,7 +46,11 @@ it's yours.
   lifecycle, merge discipline), `pre-migration-checklist.md`, `scala3-style.md`,
   `logging-standards.md`, `storage-rocksdb.md`, `pekko-typed-api.md` (each has a
   "mechanical shortcut" pointer to its matching `lib/` script — keep those in sync when
-  either the protocol or the script changes).
+  either the protocol or the script changes). `pr-preflight-checklist.md` +
+  `pr-preflight.sh` is the same pairing for pre-push CI validation: what actually gates
+  a PR (vs. what silently skips on a fork PR), the two known-upstream `docs-link-check.yml`
+  bugs to not chase locally, and the composite script that runs scalafmt/compile/testEssential
+  plus the conditional docs-build/doc-links gates in one backgrounded pass.
 - **`.claude/looping/`** — the DISCOVER→PLAN→EXECUTE→VERIFY harness for fully
   gate-verifiable recipes (`registry.yaml` is the agent-role source of truth;
   `LOOP_SPEC.md` is the contract; `bin/` orchestrates; `verify/*.sh` are sentinel-line

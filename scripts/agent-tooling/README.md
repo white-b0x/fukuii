@@ -26,6 +26,7 @@ Two tiers (see `.claude/agent-protocols/sprint-lifecycle.md`, Rule 4, and
 | `sprint-status.sh` | Reports the current state of `.claude/sprints/` (batches, Chase & Deferred Items, completed/archive) | `fukuii-sprint-queue` skill |
 | `sprint-clear.sh` | Moves CLOSED batches out of `QUEUE.md` into `completed/` (dry-run by default, `--apply` to write) | `fukuii-sprint-queue` skill |
 | `sprint-archive.sh` | Moves a `completed/` file into `archive/` (dry-run by default, `--apply` to write) | `fukuii-sprint-queue` skill |
+| `pr-preflight.sh` | Composite pre-push gate for a PR against `chippr-robotics/fukuii`: `scalafmtCheckAll` → `compile-all` → `testEssential`, plus (only if `docs/**` changed) `mkdocs build --strict` and a `lychee` doc-link check — one consolidated PASS/FAIL/WARN report. Resolves its own base ref (`upstream/staging`, `origin/staging`, or local `staging` — never hardcoded, never guessed) | `pr-preflight-checklist.md`, `fukuii-pr-preflight` skill |
 
 ## `lib/` (mechanical helpers)
 

@@ -63,6 +63,7 @@ pairing; they do **not** apply to ETC/Mordor (PoW, no CL).
 | `fukuii-dependency-audit`    | Audit all library versions; flag stale, CVE-affected, or non-LTS deps | `build.sbt`, endoflife.date, CVE feeds |
 | `fukuii-tech-debt-inventory` | Inventory technical debt: deprecated APIs, suppressed warnings, TODO/FIXME, scalafmt violations | Source scan + scapegoat report |
 | `pekko-resource-audit`       | Audit for uncancelled timers, missing `watchWith` cleanup, stream materialization leaks, dispatcher starvation (ported from Nethermind's `resource-leak-audit`) | `.agents/protocols/code-style/pekko-typed-api.md` |
+| `fukuii-pr-preflight`        | Pre-flight a branch against everything CI gates before opening/updating a PR against `chippr-robotics/fukuii`: scalafmt, compile, Tier 1 tests, conditional docs-build + doc-link check | `pr-preflight-checklist.md`, `pr-preflight.sh` |
 
 **Category note**: everything above this line groups as "operator/node-lifecycle"
 (node health, sync, peers, backup, disk, logs, mining, keys, TLS, checkpointing, config,
