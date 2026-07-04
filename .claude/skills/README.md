@@ -62,6 +62,18 @@ pairing; they do **not** apply to ETC/Mordor (PoW, no CL).
 | :--- | :--- | :--- |
 | `fukuii-dependency-audit`    | Audit all library versions; flag stale, CVE-affected, or non-LTS deps | `build.sbt`, endoflife.date, CVE feeds |
 | `fukuii-tech-debt-inventory` | Inventory technical debt: deprecated APIs, suppressed warnings, TODO/FIXME, scalafmt violations | Source scan + scapegoat report |
+| `pekko-resource-audit`       | Audit for uncancelled timers, missing `watchWith` cleanup, stream materialization leaks, dispatcher starvation (ported from Nethermind's `resource-leak-audit`) | `.agents/protocols/code-style/pekko-typed-api.md` |
+
+**Category note**: everything above this line groups as "operator/node-lifecycle"
+(node health, sync, peers, backup, disk, logs, mining, keys, TLS, checkpointing, config,
+first-start, security, custom networks, PoS/CL pairing). This "Build & dependency" section
+plus `pekko-resource-audit` group as "developer-workflow" (code/build/test-quality, not node
+operation) — see `docs/research/best-practices/evm-clients/repo-patterns/IMPLEMENTATION_PLAN.md`
+Tier 6 for the several new developer-workflow skills planned to land here (EIP/ECIP
+implementation, EF-test triage, build/test wrappers, benchmark diffing, Hive local
+invocation, an RLP round-trip property test). No physical directory reorganization was
+done for skills (Claude Code's support for nested skill discovery is unconfirmed —
+see `.agents/protocols/tooling/agent-skills.md`); this index is the categorization mechanism instead.
 
 ## Spec Kit — Bug triage
 

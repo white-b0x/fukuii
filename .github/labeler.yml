@@ -15,13 +15,16 @@
         - 'src/main/scala/**/mining/**/*'
         - 'crypto/**/*'
 
-# Note: Other agent labels are typically applied manually:
+# Note: Other agent labels are typically applied manually. Current 12-agent roster is
+# .claude/agents/{forge,beacon,eye,wraith,herald,mithril,prism,loom,vault,conduit,flow,warden}
+# — see CLAUDE.md's Specialist subagents table. ICE and Morgoth (below) were retired
+# coordination roles folded into CLAUDE.md's own orchestration; no current label exists
+# for them and none should be added.
 # - agent: wraith 👻 - For compilation error fixes (manual)
 # - agent: mithril ✨ - For code modernization/refactoring (manual)
-# - agent: ICE 🧊 - For large-scale migration planning (manual)
 # - agent: eye 👁️ - For testing/validation focus (manual)
 # - agent: herald 🧭 - For network protocol debugging (manual)
-# - agent: Morgoth 🎯 - For process coordination and quality enforcement (manual)
+# - agent: beacon 🛰️ - For ETH/Sepolia consensus review (manual, no label created yet)
 
 'documentation':
   - changed-files:

@@ -17,8 +17,8 @@ assumptions so every loop recipe starts from verified facts rather than guesses.
 | `sbt scalafmtCheck` | Verify format without writing | ~20s |
 | `sbt scalafixAll` | Run all scalafix rules | ~30s |
 | `sbt formatAll` | scalafixAll + scalafmtAll (pre-PR only; aborts on pre-existing violations) | ~50s |
-| `.claude/scripts/sbt-run.sh <log> testEssential` (background) | Tier 1, log-to-file, no live-streamed output | ~24 min |
-| `.claude/scripts/sbt-run.sh <log> testStandard` (background) | Tier 2, log-to-file | ~30 min |
+| `scripts/agent-tooling/sbt-run.sh <log> testEssential` (background) | Tier 1, log-to-file, no live-streamed output | ~24 min |
+| `scripts/agent-tooling/sbt-run.sh <log> testStandard` (background) | Tier 2, log-to-file | ~30 min |
 | `sbt "testOnly *Spec*"` | Targeted single-spec run — fast enough to run directly, no wrapper needed | ~10-60s |
 | `sbt "crypto / test"` | crypto submodule only | ~20s |
 
@@ -96,7 +96,7 @@ maintained ECIP reference.
 
 | Script | Location | Purpose |
 |--------|----------|---------|
-| `sbt-run.sh` | `.claude/scripts/sbt-run.sh` | Background-safe sbt task wrapper with persistent logging — supersedes the retired `fukuii-test` |
+| `sbt-run.sh` | `scripts/agent-tooling/sbt-run.sh` | Background-safe sbt task wrapper with persistent logging — supersedes the retired `fukuii-test` |
 | `fukuii-run-tick` | `.local/scripts/fukuii-run-tick` | Monitoring state collection (used in cron) |
 | `fukuii-monitor` | `.local/scripts/fukuii-monitor` | High-level node status check |
 | `fukuii-inject-loop` | `.local/scripts/fukuii-inject-loop` | Trie-node injection loop (model for automation pattern) |

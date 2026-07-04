@@ -249,17 +249,21 @@ Available at `http://localhost:9095/metrics`:
 
 ## Grafana Dashboards
 
-### Loading the Dashboard
+### Loading a Dashboard
 
-A pre-configured Grafana dashboard is available at `/ops/grafana/fukuii-dashboard.json`.
+15 pre-configured Grafana dashboards are available under `/ops/grafana/`, organized into 5
+categories (`Archive/`, `ETC Node/`, `Network/`, `Sepolia Consensus/`, `Sync/`) — see
+`ops/README.md`'s "Available Dashboards" section for the full list and recommended-use
+table. For day-to-day ETC node monitoring, start with
+`/ops/grafana/ETC Node/fukuii-node-health.json`.
 
-### Importing the Dashboard
+### Importing a Dashboard
 
 1. **Open Grafana UI** (typically `http://localhost:3000`)
 
 2. **Import Dashboard:**
    - Click **+** → **Import**
-   - Upload `/ops/grafana/fukuii-dashboard.json`
+   - Upload the desired `.json` file from `/ops/grafana/<category>/`
    - Select your Prometheus datasource
    - Click **Import**
 

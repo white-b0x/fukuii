@@ -117,7 +117,7 @@ Fukuii ↔ besu SNAP: ✅ WORKS
    - Compatibility matrix
    - Testing plan
 
-4. **docs/reviews/SNAP_PROTOCOL_COMPLIANCE_VALIDATION.md**
+4. **docs/historical/reviews/SNAP_PROTOCOL_COMPLIANCE_VALIDATION.md**
    - Updated with offset validation
    - Added reference to new validation doc
 

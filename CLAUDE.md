@@ -1,62 +1,21 @@
 # CLAUDE.md — Working in fukuii
 
-`fukuii` is a **multi-network EVM client** (forked from IOHK Mantis, repackaged
-under `com.chipprbots`), running on **Scala 3.x LTS** with Pekko actors.
-It supports two independent chain families:
+_Last reviewed: 2026-07-03. This file carries only Claude Code-specific orchestration
+(named subagents, Spec Kit, sprint tooling). Portable project context — ETC/ETH semantics,
+build & test commands, working discipline, conventions — lives in `AGENTS.md`, imported
+below. Editing domain facts or commands? Edit `AGENTS.md`. Editing subagent routing, Spec
+Kit, or sprint tooling? Edit here. See `docs/agentic-tooling/claude-md-refresh-2026.md`
+for the audit that produced this structure and `agents-md-decision-2026.md` for why the
+import points this direction (only Claude Code resolves `@path`; the dependency can't run
+the other way)._
 
-- **Ethereum Classic (ETC/Mordor)** — PoW/Ethash, ECIP-1017 fixed-supply
-  emission, block-number fork dispatch. Chain ID 61 (mainnet), 63 (Mordor).
-- **Ethereum (ETH/Sepolia)** — PoS (post-merge), timestamp fork dispatch.
-  Chain ID 1 (mainnet), 11155111 (Sepolia).
-
-## ETC vs ETH — read this first
-
-**ETC keeps**: PoW/Ethash, ECIP-1017 fixed-supply emission, traditional gas
-model, pre-merge opcodes, block-number fork dispatch. Hard forks: Atlantis →
-Agharta → Phoenix → Thanos (ECIP-1099) → Magneto → Mystique → **Olympia**
-(planned: ECIP-1111/1112/1121).
-
-**ETH/Sepolia has**: PoS consensus, timestamp fork dispatch, EIP-1559 base-fee
-burned, validator withdrawals, blob transactions (EIP-4844), Osaka fork.
-
-**Do not mix these code paths.** ETC fork config uses `OlympiaOpCodes` /
-`forBlock()`; ETH fork config uses `OsakaOpCodes` / `forTimestamp()`.
-
-## Build & test commands
-
-| Command | What it runs | When to use |
-|---------|-------------|-------------|
-| `sbt compile-all` | Compiles all modules + test sources | After every file change (exception: core domain sweeps — use `sbt compile` instead, then `compile-all` once at end; see `testing-protocol.md`) |
-| `sbt compile` | Root main sources only — no test/IT/Benchmark | **Core domain type sweeps only** (BlockHeader, Account, Block, Transaction → 50+ dependents) — avoids cascade on every file; `compile-all` once at end |
-| `sbt scalafmtAll` | scalafmt across ALL modules (formatting only) | After every migration commit; safe at any time |
-| `sbt scalafmt` | scalafmt on ROOT module only | **Do not use** — misses submodules (bytes, crypto, rlp, Evm, etc.) |
-| `sbt formatAll` | scalafixAll + scalafmtAll across all modules | Pre-PR on a clean codebase ONLY — aborts on pre-existing scalafix violations |
-| `sbt formatCheck` | Verify formatting without writing | CI / pre-flight check |
-| `sbt pp` | compile-all + formatAll + quick + integration tests | Pre-PR gate — same caveat as formatAll |
-| `sbt "testOnly *Foo*"` | Single test class (seconds) | After each phase that changes logic — not compile-only phases |
-| `.claude/scripts/sbt-run.sh <name> testEssential` (background) | Tier 1 full suite (24 min, 3,621 tests) | **Pre-push only** — before pushing to origin. Do not run mid-sprint; use targeted tests instead. Run with `run_in_background: true` — see `background-script-execution.md` |
-| `.claude/scripts/sbt-run.sh <name> testStandard` (background) | Tier 2 tests | Before opening a PR |
-| `.claude/scripts/sbt-run.sh <name> testComprehensive` (background) | Tier 3 full compliance suite (<3 h) | Release gate only |
-| `sbt testVM testCrypto` | Tagged test subsets | Targeted validation of specific subsystem |
-| `.claude/scripts/sbt-run.sh <name> "IntegrationTest / test"` (background) | Integration test module | After protocol-level changes |
-
-**Test cadence during a migration thread:**
-1. Every file edit → `sbt compile-all` (mandatory, fast) — **exception**: if the sweep touches a core domain type (BlockHeader, Account, Block, Transaction), use `sbt compile` between files and `sbt compile-all` once at the end (see `testing-protocol.md` → "Core domain type sweeps")
-2. Phases that only add types (returns removal, Messages.scala additions) → compile only, no tests
-3. After Phase 2 (main migration) and Phase 3 (callers) → `testOnly *<ActorName>*` + any touched caller specs
-4. Before pushing to origin → full `testEssential` via `sbt-run.sh` (pre-push gate, not mid-sprint)
-
-**The two format commands that look similar but are not:**
-- `scalafmt` → root module only → **wrong for this codebase**
-- `scalafmtAll` → all modules → **always use this one**
-- `formatAll` → runs scalafix first → aborts mid-migration on pre-existing violations → **pre-PR only**
-
-Modules: root `main`, plus `bytes`, `crypto`, `rlp`, `Evm`, `Benchmark`,
-`RpcTest`, `IntegrationTest`.
+@AGENTS.md
 
 ## Shared agent protocols
 
-Tracked protocols that all agents reference live in `.claude/agent-protocols/`:
+Tracked protocols that all agents reference are read at `.claude/agent-protocols/`
+(symlinks) — **edit them at their canonical location, `.agents/protocols/`**, per
+`.agents/protocols/tooling/agent-skills.md`:
 
 | Protocol | Purpose |
 |----------|---------|
@@ -77,33 +36,60 @@ Tracked protocols that all agents reference live in `.claude/agent-protocols/`:
 | `worktree-protocol.md` | Sprint vs task worktree patterns, naming (`wt/<id>`), lifecycle, bin scripts, agent rules for worktree context |
 | `sprint-lifecycle.md` | The permanent queue/log/pattern pipeline for sprint work: research → single queue → fresh-context implementation → close-out (log + pattern capture) → clear → archive |
 | `background-script-execution.md` | Long/noisy/freeze-prone commands get a log-to-file wrapper script + `run_in_background: true`, never direct foreground execution or human relay |
+| `alert-wrapper-protocol.md` | STOP-AND-ALERT supervision: `watchWith` + structured alarm for actors where restart causes state corruption, instead of restart supervision |
+| `loop-handoff.md` | Maker→checker handoff contract for the looping subsystem's EXECUTE→VERIFY transition |
+| `dependency-currency.md` | Keeps prescriptive coding-pattern content (not just build pins) current for Scala 3 LTS / Pekko Typed — smell-list for Akka-Classic-era idioms bleeding into "current" docs, `currency:` header convention |
+| `git-conventions.md` | Force-push confirmation, merge-conflict escalation, branch-naming outside the worktree system (ported from Nethermind's `git.md`) |
+| `github-workflows.md` | Workflow naming/concurrency conventions, PR template, label automation — and why `.github/CODEOWNERS` is deliberately not present yet (single-maintainer repo) |
 
-Sprint tracking (operator-local, untracked): `.claude/sprints/`
-- `QUEUE.md` — the single active prompt queue for sprint work (batches, findings-resolution
-  log, and a standing Chase & Deferred Items section) — see `sprint-lifecycle.md`
-- `completed/`, `archive/` — closed batches, pending then retired
-- `log/` — permanent, sprint-agnostic record of what changed and why
-- `patterns/` — reusable execution-pattern library (prompt-writing efficiency patterns, not
-  just grep commands)
+## Reference index
 
-Best practices library (research-backed patterns, June 2026 sprint): `.local/best-practices/`
-- `scala/type-safety.md` — 10 opaque type propagation patterns (full S11 reference)
-- `pekko/typed-patterns.md` — P17–P25 detailed patterns with greps
-- `pekko/concurrency.md` — Pekko concurrency and dispatcher patterns
-- `evm-clients/` — snap/2 protocol patterns, anti-patterns, p2p, error recovery
-- `typelevel/patterns.md` — IO/Resource/Fiber idiomatic patterns
-- `codebase-audit.md` — 52 known violations across 9 categories (11 critical, 27 medium, 14 low) with file:line
+`.claude/` carries more than the protocols above — check here before assuming something
+doesn't exist:
+
+- **`.claude/skills/`** (symlinks — canonical at **`.agents/skills/`**, per
+  `.agents/protocols/tooling/agent-skills.md`) — 22 `fukuii-*` operational skills (node lifecycle,
+  mining, TLS, peers, disk, logs, security hardening, checkpoint sync, custom networks, key
+  management, Engine API setup/debug, dependency audit, tech-debt inventory), 13
+  `speckit-*` skills backing the Spec Kit workflow below, plus `pekko-resource-audit`
+  (uncancelled timers, missing `watchWith` cleanup, stream materialization leaks,
+  dispatcher starvation — ported from Nethermind's `resource-leak-audit`). **Invoke a
+  skill directly for node-operation tasks** (start/stop, config edits, log triage) rather
+  than writing ad hoc
+  bash; use a specialist subagent instead when the task is source-code analysis or
+  modification.
+- **`.claude/looping/`** — a DISCOVER → PLAN → EXECUTE → VERIFY automation harness with a
+  maker/checker gate (`agent-protocols/loop-handoff.md`). `.claude/looping/registry.yaml` —
+  not individual file headers — is the source of truth for which agents are loop-eligible.
+  See `.claude/looping/README.md` for how to invoke it.
+- **`.claude/repo-references/`** — ~20 vendored reference repos (pekko, scala2/3, scalafix,
+  scapegoat, rocksdb, json4s, circe, hive, ECIPs, EIPs, ethereum/tests, spec-kit, and
+  reference clients under `clients/{nethermind,erigon,...}`). `.claude/agents/REFERENCES.md`
+  documents which specialist agent uses which repo — check that file rather than guessing.
+- **`docs/research/best-practices/`** — research-backed pattern library: `scala/`, `pekko/`,
+  `jvm/`, `typelevel/`, `evm-clients/` subdirectories plus a top-level `codebase-audit.md`.
+- **`.claude/sprints/`** — the live work-tracking system (operator-local, mostly untracked):
+  - `QUEUE.md` — **the single active prompt queue** for sprint work (batches, a findings-
+    resolution log, and a standing Chase & Deferred Items section) — see `sprint-lifecycle.md`.
+    **This is usually where the fastest-moving, actually-current work lives** — check it
+    before assuming a `specs/<NNN>/` plan below reflects "what's happening right now."
+  - `completed/`, `archive/` — closed batches, pending then retired.
+  - `log/` — permanent, sprint-agnostic record of what changed and why.
+  - `patterns/` — reusable execution-pattern library (prompt-writing efficiency patterns,
+    not just grep commands).
 
 ## Specialist subagents
 
 This project ships project-scoped subagents in `.claude/agents/`. The **main
 session is the orchestrator** — subagents cannot spawn other subagents, so you
-(the main thread) decide which specialist to delegate to and in what order.
+(the main thread) decide which specialist to delegate to and in what order. Use a
+subagent for source-code analysis/modification; use a `.claude/skills/fukuii-*` skill
+(above) for operating a running node.
 
 | Agent     | Use it for | Proactive? |
 | :-------- | :--------- | :--------- |
-| `forge`   | **ETC/Mordor** consensus: EVM, Ethash mining, crypto, state, block rewards, hard forks, EIP/ECIP | **Before** any ETC consensus change |
-| `beacon`  | **ETH/Sepolia** consensus: PoS, timestamp forks, Osaka EIPs, withdrawals, blobs, execution payload | **Before** any ETH consensus change |
+| `forge`   | **PoW** consensus (currently ETC/Mordor): EVM, Ethash mining, crypto, state, block rewards, hard forks, EIP/ECIP | **Before** any PoW consensus change |
+| `beacon`  | **PoS** consensus (currently ETH/Sepolia): timestamp forks, Osaka EIPs, withdrawals, blobs, execution payload | **Before** any PoS consensus change |
 | `eye`     | Validation: compile + run the right test tier, check chain compatibility, report pass/fail | **After** code changes |
 | `wraith`  | Scala 3 compile errors / build failures | On compile failures |
 | `herald`  | P2P / RLPx / ETH wire protocol, Snappy, handshakes, multi-client interop | On networking issues |
@@ -113,6 +99,7 @@ session is the orchestrator** — subagents cannot spawn other subagents, so you
 | `vault`   | RocksDB / storage layer: DataSource contract, iterator lifecycle, WriteBatch, WAL, cache tuning (`db/`) | On storage bugs / config changes |
 | `conduit` | JSON-RPC, HTTP, WebSocket, IPC, GraphQL: method compliance, codec, subscriptions (`jsonrpc/`) | On API / transport bugs |
 | `flow`    | Pekko Streams: Source/Sink/Flow graphs, materialization, backpressure, `preMaterialize` anti-patterns, stream test synchronization | On streaming graph bugs / silent element drops |
+| `warden`  | fukuii's own Claude Code tooling: `scripts/agent-tooling/`, agent-protocols, the looping subsystem, worktree lifecycle, Workflow-based sprint automation, permission/settings guidance | On-demand, for `.claude/` tooling work (not domain code) |
 
 ### Consensus-Critical Change Protocol (mandatory)
 
@@ -120,8 +107,9 @@ Any change to consensus — EIP/ECIP, chain ID, gas costs, state roots, block
 rewards, transaction validation/signing, hard-fork config, mining/PoW, crypto —
 **must** follow this order. Do not hand-edit consensus code reactively.
 
-0. **Identify the chain**: ETC/Mordor → use `forge`. ETH/Sepolia → use `beacon`.
-   Both chains affected → use both in sequence.
+0. **Identify the consensus family**: PoW network (currently ETC/Mordor) → use
+   `forge`. PoS network (currently ETH/Sepolia) → use `beacon`. Both families
+   affected → use both in sequence.
 1. **Plan** (main session): read the spec completely, identify every affected
    component, map side effects.
 2. **`forge` or `beacon`** — consult *before* implementing for impact analysis,
@@ -134,26 +122,19 @@ Triggers: PR/diff mentions "EIP"/"ECIP"; changes under `consensus/`, `vm/`,
 May skip for docs-only, build config, non-consensus test infra, or pure network
 formatting (use `herald`).
 
-## Working discipline (applies to every task)
+## OODA loop for large migrations / multi-file work
 
-- **Sequential thinking before action.** State what you understand, what you
-  don't, your theory, and your plan. "I don't know" is a valid output.
-- **Failure is information.** When something fails, your next move is *words*:
-  the raw error, your theory, the proposed step — not another blind tool call.
-- **Small batches, then checkpoint.** ~3 changes, then verify reality matches
-  your model (compile/test, read output, confirm). >5 actions without
-  verification means you're accumulating unjustified beliefs.
-- **Evidence standards.** One example is an anecdote; three may be a pattern.
-  Never say "all tests pass" unless you ran them — say which tier ran. Use
-  `VERIFY: ran <command> — result: PASS | FAIL | DID NOT RUN`.
-- **Chesterton's Fence.** Explain why code exists (git history, the tests that
-  cover it, the bug it fixed) before changing or deleting it.
-- **Root cause, not symptom.** Separate the immediate cause from the systemic one.
-- **Fail loudly.** No silent `catch {}` fallbacks that turn hard failures into
-  quiet corruption. Let it crash; crashes are data.
-- **Irreversible = 10× thought.** Consensus rules, public APIs, DB schemas, and
-  git history are one-way doors. When uncertain on a consequential or
-  irreversible call, surface options to the user instead of guessing.
+For comprehensive changes, cycle through:
+
+- **Observe** — map the affected code, read ADRs/specs, study core-geth, and run
+  an initial compile to enumerate the real errors. For consensus-touching work,
+  run the Consensus-Critical Change Protocol's planning step here.
+- **Orient** — prioritize P0 (blocking/core) → P1 (production-readiness) → P2
+  (tests) → P3 (polish); map dependencies and the critical path.
+- **Decide** — scope what to do now vs. later; route work to the right specialist
+  subagent; assess risk and rollback.
+- **Act** — small focused commits, compile/test after each, update tracking docs.
+  Loop back when new information emerges.
 
 ## Continuation protocol (applies to every agent)
 
@@ -190,62 +171,44 @@ Last known result: e.g. "3,621 / 0 — run before and after any change."
 **The continuation thread** reads this file as its first action before anything
 else. Do not re-research what is documented here.
 
-**Prior group summaries** (modernization sprint only):
-`.local/docs/moderization-review-june/implementation-sprint/summaries/`
-Read relevant entries for established patterns before starting any migration.
-
-## OODA loop for large migrations / multi-file work
-
-For comprehensive changes, cycle through:
-
-- **Observe** — map the affected code, read ADRs/specs, study core-geth, and run
-  an initial compile to enumerate the real errors. For consensus-touching work,
-  run the Consensus-Critical Change Protocol's planning step here.
-- **Orient** — prioritize P0 (blocking/core) → P1 (production-readiness) → P2
-  (tests) → P3 (polish); map dependencies and the critical path.
-- **Decide** — scope what to do now vs. later; route work to the right specialist
-  subagent; assess risk and rollback.
-- **Act** — small focused commits, compile/test after each, update tracking docs.
-  Loop back when new information emerges.
-
-## Conventions
-
-- Add files to git individually; know what you're committing (avoid `git add .`).
-- Run `sbt scalafmtAll` before committing during a migration. Run `sbt pp` (which includes `formatAll`) only before a PR on a clean codebase.
-- Refer to the human as **user**; be authentic, surface disagreement rather than
-  burying it.
+**Prior group summaries** (modernization sprint, archived): if pointed at an
+implementation-sprint summaries directory from an older continuation file, check
+`.local/docs/archive/2026-06/` first — several June sprint working directories were
+moved there and the reference has drifted before.
 
 ## Spec-Driven Development (Spec Kit)
 
 New features are built through the Spec Kit workflow, not ad hoc:
 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`
 (use `/speckit-clarify` and `/speckit-analyze` to de-risk). Spec artifacts live
-under `specs/<NNN-feature-name>/`.
+under `specs/<NNN-feature-name>/`. See `specs/` for the full history of past and
+in-progress features — several exist with zero completed tasks (not tracked here,
+since that list goes stale fast; check each `tasks.md` directly).
 
 **The project constitution at `.specify/memory/constitution.md` is binding.**
 Read it before planning or implementing. Highlights:
 
 - Consensus-critical code (EVM/gas, state roots, hashes, RLP, Ethash, rewards,
   hard forks) MUST be byte-for-byte deterministic and ETC-spec compliant — design
-  before implementing; follow the `forge` protocol in `.github/agents/forge.md`.
+  before implementing; follow the `forge` protocol in `.claude/agents/forge.md`.
 - Scala 3.x LTS only; code MUST pass `scalafmt` + `scalafix`.
 - Tests MUST be deterministic (no `Thread.sleep`); keep statement coverage ≥ 70%.
 - Run `sbt pp` before opening a PR; CI gates and review must be green to merge.
 
+**Two work tracks — check both.** `specs/<NNN>/` (above) is Spec Kit's pipeline
+for net-new features. `.claude/sprints/QUEUE.md` (see Reference index) is the
+day-to-day tracker for modernization/cleanup/audit work on existing code (per
+`agent-protocols/sprint-lifecycle.md` Rule 7) — **it is usually where the actual,
+fastest-moving work lives.** The block below is auto-regenerated by the
+`speckit-agent-context-update` skill and always points at whichever
+`specs/*/plan.md` was most recently touched on disk — a doc-only edit or an
+unrelated merge can bump a stalled spec's mtime above one that's genuinely
+active, so treat this as "a" current Spec Kit plan, not "the" current work.
+Any hand-edited prose inside the markers below is silently overwritten the next
+time that skill runs — keep commentary about this block above it, not inside it.
+
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan:
-`specs/007-hotpath-alloc-reduction/plan.md` (reduce hot-path CPU allocations on the
-keccak-256 + SNAP inline-merkleization paths to cut GC/allocation pressure and return CPU
-to sync — PURE PERFORMANCE, byte-for-byte identical consensus output. P1: replace per-call
-`new KeccakDigest(256)` with a thread-confined `ThreadLocal[KeccakDigest]` reset-on-entry
-(the load-bearing parity mechanism — guards the aborted-mid-update window). P2: reuse
-StackTrie transient scratch but NEVER the aliased final node blob (chain-split risk). P3:
-single-`Array[Byte]` `kec256` overload, `SnapHashTrie.emit` clone elision, `RLP.encode`
-O(n²)→O(n) — each FR-010-gated on proven parity + measured win. forge protocol; byte-for-byte
-gate via crypto/MPT/ethereum-tests + dedicated keccak vector/reset-after-abort/concurrency
-spec + A/B replay; perf is report-and-record, parity is the hard gate. Honest expectation:
-low single-digit to low-double-digit % throughput; the real CPU fix remains more cores.)
-Prior plans: `specs/004-decoupled-heal-serve-root/plan.md`,
-`specs/003-scoped-heal-verification/plan.md`.
+shell commands, and other important information, read the current plan
+at specs/007-hotpath-alloc-reduction/plan.md
 <!-- SPECKIT END -->

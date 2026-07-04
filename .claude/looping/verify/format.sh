@@ -13,7 +13,7 @@
 set -eu
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || printf '/media/dev/2tb/dev/fukuii')"
-SBT_RUN="$REPO_ROOT/.claude/scripts/sbt-run.sh"
+SBT_RUN="$REPO_ROOT/scripts/agent-tooling/sbt-run.sh"
 
 if [ ! -x "$SBT_RUN" ]; then
     printf 'GATE:format RESULT:FAIL detail=sbt-run-script-not-found:%s\n' "$SBT_RUN"

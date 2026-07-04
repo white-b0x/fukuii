@@ -4,6 +4,15 @@ This directory contains historical documentation and one-time migration scripts 
 
 ## Contents
 
+### `reviews/`
+
+Four point-in-time SNAP sync / wire-protocol investigation and review documents from
+December 2025 (self-flagged "archived 2026-06-12" at the top of each file — moved here
+from a top-level `docs/reviews/` in 2026-07 for consistency with this directory's purpose).
+Kept for historical reference on how SNAP sync compliance and wire-protocol compression
+issues were diagnosed and resolved; **not maintained and may not reflect the current
+implementation.**
+
 ### `rebrand.sh`
 One-time rebranding script used to migrate the codebase from "Mantis" (IOHK) to "Fukuii" (Chippr Robotics).
 

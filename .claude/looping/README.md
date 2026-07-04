@@ -211,7 +211,7 @@ eye checker: CONFIRM:DONE
 - `sbt compile-all` — aggregate compile (confirmed; exits 0 on clean tree)
 - `sbt testEssential` — Tier 1 test task (3,595+ tests; 24 min warm JVM)
 - `sbt scalafmtCheck` — format verify (confirmed; scalafmt plugin task)
-- `.claude/scripts/sbt-run.sh` — background-safe sbt wrapper (confirmed at path; supersedes the
+- `scripts/agent-tooling/sbt-run.sh` — background-safe sbt wrapper (confirmed at path; supersedes the
   retired `fukuii-test`)
 
 ### Agent role map

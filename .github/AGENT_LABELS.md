@@ -1,5 +1,12 @@
 # Agent Labels
 
+> **Scope note:** This document describes GitHub issue/PR *labels* only — a separate,
+> narrower taxonomy from the live Claude Code subagent roster in `.claude/agents/` (12
+> agents as of 2026-07; see `CLAUDE.md`'s Specialist subagents table). Only `agent: forge`
+> is currently auto-applied (via `.github/labeler.yml`); the rest are manual, legacy
+> labels reflecting an earlier 7-agent roster (wraith, mithril, ICE, eye, forge, herald,
+> Morgoth). Do not treat this file as a mirror of `.claude/agents/`.
+
 This document describes the automated agent labels used in the fukuii project. When agents work on PRs or issues, they automatically receive labels with fun emojis that represent their domain expertise.
 
 ## Agent Label Reference

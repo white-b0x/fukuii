@@ -1,6 +1,28 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.1.0 → 1.1.1
+Rationale: Six references to `.github/agents/*.md` were factually wrong — subagent
+definition files live at `.claude/agents/*.md` and always have; `.github/agents/`
+contains only the unrelated Spec Kit context-update command definition. Pure path
+correction, no principle or governance change (PATCH per this doc's own versioning rule).
+
+Changes:
+  - Principle I: `forge`/`beacon` agent file paths corrected (2 refs)
+  - Principle I: `herald` agent file path corrected (1 ref)
+  - Development Workflow step 7: agent files location corrected (1 ref)
+  - Governance section: agent definitions location corrected (1 ref)
+  - SYNC IMPACT REPORT (1.0.0 ratification, below): agent file path corrected (1 ref)
+  - Version bumped to 1.1.1; Last Amended updated
+
+Templates & artifacts reviewed for alignment: no template changes required (path-only fix).
+
+Last Amended: 2026-07-03
+-->
+
+<!--
+SYNC IMPACT REPORT
+==================
 Version change: 1.0.0 → 1.1.0
 Rationale: Fukuii is now a multi-network client: ETC/Mordor (PoW, chain-ID 61/63)
 AND ETH/Sepolia (PoS, chain-ID 1/11155111). Principle I was ETC-only and incorrectly
@@ -31,7 +53,7 @@ Version change: (template) → 1.0.0
 Rationale: Initial ratification. First concrete constitution derived from the
 repository's existing, tool-enforced standards (build.sbt, .scalafmt.conf,
 .scalafix.conf, CI workflows, VERSIONING.md, BRANCH_PROTECTION.md,
-docs/development/contributing.md, and .github/agents/forge.md).
+docs/development/contributing.md, and .claude/agents/forge.md).
 
 Principles defined:
   I.   Consensus Determinism Is Sacred (NON-NEGOTIABLE)
@@ -97,8 +119,8 @@ Rules:
   exactly for each chain. "Close enough" is a consensus bug.
 - Any change touching the domains above MUST be designed and reviewed BEFORE
   implementation — never patched reactively after a failure. Use the chain-appropriate
-  specialist agent: `forge` (`.github/agents/forge.md`) for ETC/Mordor consensus;
-  `beacon` (`.github/agents/beacon.md`) for ETH/Sepolia consensus.
+  specialist agent: `forge` (`.claude/agents/forge.md`) for ETC/Mordor consensus;
+  `beacon` (`.claude/agents/beacon.md`) for ETH/Sepolia consensus.
 - Do NOT mix ETC and ETH code paths. ETC fork dispatch uses
   `OlympiaOpCodes` / `forBlock()`; ETH fork dispatch uses
   `OsakaOpCodes` / `forTimestamp()`. A change to one MUST NOT silently affect the other.
@@ -107,7 +129,7 @@ Rules:
   rewards, ECIP-1017) MUST NOT enter the ETH/Sepolia code path.
 - Wire-protocol messages MUST be formatted for the negotiated peer capability
   (e.g. ETH66+ requestId framing vs. ETH62 framing); formats MUST NOT be mixed
-  on a connection. Use `herald` (`.github/agents/herald.md`) for P2P wire changes.
+  on a connection. Use `herald` (`.claude/agents/herald.md`) for P2P wire changes.
 
 Rationale: A single non-deterministic line can split the chain. This principle
 outranks all others; when it conflicts with convenience, convenience loses.
@@ -262,13 +284,13 @@ trust that a version number and changelog accurately describe what changed.
 7. Consensus-critical work follows the chain-appropriate specialist agent before
    merge: `forge` for ETC/Mordor consensus, `beacon` for ETH/Sepolia consensus,
    `herald` for P2P wire protocol changes. Both consensus chains require
-   ethereum/tests validation before merge. Agent files are in `.github/agents/`.
+   ethereum/tests validation before merge. Agent files are in `.claude/agents/`.
 
 ## Governance
 
 This constitution supersedes ad hoc practice. Where a guideline elsewhere in the
 repo conflicts with it, this document wins; where this document is silent,
-`docs/development/contributing.md` and the agent definitions in `.github/agents/`
+`docs/development/contributing.md` and the agent definitions in `.claude/agents/`
 provide operational detail.
 
 - **Amendments**: Proposed via PR that edits this file, states the rationale, and
@@ -285,4 +307,4 @@ provide operational detail.
   plan for execution context; this file defines the standards those plans must
   satisfy.
 
-**Version**: 1.1.0 | **Ratified**: 2026-06-05 | **Last Amended**: 2026-06-13
+**Version**: 1.1.1 | **Ratified**: 2026-06-05 | **Last Amended**: 2026-07-03

@@ -65,10 +65,12 @@ ops/*/captured-logs/
 *.conf.backup.*
 
 # Claude Code
-# Ignore local Claude settings/state, but track the project's shared subagents,
-# operations skills, the Spec Kit slash-command skills (.specify/ holds the shared
-# spec-driven infra), the mechanical helper/wrapper scripts under scripts/ (portable,
-# REPO_ROOT-relative, meant to be shared team tooling not per-operator scratch),
+# Ignore local Claude settings/state, but track the project's shared subagents
+# (.claude/agents/ — Claude Code-specific, no canonical .agents/ analog) and the
+# .claude/agent-protocols/ + .claude/skills/ symlinks pointing at their canonical
+# source under .agents/ (see .agents/protocols/agent-skills.md). The mechanical
+# helper/wrapper scripts formerly here now live at scripts/agent-tooling/ (moved
+# 2026-07, Nethermind-style: portable, not Claude-specific, shared team tooling).
 # .claude/sprints/log/ — the permanent, sprint-agnostic record of what changed and why,
 # which deserves the same durability/team-visibility as modernization-log/ did before it,
 # and .claude/worktrees/bin/ — the worktree lifecycle scripts, moved here (out of
@@ -84,7 +86,6 @@ ops/*/captured-logs/
 !.claude/looping/
 .claude/looping/state/*/
 !.claude/looping/bin/
-!.claude/scripts/
 !.claude/sprints/
 .claude/sprints/QUEUE.md
 .claude/sprints/patterns/

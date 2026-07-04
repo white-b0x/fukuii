@@ -24,7 +24,7 @@ failures across the actor system.
 and network/sync actors (`network/`, `blockchain/sync/`) per the migration plan in
 `.local/docs/moderization-review-june/network-sync-pekko-migration-plan.md`.
 The sacred modules (`consensus/`, `vm/`, `crypto/`, `domain/`) are out of scope — if you
-touch them, stop and invoke `forge` (ETC) or `beacon` (ETH) before proceeding.
+touch them, stop and invoke `forge` (PoW) or `beacon` (PoS) before proceeding.
 
 ## Reference repos
 
@@ -352,8 +352,8 @@ narrow in two steps:
 > Full pre-flight protocol: `~/.claude/agent-protocols/pre-migration-checklist.md`
 > Pekko Typed API preferences: `~/.claude/agent-protocols/pekko-typed-api.md` (P1–P25 + TL1/TL2)
 > Inline cleanup rules: `~/.claude/agent-protocols/inline-cleanup.md`
-> Pekko Typed patterns catalogue (P17–P25 detail + grep patterns): `.local/best-practices/pekko/typed-patterns.md`
-> Codebase audit (P17-P25 and TL1/TL2 violations with file:line): `.local/best-practices/codebase-audit.md`
+> Pekko Typed patterns catalogue (P17–P25 detail + grep patterns): `docs/research/best-practices/pekko/typed-patterns.md`
+> Codebase audit (P17-P25 and TL1/TL2 violations with file:line): `docs/research/best-practices/codebase-audit.md`
 > Worktree discipline (sprint vs task patterns, naming, lifecycle, agent rules): `~/.claude/agent-protocols/worktree-protocol.md`
 
 ```bash
@@ -381,7 +381,7 @@ sbt compile-all   # must be green before starting
 
 | Situation | Action |
 |-----------|--------|
-| File under `consensus/`, `vm/`, `crypto/`, `domain/` would be modified | **STOP** — invoke `forge` (ETC) or `beacon` (ETH) first |
+| File under `consensus/`, `vm/`, `crypto/`, `domain/` would be modified | **STOP** — invoke `forge` (PoW) or `beacon` (PoS) first |
 | eventStream types cross network boundary | **STOP** — run `@SerializabilityTrait` pre-flight |
 | Compile fails after 2 targeted fix attempts | **STOP** — delegate to `wraith` |
 | `sbt testEssential` drops below 3,519 tests | **STOP** — surface to user before continuing |
@@ -479,7 +479,7 @@ sbt "testOnly *<ActorName>Spec*"
 sbt "testOnly *SNAPSuite*"    # if SSC or SNAP callers were touched
 
 # END OF THREAD ONLY — once, after all phases complete (~24 min):
-.claude/scripts/sbt-run.sh <log-name> testEssential   # full testEssential baseline
+scripts/agent-tooling/sbt-run.sh <log-name> testEssential   # full testEssential baseline
 # invoke with run_in_background: true — see background-script-execution.md
 ```
 
