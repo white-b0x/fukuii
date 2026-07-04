@@ -11,6 +11,7 @@ import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.utils.ByteStringUtils.*
 import com.chipprbots.ethereum.vm.MockWorldState.*
 
@@ -171,7 +172,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState):
     originAddr = callerAddr,
     recipientAddr = Some(ownerAddr),
     gasPrice = 1,
-    startGas = 2 * requiredGas,
+    startGas = GasAmount(2 * requiredGas),
     inputData = ByteString.empty,
     value = 123,
     endowment = 123,

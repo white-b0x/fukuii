@@ -116,7 +116,7 @@ class EthServiceSpec
       Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
       Some(1),
       GasPrice(2),
-      3,
+      Wei(3),
       ByteString("")
     )
     val response: ServiceResponse[CallResponse] = ethService.call(CallRequest(tx, BlockParam.Latest))
@@ -149,12 +149,12 @@ class EthServiceSpec
       Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
       Some(1),
       GasPrice(2),
-      3,
+      Wei(3),
       ByteString("")
     )
     val response: ServiceResponse[EstimateGasResponse] = ethService.estimateGas(CallRequest(tx, BlockParam.Latest))
 
-    response.unsafeRunSync() shouldEqual Right(EstimateGasResponse(123))
+    response.unsafeRunSync() shouldEqual Right(EstimateGasResponse(GasAmount(123)))
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   class TestSetup(implicit system: ActorSystem) extends EphemBlockchainTestSetup:

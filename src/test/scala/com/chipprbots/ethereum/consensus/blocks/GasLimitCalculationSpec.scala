@@ -18,6 +18,7 @@ import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.SignedTransaction
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -52,7 +53,7 @@ class GasLimitCalculationSpec
     override protected def newBlockBody(transactions: Seq[SignedTransaction], x: Ommers): BlockBody =
       BlockBody(transactions, Nil)
     override protected def prepareHeader(
-        blockNumber: BigInt,
+        blockNumber: BlockNumber,
         parent: com.chipprbots.ethereum.domain.Block,
         beneficiary: Address,
         blockTimestamp: Timestamp,
@@ -74,7 +75,7 @@ class GasLimitCalculationSpec
 
     // Expose the protected method for testing; blockNumber=0 keeps all existing tests pre-Olympia.
     def calcGasLimit(parentGas: BigInt)(implicit bc: BlockchainConfig): BigInt =
-      calculateGasLimit(parentGas, BigInt(0))
+      calculateGasLimit(parentGas, BlockNumber(BigInt(0)))
 
   private def makeGenerator(target: BigInt): TestableBlockGenerator =
     new TestableBlockGenerator(

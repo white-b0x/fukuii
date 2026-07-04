@@ -9,6 +9,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import com.chipprbots.ethereum.crypto.*
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.utils.ByteUtils
@@ -121,14 +122,14 @@ trait CallOpCodesBehaviors extends Matchers:
     "refund the correct amount of gas" in {
       val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
       val call = fxt.ExecuteCall(op = CALL, context)
-      call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
+      call.stateOut.gasRefund shouldBe GasAmount(call.stateOut.config.feeSchedule.R_selfdestruct)
     }
 
     "not refund gas if account was already self destructed" in {
       val context: PC =
         fxt.context.copy(world = fxt.worldWithSelfDestructProgram, initialAddressesToDelete = Set(fxt.extAddr))
       val call = fxt.ExecuteCall(op = CALL, context)
-      call.stateOut.gasRefund shouldBe 0
+      call.stateOut.gasRefund shouldBe GasAmount.Zero
     }
 
     "destruct ether if own address equals refund address" in {
@@ -420,7 +421,7 @@ class CallOpcodesSpec extends AnyWordSpec with CallOpCodesBehaviors with Matcher
       val call = fxt.ExecuteCall(op = CALL, context)
 
       "refund the correct amount of gas" in {
-        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
+        call.stateOut.gasRefund shouldBe GasAmount(call.stateOut.config.feeSchedule.R_sclear)
       }
     }
 
@@ -530,7 +531,7 @@ class CallOpcodesSpec extends AnyWordSpec with CallOpCodesBehaviors with Matcher
       val call = fxt.ExecuteCall(op = CALLCODE, context)
 
       "refund the correct amount of gas" in {
-        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
+        call.stateOut.gasRefund shouldBe GasAmount(call.stateOut.config.feeSchedule.R_selfdestruct)
       }
 
     }
@@ -541,7 +542,7 @@ class CallOpcodesSpec extends AnyWordSpec with CallOpCodesBehaviors with Matcher
       val call = fxt.ExecuteCall(op = CALLCODE, context)
 
       "refund the correct amount of gas" in {
-        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
+        call.stateOut.gasRefund shouldBe GasAmount(call.stateOut.config.feeSchedule.R_sclear)
       }
     }
 
@@ -640,7 +641,7 @@ class CallOpcodesSpec extends AnyWordSpec with CallOpCodesBehaviors with Matcher
       val call = fxt.ExecuteCall(op = DELEGATECALL, context)
 
       "refund the correct amount of gas" in {
-        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
+        call.stateOut.gasRefund shouldBe GasAmount(call.stateOut.config.feeSchedule.R_selfdestruct)
       }
 
     }
@@ -651,7 +652,7 @@ class CallOpcodesSpec extends AnyWordSpec with CallOpCodesBehaviors with Matcher
       val call = fxt.ExecuteCall(op = DELEGATECALL, context)
 
       "refund the correct amount of gas" in {
-        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
+        call.stateOut.gasRefund shouldBe GasAmount(call.stateOut.config.feeSchedule.R_sclear)
       }
     }
 
@@ -679,7 +680,7 @@ class CallOpcodesSpec extends AnyWordSpec with CallOpCodesBehaviors with Matcher
       val c_extra = config.feeSchedule.G_call
       val startGas = c_extra - 1
       val gas = UInt256.MaxValue - c_extra + 1 // u_s[0]
-      val context: PC = fxt.context.copy(startGas = startGas)
+      val context: PC = fxt.context.copy(startGas = GasAmount(startGas))
       val call = fxt.ExecuteCall(
         op = DELEGATECALL,
         gas = gas,

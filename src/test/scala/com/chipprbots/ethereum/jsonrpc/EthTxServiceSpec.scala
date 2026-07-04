@@ -48,7 +48,7 @@ class EthTxServiceSpec
   ) in new TestSetup:
     val txIndexToRequest: Int = blockToRequest.body.transactionList.size / 2
     val request: GetTransactionByBlockHashAndIndexRequest =
-      GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash.value, txIndexToRequest)
+      GetTransactionByBlockHashAndIndexRequest(BlockHash(blockToRequest.header.hash.value), txIndexToRequest)
     val response: GetTransactionByBlockHashAndIndexResponse =
       ethTxService.getTransactionByBlockHashAndIndex(request).unsafeRunSync().toOption.get
 
@@ -59,7 +59,7 @@ class EthTxServiceSpec
 
     val invalidTxIndex = blockToRequest.body.transactionList.size
     val requestWithInvalidIndex: GetTransactionByBlockHashAndIndexRequest =
-      GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash.value, invalidTxIndex)
+      GetTransactionByBlockHashAndIndexRequest(BlockHash(blockToRequest.header.hash.value), invalidTxIndex)
     val response: GetTransactionByBlockHashAndIndexResponse = ethTxService
       .getTransactionByBlockHashAndIndex(requestWithInvalidIndex)
       .unsafeRunSync()
@@ -76,7 +76,7 @@ class EthTxServiceSpec
 
     val txIndexToRequest: Int = blockToRequest.body.transactionList.size / 2
     val request: GetTransactionByBlockHashAndIndexRequest =
-      GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash.value, txIndexToRequest)
+      GetTransactionByBlockHashAndIndexRequest(BlockHash(blockToRequest.header.hash.value), txIndexToRequest)
     val response: GetTransactionByBlockHashAndIndexResponse =
       ethTxService.getTransactionByBlockHashAndIndex(request).unsafeRunSync().toOption.get
 
@@ -92,7 +92,7 @@ class EthTxServiceSpec
     // given
     val txIndexToRequest: Int = blockToRequest.body.transactionList.size / 2
     val request: GetTransactionByBlockHashAndIndexRequest =
-      GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash.value, txIndexToRequest)
+      GetTransactionByBlockHashAndIndexRequest(BlockHash(blockToRequest.header.hash.value), txIndexToRequest)
 
     // when
     val response: RawTransactionResponse =
@@ -107,7 +107,7 @@ class EthTxServiceSpec
 
     val invalidTxIndex = blockToRequest.body.transactionList.size
     val requestWithInvalidIndex: GetTransactionByBlockHashAndIndexRequest =
-      GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash.value, invalidTxIndex)
+      GetTransactionByBlockHashAndIndexRequest(BlockHash(blockToRequest.header.hash.value), invalidTxIndex)
 
     // when
     val response: RawTransactionResponse = ethTxService
@@ -127,7 +127,7 @@ class EthTxServiceSpec
     blockchainWriter.storeBlock(blockToRequest).commit()
     val txIndexToRequest: Int = blockToRequest.body.transactionList.size / 2
     val request: GetTransactionByBlockHashAndIndexRequest =
-      GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash.value, txIndexToRequest)
+      GetTransactionByBlockHashAndIndexRequest(BlockHash(blockToRequest.header.hash.value), txIndexToRequest)
 
     // when
     val response: RawTransactionResponse =
@@ -139,7 +139,7 @@ class EthTxServiceSpec
 
   it should "handle eth_getRawTransactionByHash if the tx is not on the blockchain and not taggedAs (UnitTest, RPCTest) in the tx pool" in new TestSetup:
     // given
-    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(txToRequestHash)
+    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(TxHash(txToRequestHash))
 
     // when
     val response: Future[Either[JsonRpcError, RawTransactionResponse]] =
@@ -155,7 +155,7 @@ class EthTxServiceSpec
     RPCTest
   ) in new TestSetup:
     // given
-    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(txToRequestHash)
+    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(TxHash(txToRequestHash))
 
     // when
     val response: Future[Either[JsonRpcError, RawTransactionResponse]] =
@@ -174,7 +174,7 @@ class EthTxServiceSpec
 
     val blockWithTx: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchainWriter.storeBlock(blockWithTx).commit()
-    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(txToRequestHash)
+    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(TxHash(txToRequestHash))
 
     // when
     val response: Future[Either[JsonRpcError, RawTransactionResponse]] =
@@ -302,7 +302,7 @@ class EthTxServiceSpec
 
   it should "handle get transaction by hash if the tx is not on the blockchain and not taggedAs (UnitTest, RPCTest) in the tx pool" in new TestSetup:
 
-    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(txToRequestHash)
+    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(TxHash(txToRequestHash))
     val response: Future[Either[JsonRpcError, GetTransactionByHashResponse]] =
       ethTxService.getTransactionByHash(request).unsafeToFuture()
 
@@ -312,7 +312,7 @@ class EthTxServiceSpec
 
   it should "handle get transaction by hash if the tx is still pending" taggedAs (UnitTest, RPCTest) in new TestSetup:
 
-    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(txToRequestHash)
+    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(TxHash(txToRequestHash))
     val response: Future[Either[JsonRpcError, GetTransactionByHashResponse]] =
       ethTxService.getTransactionByHash(request).unsafeToFuture()
 
@@ -328,7 +328,7 @@ class EthTxServiceSpec
     val blockWithTx: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchainWriter.storeBlock(blockWithTx).commit()
 
-    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(txToRequestHash)
+    val request: GetTransactionByHashRequest = GetTransactionByHashRequest(TxHash(txToRequestHash))
     val response: Future[Either[JsonRpcError, GetTransactionByHashResponse]] =
       ethTxService.getTransactionByHash(request).unsafeToFuture()
 
@@ -360,7 +360,8 @@ class EthTxServiceSpec
     // receipt surfaces — mirrors what ChainImporter/BlockImporter do on real imports.
     blockchainWriter.saveBestKnownBlocks(blockWithTx.header.hash, blockWithTx.header.number.value)
 
-    val request: GetTransactionReceiptRequest = GetTransactionReceiptRequest(contractCreatingTransaction.hash.value)
+    val request: GetTransactionReceiptRequest =
+      GetTransactionReceiptRequest(TxHash(contractCreatingTransaction.hash.value))
     val response: ServiceResponse[GetTransactionReceiptResponse] = ethTxService.getTransactionReceipt(request)
 
     response.unsafeRunSync() shouldBe Right(
@@ -372,7 +373,7 @@ class EthTxServiceSpec
             signedTransactionSender = contractCreatingTransactionSender,
             transactionIndex = 1,
             blockHeader = Fixtures.Blocks.Block3125369.header,
-            gasUsedByTransaction = gasUsedByTx,
+            gasUsedByTransaction = GasAmount(gasUsedByTx),
             baseLogIndex = 1 // fakeReceipt (txIndex=0) has 1 log, so global log index for txIndex=1 starts at 1
           )
         )

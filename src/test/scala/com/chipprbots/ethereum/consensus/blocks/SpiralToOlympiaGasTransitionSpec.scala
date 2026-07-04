@@ -27,6 +27,7 @@ import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlymp
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -99,7 +100,7 @@ class SpiralToOlympiaGasTransitionSpec
       unixTimestamp = Timestamp(timestamp),
       difficulty = Difficulty.Zero,
       extraData = baseExtraData,
-      extraFields = HefPostOlympia(baseFee)
+      extraFields = HefPostOlympia(BaseFeePerGas(baseFee))
     )
 
   private class TestableGen(target: BigInt)
@@ -124,7 +125,7 @@ class SpiralToOlympiaGasTransitionSpec
     override protected def newBlockBody(transactions: Seq[SignedTransaction], x: Ommers): BlockBody =
       BlockBody(transactions, Nil)
     override protected def prepareHeader(
-        blockNumber: BigInt,
+        blockNumber: BlockNumber,
         parent: com.chipprbots.ethereum.domain.Block,
         beneficiary: Address,
         blockTimestamp: Timestamp,
@@ -144,7 +145,7 @@ class SpiralToOlympiaGasTransitionSpec
       throw new UnsupportedOperationException
 
     def calcGasLimit(parentGas: BigInt, blockNumber: BigInt)(implicit bc: BlockchainConfig): BigInt =
-      calculateGasLimit(parentGas, blockNumber)
+      calculateGasLimit(parentGas, BlockNumber(blockNumber))
 
   "Spiral-to-Olympia gas transition (EIP-7935)" when {
 
@@ -240,7 +241,7 @@ class SpiralToOlympiaGasTransitionSpec
           timestamp = 2000L
         )
         val secondGas = legacyMiner.calcGasLimit(StepOneGasLimit, olympiaBlock + 1)
-        val expectedBaseFee = BaseFeeCalculator.calcBaseFee(firstOlympia, config)
+        val expectedBaseFee = BaseFeeCalculator.calcBaseFee(firstOlympia, config).value
         val secondOlympia = olympiaHeader(
           number = olympiaBlock + 1,
           gasLimit = secondGas,

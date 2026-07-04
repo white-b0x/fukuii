@@ -12,6 +12,8 @@ import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.BaseFeePerGas
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.testing.Tags.*
 
 import Fixtures.blockchainConfig
@@ -45,7 +47,7 @@ class ETCForkEVMSpec extends AnyWordSpec with Matchers:
   val hdrOlympia: BlockHeader =
     BlockFixtures.ValidBlock.header.copy(
       number = BlockNumber(Fixtures.OlympiaBlockNumber),
-      extraFields = HefPostOlympia(BigInt("1000000000")) // 1 Gwei base fee
+      extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000"))) // 1 Gwei base fee
     )
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -72,7 +74,7 @@ class ETCForkEVMSpec extends AnyWordSpec with Matchers:
       originAddr = callerAddr,
       recipientAddr = Some(contractAddr),
       gasPrice = 1,
-      startGas = startGas,
+      startGas = GasAmount(startGas),
       inputData = ByteString.empty,
       value = UInt256.Zero,
       endowment = UInt256.Zero,
@@ -115,7 +117,7 @@ class ETCForkEVMSpec extends AnyWordSpec with Matchers:
         val code = Assembly(PUSH1, 0, PUSH1, 0, REVERT)
         val result = runCode(code, hdrAtlantis, configAtlantis, startGas = 100_000)
         result.error shouldBe Some(RevertOccurs)
-        result.gasRemaining should be > BigInt(0)
+        result.gasRemaining should be > GasAmount(0)
       }
     }
 

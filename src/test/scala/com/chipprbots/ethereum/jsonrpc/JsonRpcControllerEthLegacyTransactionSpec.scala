@@ -128,7 +128,7 @@ class JsonRpcControllerEthLegacyTransactionSpec
 
     val txHash: ByteString = ByteString(1, 2, 3, 4)
 
-    personalService.sendTransactionFn = _ => IO.pure(Right(SendTransactionResponse(txHash)))
+    personalService.sendTransactionFn = _ => IO.pure(Right(SendTransactionResponse(TxHash(txHash))))
 
     val rpcRequest: JsonRpcRequest = newJsonRpcRequest("eth_sendTransaction", params)
     val response: JsonRpcResponse = jsonRpcController.handleRequest(rpcRequest).unsafeRunSync()
@@ -384,20 +384,20 @@ class JsonRpcControllerEthLegacyTransactionSpec
           TransactionReceiptResponse(
             transactionHash = ByteString(Hex.decode("23" * 32)),
             transactionIndex = 1,
-            blockNumber = Fixtures.Blocks.Block3125369.header.number.value,
-            blockHash = Fixtures.Blocks.Block3125369.header.hash.value,
+            blockNumber = BlockNumber(Fixtures.Blocks.Block3125369.header.number.value),
+            blockHash = BlockHash(Fixtures.Blocks.Block3125369.header.hash.value),
             from = Address(arbitraryValue1),
             to = None,
             cumulativeGasUsed = arbitraryValue * 10,
-            gasUsed = arbitraryValue,
+            gasUsed = GasAmount(arbitraryValue),
             contractAddress = Some(Address(arbitraryValue)),
             logs = Seq(
               TxLog(
                 logIndex = 0,
                 transactionIndex = 1,
                 transactionHash = ByteString(Hex.decode("23" * 32)),
-                blockHash = Fixtures.Blocks.Block3125369.header.hash.value,
-                blockNumber = Fixtures.Blocks.Block3125369.header.number.value,
+                blockHash = BlockHash(Fixtures.Blocks.Block3125369.header.hash.value),
+                blockNumber = BlockNumber(Fixtures.Blocks.Block3125369.header.number.value),
                 address = Address(arbitraryValue),
                 data = ByteString(Hex.decode("43" * 32)),
                 topics = Seq(ByteString(Hex.decode("44" * 32)), ByteString(Hex.decode("45" * 32)))
@@ -476,20 +476,20 @@ class JsonRpcControllerEthLegacyTransactionSpec
           TransactionReceiptResponse(
             transactionHash = ByteString(Hex.decode("23" * 32)),
             transactionIndex = 1,
-            blockNumber = Fixtures.Blocks.Block3125369.header.number.value,
-            blockHash = Fixtures.Blocks.Block3125369.header.hash.value,
+            blockNumber = BlockNumber(Fixtures.Blocks.Block3125369.header.number.value),
+            blockHash = BlockHash(Fixtures.Blocks.Block3125369.header.hash.value),
             from = Address(arbitraryValue1),
             to = None,
             cumulativeGasUsed = arbitraryValue * 10,
-            gasUsed = arbitraryValue,
+            gasUsed = GasAmount(arbitraryValue),
             contractAddress = Some(Address(arbitraryValue)),
             logs = Seq(
               TxLog(
                 logIndex = 0,
                 transactionIndex = 1,
                 transactionHash = ByteString(Hex.decode("23" * 32)),
-                blockHash = Fixtures.Blocks.Block3125369.header.hash.value,
-                blockNumber = Fixtures.Blocks.Block3125369.header.number.value,
+                blockHash = BlockHash(Fixtures.Blocks.Block3125369.header.hash.value),
+                blockNumber = BlockNumber(Fixtures.Blocks.Block3125369.header.number.value),
                 address = Address(arbitraryValue),
                 data = ByteString(Hex.decode("43" * 32)),
                 topics = Seq(ByteString(Hex.decode("44" * 32)), ByteString(Hex.decode("45" * 32)))

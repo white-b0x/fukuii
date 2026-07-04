@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.vm
 import org.scalatest.funsuite.AnyFunSuiteLike
 import org.scalatest.matchers.should.Matchers
 
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.vm.MockWorldState.PS
 
 trait OpCodeTesting extends AnyFunSuiteLike:
@@ -36,7 +37,7 @@ trait OpCodeTesting extends AnyFunSuiteLike:
     }
 
   def verifyGas(expectedGas: BigInt, stateIn: PS, stateOut: PS, allowOOG: Boolean = true): Unit =
-    if stateOut.error.contains(OutOfGas) && allowOOG then stateIn.gas should be < expectedGas
+    if stateOut.error.contains(OutOfGas) && allowOOG then stateIn.gas should be < GasAmount(expectedGas)
     else if stateOut.error.contains(OutOfGas) && !allowOOG then fail(s"Unexpected $OutOfGas error")
     else if stateOut.error.isDefined && stateOut.error.collect {
         case InvalidJump(_)     => ()
@@ -46,4 +47,4 @@ trait OpCodeTesting extends AnyFunSuiteLike:
     then
       // Found error that is neither an InvalidJump nor RevertOccurs
       fail(s"Unexpected ${stateOut.error.get} error")
-    else stateOut.gas shouldEqual (stateIn.gas - expectedGas)
+    else stateOut.gas shouldEqual (stateIn.gas - GasAmount(expectedGas))

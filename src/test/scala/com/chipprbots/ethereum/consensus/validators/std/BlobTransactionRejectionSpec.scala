@@ -55,7 +55,7 @@ class BlobTransactionRejectionSpec extends AnyFlatSpec with Matchers:
   private val etcBlockHeader = Fixtures.Blocks.Block3125369.header.copy(
     number = BlockNumber(BigInt(21_000_000)),
     gasLimit = GasAmount(8_000_000),
-    extraFields = HefPostOlympia(BigInt("1000000000"))
+    extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000")))
   )
 
   private val senderAccount = Account.empty(UInt256(0)).copy(balance = UInt256(BigInt("1000000000000000000")))

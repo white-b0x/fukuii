@@ -71,7 +71,7 @@ object EthereumTestExecutor:
       var world = InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
         mptStorage = mptStorage,
-        getBlockHashByNumber = (_: BigInt) => None,
+        getBlockHashByNumber = (_: BlockNumber) => None,
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = Account.EmptyStorageRootHash.value,
         noEmptyAccounts = false,
@@ -104,7 +104,7 @@ object EthereumTestExecutor:
           val key = parseBigInt(keyHex)
           val value = parseBigInt(valueHex)
           val storage = world.getStorage(address)
-          val newStorage = storage.store(key, value)
+          val newStorage = storage.store(StorageKey(key), value)
           world = world.saveStorage(address, newStorage)
         }
       }
@@ -141,7 +141,7 @@ object EthereumTestExecutor:
             val key = parseBigInt(keyHex)
             val expectedValue = parseBigInt(valueHex)
             val storage = finalWorld.getStorage(address)
-            val actualValue = storage.load(key)
+            val actualValue = storage.load(StorageKey(key))
 
             if actualValue != expectedValue then
               break(Left(s"Storage mismatch for $addressHex at $key: expected $expectedValue, got $actualValue"))

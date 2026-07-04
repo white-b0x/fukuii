@@ -47,7 +47,7 @@ class OlympiaFeeMarketSpec
       number = BlockNumber(olympiaBlock),
       gasLimit = GasAmount(gasLimit),
       gasUsed = GasAmount(gasUsed),
-      extraFields = HefPostOlympia(baseFee)
+      extraFields = HefPostOlympia(BaseFeePerGas(baseFee))
     )
 
   "Olympia EIP-1559 fee market" when {
@@ -63,7 +63,10 @@ class OlympiaFeeMarketSpec
           value = Wei(0),
           payload = ByteString.empty
         )
-        Transaction.effectiveGasPrice(legacyTx, Some(BigInt(2_000_000_000L))) shouldBe legacyTx.gasPrice.value
+        Transaction.effectiveGasPrice(
+          legacyTx,
+          Some(BaseFeePerGas(BigInt(2_000_000_000L)))
+        ) shouldBe legacyTx.gasPrice.value
       }
 
       "Type 2 (dynamic fee): return min(maxFee, baseFee + maxPriority) — uncapped case" taggedAs (
@@ -82,7 +85,7 @@ class OlympiaFeeMarketSpec
           accessList = Nil
         )
         val baseFee = BigInt(2_000_000_000L)
-        Transaction.effectiveGasPrice(tx, Some(baseFee)) shouldBe BigInt(3_000_000_000L)
+        Transaction.effectiveGasPrice(tx, Some(BaseFeePerGas(baseFee))) shouldBe BigInt(3_000_000_000L)
       }
 
       "Type 2 (dynamic fee): cap at maxFeePerGas when baseFee + maxPriority > maxFee" taggedAs (
@@ -101,7 +104,7 @@ class OlympiaFeeMarketSpec
           accessList = Nil
         )
         val baseFee = BigInt(8_000_000_000L)
-        Transaction.effectiveGasPrice(tx, Some(baseFee)) shouldBe BigInt(10_000_000_000L)
+        Transaction.effectiveGasPrice(tx, Some(BaseFeePerGas(baseFee))) shouldBe BigInt(10_000_000_000L)
       }
 
       "Type 4 (SetCode): follow same min(maxFee, baseFee + maxPriority) formula as Type 2" taggedAs (
@@ -129,7 +132,7 @@ class OlympiaFeeMarketSpec
           authorizationList = List(auth)
         )
         val baseFee = BigInt(2_000_000_000L)
-        Transaction.effectiveGasPrice(tx, Some(baseFee)) shouldBe BigInt(3_000_000_000L)
+        Transaction.effectiveGasPrice(tx, Some(BaseFeePerGas(baseFee))) shouldBe BigInt(3_000_000_000L)
       }
     }
 
@@ -149,7 +152,7 @@ class OlympiaFeeMarketSpec
           value = Wei(0),
           payload = ByteString.empty
         )
-        val effective = Transaction.effectiveGasPrice(legacyTx, Some(baseFee))
+        val effective = Transaction.effectiveGasPrice(legacyTx, Some(BaseFeePerGas(baseFee)))
         val minerTip = effective - baseFee
         minerTip shouldBe BigInt(3_000_000_000L)
       }
@@ -169,7 +172,7 @@ class OlympiaFeeMarketSpec
           payload = ByteString.empty,
           accessList = Nil
         )
-        val effective = Transaction.effectiveGasPrice(tx, Some(baseFee))
+        val effective = Transaction.effectiveGasPrice(tx, Some(BaseFeePerGas(baseFee)))
         val minerTip = effective - baseFee
         minerTip shouldBe maxPriority
       }
@@ -190,7 +193,7 @@ class OlympiaFeeMarketSpec
           payload = ByteString.empty,
           accessList = Nil
         )
-        val effective = Transaction.effectiveGasPrice(tx, Some(baseFee))
+        val effective = Transaction.effectiveGasPrice(tx, Some(BaseFeePerGas(baseFee)))
         val minerTip = effective - baseFee
         effective shouldBe baseFee
         minerTip shouldBe BigInt(0)
@@ -206,8 +209,8 @@ class OlympiaFeeMarketSpec
         val tinyBaseFee = BigInt(1)
         val emptyParent = olympiaParent(gasLimit = BigInt(30_000_000), gasUsed = 0, baseFee = tinyBaseFee)
         val next = BaseFeeCalculator.calcBaseFee(emptyParent, config)
-        next should be >= InitialBaseFee
-        next shouldBe InitialBaseFee
+        next should be >= BaseFeePerGas(InitialBaseFee)
+        next shouldBe BaseFeePerGas(InitialBaseFee)
       }
 
       "baseFee never falls below InitialBaseFee over sustained empty blocks" taggedAs (
@@ -217,7 +220,7 @@ class OlympiaFeeMarketSpec
         var fee = InitialBaseFee
         for _ <- 1 to 100 do
           val emptyParent = olympiaParent(gasLimit = BigInt(30_000_000), gasUsed = 0, baseFee = fee)
-          fee = BaseFeeCalculator.calcBaseFee(emptyParent, config)
+          fee = BaseFeeCalculator.calcBaseFee(emptyParent, config).value
           fee should be >= InitialBaseFee
       }
     }
@@ -237,7 +240,7 @@ class OlympiaFeeMarketSpec
           payload = ByteString.empty,
           accessList = Nil
         )
-        val effectiveTip = Transaction.effectiveGasPrice(tx2ZeroTip, Some(baseFee)) - baseFee
+        val effectiveTip = Transaction.effectiveGasPrice(tx2ZeroTip, Some(BaseFeePerGas(baseFee))) - baseFee
         effectiveTip shouldBe BigInt(0)
         effectiveTip should be < InitialBaseFee
       }
@@ -258,7 +261,7 @@ class OlympiaFeeMarketSpec
           payload = ByteString.empty,
           accessList = Nil
         )
-        val effectiveTip = Transaction.effectiveGasPrice(tx2ValidTip, Some(baseFee)) - baseFee
+        val effectiveTip = Transaction.effectiveGasPrice(tx2ValidTip, Some(BaseFeePerGas(baseFee))) - baseFee
         effectiveTip shouldBe InitialBaseFee
         effectiveTip should be >= InitialBaseFee
       }
@@ -273,7 +276,7 @@ class OlympiaFeeMarketSpec
           value = Wei(0),
           payload = ByteString.empty
         )
-        val effectiveTip = Transaction.effectiveGasPrice(legacyTx, Some(baseFee)) - baseFee
+        val effectiveTip = Transaction.effectiveGasPrice(legacyTx, Some(BaseFeePerGas(baseFee))) - baseFee
         effectiveTip shouldBe BigInt(0)
         effectiveTip should be < InitialBaseFee
       }

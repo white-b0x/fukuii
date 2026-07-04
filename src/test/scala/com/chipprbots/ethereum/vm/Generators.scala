@@ -11,6 +11,7 @@ import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.vm.MockWorldState.*
 
 import Fixtures.blockchainConfig
@@ -112,7 +113,7 @@ object Generators extends ObjectGenerators:
         originAddr = callerAddr,
         recipientAddr = Some(ownerAddr),
         gasPrice = 0,
-        startGas = gas,
+        startGas = GasAmount(gas),
         inputData = inputData,
         value = value,
         endowment = value,

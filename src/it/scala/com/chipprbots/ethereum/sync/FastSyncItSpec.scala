@@ -255,7 +255,8 @@ object FastSyncItSpec:
       val randomAddress = Address(num)
       val codeBytes = BigInt(num).toByteArray
       val storage = world.getStorage(randomAddress)
-      val changedStorage = (num until num + 20).foldLeft(storage)((storage, value) => storage.store(value, value))
+      val changedStorage =
+        (num until num + 20).foldLeft(storage)((storage, value) => storage.store(StorageKey(value), value))
       world
         .saveAccount(randomAddress, Account.empty().copy(balance = randomBalance))
         .saveCode(randomAddress, ByteString(codeBytes))

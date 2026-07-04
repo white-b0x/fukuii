@@ -15,6 +15,7 @@ import com.chipprbots.ethereum.metrics.MetricsConfig
 import com.chipprbots.ethereum.sync.util.RegularSyncItSpecUtils.FakePeer
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
+import com.chipprbots.ethereum.domain.BlockNumber
 
 /** End-to-End test suite for P2P handshake functionality.
   *
@@ -156,8 +157,10 @@ class E2EHandshakeSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
           _ <- IO.sleep(2.seconds)
         yield
           // Both peers should have the same genesis block
-          val peer1Genesis = peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, 0)
-          val peer2Genesis = peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, 0)
+          val peer1Genesis =
+            peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(0))
+          val peer2Genesis =
+            peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(0))
 
           peer1Genesis shouldBe defined
           peer2Genesis shouldBe defined

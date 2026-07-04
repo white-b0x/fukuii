@@ -30,12 +30,12 @@ class VMTracerSpec extends AnyFreeSpec with Matchers:
         opCode: String,
         from: Address,
         to: Address,
-        gas: BigInt,
+        gas: GasAmount,
         value: Wei,
         input: ByteString
     ): Unit = enterCount += 1
 
-    override def onCallExit(gasUsed: BigInt, output: ByteString, error: Option[String]): Unit =
+    override def onCallExit(gasUsed: GasAmount, output: ByteString, error: Option[String]): Unit =
       exitCount += 1
 
     override def getResult: org.json4s.JValue = org.json4s.JNull
@@ -88,7 +88,7 @@ class VMTracerSpec extends AnyFreeSpec with Matchers:
       originAddr = senderAddr,
       recipientAddr = recipientAddr,
       gasPrice = 1,
-      startGas = 1000000,
+      startGas = GasAmount(1000000),
       inputData = ByteString.empty,
       value = 0,
       endowment = 0,
@@ -152,7 +152,7 @@ class VMTracerSpec extends AnyFreeSpec with Matchers:
         originAddr = senderAddr,
         recipientAddr = Some(recipient),
         gasPrice = 1,
-        startGas = 1000000,
+        startGas = GasAmount(1000000),
         inputData = ByteString.empty,
         value = 0,
         endowment = 0,

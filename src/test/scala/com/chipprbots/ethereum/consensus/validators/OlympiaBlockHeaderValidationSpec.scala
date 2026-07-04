@@ -18,6 +18,7 @@ import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
 import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -77,7 +78,7 @@ class OlympiaBlockHeaderValidationSpec
       unixTimestamp = Timestamp(timestamp),
       difficulty = Difficulty.Zero,
       extraData = baseExtraData,
-      extraFields = HefPostOlympia(baseFee)
+      extraFields = HefPostOlympia(BaseFeePerGas(baseFee))
     )
 
   private def validate(header: BlockHeader, parent: BlockHeader) =
@@ -100,7 +101,7 @@ class OlympiaBlockHeaderValidationSpec
         val wrongChild = preOlympiaHeader(olympiaBlock - 1, timestamp = 2000L).copy(
           parentHash = parent.hash,
           gasLimit = GasAmount(BigInt(8_000_000)),
-          extraFields = HefPostOlympia(InitialBaseFee)
+          extraFields = HefPostOlympia(BaseFeePerGas(InitialBaseFee))
         )
         val result = validate(wrongChild, parent)
         result shouldBe a[Left[?, ?]]
@@ -211,10 +212,10 @@ class OlympiaBlockHeaderValidationSpec
           unixTimestamp = Timestamp(1000L),
           difficulty = Difficulty.Zero,
           extraData = baseExtraData,
-          extraFields = HefPostOlympia(BigInt(7))
+          extraFields = HefPostOlympia(BaseFeePerGas(BigInt(7)))
         )
         // Sanity: the held base fee the calculator derives for the child is exactly 7 (not 6).
-        BaseFeeCalculator.calcBaseFee(emptyParent, configFloorZero) shouldBe BigInt(7)
+        BaseFeeCalculator.calcBaseFee(emptyParent, configFloorZero) shouldBe BaseFeePerGas(BigInt(7))
 
         val child = Fixtures.Blocks.ValidBlock.header.copy(
           parentHash = emptyParent.hash,
@@ -224,7 +225,7 @@ class OlympiaBlockHeaderValidationSpec
           unixTimestamp = Timestamp(2000L),
           difficulty = Difficulty.Zero,
           extraData = baseExtraData,
-          extraFields = HefPostOlympia(BigInt(7))
+          extraFields = HefPostOlympia(BaseFeePerGas(BigInt(7)))
         )
         MockedPowBlockHeaderValidator.validate(child, emptyParent)(configFloorZero) shouldBe Right(BlockHeaderValid)
       }

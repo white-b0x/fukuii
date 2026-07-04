@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.vm.Fixtures.blockchainConfig
 
@@ -34,10 +35,10 @@ class Push0Spec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaC
   test("PUSH0 should use 2 gas (G_base)", UnitTest, VMTest) {
     forAll(Generators.getProgramStateGen()) { stateIn =>
       // Only test when we have enough gas
-      if stateIn.gas >= 2 && stateIn.stack.size < stateIn.stack.maxSize then
+      if stateIn.gas >= GasAmount(2) && stateIn.stack.size < stateIn.stack.maxSize then
         val stateOut = PUSH0.execute(stateIn)
         stateOut.error shouldBe None
-        stateOut.gas shouldEqual (stateIn.gas - 2)
+        stateOut.gas shouldEqual (stateIn.gas - GasAmount(2))
     }
   }
 
@@ -57,11 +58,11 @@ class Push0Spec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaC
       .sample
       .get
       .withStack(Stack.empty()) // Ensure stack has room
-      .copy(gas = 1)
+      .copy(gas = GasAmount(1))
     val stateOut = PUSH0.execute(lowGasState)
 
     stateOut.error shouldBe Some(OutOfGas)
-    stateOut.gas shouldBe 0
+    stateOut.gas shouldBe GasAmount.Zero
   }
 
   test("PUSH0 multiple times should push multiple zeros", UnitTest, VMTest) {
@@ -71,7 +72,7 @@ class Push0Spec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaC
       .sample
       .get
       .withStack(Stack.empty())
-      .copy(gas = 1000)
+      .copy(gas = GasAmount(1000))
 
     val state1 = PUSH0.execute(initialState)
     state1.error shouldBe None
@@ -101,7 +102,7 @@ class Push0Spec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaC
       .sample
       .get
       .withStack(Stack.empty())
-      .copy(gas = 1000)
+      .copy(gas = GasAmount(1000))
 
     // PUSH0 uses G_base (2 gas)
     val push0State = PUSH0.execute(initialState)
@@ -111,8 +112,8 @@ class Push0Spec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaC
     val push1State = PUSH1.execute(initialState)
     val push1GasUsed = initialState.gas - push1State.gas
 
-    push0GasUsed shouldBe 2
-    push1GasUsed shouldBe 3
+    push0GasUsed shouldBe GasAmount(2)
+    push1GasUsed shouldBe GasAmount(3)
     push0GasUsed should be < push1GasUsed
   }
 
@@ -123,7 +124,7 @@ class Push0Spec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaC
       .sample
       .get
       .withStack(Stack.empty())
-      .copy(gas = 1000)
+      .copy(gas = GasAmount(1000))
 
     val result = PUSH0.execute(state)
 
@@ -141,7 +142,7 @@ class Push0Spec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaC
       .sample
       .get
       .withStack(Stack.empty())
-      .copy(gas = 10000)
+      .copy(gas = GasAmount(10000))
 
     // Execute PUSH0 1024 times
     (1 to 1024).foreach { _ =>
@@ -167,7 +168,7 @@ class Push0Spec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaC
       .sample
       .get
       .withStack(Stack.empty())
-      .copy(gas = 10000)
+      .copy(gas = GasAmount(10000))
 
     // Execute PUSH0 1024 times successfully
     (1 to 1024).foreach { _ =>

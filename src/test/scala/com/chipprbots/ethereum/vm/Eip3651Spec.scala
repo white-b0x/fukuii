@@ -11,6 +11,7 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.testing.Tags.*
 
 import Fixtures.blockchainConfig
@@ -53,7 +54,7 @@ class Eip3651Spec extends AnyWordSpec with Matchers:
         originAddr = callerAddr,
         recipientAddr = Some(callerAddr),
         gasPrice = 1,
-        startGas = startGas,
+        startGas = GasAmount(startGas),
         inputData = ByteString.empty,
         value = UInt256.Zero,
         endowment = UInt256.Zero,
@@ -126,7 +127,7 @@ class Eip3651Spec extends AnyWordSpec with Matchers:
         val expectedGas = configPreEip3651.feeSchedule.G_base + // COINBASE opcode
           configPreEip3651.feeSchedule.G_cold_account_access // BALANCE (cold)
 
-        result.gasRemaining shouldEqual (context.startGas - expectedGas)
+        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
         result.error shouldBe None
       }
 
@@ -161,7 +162,7 @@ class Eip3651Spec extends AnyWordSpec with Matchers:
         val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
           configWithEip3651.feeSchedule.G_warm_storage_read // BALANCE (warm)
 
-        result.gasRemaining shouldEqual (context.startGas - expectedGas)
+        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
         result.error shouldBe None
       }
 
@@ -222,7 +223,7 @@ class Eip3651Spec extends AnyWordSpec with Matchers:
         val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
           configWithEip3651.feeSchedule.G_warm_storage_read // EXTCODESIZE (warm)
 
-        result.gasRemaining shouldEqual (context.startGas - expectedGas)
+        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
         result.error shouldBe None
       }
 
@@ -239,7 +240,7 @@ class Eip3651Spec extends AnyWordSpec with Matchers:
         val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
           configWithEip3651.feeSchedule.G_warm_storage_read // EXTCODEHASH (warm)
 
-        result.gasRemaining shouldEqual (context.startGas - expectedGas)
+        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
         result.error shouldBe None
       }
 
@@ -257,7 +258,7 @@ class Eip3651Spec extends AnyWordSpec with Matchers:
         val expectedGas = configWithEip3651.feeSchedule.G_verylow + // PUSH20
           configWithEip3651.feeSchedule.G_cold_account_access // BALANCE (cold)
 
-        result.gasRemaining shouldEqual (context.startGas - expectedGas)
+        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
         result.error shouldBe None
       }
 
@@ -293,7 +294,7 @@ class Eip3651Spec extends AnyWordSpec with Matchers:
         val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
           configWithEip3651.feeSchedule.G_warm_storage_read // BALANCE (warm)
 
-        result.gasRemaining shouldEqual (context.startGas - expectedGas)
+        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
         result.error shouldBe None
       }
 
@@ -312,7 +313,7 @@ class Eip3651Spec extends AnyWordSpec with Matchers:
         val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
           configWithEip3651.feeSchedule.G_warm_storage_read // BALANCE (warm)
 
-        result.gasRemaining shouldEqual (context.startGas - expectedGas)
+        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
         result.error shouldBe None
       }
     }

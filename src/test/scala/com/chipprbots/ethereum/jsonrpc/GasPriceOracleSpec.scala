@@ -89,7 +89,7 @@ class GasPriceOracleSpec
     fixtureHeader.copy(
       number = BlockNumber(number),
       beneficiary = coinbase,
-      extraFields = baseFeeOpt.fold[HeaderExtraFields](HefEmpty)(HefPostOlympia.apply)
+      extraFields = baseFeeOpt.fold[HeaderExtraFields](HefEmpty)(b => HefPostOlympia(BaseFeePerGas(b)))
     )
 
   /** Create a Block with the given transactions. */
@@ -450,28 +450,28 @@ class GasPriceOracleSpec
     RPCTest
   ) in {
     val userPrice: BigInt = 5 * gwei
-    val req = TransactionRequest(from = Address(zeroAddr), gasPrice = Some(userPrice))
+    val req = TransactionRequest(from = Address(zeroAddr), gasPrice = Some(GasPrice(userPrice)))
     val oracle = 10 * gwei // oracle would have suggested 10g
-    val tx = req.toTransaction(BigInt(0), oracle)
+    val tx = req.toTransaction(Nonce(BigInt(0)), GasPrice(oracle))
     tx.gasPrice.value shouldEqual userPrice
   }
 
   it should "use the oracle price when no gasPrice provided by the user" taggedAs (UnitTest, RPCTest) in {
     val oracle = 4 * gwei
     val req = TransactionRequest(from = Address(zeroAddr))
-    val tx = req.toTransaction(BigInt(0), oracle)
+    val tx = req.toTransaction(Nonce(BigInt(0)), GasPrice(oracle))
     tx.gasPrice.value shouldEqual oracle
   }
 
   it should "use oracle price of 1 wei (minimum valid) when oracle returns 1 wei" taggedAs (UnitTest, RPCTest) in {
     val req = TransactionRequest(from = Address(zeroAddr))
-    val tx = req.toTransaction(BigInt(0), BigInt(1))
+    val tx = req.toTransaction(Nonce(BigInt(0)), GasPrice(BigInt(1)))
     tx.gasPrice.value shouldEqual BigInt(1)
   }
 
   it should "respect user's explicit gasPrice = 0 over any oracle value" taggedAs (UnitTest, RPCTest) in {
-    val req = TransactionRequest(from = Address(zeroAddr), gasPrice = Some(BigInt(0)))
-    val tx = req.toTransaction(BigInt(0), 5 * gwei)
+    val req = TransactionRequest(from = Address(zeroAddr), gasPrice = Some(GasPrice(BigInt(0))))
+    val tx = req.toTransaction(Nonce(BigInt(0)), GasPrice(5 * gwei))
     tx.gasPrice.value shouldEqual BigInt(0)
   }
 

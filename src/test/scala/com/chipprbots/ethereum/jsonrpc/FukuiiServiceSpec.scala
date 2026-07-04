@@ -95,7 +95,7 @@ class FukuiiServiceSpec extends ScalaTestWithActorTestKit with FreeSpecBase with
           ExtendedTransactionData(
             fakeTransaction.tx,
             isOutgoing = true,
-            Some(MinedTransactionData(block.header, 0, 42))
+            Some(MinedTransactionData(block.header, 0, GasAmount(42)))
           )
         )
 

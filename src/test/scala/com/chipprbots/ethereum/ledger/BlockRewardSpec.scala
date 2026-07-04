@@ -95,7 +95,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val beforeExecutionBalance3: BigInt = worldState.getGuaranteedAccount(ommer2Address).balance
 
     // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
-    val newBlockReward: BigInt = blockchainConfig.monetaryPolicyConfig.firstEraReducedBlockReward
+    val newBlockReward: BigInt = blockchainConfig.monetaryPolicyConfig.firstEraReducedBlockReward.value
     val ommersRewards: BigInt =
       (8 - (block.header.number.value - block.body.uncleNodesList.head.number.value)) * newBlockReward / 8
     val nephewRewards: BigInt = (newBlockReward / 32) * 2

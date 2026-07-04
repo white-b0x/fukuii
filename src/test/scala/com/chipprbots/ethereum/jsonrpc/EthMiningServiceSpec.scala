@@ -216,7 +216,7 @@ class EthMiningServiceSpec
     import scala.concurrent.Await
     val response: Either[JsonRpcError, GetWorkResponse] = Await.result(workFuture, 10.seconds)
 
-    response shouldEqual Right(GetWorkResponse(powHash, seedHash, target, block.header.number.value))
+    response shouldEqual Right(GetWorkResponse(powHash, seedHash, target, BlockNumber(block.header.number.value)))
 
   it should "generate and submit work when generating block for mining with restricted ethash generator" taggedAs (
     UnitTest,

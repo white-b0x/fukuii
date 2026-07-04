@@ -24,6 +24,7 @@ import com.chipprbots.ethereum.nodebuilder.ApisBuilder
 import com.chipprbots.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 import com.chipprbots.ethereum.transactions.TransactionHistoryService.MinedTransactionData
 import com.chipprbots.ethereum.utils.Config
+import com.chipprbots.ethereum.domain.GasAmount
 
 class FukuiiJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory with JRCMatchers:
   import com.chipprbots.ethereum.jsonrpc.serialization.JsonSerializers.formats
@@ -113,12 +114,12 @@ class FukuiiJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
                   ExtendedTransactionData(
                     sentTx,
                     isOutgoing = true,
-                    Some(MinedTransactionData(block.header, 0, 42))
+                    Some(MinedTransactionData(block.header, 0, GasAmount(42)))
                   ),
                   ExtendedTransactionData(
                     receivedTx,
                     isOutgoing = false,
-                    Some(MinedTransactionData(block.header, 1, 21))
+                    Some(MinedTransactionData(block.header, 1, GasAmount(21)))
                   )
                 )
               )

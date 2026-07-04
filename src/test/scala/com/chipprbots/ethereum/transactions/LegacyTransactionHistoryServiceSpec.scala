@@ -84,17 +84,17 @@ class LegacyTransactionHistoryServiceSpec
       ExtendedTransactionData(
         tx3,
         isOutgoing = false,
-        Some(MinedTransactionData(blockWithTxs2and3.header, 1, 44))
+        Some(MinedTransactionData(blockWithTxs2and3.header, 1, GasAmount(44)))
       ),
       ExtendedTransactionData(
         tx2,
         isOutgoing = false,
-        Some(MinedTransactionData(blockWithTxs2and3.header, 0, 43))
+        Some(MinedTransactionData(blockWithTxs2and3.header, 0, GasAmount(43)))
       ),
       ExtendedTransactionData(
         tx1,
         isOutgoing = false,
-        Some(MinedTransactionData(blockWithTx1.header, 0, 42))
+        Some(MinedTransactionData(blockWithTx1.header, 0, GasAmount(42)))
       )
     )
 

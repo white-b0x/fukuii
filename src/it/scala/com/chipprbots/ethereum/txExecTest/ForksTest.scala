@@ -16,6 +16,8 @@ import com.chipprbots.ethereum.ledger.BlockValidation
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.txExecTest.util.FixtureProvider
 import com.chipprbots.ethereum.domain.ChainId
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.ForkBlockNumbers
 import com.chipprbots.ethereum.utils.MonetaryPolicyConfig
@@ -25,14 +27,14 @@ class ForksTest extends AnyFlatSpec with Matchers:
   trait TestSetup extends ScenarioSetup:
     implicit override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers.Empty.copy(
-        frontierBlockNumber = 0,
-        homesteadBlockNumber = 3,
-        eip150BlockNumber = 5,
-        eip160BlockNumber = 7,
-        eip155BlockNumber = 0
+        frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(3),
+        eip150BlockNumber = BlockNumber(5),
+        eip160BlockNumber = BlockNumber(7),
+        eip155BlockNumber = BlockNumber(0)
       ),
       chainId = ChainId(0x3d),
-      monetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L),
+      monetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, Wei(5000000000000000000L), Wei(3000000000000000000L)),
       // unused
       bootstrapNodes = Set(),
       networkId = 1,

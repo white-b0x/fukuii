@@ -7,6 +7,7 @@ import org.scalatest.matchers.should.Matchers
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.*
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
@@ -42,7 +43,7 @@ class BaseFeeCalculatorSpec
       baseFee: Option[BigInt] = None
   ): BlockHeader =
     val extraFields = baseFee match
-      case Some(fee) => HefPostOlympia(fee)
+      case Some(fee) => HefPostOlympia(BaseFeePerGas(fee))
       case None      => HefEmpty
     Fixtures.Blocks.ValidBlock.header.copy(
       number = BlockNumber(number),
@@ -57,8 +58,8 @@ class BaseFeeCalculatorSpec
   ) in {
     val parent = makeHeader(number = olympiaBlock - 1, gasLimit = 8000000, gasUsed = 4000000)
     val result = BaseFeeCalculator.calcBaseFee(parent, config)
-    result shouldBe BaseFeeCalculator.InitialBaseFee
-    result shouldBe BigInt(1000000000)
+    result shouldBe BaseFeePerGas(BaseFeeCalculator.InitialBaseFee)
+    result shouldBe BaseFeePerGas(BigInt(1000000000))
   }
 
   it should "keep baseFee unchanged when parent gasUsed equals target" taggedAs (OlympiaTest, ConsensusTest) in {
@@ -73,7 +74,7 @@ class BaseFeeCalculatorSpec
       baseFee = Some(parentBaseFee)
     )
 
-    BaseFeeCalculator.calcBaseFee(parent, config) shouldBe parentBaseFee
+    BaseFeeCalculator.calcBaseFee(parent, config) shouldBe BaseFeePerGas(parentBaseFee)
   }
 
   it should "increase baseFee when parent gasUsed exceeds target" taggedAs (OlympiaTest, ConsensusTest) in {
@@ -88,8 +89,8 @@ class BaseFeeCalculatorSpec
     )
 
     val result = BaseFeeCalculator.calcBaseFee(parent, config)
-    result shouldBe parentBaseFee + parentBaseFee / 8
-    result should be > parentBaseFee
+    result shouldBe BaseFeePerGas(parentBaseFee + parentBaseFee / 8)
+    result should be > BaseFeePerGas(parentBaseFee)
   }
 
   it should "decrease baseFee when parent gasUsed is below target" taggedAs (OlympiaTest, ConsensusTest) in {
@@ -106,8 +107,8 @@ class BaseFeeCalculatorSpec
     )
 
     val result = BaseFeeCalculator.calcBaseFee(parent, config)
-    result shouldBe parentBaseFee - parentBaseFee / 8
-    result should be < parentBaseFee
+    result shouldBe BaseFeePerGas(parentBaseFee - parentBaseFee / 8)
+    result should be < BaseFeePerGas(parentBaseFee)
   }
 
   it should "increase baseFee by at least 1 even with small parentBaseFee" taggedAs (OlympiaTest, ConsensusTest) in {
@@ -122,7 +123,7 @@ class BaseFeeCalculatorSpec
     )
 
     val result = BaseFeeCalculator.calcBaseFee(parent, config)
-    result shouldBe parentBaseFee + 1
+    result shouldBe BaseFeePerGas(parentBaseFee + 1)
   }
 
   it should "never decrease baseFee below InitialBaseFee" taggedAs (OlympiaTest, ConsensusTest) in {
@@ -137,7 +138,7 @@ class BaseFeeCalculatorSpec
     )
 
     val result = BaseFeeCalculator.calcBaseFee(parent, config)
-    result should be >= BaseFeeCalculator.InitialBaseFee
+    result should be >= BaseFeePerGas(BaseFeeCalculator.InitialBaseFee)
   }
 
   it should "floor at InitialBaseFee after 1000 consecutive empty blocks" taggedAs (OlympiaTest, ConsensusTest) in {
@@ -151,7 +152,7 @@ class BaseFeeCalculatorSpec
         gasUsed = 0,
         baseFee = Some(currentBaseFee)
       )
-      currentBaseFee = BaseFeeCalculator.calcBaseFee(parent, config)
+      currentBaseFee = BaseFeeCalculator.calcBaseFee(parent, config).value
       withClue(s"block $i: ") {
         currentBaseFee should be >= BaseFeeCalculator.InitialBaseFee
       }
@@ -186,7 +187,7 @@ class BaseFeeCalculatorSpec
     )
     val result = BaseFeeCalculator.calcBaseFee(parent, configFloorZero)
     withClue("empty-block hold: a zero 1/8 delta must NOT be floored to 1 on the decrease branch: ") {
-      result shouldBe BigInt(7)
+      result shouldBe BaseFeePerGas(BigInt(7))
     }
   }
 
@@ -203,7 +204,7 @@ class BaseFeeCalculatorSpec
       baseFee = Some(BigInt(7))
     )
     val result = BaseFeeCalculator.calcBaseFee(parent, configFloorZero)
-    result shouldBe BigInt(8)
+    result shouldBe BaseFeePerGas(BigInt(8))
   }
 
   it should "decrease by exactly parentBaseFee/8 (no min-1 artifact) for a normal-magnitude baseFee under baseFeeFloor=0" taggedAs (
@@ -219,8 +220,8 @@ class BaseFeeCalculatorSpec
       baseFee = Some(parentBaseFee)
     )
     val result = BaseFeeCalculator.calcBaseFee(parent, configFloorZero)
-    result shouldBe parentBaseFee - parentBaseFee / 8
-    result shouldBe BigInt(875000000)
+    result shouldBe BaseFeePerGas(parentBaseFee - parentBaseFee / 8)
+    result shouldBe BaseFeePerGas(BigInt(875000000))
   }
 
   it should "suppress the fee market (return InitialBaseFee) when parent is pre-Olympia under baseFeeFloor=0" taggedAs (
@@ -235,5 +236,5 @@ class BaseFeeCalculatorSpec
       baseFee = Some(BigInt(7))
     )
     val result = BaseFeeCalculator.calcBaseFee(parent, configFloorZero)
-    result shouldBe BaseFeeCalculator.InitialBaseFee
+    result shouldBe BaseFeePerGas(BaseFeeCalculator.InitialBaseFee)
   }

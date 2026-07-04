@@ -188,7 +188,7 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     peersInfoHolder ! PeerInfoRequestCmd(peer1.id, requestSender.ref)
     requestSender.expectMsg(
       PeerInfoResponse(
-        Some(peer1Info.withChainWeight(ChainWeight.totalDifficultyOnly(TotalDifficulty(newBlock.totalDifficulty))))
+        Some(peer1Info.withChainWeight(ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty)))
       )
     )
 

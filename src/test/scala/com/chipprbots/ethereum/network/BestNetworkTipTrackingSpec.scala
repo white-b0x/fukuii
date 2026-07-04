@@ -62,7 +62,7 @@ class BestNetworkTipTrackingSpec extends AnyFlatSpec with Matchers:
 
     // NewBlock arrives with higher TD and exact block number
     val newBlockHeader: BlockHeader = Fixtures.Blocks.Genesis.header.copy(number = BlockNumber(BigInt(1000)))
-    val nb: NewBlock = NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), BigInt(300))
+    val nb: NewBlock = NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), TotalDifficulty(BigInt(300)))
     peersInfoHolder ! PeerEventCmd(MessageFromPeer(nb, peer1.id))
 
     peersInfoHolder ! RegisterChainWeightCalibrationTargetCmd(
@@ -128,12 +128,14 @@ class BestNetworkTipTrackingSpec extends AnyFlatSpec with Matchers:
     // High-TD NewBlock arrives first
     val hdrHigh: BlockHeader = Fixtures.Blocks.Genesis.header.copy(number = BlockNumber(BigInt(5000)))
     peersInfoHolder ! PeerEventCmd(
-      MessageFromPeer(NewBlock(Block(hdrHigh, BlockBody(Nil, Nil)), BigInt(1500)), peer1.id)
+      MessageFromPeer(NewBlock(Block(hdrHigh, BlockBody(Nil, Nil)), TotalDifficulty(BigInt(1500))), peer1.id)
     )
 
     // Lower-TD NewBlock — must NOT downgrade bestNetworkTip
     val hdrLow: BlockHeader = Fixtures.Blocks.Genesis.header.copy(number = BlockNumber(BigInt(4800)))
-    peersInfoHolder ! PeerEventCmd(MessageFromPeer(NewBlock(Block(hdrLow, BlockBody(Nil, Nil)), BigInt(100)), peer1.id))
+    peersInfoHolder ! PeerEventCmd(
+      MessageFromPeer(NewBlock(Block(hdrLow, BlockBody(Nil, Nil)), TotalDifficulty(BigInt(100))), peer1.id)
+    )
 
     peersInfoHolder ! RegisterChainWeightCalibrationTargetCmd(
       calibrationTarget.ref.toTyped[SyncProtocol.CalibrateChainWeightFromPeer]

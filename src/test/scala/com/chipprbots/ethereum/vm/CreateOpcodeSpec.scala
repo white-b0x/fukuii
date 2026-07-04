@@ -14,6 +14,7 @@ import com.chipprbots.ethereum.domain.CodeHash
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
 
@@ -169,7 +170,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       originAddr = Address(0),
       recipientAddr = Some(creatorAddr),
       gasPrice = 1,
-      startGas = 2 * gasRequiredForCreation(false),
+      startGas = GasAmount(2 * gasRequiredForCreation(false)),
       inputData = ByteString.empty,
       value = 0,
       endowment = 0,
@@ -258,7 +259,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
     }
 
     "initialization code fails" should {
-      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit(withHashCost) / 2)
+      val context: PC = fxt.context.copy(startGas = GasAmount(G_create + fxt.gasRequiredForInit(withHashCost) / 2))
       val result = CreateResult(context = context, opcode = opcode)
 
       "not modify world state except for the creator's nonce" in {
@@ -273,7 +274,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       }
 
       "consume correct gas" in {
-        val expectedGas = G_create + config.gasCap(context.startGas - G_create)
+        val expectedGas = GasAmount(G_create + config.gasCap((context.startGas - GasAmount(G_create)).value))
         result.stateOut.gasUsed shouldEqual expectedGas
       }
 
@@ -297,11 +298,12 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
         "Regression: capped startGas in the VM at depth 1, should be used a base for code deposit gas check"
       )
 
-      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit(withHashCost) + depositGas)
+      val context: PC =
+        fxt.context.copy(startGas = GasAmount(G_create + fxt.gasRequiredForInit(withHashCost) + depositGas))
       val result = CreateResult(context = context, opcode = opcode)
 
       "consume all gas passed to the init code" in {
-        val expectedGas = G_create + config.gasCap(context.startGas - G_create)
+        val expectedGas = GasAmount(G_create + config.gasCap((context.startGas - GasAmount(G_create)).value))
         result.stateOut.gasUsed shouldEqual expectedGas
       }
 
@@ -358,11 +360,11 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       val gasRequiredForInit = fxt.initWithSelfDestruct.linearConstGas(config) + G_newaccount
       val gasRequiredForCreation = gasRequiredForInit + G_create
 
-      val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
+      val context: PC = fxt.context.copy(startGas = GasAmount(2 * gasRequiredForCreation))
       val result = CreateResult(context = context, createCode = fxt.initWithSelfDestruct.code, opcode = opcode)
 
       "refund the correct amount of gas" in {
-        result.stateOut.gasRefund shouldBe result.stateOut.config.feeSchedule.R_selfdestruct
+        result.stateOut.gasRefund shouldBe GasAmount(result.stateOut.config.feeSchedule.R_selfdestruct)
       }
     }
 
@@ -381,11 +383,12 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
         gasRequiredForInit + G_create + (if withHashCost then G_sha3word * wordsForBytes(fxt.contractCode.code.size)
                                          else 0)
 
-      val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation, world = fxt.worldWithRevertProgram)
+      val context: PC =
+        fxt.context.copy(startGas = GasAmount(2 * gasRequiredForCreation), world = fxt.worldWithRevertProgram)
       val result = CreateResult(context = context, createCode = fxt.initWithSelfDestructAndCall.code, opcode = opcode)
 
       "clear buffer after SELFDESTRUCT" in {
-        result.stateOut.gas shouldBe expectedGas
+        result.stateOut.gas shouldBe GasAmount(expectedGas)
       }
     }
 
@@ -393,7 +396,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       val gasRequiredForInit = fxt.initWithRevertProgram.linearConstGas(config) + G_newaccount
       val gasRequiredForCreation = gasRequiredForInit + G_create
 
-      val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
+      val context: PC = fxt.context.copy(startGas = GasAmount(2 * gasRequiredForCreation))
       val result = CreateResult(context = context, createCode = fxt.initWithRevertProgram.code, opcode = opcode)
 
       "return 0" in {
@@ -415,11 +418,11 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       val gasRequiredForInit = fxt.initWithSstoreWithClear.linearConstGas(config) + codeExecGas
       val gasRequiredForCreation = gasRequiredForInit + G_create
 
-      val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
+      val context: PC = fxt.context.copy(startGas = GasAmount(2 * gasRequiredForCreation))
       val call = CreateResult(context = context, createCode = fxt.initWithSstoreWithClear.code, opcode = opcode)
 
       "refund the correct amount of gas" in {
-        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
+        call.stateOut.gasRefund shouldBe GasAmount(call.stateOut.config.feeSchedule.R_sclear)
       }
 
     }
@@ -428,10 +431,12 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       val maxCodeSize = 30
       val ethConfig = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig.copy(maxCodeSize = Some(maxCodeSize)))
 
-      val context: PC = fxt.context.copy(startGas = Int.MaxValue, evmConfig = ethConfig)
+      val context: PC = fxt.context.copy(startGas = GasAmount(Int.MaxValue), evmConfig = ethConfig)
 
       val gasConsumedIfError =
-        G_create + config.gasCap(context.startGas - G_create) // Gas consumed by CREATE opcode if an error happens
+        GasAmount(
+          G_create + config.gasCap((context.startGas - GasAmount(G_create)).value)
+        ) // Gas consumed by CREATE opcode if an error happens
 
       "result in an out of gas if the code is larger than the limit" in {
         val codeSize = maxCodeSize + 1
@@ -576,7 +581,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
         )
 
         Address(result.returnValue) shouldBe Address(resultAddress)
-        result.stateOut.gasUsed shouldBe gas
+        result.stateOut.gasUsed shouldBe GasAmount(gas)
       }
     }
   }

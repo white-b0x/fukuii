@@ -54,10 +54,10 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory:
     val tx: SignedTransactionWithSender = wallet.signTx(
       LegacyTransaction(
         Nonce(currentNonce),
-        GasPrice(config.txGasPrice),
-        GasAmount(config.txGasLimit),
+        config.txGasPrice,
+        config.txGasLimit,
         receivingAddress,
-        Wei(config.txValue),
+        config.txValue,
         ByteString()
       ),
       None
@@ -110,9 +110,9 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory:
       FaucetConfig(
         walletAddress = wallet.address,
         walletPassword = "",
-        txGasPrice = 10,
-        txGasLimit = 20,
-        txValue = 1,
+        txGasPrice = GasPrice(10),
+        txGasLimit = GasAmount(20),
+        txValue = Wei(1),
         rpcClient = RpcClientConfig("", timeout = 10.seconds),
         keyStoreDir = "",
         handlerTimeout = 10.seconds,

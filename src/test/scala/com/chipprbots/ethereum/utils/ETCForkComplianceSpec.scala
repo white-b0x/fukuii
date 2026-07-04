@@ -4,6 +4,7 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.vm.BLOBBASEFEE
@@ -42,7 +43,7 @@ class ETCForkComplianceSpec extends AnyFlatSpec with Matchers:
   private val mordorConfig = BlockchainConfig.fromRawConfig(fullConfig.getConfig("fukuii.blockchains.mordor"))
 
   private def opcodes(blockNumber: BigInt, cfg: BlockchainConfig): Set[OpCode] =
-    EvmConfig.forBlock(blockNumber, cfg).opCodes.toSet
+    EvmConfig.forBlock(BlockNumber(blockNumber), cfg).opCodes.toSet
 
   private def assertEnabled(cfg: BlockchainConfig, forkName: String, block: BigInt, marker: OpCode): Unit =
     withClue(
@@ -121,11 +122,11 @@ class ETCForkComplianceSpec extends AnyFlatSpec with Matchers:
     UnitTest,
     ConsensusTest
   ) in {
-    EvmConfig.forBlock(BigInt(14_524_999), etcConfig).eip3541Enabled shouldBe false
+    EvmConfig.forBlock(BlockNumber(14_524_999), etcConfig).eip3541Enabled shouldBe false
   }
 
   it should "have eip3541 enabled at block 14,525,000" taggedAs (UnitTest, ConsensusTest) in {
-    EvmConfig.forBlock(BigInt(14_525_000), etcConfig).eip3541Enabled shouldBe true
+    EvmConfig.forBlock(BlockNumber(14_525_000), etcConfig).eip3541Enabled shouldBe true
   }
 
   "ETC mainnet Spiral (19,250,000)" should "not have PUSH0 at block 19,249,999" taggedAs (

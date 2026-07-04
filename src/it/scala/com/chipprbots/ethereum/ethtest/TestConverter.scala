@@ -65,11 +65,18 @@ object TestConverter:
     // matching go-ethereum's per-fork header shape is consensus-critical here.
     val extraFields =
       if requestsHash.isDefined then
-        HefPostPrague(baseFee, withdrawalsRoot, blobGasUsed, excessBlobGas, parentBeaconBlockRoot, requestsHash.get)
+        HefPostPrague(
+          BaseFeePerGas(baseFee),
+          withdrawalsRoot,
+          blobGasUsed,
+          excessBlobGas,
+          parentBeaconBlockRoot,
+          requestsHash.get
+        )
       else if testHeader.blobGasUsed.isDefined || testHeader.parentBeaconBlockRoot.isDefined then
-        HefPostCancun(baseFee, withdrawalsRoot, blobGasUsed, excessBlobGas, parentBeaconBlockRoot)
-      else if testHeader.withdrawalsRoot.isDefined then HefPostShanghai(baseFee, withdrawalsRoot)
-      else if testHeader.baseFeePerGas.isDefined then HefPostOlympia(baseFee)
+        HefPostCancun(BaseFeePerGas(baseFee), withdrawalsRoot, blobGasUsed, excessBlobGas, parentBeaconBlockRoot)
+      else if testHeader.withdrawalsRoot.isDefined then HefPostShanghai(BaseFeePerGas(baseFee), withdrawalsRoot)
+      else if testHeader.baseFeePerGas.isDefined then HefPostOlympia(BaseFeePerGas(baseFee))
       else HefEmpty
 
     BlockHeader(
@@ -145,7 +152,7 @@ object TestConverter:
     val tx: Transaction = testTx.txType match
       case Some("0x01") | Some("0x1") =>
         // EIP-2930: Transaction with access list
-        val chainId = testTx.chainId.map(parseBigInt).getOrElse(BigInt(1))
+        val chainId = ChainId(testTx.chainId.map(parseBigInt).getOrElse(BigInt(1)))
         TransactionWithAccessList(
           chainId = chainId,
           nonce = nonce,
@@ -158,7 +165,7 @@ object TestConverter:
         )
       case Some("0x02") | Some("0x2") =>
         // EIP-1559: Dynamic fee transaction
-        val chainId = testTx.chainId.map(parseBigInt).getOrElse(BigInt(1))
+        val chainId = ChainId(testTx.chainId.map(parseBigInt).getOrElse(BigInt(1)))
         val maxPriorityFeePerGas = testTx.maxPriorityFeePerGas.map(parseBigInt).getOrElse(gasPrice)
         val maxFeePerGas = testTx.maxFeePerGas.map(parseBigInt).getOrElse(gasPrice)
         TransactionWithDynamicFee(
@@ -174,7 +181,7 @@ object TestConverter:
         )
       case Some("0x03") | Some("0x3") =>
         // EIP-4844: Blob transaction
-        val chainId = testTx.chainId.map(parseBigInt).getOrElse(BigInt(1))
+        val chainId = ChainId(testTx.chainId.map(parseBigInt).getOrElse(BigInt(1)))
         val maxPriorityFeePerGas = testTx.maxPriorityFeePerGas.map(parseBigInt).getOrElse(gasPrice)
         val maxFeePerGas = testTx.maxFeePerGas.map(parseBigInt).getOrElse(gasPrice)
         val maxFeePerBlobGas = testTx.maxFeePerBlobGas.map(parseBigInt).getOrElse(BigInt(0))
@@ -221,166 +228,166 @@ object TestConverter:
 
     val forks = network.toLowerCase match
       case "frontier" =>
-        ForkBlockNumbers.Empty.copy(frontierBlockNumber = 0)
+        ForkBlockNumbers.Empty.copy(frontierBlockNumber = BlockNumber(0))
       case "homestead" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0)
         )
       case "eip150" | "tangerinewhistle" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0)
         )
       case "eip158" | "spuriousdragon" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0)
         )
       case "byzantium" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0,
-          byzantiumBlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0),
+          byzantiumBlockNumber = BlockNumber(0)
         )
       case "constantinople" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0,
-          byzantiumBlockNumber = 0,
-          constantinopleBlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0),
+          byzantiumBlockNumber = BlockNumber(0),
+          constantinopleBlockNumber = BlockNumber(0)
         )
       case "istanbul" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0,
-          byzantiumBlockNumber = 0,
-          constantinopleBlockNumber = 0,
-          petersburgBlockNumber = 0,
-          istanbulBlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0),
+          byzantiumBlockNumber = BlockNumber(0),
+          constantinopleBlockNumber = BlockNumber(0),
+          petersburgBlockNumber = BlockNumber(0),
+          istanbulBlockNumber = BlockNumber(0)
         )
       case "berlin" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0,
-          eip161BlockNumber = 0,
-          byzantiumBlockNumber = 0,
-          constantinopleBlockNumber = 0,
-          petersburgBlockNumber = 0,
-          istanbulBlockNumber = 0,
-          berlinBlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0),
+          eip161BlockNumber = BlockNumber(0),
+          byzantiumBlockNumber = BlockNumber(0),
+          constantinopleBlockNumber = BlockNumber(0),
+          petersburgBlockNumber = BlockNumber(0),
+          istanbulBlockNumber = BlockNumber(0),
+          berlinBlockNumber = BlockNumber(0)
         )
       case "london" | "arrowglacier" | "grayglacier" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0,
-          eip161BlockNumber = 0,
-          byzantiumBlockNumber = 0,
-          constantinopleBlockNumber = 0,
-          petersburgBlockNumber = 0,
-          istanbulBlockNumber = 0,
-          berlinBlockNumber = 0,
-          olympiaBlockNumber = 0 // London = EIP-1559, mapped to Olympia in Fukuii
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0),
+          eip161BlockNumber = BlockNumber(0),
+          byzantiumBlockNumber = BlockNumber(0),
+          constantinopleBlockNumber = BlockNumber(0),
+          petersburgBlockNumber = BlockNumber(0),
+          istanbulBlockNumber = BlockNumber(0),
+          berlinBlockNumber = BlockNumber(0),
+          olympiaBlockNumber = BlockNumber(0) // London = EIP-1559, mapped to Olympia in Fukuii
         )
       case "merge" | "paris" | "themerge" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0,
-          eip161BlockNumber = 0,
-          byzantiumBlockNumber = 0,
-          constantinopleBlockNumber = 0,
-          petersburgBlockNumber = 0,
-          istanbulBlockNumber = 0,
-          berlinBlockNumber = 0,
-          olympiaBlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0),
+          eip161BlockNumber = BlockNumber(0),
+          byzantiumBlockNumber = BlockNumber(0),
+          constantinopleBlockNumber = BlockNumber(0),
+          petersburgBlockNumber = BlockNumber(0),
+          istanbulBlockNumber = BlockNumber(0),
+          berlinBlockNumber = BlockNumber(0),
+          olympiaBlockNumber = BlockNumber(0)
         )
       case "shanghai" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0,
-          eip161BlockNumber = 0,
-          byzantiumBlockNumber = 0,
-          constantinopleBlockNumber = 0,
-          petersburgBlockNumber = 0,
-          istanbulBlockNumber = 0,
-          berlinBlockNumber = 0,
-          olympiaBlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0),
+          eip161BlockNumber = BlockNumber(0),
+          byzantiumBlockNumber = BlockNumber(0),
+          constantinopleBlockNumber = BlockNumber(0),
+          petersburgBlockNumber = BlockNumber(0),
+          istanbulBlockNumber = BlockNumber(0),
+          berlinBlockNumber = BlockNumber(0),
+          olympiaBlockNumber = BlockNumber(0)
         )
       case "cancun" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0,
-          eip161BlockNumber = 0,
-          byzantiumBlockNumber = 0,
-          constantinopleBlockNumber = 0,
-          petersburgBlockNumber = 0,
-          istanbulBlockNumber = 0,
-          berlinBlockNumber = 0,
-          olympiaBlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0),
+          eip161BlockNumber = BlockNumber(0),
+          byzantiumBlockNumber = BlockNumber(0),
+          constantinopleBlockNumber = BlockNumber(0),
+          petersburgBlockNumber = BlockNumber(0),
+          istanbulBlockNumber = BlockNumber(0),
+          berlinBlockNumber = BlockNumber(0),
+          olympiaBlockNumber = BlockNumber(0)
         )
       case "prague" =>
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0,
-          eip161BlockNumber = 0,
-          byzantiumBlockNumber = 0,
-          constantinopleBlockNumber = 0,
-          petersburgBlockNumber = 0,
-          istanbulBlockNumber = 0,
-          berlinBlockNumber = 0,
-          olympiaBlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0),
+          eip161BlockNumber = BlockNumber(0),
+          byzantiumBlockNumber = BlockNumber(0),
+          constantinopleBlockNumber = BlockNumber(0),
+          petersburgBlockNumber = BlockNumber(0),
+          istanbulBlockNumber = BlockNumber(0),
+          berlinBlockNumber = BlockNumber(0),
+          olympiaBlockNumber = BlockNumber(0)
         )
       case "osaka" =>
         // Osaka (Sepolia active) — post-Prague, timestamp-gated. Same fork-block
         // layout as Prague; the Osaka activation is applied via forkTimestamps below.
         ForkBlockNumbers.Empty.copy(
-          frontierBlockNumber = 0,
-          homesteadBlockNumber = 0,
-          eip150BlockNumber = 0,
-          eip160BlockNumber = 0,
-          eip155BlockNumber = 0,
-          eip161BlockNumber = 0,
-          byzantiumBlockNumber = 0,
-          constantinopleBlockNumber = 0,
-          petersburgBlockNumber = 0,
-          istanbulBlockNumber = 0,
-          berlinBlockNumber = 0,
-          olympiaBlockNumber = 0
+          frontierBlockNumber = BlockNumber(0),
+          homesteadBlockNumber = BlockNumber(0),
+          eip150BlockNumber = BlockNumber(0),
+          eip160BlockNumber = BlockNumber(0),
+          eip155BlockNumber = BlockNumber(0),
+          eip161BlockNumber = BlockNumber(0),
+          byzantiumBlockNumber = BlockNumber(0),
+          constantinopleBlockNumber = BlockNumber(0),
+          petersburgBlockNumber = BlockNumber(0),
+          istanbulBlockNumber = BlockNumber(0),
+          berlinBlockNumber = BlockNumber(0),
+          olympiaBlockNumber = BlockNumber(0)
         )
       case _ =>
         // Default to Frontier for unknown networks
-        ForkBlockNumbers.Empty.copy(frontierBlockNumber = 0)
+        ForkBlockNumbers.Empty.copy(frontierBlockNumber = BlockNumber(0))
 
     // These vectors target the ETH execution path (chainId=1, timestamp fork dispatch).
     // The base config defaults to networkType=ETC; force ETH so the ETC-Olympia

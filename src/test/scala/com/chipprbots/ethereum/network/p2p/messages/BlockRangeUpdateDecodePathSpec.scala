@@ -25,6 +25,7 @@ import com.chipprbots.ethereum.blockchain.sync.regular.BlockFetcher.AdaptedMessa
 import com.chipprbots.ethereum.blockchain.sync.regular.BlockImporter
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.domain.TotalDifficulty
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.network.KnownNodesManager
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
 import com.chipprbots.ethereum.network.PeerActor
@@ -165,7 +166,7 @@ class BlockRangeUpdateDecodePathSpec
         PeerId("test-peer")
       )
       // withPossibleNewTopAt(200) sets knownTop=200; GotNewBlock is the only supervisor message from the BRU handler.
-      supervisor.expectMsg(SyncProtocol.ProgressProtocol.GotNewBlock(BigInt(200)))
+      supervisor.expectMsg(SyncProtocol.ProgressProtocol.GotNewBlock(BlockNumber(BigInt(200))))
   }
 
   // ─── FetcherSetup ────────────────────────────────────────────────────────────

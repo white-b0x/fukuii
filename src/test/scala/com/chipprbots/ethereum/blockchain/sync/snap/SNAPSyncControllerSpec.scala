@@ -27,6 +27,7 @@ import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.Wei
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 
 class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
   import SNAPSyncController.SyncPhase.*
@@ -259,7 +260,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
       extraData = ByteString.empty,
       mixHash = BlockHash(ByteString(new Array[Byte](32))),
       nonce = ByteString(new Array[Byte](8)),
-      extraFields = HefPostOlympia(BigInt("1000000000"))
+      extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000")))
     )
     val withHeader = CLPivotHint(headHash, Some(header))
     withHeader.knownHeader.map(_.number) shouldBe Some(BigInt(9876543))
@@ -768,7 +769,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
   it should "wrap a fake validator that returns canned results" taggedAs UnitTest in {
     // Demonstration of the FakeStateValidator pattern future actor tests will use.
     val storage = new TestMptStorage()
-    val expectedRoot = ByteString("test-root-hash".getBytes)
+    val expectedRoot = TrieRoot(ByteString("test-root-hash".getBytes))
 
     val fake = new FakeStateValidator(
       storage,
@@ -783,7 +784,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
 
   it should "support a fake that returns missing-node lists" taggedAs UnitTest in {
     val storage = new TestMptStorage()
-    val expectedRoot = ByteString("test-root-hash".getBytes)
+    val expectedRoot = TrieRoot(ByteString("test-root-hash".getBytes))
     val missingNode = ByteString("missing-node-hash".getBytes)
 
     val fake = new FakeStateValidator(
@@ -796,7 +797,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
 
   it should "support a fake that returns the missing-root-node error string" taggedAs UnitTest in {
     val storage = new TestMptStorage()
-    val expectedRoot = ByteString("test-root-hash".getBytes)
+    val expectedRoot = TrieRoot(ByteString("test-root-hash".getBytes))
 
     val fake = new FakeStateValidator(
       storage,
@@ -810,7 +811,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
 
   it should "support a fake that throws so onComplete-Failure path can be tested" taggedAs UnitTest in {
     val storage = new TestMptStorage()
-    val expectedRoot = ByteString("test-root-hash".getBytes)
+    val expectedRoot = TrieRoot(ByteString("test-root-hash".getBytes))
 
     val fake = new FakeStateValidator(
       storage,
@@ -1302,7 +1303,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
       mixHash = BlockHash(ByteString(new Array[Byte](32))),
       nonce = ByteString(new Array[Byte](8)),
       extraFields = HefPostShanghai(
-        baseFee = BigInt(7),
+        baseFee = BaseFeePerGas(BigInt(7)),
         withdrawalsRoot = ByteString(Array.fill(32)(0x56.toByte))
       )
     )
@@ -1326,13 +1327,13 @@ class FakeStateValidator(
   @volatile var accountCallCount: Int = 0
   @volatile var storageCallCount: Int = 0
 
-  override def validateAccountTrie(stateRoot: ByteString): Either[String, Seq[ByteString]] =
+  override def validateAccountTrie(stateRoot: TrieRoot): Either[String, Seq[ByteString]] =
     accountCallCount += 1
     accountGate.foreach(_.countDown())
     throwOnAccount.foreach(t => throw t)
     accountResult
 
-  override def validateAllStorageTries(stateRoot: ByteString): Either[String, Seq[ByteString]] =
+  override def validateAllStorageTries(stateRoot: TrieRoot): Either[String, Seq[ByteString]] =
     storageCallCount += 1
     storageGate.foreach(_.countDown())
     throwOnStorage.foreach(t => throw t)

@@ -11,6 +11,7 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.testing.Tags.*
 
 import Fixtures.blockchainConfig
@@ -42,7 +43,7 @@ class Eip3541Spec extends AnyWordSpec with Matchers:
         originAddr = creatorAddr,
         recipientAddr = None,
         gasPrice = 1,
-        startGas = startGas,
+        startGas = GasAmount(startGas),
         inputData = initCode,
         value = endowment,
         endowment = endowment,
@@ -186,7 +187,7 @@ class Eip3541Spec extends AnyWordSpec with Matchers:
           fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF.code, fxt.fakeHeaderPreMystique, configPreMystique)
         val result = new VM[MockWorldState, MockStorage].run(context)
         result.error shouldBe None
-        result.gasRemaining should be > BigInt(0)
+        result.gasRemaining should be > GasAmount(0)
       }
     }
 
@@ -196,7 +197,7 @@ class Eip3541Spec extends AnyWordSpec with Matchers:
           fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF.code, fxt.fakeHeaderMystique, configMystique)
         val result = new VM[MockWorldState, MockStorage].run(context)
         result.error shouldBe Some(InvalidCode)
-        result.gasRemaining shouldBe 0
+        result.gasRemaining shouldBe GasAmount.Zero
         result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
       }
 
@@ -205,7 +206,7 @@ class Eip3541Spec extends AnyWordSpec with Matchers:
           fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF00.code, fxt.fakeHeaderMystique, configMystique)
         val result = new VM[MockWorldState, MockStorage].run(context)
         result.error shouldBe Some(InvalidCode)
-        result.gasRemaining shouldBe 0
+        result.gasRemaining shouldBe GasAmount.Zero
         result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
       }
 
@@ -214,7 +215,7 @@ class Eip3541Spec extends AnyWordSpec with Matchers:
           fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF0000.code, fxt.fakeHeaderMystique, configMystique)
         val result = new VM[MockWorldState, MockStorage].run(context)
         result.error shouldBe Some(InvalidCode)
-        result.gasRemaining shouldBe 0
+        result.gasRemaining shouldBe GasAmount.Zero
         result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
       }
 
@@ -223,7 +224,7 @@ class Eip3541Spec extends AnyWordSpec with Matchers:
           fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF32Bytes.code, fxt.fakeHeaderMystique, configMystique)
         val result = new VM[MockWorldState, MockStorage].run(context)
         result.error shouldBe Some(InvalidCode)
-        result.gasRemaining shouldBe 0
+        result.gasRemaining shouldBe GasAmount.Zero
         result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
       }
 
@@ -232,7 +233,7 @@ class Eip3541Spec extends AnyWordSpec with Matchers:
           fxt.createContext(fxt.initWorld, fxt.initCodeReturningFE.code, fxt.fakeHeaderMystique, configMystique)
         val result = new VM[MockWorldState, MockStorage].run(context)
         result.error shouldBe None
-        result.gasRemaining should be > BigInt(0)
+        result.gasRemaining should be > GasAmount(0)
       }
 
       "allow deploying contract with empty code" taggedAs (UnitTest, VMTest) in {
@@ -288,6 +289,6 @@ class Eip3541Spec extends AnyWordSpec with Matchers:
       )
       val result = new VM[MockWorldState, MockStorage].run(context)
       result.error shouldBe Some(InvalidCode)
-      result.gasRemaining shouldBe 0
+      result.gasRemaining shouldBe GasAmount.Zero
     }
   }

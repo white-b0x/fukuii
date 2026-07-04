@@ -53,7 +53,7 @@ class OlympiaTxTypeAdmissionSpec
       number = BlockNumber(olympiaBlock),
       gasLimit = GasAmount(BigInt(30_000_000)),
       gasUsed = GasAmount.Zero,
-      extraFields = HefPostOlympia(BigInt(1_000_000_000))
+      extraFields = HefPostOlympia(BaseFeePerGas(BigInt(1_000_000_000)))
     )
 
   private def signType2(): SignedTransaction =

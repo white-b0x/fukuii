@@ -456,7 +456,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
       val header = defaultBlockHeader.copy(
         unixTimestamp = Timestamp(blockTs),
         extraFields = HefPostCancun(
-          baseFee = BigInt(1_000_000_000L),
+          baseFee = BaseFeePerGas(BigInt(1_000_000_000L)),
           withdrawalsRoot = ByteString(new Array[Byte](32)),
           blobGasUsed = BigInt(0),
           excessBlobGas = excessBlobGas,

@@ -10,6 +10,7 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.UInt256.*
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.vm.Generators.*
 
@@ -145,7 +146,7 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
 
     forAll(table) { (m, expectedGas) =>
       val stackIn = Stack.empty().push(m).push(Zero)
-      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).copy(gas = expectedGas)
+      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).copy(gas = GasAmount(expectedGas))
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
@@ -180,7 +181,8 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
     forAll(table) { (size, expectedGas) =>
       val stackIn = Stack.empty().push(size).push(Zero)
       val memIn = Memory.empty.store(Zero, Array.fill[Byte](size.toInt)(-1))
-      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = expectedGas)
+      val stateIn =
+        getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = GasAmount(expectedGas))
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
@@ -219,7 +221,8 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
     forAll(table) { (size, expectedGas) =>
       val stackIn = Stack.empty().push(size).push(Zero).push(Zero)
       val memIn = Memory.empty.store(Zero, Array.fill[Byte](size.toInt)(-1))
-      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = expectedGas)
+      val stateIn =
+        getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = GasAmount(expectedGas))
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
@@ -258,7 +261,8 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
     forAll(table) { (size, expectedGas) =>
       val stackIn = Stack.empty().push(size).push(Zero).push(Zero)
       val memIn = Memory.empty.store(Zero, Array.fill[Byte](size.toInt)(-1))
-      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = expectedGas)
+      val stateIn =
+        getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = GasAmount(expectedGas))
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
@@ -297,7 +301,8 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
     forAll(table) { (size, expectedGas) =>
       val stackIn = Stack.empty().push(size).push(Zero).push(Zero)
       val memIn = Memory.empty.store(Zero, Array.fill[Byte](size.toInt)(-1))
-      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = expectedGas)
+      val stateIn =
+        getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = GasAmount(expectedGas))
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
@@ -336,7 +341,8 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
     forAll(table) { (size, expectedGas) =>
       val stackIn = Stack.empty().push(Seq(size, Zero, Zero, Zero))
       val memIn = Memory.empty.store(Zero, Array.fill[Byte](size.toInt)(-1))
-      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = expectedGas)
+      val stateIn =
+        getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = GasAmount(expectedGas))
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
@@ -439,7 +445,7 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
         ),
         evmConfig = petersburgConfig,
         isTopHeader = true
-      ).sample.get.withStack(stackIn).withStorage(storage).copy(gas = expectedGas)
+      ).sample.get.withStack(stackIn).withStorage(storage).copy(gas = GasAmount(expectedGas))
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
@@ -467,7 +473,8 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
 
       verifyGas(expectedGas, stateIn, stateOut)
 
-      if expectedGas <= stateIn.gas then stateOut.gasRefund shouldEqual (stateIn.gasRefund + expectedRefund)
+      if expectedGas <= stateIn.gas.value then
+        stateOut.gasRefund shouldEqual (stateIn.gasRefund + GasAmount(expectedRefund))
     }
   }
 
@@ -482,7 +489,8 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
       val topics = Seq.fill(op.delta - 2)(Zero)
       val stackIn = Stack.empty().push(topics).push(size).push(Zero)
       val memIn = Memory.empty.store(Zero, Array.fill[Byte](size.toInt)(-1))
-      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = expectedGas)
+      val stateIn =
+        getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = GasAmount(expectedGas))
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }

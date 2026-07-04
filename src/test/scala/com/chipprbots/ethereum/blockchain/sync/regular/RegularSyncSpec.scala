@@ -664,7 +664,7 @@ class RegularSyncSpec
         ):
           override def getBestBlockNumber: BigInt = BigInt(0)
           override def getSnapSyncPivotBlock: Option[BigInt] = None
-          override def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] =
+          override def getBlockHeaderByNumber(number: BlockNumber): Option[BlockHeader] =
             Some(BlockHelpers.genesis.header)
 
         override lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)

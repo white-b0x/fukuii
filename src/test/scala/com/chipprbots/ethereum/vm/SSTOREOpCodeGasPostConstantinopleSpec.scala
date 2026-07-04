@@ -126,7 +126,7 @@ trait TestSetup:
       originAddr = senderAddr,
       recipientAddr = None,
       gasPrice = 1,
-      startGas = gaspool,
+      startGas = GasAmount(gaspool),
       inputData = inputData,
       value = 100,
       endowment = 100,

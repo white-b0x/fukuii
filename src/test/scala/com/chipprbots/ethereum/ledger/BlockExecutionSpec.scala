@@ -172,7 +172,7 @@ class BlockExecutionSpec
         txsExecResult.isRight shouldBe true
 
         val BlockResult(_, resultingGasUsed, resultingReceipts, _) = txsExecResult.toOption.get
-        resultingGasUsed shouldBe 0
+        resultingGasUsed shouldBe GasAmount.Zero
         resultingReceipts shouldBe Nil
 
       "block with one tx (that produces OutOfGas)" taggedAs (UnitTest, StateTest) in new BlockchainSetup:
@@ -224,14 +224,14 @@ class BlockExecutionSpec
         expectedStateRoot shouldBe InMemoryWorldStateProxy.persistState(resultingWorldState).stateRootHash
 
         // Check valid gasUsed
-        resultingGasUsed shouldBe transaction.gasLimit.value
+        resultingGasUsed shouldBe transaction.gasLimit
 
         // Check valid receipts
         resultingReceipts.size shouldBe 1
         val LegacyReceipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt) =
           resultingReceipts.head: @unchecked
         rootHashReceipt shouldBe HashOutcome(expectedStateRoot)
-        gasUsedReceipt.value shouldBe resultingGasUsed
+        gasUsedReceipt shouldBe resultingGasUsed
         logsBloomFilterReceipt shouldBe BloomFilter(com.chipprbots.ethereum.ledger.BloomFilter.create(Nil))
         logsReceipt shouldBe Nil
 
@@ -302,14 +302,14 @@ class BlockExecutionSpec
             expectedStateRoot shouldBe InMemoryWorldStateProxy.persistState(resultingWorldState).stateRootHash
 
             // Check valid gasUsed
-            resultingGasUsed shouldBe stx.tx.tx.gasLimit.value
+            resultingGasUsed shouldBe stx.tx.tx.gasLimit
 
             // Check valid receipts
             resultingReceipts.size shouldBe 1
             val LegacyReceipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt) =
               resultingReceipts.head: @unchecked
             rootHashReceipt shouldBe HashOutcome(expectedStateRoot)
-            gasUsedReceipt.value shouldBe resultingGasUsed
+            gasUsedReceipt shouldBe resultingGasUsed
             logsBloomFilterReceipt shouldBe BloomFilter(com.chipprbots.ethereum.ledger.BloomFilter.create(logs))
             logsReceipt shouldBe logs
         }
@@ -556,7 +556,7 @@ class BlockExecutionSpec
         val transaction1 = stx1.tx.tx
         val transaction2 = stx2.tx.tx
         // Check valid gasUsed
-        resultingGasUsed shouldBe (transaction1.gasLimit + transaction2.gasLimit).value
+        resultingGasUsed shouldBe (transaction1.gasLimit + transaction2.gasLimit)
 
         // Check valid receipts
         resultingReceipts.size shouldBe 2
@@ -674,7 +674,7 @@ class BlockExecutionSpec
           number = validBlockParentHeader.number + 1,
           difficulty = Difficulty.Zero,
           extraFields = com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostShanghai(
-            baseFee = BigInt(1000000000),
+            baseFee = BaseFeePerGas(BigInt(1000000000)),
             withdrawalsRoot = com.chipprbots.ethereum.domain.BlockHeader.EmptyMpt
           )
         )

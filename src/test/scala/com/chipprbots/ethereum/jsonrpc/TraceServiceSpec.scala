@@ -22,6 +22,7 @@ import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.jsonrpc.EthInfoService.CallTx
 import com.chipprbots.ethereum.jsonrpc.TraceService.*
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
@@ -192,7 +193,7 @@ class TraceServiceSpec
         to = None,
         gas = None,
         gasPrice = GasPrice(0),
-        value = 0,
+        value = Wei(0),
         data = ByteString.empty
       )
       val result: Either[JsonRpcError, TraceCallResponse] = service

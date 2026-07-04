@@ -4,6 +4,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.domain.Timestamp
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.utils.ForkTimestamps
@@ -37,7 +38,7 @@ class EvmConfigTimestampForkSpec extends AnyWordSpec with Matchers:
     )
   )
 
-  private def evmAt(ts: Long): EvmConfig = EvmConfig.forBlock(0, Timestamp(ts), baseEthConfig)
+  private def evmAt(ts: Long): EvmConfig = EvmConfig.forBlock(BlockNumber(0), Timestamp(ts), baseEthConfig)
 
   private val configEtcOlympia: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
 

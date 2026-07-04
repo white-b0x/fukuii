@@ -16,6 +16,8 @@ import com.chipprbots.ethereum.ledger.BlockValidation
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.txExecTest.util.FixtureProvider
 import com.chipprbots.ethereum.domain.ChainId
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.ForkBlockNumbers
 import com.chipprbots.ethereum.utils.MonetaryPolicyConfig
@@ -26,17 +28,18 @@ class ECIP1017Test extends AnyFlatSpec with Matchers:
 
   trait TestSetup extends ScenarioSetup:
     implicit override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
-      monetaryPolicyConfig = MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L, 3000000000000000000L),
+      monetaryPolicyConfig =
+        MonetaryPolicyConfig(EraDuration, 0.2, Wei(5000000000000000000L), Wei(3000000000000000000L)),
       // unused
       maxCodeSize = None,
       chainId = ChainId(0x3d),
       networkId = 1,
       forkBlockNumbers = ForkBlockNumbers.Empty.copy(
-        frontierBlockNumber = 0,
-        homesteadBlockNumber = 1150000,
-        eip150BlockNumber = 2500000,
-        eip160BlockNumber = 3000000,
-        eip155BlockNumber = 3000000
+        frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(1150000),
+        eip150BlockNumber = BlockNumber(2500000),
+        eip160BlockNumber = BlockNumber(3000000),
+        eip155BlockNumber = BlockNumber(3000000)
       ),
       customGenesisFileOpt = None,
       customGenesisJsonOpt = None,

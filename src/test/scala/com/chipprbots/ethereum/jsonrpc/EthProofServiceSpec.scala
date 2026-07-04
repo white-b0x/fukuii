@@ -74,7 +74,7 @@ class EthProofServiceSpec
 
     val givenAddress = givenResult.address
     givenAddress shouldBe address
-    givenResult.codeHash shouldBe account.codeHash.value
+    givenResult.codeHash shouldBe account.codeHash
     givenResult.storageHash shouldBe account.storageRoot.value
 
     givenResult.nonce shouldBe UInt256(transactionCountResponse.value)
@@ -117,8 +117,8 @@ class EthProofServiceSpec
         // 0596810a9), so compare via keccak256(first-element) against the trie's
         // root hash rather than the old raw-hash-reference encoding.
         ByteString(crypto.kec256(accountProof.accountProof.head.toArray[Byte])) shouldBe ByteString(mpt.getRootHash)
-        accountProof.balance shouldBe balance.toBigInt
-        accountProof.codeHash shouldBe account.codeHash.value
+        accountProof.balance shouldBe Wei(balance.toBigInt)
+        accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe UInt256(nonce)
         accountProof.storageHash shouldBe account.storageRoot.value
         accountProof.storageProof.map { v =>
@@ -146,8 +146,8 @@ class EthProofServiceSpec
         // 0596810a9), so compare via keccak256(first-element) against the trie's
         // root hash rather than the old raw-hash-reference encoding.
         ByteString(crypto.kec256(accountProof.accountProof.head.toArray[Byte])) shouldBe ByteString(mpt.getRootHash)
-        accountProof.balance shouldBe balance.toBigInt
-        accountProof.codeHash shouldBe account.codeHash.value
+        accountProof.balance shouldBe Wei(balance.toBigInt)
+        accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe UInt256(nonce)
         accountProof.storageHash shouldBe account.storageRoot.value
         r.proofAccount.storageProof.map { v =>
@@ -176,8 +176,8 @@ class EthProofServiceSpec
         // 0596810a9), so compare via keccak256(first-element) against the trie's
         // root hash rather than the old raw-hash-reference encoding.
         ByteString(crypto.kec256(accountProof.accountProof.head.toArray[Byte])) shouldBe ByteString(mpt.getRootHash)
-        accountProof.balance shouldBe balance.toBigInt
-        accountProof.codeHash shouldBe account.codeHash.value
+        accountProof.balance shouldBe Wei(balance.toBigInt)
+        accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe UInt256(nonce)
         accountProof.storageHash shouldBe account.storageRoot.value
         accountProof.storageProof.size shouldBe 2
@@ -208,8 +208,8 @@ class EthProofServiceSpec
         // 0596810a9), so compare via keccak256(first-element) against the trie's
         // root hash rather than the old raw-hash-reference encoding.
         ByteString(crypto.kec256(accountProof.accountProof.head.toArray[Byte])) shouldBe ByteString(mpt.getRootHash)
-        accountProof.balance shouldBe balance.toBigInt
-        accountProof.codeHash shouldBe account.codeHash.value
+        accountProof.balance shouldBe Wei(balance.toBigInt)
+        accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe UInt256(nonce)
         accountProof.storageHash shouldBe account.storageRoot.value
         accountProof.storageProof.size shouldBe 3
@@ -234,8 +234,8 @@ class EthProofServiceSpec
         // 0596810a9), so compare via keccak256(first-element) against the trie's
         // root hash rather than the old raw-hash-reference encoding.
         ByteString(crypto.kec256(accountProof.accountProof.head.toArray[Byte])) shouldBe ByteString(mpt.getRootHash)
-        accountProof.balance shouldBe balance.toBigInt
-        accountProof.codeHash shouldBe account.codeHash.value
+        accountProof.balance shouldBe Wei(balance.toBigInt)
+        accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe UInt256(nonce)
         accountProof.storageHash shouldBe account.storageRoot.value
         accountProof.storageProof.size shouldBe 0

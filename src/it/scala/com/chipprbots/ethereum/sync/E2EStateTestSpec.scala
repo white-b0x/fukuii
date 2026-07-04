@@ -106,7 +106,7 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
       // Add some storage entries
       val storage = updatedWorld.getStorage(accountAddress)
       val updatedStorage = (1 to 5).foldLeft(storage) { (s, i) =>
-        s.store(BigInt(i), BigInt(currentBlockNumber.toLong * i))
+        s.store(StorageKey(BigInt(i)), BigInt(currentBlockNumber.toLong * i))
       }
       updatedWorld = updatedWorld.saveStorage(accountAddress, updatedStorage)
 
@@ -150,9 +150,13 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
 
           // Verify state at the specific block
           val peer1StateBlock =
-            peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, stateBlockNumber).get
+            peer1.blockchainReader
+              .getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(stateBlockNumber))
+              .get
           val peer2StateBlock =
-            peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, stateBlockNumber).get
+            peer2.blockchainReader
+              .getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(stateBlockNumber))
+              .get
 
           peer1StateBlock.header.stateRoot shouldBe peer2StateBlock.header.stateRoot
       }
@@ -181,9 +185,9 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
           // Verify state roots match at all state blocks
           stateBlocks.foreach { blockNum =>
             val peer1Block =
-              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, blockNum).get
+              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(blockNum)).get
             val peer2Block =
-              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, blockNum).get
+              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(blockNum)).get
 
             peer1Block.header.stateRoot shouldBe peer2Block.header.stateRoot
           }
@@ -238,9 +242,13 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
         yield
           // Verify state root at specific block
           val peer1Block =
-            peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, stateBlockNumber).get
+            peer1.blockchainReader
+              .getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(stateBlockNumber))
+              .get
           val peer2Block =
-            peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, stateBlockNumber).get
+            peer2.blockchainReader
+              .getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(stateBlockNumber))
+              .get
 
           peer1Block.header.stateRoot shouldBe peer2Block.header.stateRoot
           peer1Block.hash shouldBe peer2Block.hash
@@ -416,9 +424,9 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
           val storageBlocks = Seq(50, 100, 150, 200, 250, 300, 350, 400)
           storageBlocks.foreach { blockNum =>
             val peer1Block =
-              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, blockNum).get
+              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(blockNum)).get
             val peer2Block =
-              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, blockNum).get
+              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(blockNum)).get
 
             peer1Block.header.stateRoot shouldBe peer2Block.header.stateRoot
           }
@@ -536,9 +544,9 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
           // Verify state integrity at every 50th block
           (50 to blockNumber by 50).foreach { blockNum =>
             val peer1Block =
-              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, blockNum).get
+              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(blockNum)).get
             val peer2Block =
-              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, blockNum).get
+              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(blockNum)).get
 
             peer1Block.header.stateRoot shouldBe peer2Block.header.stateRoot
             peer1Block.hash shouldBe peer2Block.hash
@@ -575,9 +583,9 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
           // Verify all common blocks still have matching state
           Seq(25, 50, 75).foreach { blockNum =>
             val peer1Block =
-              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, blockNum).get
+              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(blockNum)).get
             val peer2Block =
-              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, blockNum).get
+              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(blockNum)).get
 
             peer1Block.header.stateRoot shouldBe peer2Block.header.stateRoot
           }
@@ -609,9 +617,9 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
           // Verify state persistence at specific blocks
           Seq(50, 100, 150, 200).foreach { blockNum =>
             val peer1Block =
-              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, blockNum).get
+              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(blockNum)).get
             val peer2Block =
-              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, blockNum).get
+              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(blockNum)).get
 
             peer1Block.header.stateRoot shouldBe peer2Block.header.stateRoot
           }

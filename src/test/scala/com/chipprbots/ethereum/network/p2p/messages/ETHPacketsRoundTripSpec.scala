@@ -89,16 +89,23 @@ class ETHPacketsRoundTripSpec extends AnyWordSpec with Matchers with ScalaCheckP
         }
       }
 
-      "encode a zero block number as the canonical RLP zero-scalar byte (0x00), not the empty string (0x80)" taggedAs UnitTest in {
+      "encode a zero block number as the canonical RLP zero-scalar empty string (0x80), not a literal 0x00 byte" taggedAs UnitTest in {
         import ETHPackets.NewBlockHashes.BlockHash
         import ETHPackets.NewBlockHashes.BlockHash.*
         import com.chipprbots.ethereum.rlp.RLPValue
 
         val blockHash = BlockHash(ByteString(Array.fill[Byte](32)(0)), BlockNumber(0))
-        blockHash.toRLPEncodable shouldBe RLPList(
-          RLPValue(blockHash.hash.toArray[Byte]),
-          RLPValue(Array[Byte](0x00))
-        )
+        // Compare the unwrapped Array[Byte] fields directly rather than nesting them inside
+        // RLPValue/RLPList equality: RLPValue is a plain case class over Array[Byte] with no
+        // custom equals, so a nested `shouldBe` falls back to Java's reference-identity array
+        // equality. ScalaTest's content-aware Array equality only applies to top-level Array
+        // comparisons, hence the destructure-then-compare here.
+        blockHash.toRLPEncodable match {
+          case RLPList(RLPValue(hashBytes), RLPValue(numberBytes)) =>
+            hashBytes shouldBe blockHash.hash.toArray[Byte]
+            numberBytes shouldBe Array.empty[Byte]
+          case other => fail(s"expected RLPList(RLPValue, RLPValue), got: $other")
+        }
       }
     }
 

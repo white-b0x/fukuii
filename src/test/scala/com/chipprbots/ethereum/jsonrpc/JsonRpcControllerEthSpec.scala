@@ -410,7 +410,7 @@ class JsonRpcControllerEthSpec
     mockEthInfoService.estimateGas
       .expects(*)
       .anyNumberOfTimes()
-      .returning(IO.pure(Right(EstimateGasResponse(2310))))
+      .returning(IO.pure(Right(EstimateGasResponse(GasAmount(2310)))))
 
     val callObj: JObject = JObject(
       "from" -> "0xabbb6bebfa05aa13e908eaa492bd7a8343760477",
@@ -510,7 +510,7 @@ class JsonRpcControllerEthSpec
 
     mockEthUserService.getBalance
       .expects(*)
-      .returning(IO.pure(Right(GetBalanceResponse(17))))
+      .returning(IO.pure(Right(GetBalanceResponse(Wei(17)))))
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getBalance",
@@ -682,8 +682,8 @@ class JsonRpcControllerEthSpec
                     logIndex = 0,
                     transactionIndex = 0,
                     transactionHash = ByteString(Hex.decode("123ffa")),
-                    blockHash = ByteString(Hex.decode("123eeaa22a")),
-                    blockNumber = 99,
+                    blockHash = BlockHash(ByteString(Hex.decode("123eeaa22a"))),
+                    blockNumber = BlockNumber(99),
                     address = Address("0x123456"),
                     data = ByteString(Hex.decode("ff33")),
                     topics = Seq(ByteString(Hex.decode("33")), ByteString(Hex.decode("55")))
@@ -750,8 +750,8 @@ class JsonRpcControllerEthSpec
       ProofAccount(
         address = Address(address),
         accountProof = Seq(ByteString(Hex.decode("1234"))),
-        balance = BigInt(0x0),
-        codeHash = ByteString(Hex.decode("123eeaa22a")),
+        balance = Wei(BigInt(0x0)),
+        codeHash = CodeHash(ByteString(Hex.decode("123eeaa22a"))),
         nonce = 0,
         storageHash = ByteString(Hex.decode("1a2b3c")),
         storageProof = Seq(
@@ -875,8 +875,8 @@ class JsonRpcControllerEthSpec
                     logIndex = 0,
                     transactionIndex = 0,
                     transactionHash = ByteString(Hex.decode("123ffa")),
-                    blockHash = ByteString(Hex.decode("123eeaa22a")),
-                    blockNumber = 99,
+                    blockHash = BlockHash(ByteString(Hex.decode("123eeaa22a"))),
+                    blockNumber = BlockNumber(99),
                     address = Address("0x123456"),
                     data = ByteString(Hex.decode("ff33")),
                     topics = Seq(ByteString(Hex.decode("33")), ByteString(Hex.decode("55")))

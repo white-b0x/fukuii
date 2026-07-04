@@ -164,7 +164,8 @@ class JsonRpcControllerPersonalSpec
 
     val txHash: ByteString = ByteString(1, 2, 3, 4)
 
-    personalService.sendTransactionWithPassphraseFn = _ => IO.pure(Right(SendTransactionWithPassphraseResponse(txHash)))
+    personalService.sendTransactionWithPassphraseFn =
+      _ => IO.pure(Right(SendTransactionWithPassphraseResponse(TxHash(txHash))))
 
     val rpcRequest: JsonRpcRequest = newJsonRpcRequest("personal_sendTransaction", params)
     val response: JsonRpcResponse = jsonRpcController.handleRequest(rpcRequest).unsafeRunSync()

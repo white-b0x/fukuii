@@ -9,6 +9,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.Wei
+import com.chipprbots.ethereum.domain.GasAmount
 
 class CallTracerSpec extends AnyFreeSpec with Matchers:
 
@@ -21,8 +22,8 @@ class CallTracerSpec extends AnyFreeSpec with Matchers:
     "should produce a root CALL frame for a simple transaction" in {
       val tracer = new CallTracer()
 
-      tracer.onTxStart(from, Some(to), gas = 21000, value = Wei(0), input = input)
-      tracer.onTxEnd(gasUsed = 21000, output = output, error = None)
+      tracer.onTxStart(from, Some(to), gas = GasAmount(21000), value = Wei(0), input = input)
+      tracer.onTxEnd(gasUsed = GasAmount(21000), output = output, error = None)
 
       val result = tracer.getResult
       (result \ "type") shouldBe JString("CALL")
@@ -37,8 +38,8 @@ class CallTracerSpec extends AnyFreeSpec with Matchers:
     "should produce a CREATE frame when to is None" in {
       val tracer = new CallTracer()
 
-      tracer.onTxStart(from, to = None, gas = 100000, value = Wei(0), input = input)
-      tracer.onTxEnd(gasUsed = 50000, output = output, error = None)
+      tracer.onTxStart(from, to = None, gas = GasAmount(100000), value = Wei(0), input = input)
+      tracer.onTxEnd(gasUsed = GasAmount(50000), output = output, error = None)
 
       val result = tracer.getResult
       (result \ "type") shouldBe JString("CREATE")
@@ -48,10 +49,10 @@ class CallTracerSpec extends AnyFreeSpec with Matchers:
       val tracer = new CallTracer()
       val inner = Address(0xabcd)
 
-      tracer.onTxStart(from, Some(to), gas = 100000, value = Wei(0), input = input)
-      tracer.onCallEnter("STATICCALL", to, inner, gas = 50000, value = Wei(0), input = ByteString.empty)
-      tracer.onCallExit(gasUsed = 10000, output = output, error = None)
-      tracer.onTxEnd(gasUsed = 60000, output = output, error = None)
+      tracer.onTxStart(from, Some(to), gas = GasAmount(100000), value = Wei(0), input = input)
+      tracer.onCallEnter("STATICCALL", to, inner, gas = GasAmount(50000), value = Wei(0), input = ByteString.empty)
+      tracer.onCallExit(gasUsed = GasAmount(10000), output = output, error = None)
+      tracer.onTxEnd(gasUsed = GasAmount(60000), output = output, error = None)
 
       val result = tracer.getResult
       val calls = result \ "calls"
@@ -66,10 +67,10 @@ class CallTracerSpec extends AnyFreeSpec with Matchers:
       val tracer = new CallTracer(onlyTopCall = true)
       val inner = Address(0xabcd)
 
-      tracer.onTxStart(from, Some(to), gas = 100000, value = Wei(0), input = input)
-      tracer.onCallEnter("STATICCALL", to, inner, gas = 50000, value = Wei(0), input = ByteString.empty)
-      tracer.onCallExit(gasUsed = 10000, output = output, error = None)
-      tracer.onTxEnd(gasUsed = 60000, output = output, error = None)
+      tracer.onTxStart(from, Some(to), gas = GasAmount(100000), value = Wei(0), input = input)
+      tracer.onCallEnter("STATICCALL", to, inner, gas = GasAmount(50000), value = Wei(0), input = ByteString.empty)
+      tracer.onCallExit(gasUsed = GasAmount(10000), output = output, error = None)
+      tracer.onTxEnd(gasUsed = GasAmount(60000), output = output, error = None)
 
       val result = tracer.getResult
       (result \ "calls") shouldBe JNothing
@@ -78,8 +79,8 @@ class CallTracerSpec extends AnyFreeSpec with Matchers:
     "should include error on failure" in {
       val tracer = new CallTracer()
 
-      tracer.onTxStart(from, Some(to), gas = 100000, value = Wei(0), input = input)
-      tracer.onTxEnd(gasUsed = 100000, output = ByteString.empty, error = Some("out of gas"))
+      tracer.onTxStart(from, Some(to), gas = GasAmount(100000), value = Wei(0), input = input)
+      tracer.onTxEnd(gasUsed = GasAmount(100000), output = ByteString.empty, error = Some("out of gas"))
 
       val result = tracer.getResult
       (result \ "error") shouldBe JString("out of gas")
@@ -88,8 +89,8 @@ class CallTracerSpec extends AnyFreeSpec with Matchers:
     "should encode gas and gasUsed as hex strings matching core-geth callFrameMarshaling" in {
       val tracer = new CallTracer()
 
-      tracer.onTxStart(from, Some(to), gas = 1000000, value = Wei(0), input = input)
-      tracer.onTxEnd(gasUsed = 500000, output = output, error = None)
+      tracer.onTxStart(from, Some(to), gas = GasAmount(1000000), value = Wei(0), input = input)
+      tracer.onTxEnd(gasUsed = GasAmount(500000), output = output, error = None)
 
       val result = tracer.getResult
       (result \ "gas") shouldBe JString("0xf4240")
@@ -100,10 +101,10 @@ class CallTracerSpec extends AnyFreeSpec with Matchers:
       val tracer = new CallTracer()
       val inner = Address(0xabcd)
 
-      tracer.onTxStart(from, Some(to), gas = 100000, value = Wei(0), input = input)
-      tracer.onCallEnter("STATICCALL", to, inner, gas = 50000, value = Wei(0), input = ByteString.empty)
-      tracer.onCallExit(gasUsed = 10000, output = output, error = None)
-      tracer.onTxEnd(gasUsed = 60000, output = output, error = None)
+      tracer.onTxStart(from, Some(to), gas = GasAmount(100000), value = Wei(0), input = input)
+      tracer.onCallEnter("STATICCALL", to, inner, gas = GasAmount(50000), value = Wei(0), input = ByteString.empty)
+      tracer.onCallExit(gasUsed = GasAmount(10000), output = output, error = None)
+      tracer.onTxEnd(gasUsed = GasAmount(60000), output = output, error = None)
 
       val calls = (tracer.getResult \ "calls").asInstanceOf[JArray].arr
       (calls.head \ "value") shouldBe JNothing
@@ -127,13 +128,13 @@ class CallTracerSpec extends AnyFreeSpec with Matchers:
       val newContract = Address(0)
 
       // Top-level CALL frame (the parent).
-      tracer.onTxStart(from, Some(to), gas = 1000000, value = Wei(0), input = input)
+      tracer.onTxStart(from, Some(to), gas = GasAmount(1000000), value = Wei(0), input = input)
       // Sub-call CREATE with oversized initcode: onCallEnter fires unconditionally,
       // then the EIP-3860 abort path fires onCallExit (full gas consumed, no output,
       // InitCodeSizeLimit error) — exactly what VM.create() emits after the fix.
-      tracer.onCallEnter("CREATE", to, newContract, gas = 500000, value = Wei(0), input = input)
-      tracer.onCallExit(gasUsed = 500000, output = ByteString.empty, error = Some("InitCodeSizeLimit"))
-      tracer.onTxEnd(gasUsed = 600000, output = output, error = None)
+      tracer.onCallEnter("CREATE", to, newContract, gas = GasAmount(500000), value = Wei(0), input = input)
+      tracer.onCallExit(gasUsed = GasAmount(500000), output = ByteString.empty, error = Some("InitCodeSizeLimit"))
+      tracer.onTxEnd(gasUsed = GasAmount(600000), output = output, error = None)
 
       val result = tracer.getResult
 
@@ -155,15 +156,15 @@ class CallTracerSpec extends AnyFreeSpec with Matchers:
       val newContract = Address(0)
       val sibling = Address(0xabcd)
 
-      tracer.onTxStart(from, Some(to), gas = 1000000, value = Wei(0), input = input)
+      tracer.onTxStart(from, Some(to), gas = GasAmount(1000000), value = Wei(0), input = input)
       // Aborted CREATE — balanced enter/exit per the §8l-I fix.
-      tracer.onCallEnter("CREATE", to, newContract, gas = 500000, value = Wei(0), input = input)
-      tracer.onCallExit(gasUsed = 500000, output = ByteString.empty, error = Some("InitCodeSizeLimit"))
+      tracer.onCallEnter("CREATE", to, newContract, gas = GasAmount(500000), value = Wei(0), input = input)
+      tracer.onCallExit(gasUsed = GasAmount(500000), output = ByteString.empty, error = Some("InitCodeSizeLimit"))
       // A subsequent sibling call must nest directly under the root, not under the
       // (correctly popped) CREATE frame.
-      tracer.onCallEnter("STATICCALL", to, sibling, gas = 50000, value = Wei(0), input = ByteString.empty)
-      tracer.onCallExit(gasUsed = 10000, output = output, error = None)
-      tracer.onTxEnd(gasUsed = 600000, output = output, error = None)
+      tracer.onCallEnter("STATICCALL", to, sibling, gas = GasAmount(50000), value = Wei(0), input = ByteString.empty)
+      tracer.onCallExit(gasUsed = GasAmount(10000), output = output, error = None)
+      tracer.onTxEnd(gasUsed = GasAmount(600000), output = output, error = None)
 
       val calls = (tracer.getResult \ "calls").asInstanceOf[JArray].arr
       // Both frames are direct children of the root — proof the stack was balanced.

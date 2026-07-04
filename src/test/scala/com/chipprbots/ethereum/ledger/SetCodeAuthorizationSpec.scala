@@ -47,7 +47,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
     number = BlockNumber(2),
     gasLimit = GasAmount(30_000_000),
     gasUsed = GasAmount.Zero,
-    extraFields = HefPostOlympia(BigInt(1_000_000_000))
+    extraFields = HefPostOlympia(BaseFeePerGas(BigInt(1_000_000_000)))
   )
 
   private val targetAddress: Address = Address(0x42)
@@ -187,7 +187,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
       .gasUsed
 
     gasWithExisting should be < gasWithoutExisting
-    (gasWithoutExisting - gasWithExisting) should be <= BigInt(12_500)
+    (gasWithoutExisting - gasWithExisting) should be <= GasAmount(12_500)
   }
 
   it should "not set code on a non-EOA authority (contract code blocks delegation)" taggedAs (

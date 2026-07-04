@@ -75,7 +75,7 @@ class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory:
 
     // Mock the getBackingMptStorage call
     DeleteAccountsSpec.this.blockchain.getBackingMptStorage
-      .expects(BigInt(-1))
+      .expects(BlockNumber(-1))
       .returning(storagesInstance.storages.stateStorage.getBackingStorage(0))
       .anyNumberOfTimes()
 

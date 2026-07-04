@@ -57,27 +57,27 @@ class EthBlocksServiceSpec
     response.bestBlockNumber shouldEqual bestBlockNumber
 
   it should "answer eth_getBlockTransactionCountByHash with None when the requested block isn't taggedAs (UnitTest, RPCTest) in the blockchain" in new TestSetup:
-    val request: TxCountByBlockHashRequest = TxCountByBlockHashRequest(blockToRequestHash)
+    val request: TxCountByBlockHashRequest = TxCountByBlockHashRequest(BlockHash(blockToRequestHash))
     val response: TxCountByBlockHashResponse =
       ethBlocksService.getBlockTransactionCountByHash(request).unsafeRunSync().toOption.get
     response.txsQuantity shouldBe None
 
   it should "answer eth_getBlockTransactionCountByHash with the block has no tx when the requested block is taggedAs (UnitTest, RPCTest) in the blockchain and has no tx" in new TestSetup:
     blockchainWriter.storeBlock(blockToRequest.copy(body = BlockBody(Nil, Nil))).commit()
-    val request: TxCountByBlockHashRequest = TxCountByBlockHashRequest(blockToRequestHash)
+    val request: TxCountByBlockHashRequest = TxCountByBlockHashRequest(BlockHash(blockToRequestHash))
     val response: TxCountByBlockHashResponse =
       ethBlocksService.getBlockTransactionCountByHash(request).unsafeRunSync().toOption.get
     response.txsQuantity shouldBe Some(0)
 
   it should "answer eth_getBlockTransactionCountByHash correctly when the requested block is taggedAs (UnitTest, RPCTest) in the blockchain and has some tx" in new TestSetup:
     blockchainWriter.storeBlock(blockToRequest).commit()
-    val request: TxCountByBlockHashRequest = TxCountByBlockHashRequest(blockToRequestHash)
+    val request: TxCountByBlockHashRequest = TxCountByBlockHashRequest(BlockHash(blockToRequestHash))
     val response: TxCountByBlockHashResponse =
       ethBlocksService.getBlockTransactionCountByHash(request).unsafeRunSync().toOption.get
     response.txsQuantity shouldBe Some(blockToRequest.body.transactionList.size)
 
   it should "answer eth_getBlockByHash with None when the requested block isn't taggedAs (UnitTest, RPCTest) in the blockchain" in new TestSetup:
-    val request: BlockByBlockHashRequest = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
+    val request: BlockByBlockHashRequest = BlockByBlockHashRequest(BlockHash(blockToRequestHash), fullTxs = true)
     val response: BlockByBlockHashResponse = ethBlocksService.getByBlockHash(request).unsafeRunSync().toOption.get
     response.blockResponse shouldBe None
 
@@ -87,7 +87,7 @@ class EthBlocksServiceSpec
       .and(blockchainWriter.storeChainWeight(BlockHash(blockToRequestHash), blockWeight))
       .commit()
 
-    val request: BlockByBlockHashRequest = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
+    val request: BlockByBlockHashRequest = BlockByBlockHashRequest(BlockHash(blockToRequestHash), fullTxs = true)
     val response: BlockByBlockHashResponse = ethBlocksService.getByBlockHash(request).unsafeRunSync().toOption.get
 
     val stxResponses: Seq[TransactionResponse] = blockToRequest.body.transactionList.zipWithIndex.map {
@@ -104,7 +104,7 @@ class EthBlocksServiceSpec
   it should "answer eth_getBlockByHash with the block response correctly when it's chain weight is not taggedAs (UnitTest, RPCTest) in blockchain" in new TestSetup:
     blockchainWriter.storeBlock(blockToRequest).commit()
 
-    val request: BlockByBlockHashRequest = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
+    val request: BlockByBlockHashRequest = BlockByBlockHashRequest(BlockHash(blockToRequestHash), fullTxs = true)
     val response: BlockByBlockHashResponse = ethBlocksService.getByBlockHash(request).unsafeRunSync().toOption.get
 
     val stxResponses: Seq[TransactionResponse] = blockToRequest.body.transactionList.zipWithIndex.map {
@@ -125,7 +125,7 @@ class EthBlocksServiceSpec
       .and(blockchainWriter.storeChainWeight(BlockHash(blockToRequestHash), blockWeight))
       .commit()
 
-    val request: BlockByBlockHashRequest = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
+    val request: BlockByBlockHashRequest = BlockByBlockHashRequest(BlockHash(blockToRequestHash), fullTxs = true)
     val response: BlockByBlockHashResponse =
       ethBlocksService.getByBlockHash(request.copy(fullTxs = false)).unsafeRunSync().toOption.get
 
@@ -152,7 +152,7 @@ class EthBlocksServiceSpec
     blockResponse.hash shouldBe None
     blockResponse.nonce shouldBe None
     blockResponse.miner shouldBe None
-    blockResponse.number shouldBe blockToRequest.header.number.value
+    blockResponse.number shouldBe blockToRequest.header.number
 
   it should "answer eth_getBlockByNumber with the latest block pending block is requested and there are no pending ones" taggedAs (
     UnitTest,
@@ -263,7 +263,7 @@ class EthBlocksServiceSpec
   it should "answer eth_getUncleByBlockHashAndIndex with None when the requested block isn't taggedAs (UnitTest, RPCTest) in the blockchain" in new TestSetup:
     val uncleIndexToRequest = 0
     val request: UncleByBlockHashAndIndexRequest =
-      UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
+      UncleByBlockHashAndIndexRequest(BlockHash(blockToRequestHash), uncleIndexToRequest)
     val response: UncleByBlockHashAndIndexResponse =
       ethBlocksService.getUncleByBlockHashAndIndex(request).unsafeRunSync().toOption.get
     response.uncleBlockResponse shouldBe None
@@ -277,7 +277,7 @@ class EthBlocksServiceSpec
 
     val uncleIndexToRequest = 0
     val request: UncleByBlockHashAndIndexRequest =
-      UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
+      UncleByBlockHashAndIndexRequest(BlockHash(blockToRequestHash), uncleIndexToRequest)
     val response: UncleByBlockHashAndIndexResponse =
       ethBlocksService.getUncleByBlockHashAndIndex(request).unsafeRunSync().toOption.get
 
@@ -289,7 +289,7 @@ class EthBlocksServiceSpec
 
     val uncleIndexToRequest = 0
     val request: UncleByBlockHashAndIndexRequest =
-      UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
+      UncleByBlockHashAndIndexRequest(BlockHash(blockToRequestHash), uncleIndexToRequest)
     val response1: UncleByBlockHashAndIndexResponse =
       ethBlocksService
         .getUncleByBlockHashAndIndex(request.copy(uncleIndex = 1))
@@ -314,7 +314,7 @@ class EthBlocksServiceSpec
 
     val uncleIndexToRequest = 0
     val request: UncleByBlockHashAndIndexRequest =
-      UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
+      UncleByBlockHashAndIndexRequest(BlockHash(blockToRequestHash), uncleIndexToRequest)
     val response: UncleByBlockHashAndIndexResponse =
       ethBlocksService.getUncleByBlockHashAndIndex(request).unsafeRunSync().toOption.get
 
@@ -334,7 +334,7 @@ class EthBlocksServiceSpec
 
     val uncleIndexToRequest = 0
     val request: UncleByBlockHashAndIndexRequest =
-      UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
+      UncleByBlockHashAndIndexRequest(BlockHash(blockToRequestHash), uncleIndexToRequest)
     val response: UncleByBlockHashAndIndexResponse =
       ethBlocksService.getUncleByBlockHashAndIndex(request).unsafeRunSync().toOption.get
 
@@ -443,7 +443,9 @@ class EthBlocksServiceSpec
     blockchainWriter.storeBlock(blockToRequest).commit()
 
     val response: ServiceResponse[GetUncleCountByBlockHashResponse] =
-      ethBlocksService.getUncleCountByBlockHash(GetUncleCountByBlockHashRequest(blockToRequest.header.hash.value))
+      ethBlocksService.getUncleCountByBlockHash(
+        GetUncleCountByBlockHashRequest(BlockHash(blockToRequest.header.hash.value))
+      )
 
     response.unsafeRunSync() shouldEqual Right(
       GetUncleCountByBlockHashResponse(blockToRequest.body.uncleNodesList.size)

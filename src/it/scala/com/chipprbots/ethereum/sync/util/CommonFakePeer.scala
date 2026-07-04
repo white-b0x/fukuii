@@ -45,6 +45,7 @@ import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.domain.TrieRoot
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie
 import com.chipprbots.ethereum.network.ForkResolver
@@ -314,11 +315,11 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   private def getMptForBlock(block: Block) =
     InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      bl.getBackingMptStorage(block.number.value),
-      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+      bl.getBackingMptStorage(BlockNumber(block.number.value)),
+      (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       blockchainConfig.accountStartNonce,
       block.header.stateRoot.value,
-      noEmptyAccounts = EvmConfig.forBlock(block.number.value, blockchainConfig).noEmptyAccounts,
+      noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
 
@@ -413,7 +414,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
             stateRoot = TrieRoot(newWorld.stateRootHash)
           )
         )
-      val newWeight = ChainWeight.totalDifficultyOnly(1)
+      val newWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(1))
 
       broadcastBlock(childBlock, newWeight)
       blockchainWriter.save(childBlock, Seq(), newWeight, saveAsBestBlock = true)

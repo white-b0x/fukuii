@@ -12,6 +12,8 @@ import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.BaseFeePerGas
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.testing.Tags.*
 
 import Fixtures.blockchainConfig
@@ -37,19 +39,19 @@ class OlympiaBaseFeeOpcodeSpec extends AnyWordSpec with Matchers:
     val headerWithBaseFee: BlockHeader =
       BlockFixtures.ValidBlock.header.copy(
         number = BlockNumber(Fixtures.OlympiaBlockNumber),
-        extraFields = HefPostOlympia(baseFeeValue)
+        extraFields = HefPostOlympia(BaseFeePerGas(baseFeeValue))
       )
 
     val headerWithLargeBaseFee: BlockHeader =
       BlockFixtures.ValidBlock.header.copy(
         number = BlockNumber(Fixtures.OlympiaBlockNumber),
-        extraFields = HefPostOlympia(BigInt("1000000000")) // 1 Gwei
+        extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000"))) // 1 Gwei
       )
 
     val headerWithZeroBaseFee: BlockHeader =
       BlockFixtures.ValidBlock.header.copy(
         number = BlockNumber(Fixtures.OlympiaBlockNumber),
-        extraFields = HefPostOlympia(BigInt(0))
+        extraFields = HefPostOlympia(BaseFeePerGas(BigInt(0)))
       )
 
     // BASEFEE followed by STOP — pushes baseFee to stack
@@ -82,7 +84,7 @@ class OlympiaBaseFeeOpcodeSpec extends AnyWordSpec with Matchers:
         originAddr = callerAddr,
         recipientAddr = Some(ownerAddr),
         gasPrice = 1,
-        startGas = startGas,
+        startGas = GasAmount(startGas),
         inputData = ByteString.empty,
         value = UInt256.Zero,
         endowment = UInt256.Zero,

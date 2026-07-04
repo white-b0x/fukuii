@@ -47,7 +47,7 @@ class EIP1559FeeMarketSpec
     number = BlockNumber(BigInt(20_000_000)),
     gasLimit = GasAmount(BigInt(8_000_000)),
     gasUsed = GasAmount.Zero,
-    extraFields = HefPostOlympia(baseFee)
+    extraFields = HefPostOlympia(BaseFeePerGas(baseFee))
   )
 
   private def validate(stx: SignedTransaction, header: BlockHeader = postMystiqueHeader) =

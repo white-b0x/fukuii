@@ -437,7 +437,7 @@ class EthashBlockHeaderValidatorSpec
         override val drainList: Seq[Address] = Nil
         override val forkBlockHash: ByteString =
           if supportsDaoFork then ProDaoForkBlock.header.hash.value else DaoForkBlock.header.hash.value
-        override val forkBlockNumber: BigInt = DaoForkBlock.header.number.value
+        override val forkBlockNumber: BlockNumber = DaoForkBlock.header.number
         override val refundContract: Option[Address] = None
         override val includeOnForkIdList: Boolean = false
       ),

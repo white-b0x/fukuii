@@ -220,7 +220,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers:
     unixTimestamp = Timestamp(CancunTs + 1),
     gasLimit = GasAmount(BigInt("30000000")),
     extraFields = HefPostCancun(
-      baseFee = BigInt(1_000_000_000L),
+      baseFee = BaseFeePerGas(BigInt(1_000_000_000L)),
       withdrawalsRoot = ByteString(new Array[Byte](32)),
       blobGasUsed = BigInt(0),
       excessBlobGas = BigInt(0),

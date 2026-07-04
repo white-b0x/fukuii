@@ -9,6 +9,8 @@ import com.chipprbots.ethereum.Fixtures as CommonFixtures
 import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.MaxFeePerGas
 import com.chipprbots.ethereum.domain.Nonce
@@ -17,6 +19,7 @@ import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.TransactionWithDynamicFee
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.Wei
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.testing.Tags.*
 
 /** Regression for `ProgramContext.apply` setting `gasPrice` to the EIP-1559 effective gas price (min(maxFeePerGas,
@@ -43,7 +46,7 @@ class ProgramContextEffectiveGasPriceSpec extends AnyFlatSpec with Matchers:
       value = Wei(0),
       payload = ByteString.empty,
       accessList = Nil,
-      chainId = 1
+      chainId = ChainId(1)
     )
     SignedTransaction(raw, ECDSASignature(BigInt(0), BigInt(0), BigInt(0)))
 
@@ -52,12 +55,12 @@ class ProgramContextEffectiveGasPriceSpec extends AnyFlatSpec with Matchers:
   // HefPostCancun; testing the simpler branch is sufficient here.
   private def newHeader(baseFee: BigInt): BlockHeader =
     CommonFixtures.Blocks.ValidBlock.header.copy(
-      extraFields = BlockHeader.HeaderExtraFields.HefPostOlympia(baseFee)
+      extraFields = BlockHeader.HeaderExtraFields.HefPostOlympia(BaseFeePerGas(baseFee))
     )
 
   // EvmConfig isn't read by ProgramContext.apply for `gasPrice`, so any config works.
   // `Fixtures.blockchainConfig` (in this package) returns a BlockchainConfigForEvm directly.
-  private val evmConfig: EvmConfig = EvmConfig.forBlock(BigInt(1), Fixtures.blockchainConfig)
+  private val evmConfig: EvmConfig = EvmConfig.forBlock(BlockNumber(1), Fixtures.blockchainConfig)
 
   "ProgramContext" should
     "expose the EIP-1559 effective gas price (not maxFeePerGas) for Type-2 txs" taggedAs (UnitTest) in {

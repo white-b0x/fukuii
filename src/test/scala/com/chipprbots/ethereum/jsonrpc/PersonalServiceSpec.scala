@@ -134,14 +134,14 @@ class PersonalServiceSpec
 
     replyPTM(PendingTransactionsResponse(Nil))
 
-    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash.value))
+    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(TxHash(stx.hash.value)))
     txPool.expectMsg(AddOrOverrideTransaction(stx))
 
   it should "send a transaction when having pending txs from the same sender" taggedAs (
     UnitTest,
     RPCTest
   ) in new TestSetup:
-    val newTx: SignedTransaction = wallet.signTx(tx.toTransaction(nonce + 1), None).tx
+    val newTx: SignedTransaction = wallet.signTx(tx.toTransaction(Nonce(nonce + 1)), None).tx
 
     keyStore.unlockAccount
       .expects(address, passphrase)
@@ -157,7 +157,7 @@ class PersonalServiceSpec
 
     replyPTM(PendingTransactionsResponse(Seq(PendingTransaction(stxWithSender, 0))))
 
-    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(newTx.hash.value))
+    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(TxHash(newTx.hash.value)))
     txPool.expectMsg(AddOrOverrideTransaction(newTx))
 
   it should "fail to send a transaction given a wrong passphrase" taggedAs (UnitTest, RPCTest) in new TestSetup:
@@ -190,7 +190,7 @@ class PersonalServiceSpec
 
     replyPTM(PendingTransactionsResponse(Nil))
 
-    res.futureValue shouldEqual Right(SendTransactionResponse(stx.hash.value))
+    res.futureValue shouldEqual Right(SendTransactionResponse(TxHash(stx.hash.value)))
     txPool.expectMsg(AddOrOverrideTransaction(stx))
 
   it should "fail to send a transaction when account is locked" taggedAs (UnitTest, RPCTest) in new TestSetup:
@@ -346,7 +346,7 @@ class PersonalServiceSpec
 
     replyPTM(PendingTransactionsResponse(Nil))
 
-    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash.value))
+    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(TxHash(stx.hash.value)))
     txPool.expectMsg(AddOrOverrideTransaction(stx))
 
   it should "produce chain specific transaction after eip155" taggedAs (UnitTest, RPCTest) in new TestSetup:
@@ -365,7 +365,7 @@ class PersonalServiceSpec
 
     replyPTM(PendingTransactionsResponse(Nil))
 
-    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(chainSpecificStx.hash.value))
+    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(TxHash(chainSpecificStx.hash.value)))
     txPool.expectMsg(AddOrOverrideTransaction(chainSpecificStx))
 
   it should "return NodeNotFound when sending transaction during sync (state unavailable)" taggedAs (
@@ -378,7 +378,7 @@ class PersonalServiceSpec
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
     blockchainReader.getAccount
-      .expects(*, address, BigInt(1234))
+      .expects(*, address, BlockNumber(BigInt(1234)))
       .throwing(new MissingNodeException(ByteString(new Array[Byte](32))))
 
     val req: SendTransactionWithPassphraseRequest = SendTransactionWithPassphraseRequest(tx, passphrase)
@@ -401,7 +401,7 @@ class PersonalServiceSpec
 
     (() => blockchainReader.getBestBlockNumber).expects().returning(1234)
     blockchainReader.getAccount
-      .expects(*, address, BigInt(1234))
+      .expects(*, address, BlockNumber(BigInt(1234)))
       .throwing(new MissingNodeException(ByteString(new Array[Byte](32))))
 
     val req: SendTransactionRequest = SendTransactionRequest(tx)
@@ -473,10 +473,10 @@ class PersonalServiceSpec
     )
 
     val wallet: Wallet = Wallet(address, prvKey)
-    val tx: TransactionRequest = TransactionRequest(from = address, to = Some(Address(42)), value = Some(txValue))
-    val stxWithSender: SignedTransactionWithSender = wallet.signTx(tx.toTransaction(nonce), None)
+    val tx: TransactionRequest = TransactionRequest(from = address, to = Some(Address(42)), value = Some(Wei(txValue)))
+    val stxWithSender: SignedTransactionWithSender = wallet.signTx(tx.toTransaction(Nonce(nonce)), None)
     val stx = stxWithSender.tx
-    val chainSpecificStx: SignedTransaction = wallet.signTx(tx.toTransaction(nonce), Some(chainId)).tx
+    val chainSpecificStx: SignedTransaction = wallet.signTx(tx.toTransaction(Nonce(nonce)), Some(chainId)).tx
 
     val txPoolConfig: TxPoolConfig = new TxPoolConfig:
       override val txPoolSize: Int = 30

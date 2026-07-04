@@ -128,12 +128,12 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup:
       addressesToDelete: Set[Address] = Set.empty
   ): PR = ProgramResult(
     returnData = returnData,
-    gasRemaining = gasLimit - gasUsed,
+    gasRemaining = GasAmount(gasLimit - gasUsed),
     world = context.world,
     addressesToDelete = addressesToDelete,
     logs = logs,
     internalTxs = Nil,
-    gasRefund = gasRefund,
+    gasRefund = GasAmount(gasRefund),
     error = error,
     Set.empty,
     Set.empty

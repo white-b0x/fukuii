@@ -20,6 +20,9 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.GasPrice
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.faucet.FaucetConfig
 import com.chipprbots.ethereum.faucet.FaucetHandler
 import com.chipprbots.ethereum.faucet.FaucetHandler.Command
@@ -151,9 +154,9 @@ class FaucetRpcServiceSpec
     val config: FaucetConfig = FaucetConfig(
       walletAddress = Address("0x99"),
       walletPassword = "",
-      txGasPrice = 10,
-      txGasLimit = 20,
-      txValue = 1,
+      txGasPrice = GasPrice(10),
+      txGasLimit = GasAmount(20),
+      txValue = Wei(1),
       rpcClient = RpcClientConfig(address = "", timeout = 10.seconds),
       keyStoreDir = "",
       handlerTimeout = 10.seconds,

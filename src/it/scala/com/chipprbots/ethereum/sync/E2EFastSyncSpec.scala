@@ -171,7 +171,8 @@ class E2EFastSyncSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll:
       actualBestBlock shouldBe expectedPivotBlock
 
       // Verify the pivot block exists and is valid
-      val pivotBlock = peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, actualBestBlock)
+      val pivotBlock =
+        peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(actualBestBlock))
       pivotBlock shouldBe defined
   }
 
@@ -222,11 +223,12 @@ class E2EFastSyncSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll:
 
       // Verify chain continuity - all blocks should be linked
       for i <- 1 to bestBlockNumber.toInt do
-        val block = peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, i)
+        val block = peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(i))
         block shouldBe defined
 
         if i > 1 then
-          val prevBlock = peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, i - 1)
+          val prevBlock =
+            peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(i - 1))
           prevBlock shouldBe defined
           // Use getOrElse with meaningful error message instead of .get
           val currentBlock = block.getOrElse(fail(s"Block at height $i should be defined"))
@@ -392,7 +394,7 @@ class E2EFastSyncSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll:
           fail("Peer 1 should have a best block after fast sync")
         )
       val peer2SameBlock = peer2.blockchainReader
-        .getBlockByNumber(peer2.blockchainReader.getBestBranch, peer1BestBlock.number.value)
+        .getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(peer1BestBlock.number.value))
         .getOrElse(
           fail(s"Peer 2 should have block at height ${peer1BestBlock.number}")
         )

@@ -66,7 +66,7 @@ class EthereumTestHelper(using bc: BlockchainConfig) extends ScenarioSetup:
           InMemoryWorldStateProxy(
             evmCodeStorage = testBlockchainStorages.evmCodeStorage,
             mptStorage = testBlockchainStorages.stateStorage.getReadOnlyStorage,
-            getBlockHashByNumber = (_: BigInt) => None,
+            getBlockHashByNumber = (_: BlockNumber) => None,
             accountStartNonce = blockchainConfig.accountStartNonce,
             stateRootHash = Account.EmptyStorageRootHash.value,
             noEmptyAccounts = false,
@@ -78,11 +78,11 @@ class EthereumTestHelper(using bc: BlockchainConfig) extends ScenarioSetup:
       val _ = parseBigInt(blocks.head.blockHeader.number)
 
       // Step 1: Setup initial state using the backing storage for block 0
-      val mptStorage = blockchain.getBackingMptStorage(0)
+      val mptStorage = blockchain.getBackingMptStorage(BlockNumber(0))
       var world = InMemoryWorldStateProxy(
         evmCodeStorage = testBlockchainStorages.evmCodeStorage,
         mptStorage = mptStorage,
-        getBlockHashByNumber = (_: BigInt) => None,
+        getBlockHashByNumber = (_: BlockNumber) => None,
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = Account.EmptyStorageRootHash.value,
         noEmptyAccounts = false,
@@ -115,7 +115,7 @@ class EthereumTestHelper(using bc: BlockchainConfig) extends ScenarioSetup:
           val key = parseBigInt(keyHex)
           val value = parseBigInt(valueHex)
           val storage = world.getStorage(address)
-          val newStorage = storage.store(key, value)
+          val newStorage = storage.store(StorageKey(key), value)
           world = world.saveStorage(address, newStorage)
         }
       }
@@ -213,11 +213,11 @@ class EthereumTestHelper(using bc: BlockchainConfig) extends ScenarioSetup:
 
       val finalWorld = InMemoryWorldStateProxy(
         evmCodeStorage = testBlockchainStorages.evmCodeStorage,
-        mptStorage = blockchain.getBackingMptStorage(lastBlockNumber),
-        getBlockHashByNumber = (num: BigInt) =>
+        mptStorage = blockchain.getBackingMptStorage(BlockNumber(lastBlockNumber)),
+        getBlockHashByNumber = (num: BlockNumber) =>
           testBlockchainStorages.blockNumberMappingStorage
-            .get(num)
-            .flatMap(hash => testBlockchainStorages.blockHeadersStorage.get(hash).map(_.hash.value)),
+            .get(num.value)
+            .flatMap(hash => testBlockchainStorages.blockHeadersStorage.get(hash).map(_.hash)),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = lastStateRoot,
         noEmptyAccounts = false,

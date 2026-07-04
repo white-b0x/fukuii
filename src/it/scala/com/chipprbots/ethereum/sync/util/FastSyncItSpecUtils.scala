@@ -17,6 +17,7 @@ import com.chipprbots.ethereum.blockchain.sync.fast.FastSync
 import com.chipprbots.ethereum.blockchain.sync.fast.FastSync.SyncState
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.mpt.HashNode
 import com.chipprbots.ethereum.mpt.MptNode
 import com.chipprbots.ethereum.mpt.MptTraversals
@@ -83,7 +84,8 @@ object FastSyncItSpecUtils:
           val accountExpectedCode = ByteString(i.toByteArray)
           val codeHash = kec256(accountExpectedCode)
           val accountExpectedStorageAddresses = (i until i + 20).toList
-          val account = blockchainReader.getAccount(blockchainReader.getBestBranch, accountAddress, blockNumber).get
+          val account =
+            blockchainReader.getAccount(blockchainReader.getBestBranch, accountAddress, BlockNumber(blockNumber)).get
           val code = evmCodeStorage.get(codeHash).get
           val storedData = accountExpectedStorageAddresses.map { addr =>
             ByteUtils.toBigInt(bl.getAccountStorageAt(account.storageRoot.value, addr, ethCompatibleStorage = true))

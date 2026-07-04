@@ -15,6 +15,8 @@ import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlymp
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostPrague
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.BaseFeePerGas
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.vm.FeeSchedule
 import com.chipprbots.ethereum.vm.Fixtures.blockchainConfig
@@ -93,7 +95,7 @@ class Eip4844BlobOpcodeSpec extends AnyWordSpec with Matchers:
       number = BlockNumber(Fixtures.OlympiaBlockNumber),
       unixTimestamp = Timestamp(timestamp),
       extraFields = HefPostCancun(
-        baseFee = BigInt(1000000000L),
+        baseFee = BaseFeePerGas(BigInt(1000000000L)),
         withdrawalsRoot = ByteString(Array.fill(32)(0.toByte)),
         blobGasUsed = BigInt(0),
         excessBlobGas = excessBlobGas,
@@ -106,7 +108,7 @@ class Eip4844BlobOpcodeSpec extends AnyWordSpec with Matchers:
       number = BlockNumber(Fixtures.OlympiaBlockNumber),
       unixTimestamp = Timestamp(2000L), // matches bpo1Timestamp = Some(2000L) in ethBpo1Config
       extraFields = HefPostPrague(
-        baseFee = BigInt(1000000000L),
+        baseFee = BaseFeePerGas(BigInt(1000000000L)),
         withdrawalsRoot = ByteString(Array.fill(32)(0.toByte)),
         blobGasUsed = BigInt(0),
         excessBlobGas = excessBlobGas,
@@ -120,7 +122,7 @@ class Eip4844BlobOpcodeSpec extends AnyWordSpec with Matchers:
       number = BlockNumber(Fixtures.OlympiaBlockNumber),
       unixTimestamp = Timestamp(3000L), // matches bpo2Timestamp = Some(3000L) in ethBpo2Config
       extraFields = HefPostPrague(
-        baseFee = BigInt(1000000000L),
+        baseFee = BaseFeePerGas(BigInt(1000000000L)),
         withdrawalsRoot = ByteString(Array.fill(32)(0.toByte)),
         blobGasUsed = BigInt(0),
         excessBlobGas = excessBlobGas,
@@ -134,7 +136,7 @@ class Eip4844BlobOpcodeSpec extends AnyWordSpec with Matchers:
       number = BlockNumber(Fixtures.OlympiaBlockNumber),
       unixTimestamp = Timestamp(1000L), // matches pragueTimestamp = Some(1000L) in ethPragueConfig
       extraFields = HefPostPrague(
-        baseFee = BigInt(1000000000L),
+        baseFee = BaseFeePerGas(BigInt(1000000000L)),
         withdrawalsRoot = ByteString(Array.fill(32)(0.toByte)),
         blobGasUsed = BigInt(0),
         excessBlobGas = excessBlobGas,
@@ -146,7 +148,7 @@ class Eip4844BlobOpcodeSpec extends AnyWordSpec with Matchers:
   def etcOlympiaHeader: BlockHeader =
     BlockFixtures.ValidBlock.header.copy(
       number = BlockNumber(Fixtures.OlympiaBlockNumber),
-      extraFields = HefPostOlympia(BigInt(1000000000L))
+      extraFields = HefPostOlympia(BaseFeePerGas(BigInt(1000000000L)))
     )
 
   def createContext(
@@ -163,7 +165,7 @@ class Eip4844BlobOpcodeSpec extends AnyWordSpec with Matchers:
       originAddr = callerAddr,
       recipientAddr = Some(ownerAddr),
       gasPrice = 1,
-      startGas = 1000000,
+      startGas = GasAmount(1000000),
       inputData = ByteString.empty,
       value = UInt256.Zero,
       endowment = UInt256.Zero,
@@ -395,7 +397,7 @@ class Eip4844BlobOpcodeSpec extends AnyWordSpec with Matchers:
           originAddr = callerAddr,
           recipientAddr = Some(ownerAddr),
           gasPrice = 1,
-          startGas = 1000000,
+          startGas = GasAmount(1000000),
           inputData = ByteString.empty,
           value = UInt256.Zero,
           endowment = UInt256.Zero,

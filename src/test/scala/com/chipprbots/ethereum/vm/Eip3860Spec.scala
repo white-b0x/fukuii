@@ -15,6 +15,7 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
 
@@ -57,7 +58,7 @@ class Eip3860Spec extends AnyWordSpec with Matchers:
         originAddr = creatorAddr,
         recipientAddr = None,
         gasPrice = 1,
-        startGas = startGas,
+        startGas = GasAmount(startGas),
         inputData = initCode,
         value = endowment,
         endowment = endowment,
@@ -173,7 +174,7 @@ class Eip3860Spec extends AnyWordSpec with Matchers:
 
         val result = vm.run(context)
         result.error shouldBe Some(InitCodeSizeLimit)
-        result.gasRemaining shouldBe 0
+        result.gasRemaining shouldBe GasAmount.Zero
       }
 
       "succeed with large initcode before Spiral (no limit)" taggedAs (UnitTest, VMTest) in {
@@ -203,7 +204,7 @@ class Eip3860Spec extends AnyWordSpec with Matchers:
         // However, memory expansion and other costs may also differ, so we just check
         // that larger initcode uses more gas
         val gasDiff = resultSmall.gasRemaining - resultLarge.gasRemaining
-        gasDiff should be > BigInt(60) // At least the initcode cost difference
+        gasDiff should be > GasAmount(60) // At least the initcode cost difference
       }
     }
 

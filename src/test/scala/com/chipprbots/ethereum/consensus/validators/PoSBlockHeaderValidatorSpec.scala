@@ -21,6 +21,7 @@ import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostCancu
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostShanghai
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -71,7 +72,7 @@ class PoSBlockHeaderValidatorSpec
       unixTimestamp = Timestamp(HeaderTs),
       extraData = baseExtraData,
       extraFields = HefPostCancun(
-        baseFee = BigInt(1),
+        baseFee = BaseFeePerGas(BigInt(1)),
         withdrawalsRoot = withdrawalsRoot,
         blobGasUsed = BigInt(0),
         excessBlobGas = BigInt(0),
@@ -144,7 +145,7 @@ class PoSBlockHeaderValidatorSpec
         // HefPostShanghai carries withdrawalsRoot but no blobGasUsed/excessBlobGas/parentBeaconBlockRoot;
         // under an active-Cancun timestamp this is invalid.
         val noBlobFields = validCancunHeader.copy(
-          extraFields = HefPostShanghai(baseFee = BigInt(1), withdrawalsRoot = withdrawalsRoot)
+          extraFields = HefPostShanghai(baseFee = BaseFeePerGas(BigInt(1)), withdrawalsRoot = withdrawalsRoot)
         )
         PoSBlockHeaderValidator.validateHeaderOnly(noBlobFields) shouldBe Left(MissingBlobGasFieldsError)
       }

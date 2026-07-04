@@ -220,7 +220,7 @@ object RegularSyncItSpecUtils:
       IO(blockNumber match
         case Some(bNumber) =>
           blockchainReader
-            .getBlockByNumber(blockchainReader.getBestBranch, bNumber)
+            .getBlockByNumber(blockchainReader.getBestBranch, BlockNumber(bNumber))
             .getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
         case None => blockchainReader.getBestBlock.get
       ).flatMap { block =>
@@ -269,8 +269,8 @@ object RegularSyncItSpecUtils:
     private def getMptForBlock(block: Block) =
       InMemoryWorldStateProxy(
         storagesInstance.storages.evmCodeStorage,
-        bl.getBackingMptStorage(block.number.value),
-        (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash.value),
+        bl.getBackingMptStorage(BlockNumber(block.number.value)),
+        (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
         UInt256.Zero,
         ByteString(MerklePatriciaTrie.EmptyRootHash),
         noEmptyAccounts = false,

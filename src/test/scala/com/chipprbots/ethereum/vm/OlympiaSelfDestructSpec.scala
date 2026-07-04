@@ -11,6 +11,7 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.testing.Tags.*
 
 import Fixtures.blockchainConfig
@@ -59,7 +60,7 @@ class OlympiaSelfDestructSpec extends AnyWordSpec with Matchers:
         originAddr = callerAddr,
         recipientAddr = Some(ownerAddr),
         gasPrice = 1,
-        startGas = startGas,
+        startGas = GasAmount(startGas),
         inputData = ByteString.empty,
         value = UInt256.Zero,
         endowment = UInt256.Zero,

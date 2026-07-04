@@ -32,12 +32,12 @@ object Mocks:
   private val defaultProgramResult: PC => PR = context =>
     ProgramResult(
       returnData = ByteString.empty,
-      gasRemaining = 1000000 - 25000,
+      gasRemaining = GasAmount(1000000 - 25000),
       world = context.world,
       addressesToDelete = Set.empty,
       logs = Nil,
       internalTxs = Nil,
-      gasRefund = 20000,
+      gasRefund = GasAmount(20000),
       error = None,
       Set.empty,
       Set.empty

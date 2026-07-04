@@ -5,6 +5,8 @@ import cats.effect.IO
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.domain.CodeHash
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.jsonrpc.ProofService.GetProofRequest
 import com.chipprbots.ethereum.jsonrpc.ProofService.GetProofResponse
 import com.chipprbots.ethereum.jsonrpc.ProofService.ProofAccount
@@ -15,8 +17,8 @@ object ProofServiceDummy extends ProofService:
   val EmptyProofAccount: ProofAccount = ProofAccount(
     EmptyAddress,
     Seq.empty,
-    BigInt(42),
-    Account.EmptyCodeHash.value,
+    Wei(BigInt(42)),
+    CodeHash(Account.EmptyCodeHash.value),
     UInt256.Zero,
     Account.EmptyStorageRootHash.value,
     Seq.empty

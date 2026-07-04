@@ -48,7 +48,7 @@ class PrecompiledContractsSpec extends AnyFunSuite with Matchers with ScalaCheck
       originAddr = origin,
       recipientAddr = Some(recipient),
       gasPrice = 1000,
-      startGas = gas,
+      startGas = GasAmount(gas),
       inputData = inputData,
       value = 0,
       endowment = 0,

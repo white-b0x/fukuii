@@ -180,7 +180,7 @@ class ShiftingOpCodeSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         originAddr = senderAddr,
         recipientAddr = None,
         gasPrice = 1,
-        startGas = 1000000,
+        startGas = GasAmount(1000000),
         inputData = inputData,
         value = 100,
         endowment = 100,

@@ -75,7 +75,7 @@ class BeaconRootsSpec extends AnyFlatSpec with Matchers:
         gasLimit = GasAmount(8_000_000),
         gasUsed = GasAmount.Zero,
         extraFields = HefPostCancun(
-          baseFee = BigInt(1),
+          baseFee = BaseFeePerGas(BigInt(1)),
           withdrawalsRoot = ByteString(Array.fill(32)(0x00.toByte)),
           blobGasUsed = BigInt(0),
           excessBlobGas = BigInt(0),

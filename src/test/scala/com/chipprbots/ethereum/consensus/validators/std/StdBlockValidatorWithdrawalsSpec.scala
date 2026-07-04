@@ -11,6 +11,7 @@ import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostShanghai
 import com.chipprbots.ethereum.domain.Withdrawal
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.testing.Tags.*
 
 /** Direct coverage for EIP-4895 withdrawal-validation additions to `StdBlockValidator`:
@@ -73,7 +74,7 @@ class StdBlockValidatorWithdrawalsSpec extends AnyFlatSpec with Matchers with Pa
     // `computeWithdrawalsRoot(Seq.empty) == EmptyMpt`. Ordering is vacuously OK (<2 entries).
     val body = preShanghaiBody.copy(withdrawals = Some(Seq.empty))
     val headerWithEmptyRoot = preShanghaiHeader.copy(
-      extraFields = HefPostShanghai(BigInt(0), BlockHeader.EmptyMpt)
+      extraFields = HefPostShanghai(BaseFeePerGas(BigInt(0)), BlockHeader.EmptyMpt)
     )
     StdBlockValidator.validateHeaderAndBody(headerWithEmptyRoot, body) shouldBe Right(BlockValid)
   }

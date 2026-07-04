@@ -74,7 +74,7 @@ class EthUserServiceSpec
     val response: ServiceResponse[GetBalanceResponse] =
       ethUserService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
 
-    response.unsafeRunSync() shouldEqual Right(GetBalanceResponse(123))
+    response.unsafeRunSync() shouldEqual Right(GetBalanceResponse(Wei(123)))
 
   it should "handle MissingNodeException when getting balance" taggedAs (UnitTest, RPCTest) in new TestSetup:
     val address: Address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))

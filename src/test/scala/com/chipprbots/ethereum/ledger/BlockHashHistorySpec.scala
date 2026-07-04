@@ -74,7 +74,7 @@ class BlockHashHistorySpec extends AnyFlatSpec with Matchers:
         parentHash = BlockHash(parentHash),
         gasLimit = GasAmount(8_000_000),
         gasUsed = GasAmount.Zero,
-        extraFields = if isOlympia then HefPostOlympia(BigInt(0)) else HefEmpty
+        extraFields = if isOlympia then HefPostOlympia(BaseFeePerGas(BigInt(0))) else HefEmpty
       ),
       body = BlockBody(Nil, Nil)
     )

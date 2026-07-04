@@ -248,7 +248,7 @@ trait ObjectGenerators:
 
   def extraFieldsGen: Gen[HeaderExtraFields] = Gen.oneOf(
     Gen.const(HefEmpty),
-    bigIntGen.map(baseFee => HefPostOlympia(baseFee))
+    bigIntGen.map(baseFee => HefPostOlympia(BaseFeePerGas(baseFee)))
   )
 
   def blockHeaderGen: Gen[BlockHeader] = for

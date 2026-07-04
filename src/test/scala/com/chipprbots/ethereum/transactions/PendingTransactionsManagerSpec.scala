@@ -36,6 +36,7 @@ import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.SignedTransactionWithSender
 import com.chipprbots.ethereum.domain.TransactionWithDynamicFee
 import com.chipprbots.ethereum.domain.Wei
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.SendMessageCmd
 import com.chipprbots.ethereum.network.Peer
@@ -533,7 +534,7 @@ class PendingTransactionsManagerSpec
   trait TestSetupWithBaseFee extends TestSetup:
     private val blockWithBaseFee: Block = Block(
       header = com.chipprbots.ethereum.Fixtures.Blocks.ValidBlock.header.copy(
-        extraFields = HefPostOlympia(BaseFeeCalculator.InitialBaseFee)
+        extraFields = HefPostOlympia(BaseFeePerGas(BaseFeeCalculator.InitialBaseFee))
       ),
       body = BlockBody(transactionList = Nil, uncleNodesList = Nil)
     )

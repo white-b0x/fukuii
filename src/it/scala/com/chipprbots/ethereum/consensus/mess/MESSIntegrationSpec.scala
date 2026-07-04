@@ -114,19 +114,19 @@ class MESSIntegrationSpec extends AnyFlatSpec with Matchers:
   it should "handle the activation window correctly" in {
     val config = MESSConfig(
       enabled = true,
-      activationBlock = Some(11380000),
-      deactivationBlock = Some(19250000)
+      activationBlock = Some(BlockNumber(11380000)),
+      deactivationBlock = Some(BlockNumber(19250000))
     )
 
     // Before activation
-    config.isActiveAtBlock(11379999) shouldBe false
+    config.isActiveAtBlock(BlockNumber(11379999)) shouldBe false
 
     // Within window
-    config.isActiveAtBlock(11380000) shouldBe true
-    config.isActiveAtBlock(15000000) shouldBe true
+    config.isActiveAtBlock(BlockNumber(11380000)) shouldBe true
+    config.isActiveAtBlock(BlockNumber(15000000)) shouldBe true
 
     // After deactivation (Spiral)
-    config.isActiveAtBlock(19250000) shouldBe false
+    config.isActiveAtBlock(BlockNumber(19250000)) shouldBe false
   }
 
   it should "match the polynomial curve shape from ECIP-1100" in {

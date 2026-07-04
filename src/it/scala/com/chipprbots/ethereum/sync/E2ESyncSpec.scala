@@ -282,8 +282,10 @@ class E2ESyncSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll:
           // Sample random blocks and verify their integrity
           val blocksToVerify = Seq(1, 50, 100, 150)
           blocksToVerify.foreach { blockNum =>
-            val peer1Block = peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, blockNum)
-            val peer2Block = peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, blockNum)
+            val peer1Block =
+              peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(blockNum))
+            val peer2Block =
+              peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(blockNum))
 
             peer1Block shouldBe defined
             peer2Block shouldBe defined
@@ -315,7 +317,7 @@ class E2ESyncSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll:
 
           // Verify we can retrieve any block from storage
           for i <- 1 to blockNumber do
-            val block = peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, i)
+            val block = peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(i))
             block shouldBe defined
           succeed
       }

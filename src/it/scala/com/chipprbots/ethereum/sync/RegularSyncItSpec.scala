@@ -15,6 +15,7 @@ import com.chipprbots.ethereum.sync.util.RegularSyncItSpecUtils.FakePeer
 import com.chipprbots.ethereum.sync.util.SyncCommonItSpec.*
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
+import com.chipprbots.ethereum.domain.BlockNumber
 
 class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll:
   implicit val testRuntime: IORuntime = IORuntime.global
@@ -109,8 +110,8 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
           )
       )
       (
-        peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, blockNumer + 1),
-        peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, blockNumer + 1)
+        peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch, BlockNumber(blockNumer + 1)),
+        peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch, BlockNumber(blockNumer + 1))
       ) match
         case (Some(blockP1), Some(blockP2)) =>
           assert(

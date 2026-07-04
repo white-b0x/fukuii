@@ -17,6 +17,7 @@ import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.StorageKey
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.UInt256.*
+import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.vm.Generators.*
 import com.chipprbots.ethereum.vm.MockWorldState.PC
 import com.chipprbots.ethereum.vm.MockWorldState.TestVM
@@ -97,7 +98,7 @@ trait OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
         getUInt256Gen(max = 1000).map(Address(_)).retryUntil(!initState.accessedAddresses.contains(_)).sample.get
       val stackIn = Stack.empty().push(Seq(size, Zero, Zero, addr.toUInt256))
       val memIn = Memory.empty.store(addr.toUInt256, Array.fill[Byte](size.toInt)(-1))
-      val stateIn = initState.withStack(stackIn).withMemory(memIn).copy(gas = expectedGas)
+      val stateIn = initState.withStack(stackIn).withMemory(memIn).copy(gas = GasAmount(expectedGas))
 
       val stateOut = if accessed then op.execute(stateIn.addAccessedAddress(addr)) else op.execute(stateIn)
 
@@ -227,7 +228,7 @@ trait OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
       val stateIn = getProgramStateGen(
         blockNumberGen = getUInt256Gen(forkBlockHeight),
         evmConfig = config
-      ).sample.get.withStack(stackIn).withStorage(storage).copy(gas = startGas)
+      ).sample.get.withStack(stackIn).withStorage(storage).copy(gas = GasAmount(startGas))
 
       val stateOut =
         if alreadyAccessed then
@@ -247,7 +248,7 @@ trait OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
         blockNumberGen = getUInt256Gen(forkBlockHeight),
         evmConfig = config,
         storageGen = Gen.const(storage)
-      ).sample.get.withStack(stackIn).copy(gas = expectedGasConsumption)
+      ).sample.get.withStack(stackIn).copy(gas = GasAmount(expectedGasConsumption))
 
       val stateOut =
         if alreadyAccessed then op.execute(stateIn.addAccessedStorageKey(stateIn.ownAddress, StorageKey(offset)))
@@ -282,7 +283,7 @@ trait OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
         originAddr = senderAddr,
         recipientAddr = None,
         gasPrice = 1,
-        startGas = defaultGaspool,
+        startGas = GasAmount(defaultGaspool),
         inputData = bEmpty,
         value = 100,
         endowment = 100,

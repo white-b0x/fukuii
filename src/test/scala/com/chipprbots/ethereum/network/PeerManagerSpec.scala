@@ -282,7 +282,7 @@ class PeerManagerSpec
 
     val baseBlockHeader: BlockHeader = Fixtures.Blocks.Block3125369.header
     val header: BlockHeader = baseBlockHeader.copy(number = BlockNumber(initialPeerInfo.maxBlockNumber + 4))
-    val block: NewBlock = NewBlock(Block(header, BlockBody(Nil, Nil)), 300)
+    val block: NewBlock = NewBlock(Block(header, BlockBody(Nil, Nil)), TotalDifficulty(300))
 
     peerManager ! PeerManagerActor.SendMessageCmd(block, PeerId(probe.ref.path.name))
     probe.expectMsg(PeerActor.SendMessage(block))

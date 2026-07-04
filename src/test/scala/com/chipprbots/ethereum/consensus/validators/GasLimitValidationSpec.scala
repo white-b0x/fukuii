@@ -20,6 +20,7 @@ import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.domain.Wei
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.ForkBlockNumbers
@@ -271,7 +272,7 @@ class GasLimitValidationSpec extends AnyFlatSpec with Matchers:
     gasLimit = GasAmount(60_000_000),
     number = BlockNumber(600),
     gasUsed = GasAmount(30_000_000),
-    extraFields = HefPostOlympia(BigInt(1_000_000_000))
+    extraFields = HefPostOlympia(BaseFeePerGas(BigInt(1_000_000_000)))
   )
 
   private def validateEtcOlympia(child: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =

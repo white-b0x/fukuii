@@ -62,6 +62,8 @@ import org.web3j.protocol.exceptions.ClientConnectionException
 import org.web3j.protocol.http.HttpService
 
 import com.chipprbots.ethereum.domain.Address
+import com.chipprbots.ethereum.domain.Nonce
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.jsonrpc.TransactionRequest
 import com.chipprbots.ethereum.keystore.KeyStoreImpl
 import com.chipprbots.ethereum.keystore.Wallet
@@ -1323,12 +1325,12 @@ abstract class ScenarioSetup {
     val req = TransactionRequest(
       from = fromAddress,
       to = toAccount.map(acc => Address(acc.address)),
-      value = value,
+      value = value.map(Wei(_)),
       data = data,
-      nonce = Some(nonce)
+      nonce = Some(Nonce(nonce))
     )
 
-    val transaction = req.toTransaction(0)
+    val transaction = req.toTransaction(Nonce(0))
 
     val stx = fromWallet.signTx(transaction, None)
     Hex.toHexString(rlp.encode(stx.tx.toRLPEncodable))

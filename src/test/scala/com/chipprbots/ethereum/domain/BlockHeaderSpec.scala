@@ -13,6 +13,7 @@ import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
 import com.chipprbots.ethereum.domain.BlockHeaderImplicits.*
 import com.chipprbots.ethereum.domain.BlockHash
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.rlp
 import com.chipprbots.ethereum.rlp.RLPImplicitConversions.*
 import com.chipprbots.ethereum.rlp.RLPImplicits.given
@@ -80,7 +81,7 @@ class BlockHeaderSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyC
 
       val baseFee = BigInt(1000000000) // 1 gwei
       val olympiaHeader = Fixtures.Blocks.ValidBlock.header.copy(
-        extraFields = HefPostOlympia(baseFee)
+        extraFields = HefPostOlympia(BaseFeePerGas(baseFee))
       )
 
       val expectedRLPEncoded = RLPList(
@@ -108,12 +109,12 @@ class BlockHeaderSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyC
     "should decode post Olympia headers preserving baseFee" taggedAs (OlympiaTest, RLPTest) in {
       val baseFee = BigInt(1500000000)
       val originalHeader = Fixtures.Blocks.ValidBlock.header.copy(
-        extraFields = HefPostOlympia(baseFee)
+        extraFields = HefPostOlympia(BaseFeePerGas(baseFee))
       )
 
       val decoded = originalHeader.toBytes.toBlockHeader
 
-      decoded.extraFields shouldBe HefPostOlympia(baseFee)
+      decoded.extraFields shouldBe HefPostOlympia(BaseFeePerGas(baseFee))
       decoded.baseFee shouldBe Some(baseFee)
       decoded.hash shouldBe originalHeader.hash
     }

@@ -10,6 +10,7 @@ import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostCancun
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostShanghai
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -82,7 +83,7 @@ class BlockHeaderFieldCountSpec
         // HefPostShanghai carries withdrawalsRoot but no blobGasUsed — decoded from 17-item RLP
         // at a Cancun-active timestamp. This is the §ETH-T9-B motivating case.
         val header = baseHeader(PostCancunTs).copy(
-          extraFields = HefPostShanghai(baseFee = BigInt(1), withdrawalsRoot = withdrawalsRoot)
+          extraFields = HefPostShanghai(baseFee = BaseFeePerGas(BigInt(1)), withdrawalsRoot = withdrawalsRoot)
         )
         val result = BlockHeader.validateFieldCount(header, ethConfig)
         result shouldBe a[Left[?, ?]]
@@ -94,7 +95,7 @@ class BlockHeaderFieldCountSpec
       "accept HefPostCancun (20-item RLP shape)" taggedAs (UnitTest, ConsensusTest) in {
         val header = baseHeader(PostCancunTs).copy(
           extraFields = HefPostCancun(
-            baseFee = BigInt(1),
+            baseFee = BaseFeePerGas(BigInt(1)),
             withdrawalsRoot = withdrawalsRoot,
             blobGasUsed = BigInt(0),
             excessBlobGas = BigInt(0),
@@ -108,7 +109,7 @@ class BlockHeaderFieldCountSpec
     "chain is ETH and timestamp is exactly at CancunTs boundary" should {
       "apply Cancun rules (boundary is inclusive)" taggedAs (UnitTest, ConsensusTest) in {
         val shanghaiShape = baseHeader(CancunTs).copy(
-          extraFields = HefPostShanghai(baseFee = BigInt(1), withdrawalsRoot = withdrawalsRoot)
+          extraFields = HefPostShanghai(baseFee = BaseFeePerGas(BigInt(1)), withdrawalsRoot = withdrawalsRoot)
         )
         BlockHeader.validateFieldCount(shanghaiShape, ethConfig) shouldBe a[Left[?, ?]]
       }

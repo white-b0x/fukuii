@@ -54,7 +54,7 @@ class TreasuryBaseFeeSpec extends AnyFlatSpec with Matchers with MockFactory:
         miner: Address = minerAddr
     ): Block =
       val extraFields = baseFee match
-        case Some(fee) => HefPostOlympia(fee)
+        case Some(fee) => HefPostOlympia(BaseFeePerGas(fee))
         case None      => HefEmpty
       Block(
         header = Fixtures.Blocks.Genesis.header.copy(
