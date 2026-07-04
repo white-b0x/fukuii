@@ -149,4 +149,4 @@ Each entry has a real failure case. Do not repeat these.
 ## Cross-References
 - Hive tests (correctness specification): `../ref-clients/hive/snap-tests.md`
 - Fukuii bug history: `../fukuii-state/snap-sync/known-bugs.md`
-- Best practices (positive patterns): [snap-sync-patterns.md](snap-sync-patterns.md)
+- Best practices (positive patterns): [snap-sync.md](snap-sync.md)

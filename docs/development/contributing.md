@@ -545,10 +545,12 @@ See the [CI/CD Documentation](ci-cd.md) for detailed release process documentati
 
 ## Guidelines for LLM Agents
 
-See [`AGENTS.md`](../../AGENTS.md) (portable, tool-agnostic conventions and build/test
-commands) and [`CLAUDE.md`](../../CLAUDE.md) (Claude Code-specific subagent routing, Spec
-Kit workflow, and orchestration) at the repo root for AI agent guidance. Both are kept
-current; this section intentionally no longer duplicates their content.
+See [`AGENTS.md`](https://github.com/chippr-robotics/fukuii/blob/develop/AGENTS.md)
+(portable, tool-agnostic conventions and build/test commands) and
+[`CLAUDE.md`](https://github.com/chippr-robotics/fukuii/blob/develop/CLAUDE.md)
+(Claude Code-specific subagent routing, Spec Kit workflow, and orchestration) at the
+repo root for AI agent guidance. Both are kept current; this section intentionally no
+longer duplicates their content.
 
 ## Additional Resources
 

@@ -13,7 +13,7 @@
 
 fukuii's SNAP/1 protocol implementation is **compliant with the devp2p specification**. All message formats, encodings, and routing mechanisms match the specification requirements.
 
-**Update 2025-12-12:** Fixed message code offset handling to match coregeth/besu implementations. SNAP messages now correctly use wire codes 0x21-0x28 (spec codes 0x00-0x07 + offset 0x21). See [SNAP Message Offset Validation](../validation/SNAP_MESSAGE_OFFSET_VALIDATION.md) for details.
+**Update 2025-12-12:** Fixed message code offset handling to match coregeth/besu implementations. SNAP messages now correctly use wire codes 0x21-0x28 (spec codes 0x00-0x07 + offset 0x21). See [SNAP Message Offset Validation](../../validation/SNAP_MESSAGE_OFFSET_VALIDATION.md) for details.
 
 ## Detailed Validation
 
@@ -206,7 +206,7 @@ object Codes {
 
 ✅ **Status:** Compliant (Fixed 2025-12-12)
 
-**Note:** SNAP spec defines messages as 0x00-0x07 (protocol-relative), but on the wire they use offset codes 0x21-0x28 to follow ETH protocol. This matches coregeth and besu implementations. See [SNAP Message Offset Validation](../validation/SNAP_MESSAGE_OFFSET_VALIDATION.md).
+**Note:** SNAP spec defines messages as 0x00-0x07 (protocol-relative), but on the wire they use offset codes 0x21-0x28 to follow ETH protocol. This matches coregeth and besu implementations. See [SNAP Message Offset Validation](../../validation/SNAP_MESSAGE_OFFSET_VALIDATION.md).
 
 ---
 
