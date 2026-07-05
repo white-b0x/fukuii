@@ -32,7 +32,7 @@ Two tiers (see `.claude/agent-protocols/sprint-lifecycle.md`, Rule 4, and
 
 | Script | Replaces | Used by |
 |--------|----------|---------|
-| `site-sweep.sh` | Running N greps against `src/main/` one at a time before/after an edit pass — runs them concurrently, dedupes, reports per-file counts | `.claude/sprints/patterns/PATTERNS.md` ("known-sites-first, unknowns-concurrent" pattern) |
+| `site-sweep.sh` | Running N greps against `src/main/`, `src/test/`, and/or `src/it/` one at a time before/after an edit pass — runs them concurrently across the chosen `--scope` (default `all` — see `batch-research-protocol.md` rule (a); Batch 1's opaque-type sweep hardcoded main-only and missed ~248 test-source sites as a result), dedupes, reports per-file counts | `.claude/sprints/patterns/PATTERNS.md` ("known-sites-first, unknowns-concurrent" pattern), `batch-research-protocol.md`, `scout` |
 | `pre-migration-checklist.sh` | The 13 manual `grep` steps in `pre-migration-checklist.md` run by hand against one actor file before every LOOM migration — runs all of them in one call and prints the protocol's own "Pre-flight facts block" format, plus mechanically-detectable red flags | `pre-migration-checklist.md`, LOOM |
 | `scala3-style-check.sh` | The S1-S9 ratchet greps in `scala3-style.md`, run and compared against target in one call | `scala3-style.md`, MITHRIL, PRISM |
 | `logging-standards-check.sh` | The 10 "grep-verifiable ratchet targets" in `logging-standards.md` | `logging-standards.md`, all agents |

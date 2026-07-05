@@ -13,9 +13,11 @@ These are two unrelated directories with confusingly similar names:
 
 - **`.agents/`** (this directory) — canonical source for shared protocol docs and skill
   definitions. Tool-agnostic; any coding agent could in principle read it.
-- **`.claude/agents/`** — the 12 Claude Code subagent *definitions* (`forge`, `beacon`,
+- **`.claude/agents/`** — the 13 Claude Code subagent *definitions* (`forge`, `beacon`,
   `eye`, `wraith`, `herald`, `mithril`, `prism`, `loom`, `vault`, `conduit`, `flow`,
-  `warden`). Claude Code-specific; see `CLAUDE.md`'s Specialist subagents table.
+  `warden`, `scout`). Claude Code-specific; see `CLAUDE.md`'s Specialist subagents table.
+  Unlike protocols/skills, these are **not** symlinked from `.agents/` — there is no
+  tool-agnostic analog, since subagents are a Claude Code-specific feature.
 
 Don't conflate them. A protocol doc or skill belongs in `.agents/`; a new specialist
 subagent's behavior definition belongs in `.claude/agents/`.
@@ -87,3 +89,40 @@ mkdir -p ".agents/skills/<name>"
 ln -s "../../.agents/skills/<name>" ".claude/skills/<name>"
 git add ".agents/skills/<name>" ".claude/skills/<name>"
 ```
+
+## Adding a new subagent
+
+Subagents are **not** symlinked (see the disambiguation above — there is no `.agents/`
+analog for them); create the definition directly at `.claude/agents/<name>.md` and add a
+row to `CLAUDE.md`'s Specialist subagents table in the same change.
+
+**Keep the frontmatter `description` well under ~700 characters** (the hard cap is likely
+1024, matching the documented skill-description limit, though this isn't independently
+confirmed for agents — shorter is safer either way). Put full operating detail in the
+agent's own body instead, which has no such constraint; the description is a routing
+signal for which agent to pick, not the spec for what it does.
+
+**Discovery is CWD-dependent — the step most likely to get missed.** Claude Code
+discovers project subagents by scanning from the current working directory upward. If a
+contributor's Claude Code session is rooted at this repo itself, a new
+`.claude/agents/<name>.md` file is found automatically (Claude Code's own file watcher
+picks up changes in an *existing* `agents` directory within seconds, no restart needed).
+But if a contributor runs Claude Code from a **parent directory that contains this repo
+alongside other projects** (a common multi-repo workspace layout), the scan never reaches
+this repo's `.claude/agents/` at all, and the new agent silently never appears in the
+`Agent` tool's available list — no error, and restarting the session does not fix it on
+its own. The fix in that layout is a symlink into the contributor's own **global** agents
+directory, `$HOME/.claude/agents/` — **never hardcode an absolute path like
+`/home/<user>/.claude/agents/`; every contributor's `$HOME` is different**:
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+mkdir -p "$HOME/.claude/agents"
+ln -s "$REPO_ROOT/.claude/agents/<name>.md" "$HOME/.claude/agents/<name>.md"
+```
+
+Only *after* that symlink exists does a session restart pick the new agent up. Restarting
+first, without the symlink, looks identical to a broken/unrecognized agent file and is
+easy to misdiagnose as a frontmatter or content problem — rule out this class of setup
+before assuming the new `.md` file itself is at fault. Verify with a one-line smoke-test
+`Agent` call before considering the addition done, not just a syntax check on the file.

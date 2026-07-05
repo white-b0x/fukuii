@@ -38,8 +38,20 @@ fixes noted in Tier 0). Sequenced by cost/confidence/risk.
    leanest, most directly adaptable templates. **Manual step**: enable "Private
    vulnerability reporting" in repo Settings → Security.
 2. **`.github/workflows/dependency-review.yml`** — stock `actions/dependency-review-action@v4`,
-   `fail-on-severity: high`. Keep clearly distinct from the existing `dependency-check.yml`
-   (version-currency scheduled diff, not a vulnerability scan) with a cross-comment in both.
+   `fail-on-severity: high`. **Prerequisite, easy to miss:** this action only diffs what's in
+   GitHub's Dependency Graph, and nothing populates that graph for sbt on its own — add
+   `scalacenter/sbt-dependency-submission` first (submits fukuii's actual resolved sbt
+   dependency graph via the Dependency Submission API) or `dependency-review.yml` will run
+   green while silently checking nothing. Also add `nMoncho/sbt-dependency-check` (maintained
+   fork of the OWASP Dependency-Check sbt plugin — the original `albuch/sbt-dependency-check`
+   is archived/unmaintained, don't reach for it) as a complementary CI job scanning directly
+   against the NVD CVE database; needs an NVD API key provisioned as a repo secret (same
+   "manual step" pattern as REPO-03's `CLAUDE_CODE_OAUTH_TOKEN`). Keep all of this clearly
+   distinct from the existing `dependency-check.yml` (version-currency scheduled diff, not a
+   vulnerability scan) with a cross-comment in both. Confirmed current as of 2026-07 — GitHub's
+   own Dependabot added native sbt *version-update* support in May 2026, but that's currency
+   monitoring, not CVE/security alerting; the submission-action path above is still required
+   for that.
 3. **Lightweight `.github/CODEOWNERS`** — root catch-all `* @realcodywburns @chris-mercer`
    (Cody Burns/Chippr Robotics LLC + Christopher Mercer/White B0x Inc — both real, active
    maintainers, confirmed via `git log`). Every surveyed client with an empty or

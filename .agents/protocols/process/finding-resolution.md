@@ -56,6 +56,23 @@ anything else the audit's output was meant to unblock.
 
 ---
 
+## Rule 0: Triage first — fast-track or normal disposition
+
+Before applying Rule 1's three dispositions, ask one question: does this finding meet the
+`QUEUE.md` "Critical & Security Fast-Track" section's bar? That bar is deliberately narrow —
+an actively exploitable/triggerable security issue (a real trigger path today, not a
+hypothetical future one), a live data-loss or consensus-correctness bug, or credential/key
+exposure with a real trigger path, not a latent one. See that section's own header for the
+full inclusion/exclusion text.
+
+If yes: add it there directly, skip the batch/defer machinery below entirely — no waiting for
+scout's research pass, no waiting for a batch's turn in the run order.
+
+If no (the common case — most findings, including most security-adjacent ones like a latent
+cleartext-logging risk with no current trigger): proceed to Rule 1's three dispositions as
+normal. Most findings are not fast-track-critical; don't inflate a routine hardening item into
+one just because it touches security-sensitive code.
+
 ## Rule 1: Every finding gets one of three dispositions — no fourth option
 
 1. **Absorbed into an existing scheduled IP.** The finding fits the scope of a prompt

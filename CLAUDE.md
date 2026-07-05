@@ -41,6 +41,8 @@ Tracked protocols that all agents reference are read at `.claude/agent-protocols
 | `dependency-currency.md` | Keeps prescriptive coding-pattern content (not just build pins) current for Scala 3 LTS / Pekko Typed — smell-list for Akka-Classic-era idioms bleeding into "current" docs, `currency:` header convention |
 | `git-conventions.md` | Force-push confirmation, merge-conflict escalation, branch-naming outside the worktree system (ported from Nethermind's `git.md`) |
 | `github-workflows.md` | Workflow naming/concurrency conventions, PR template, label automation — and why `.github/CODEOWNERS` is deliberately not present yet (single-maintainer repo) |
+| `pr-preflight-checklist.md` | What actually gates a PR (fork-PR differences included) and the local `pr-preflight.sh` composite check that confirms it before pushing, instead of discovering it via CI |
+| `batch-research-protocol.md` | Multi-pass research (main+test+it sweep, second broadened pass, precedent/cross-batch-overlap lookup, pre-flight health check) that must run before a QUEUE.md batch's kickoff prompt is trusted — run by the `scout` subagent |
 
 ## Reference index
 
@@ -48,10 +50,12 @@ Tracked protocols that all agents reference are read at `.claude/agent-protocols
 doesn't exist:
 
 - **`.claude/skills/`** (symlinks — canonical at **`.agents/skills/`**, per
-  `.agents/protocols/tooling/agent-skills.md`) — 22 `fukuii-*` operational skills (node lifecycle,
-  mining, TLS, peers, disk, logs, security hardening, checkpoint sync, custom networks, key
-  management, Engine API setup/debug, dependency audit, tech-debt inventory), 13
-  `speckit-*` skills backing the Spec Kit workflow below, plus `pekko-resource-audit`
+  `.agents/protocols/tooling/agent-skills.md`) — 24 `fukuii-*` skills: node-operation ones
+  (node lifecycle, mining, TLS, peers, disk, logs, security hardening, checkpoint sync,
+  custom networks, key management, Engine API setup/debug, dependency audit, tech-debt
+  inventory) plus sprint/meta-tooling ones (`fukuii-sprint-queue`, `fukuii-sprint-research`,
+  `fukuii-pr-preflight`), 13 `speckit-*` skills backing the Spec Kit workflow below, plus
+  `pekko-resource-audit`
   (uncancelled timers, missing `watchWith` cleanup, stream materialization leaks,
   dispatcher starvation — ported from Nethermind's `resource-leak-audit`). **Invoke a
   skill directly for node-operation tasks** (start/stop, config edits, log triage) rather
@@ -100,6 +104,7 @@ subagent for source-code analysis/modification; use a `.claude/skills/fukuii-*` 
 | `conduit` | JSON-RPC, HTTP, WebSocket, IPC, GraphQL: method compliance, codec, subscriptions (`jsonrpc/`) | On API / transport bugs |
 | `flow`    | Pekko Streams: Source/Sink/Flow graphs, materialization, backpressure, `preMaterialize` anti-patterns, stream test synchronization | On streaming graph bugs / silent element drops |
 | `warden`  | fukuii's own Claude Code tooling: `scripts/agent-tooling/`, agent-protocols, the looping subsystem, worktree lifecycle, Workflow-based sprint automation, permission/settings guidance | On-demand, for `.claude/` tooling work (not domain code) |
+| `scout`   | Pre-implementation research for `QUEUE.md` batches: multi-tree sweep, precedent/cross-batch-overlap lookup, pre-flight health check, drafts the kickoff prompt — read-only, no edits/implementation | **Before** trusting a batch's kickoff prompt (`batch-research-protocol.md`) |
 
 ### Consensus-Critical Change Protocol (mandatory)
 

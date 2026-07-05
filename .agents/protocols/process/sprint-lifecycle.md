@@ -6,7 +6,7 @@ protocol should point to instead of restating current sprint state inline.
 
 Used by: ALL agents. Referenced by: `CLAUDE.md`, `inline-cleanup.md`, `finding-resolution.md`,
 `dead-code-review.md`, `warning-ratchet.md`, `pre-migration-checklist.md`, `pekko-typed-api.md`,
-`logging-standards.md`, `consensus-change-protocol.md`.
+`logging-standards.md`, `consensus-change-protocol.md`, `batch-research-protocol.md`.
 
 ---
 
@@ -45,6 +45,12 @@ exactly; there is no fourth option.
 Not upfront for the whole queue. A batch further out than "next" gets a placeholder row, not a
 fully-written kickoff prompt — writing it early just means it goes stale before it's used.
 
+This rule says *when* to draft; `batch-research-protocol.md` says *how thoroughly* — run its
+multi-pass sweep (main+test+it, a second broadened pass, precedent/cross-batch-overlap lookup,
+a pre-flight health check) via the `scout` subagent before trusting the draft, not just a single
+pass over whatever research doc happens to exist. Batch 1's growth from ~9 prompts to 11 major
+items came directly from skipping this rigor the first time.
+
 ## Rule 3: Fresh context per implementation item
 
 Every item that will actually be executed must be self-contained: branch, baseline test count,
@@ -56,7 +62,9 @@ and the codebase, not a long planning history.
 
 Writing a good kickoff block is itself a skill — see Rule 4. A kickoff block that makes the
 implementing agent re-derive context the operator already has is exactly the "investigation
-stall" `sprints/patterns/PATTERNS.md` exists to eliminate.
+stall" `sprints/patterns/PATTERNS.md` exists to eliminate. `batch-research-protocol.md`'s output
+contract (rule (h)) is what actually produces this self-contained block — the research pass
+front-loads the context so the implementation thread doesn't have to re-derive it.
 
 ## Rule 4: Pattern capture is required at batch close, not optional
 

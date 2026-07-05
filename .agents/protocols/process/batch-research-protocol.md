@@ -1,0 +1,130 @@
+# Batch Research Protocol
+
+The multi-pass research methodology that must run **before** a `.claude/sprints/QUEUE.md`
+batch's kickoff prompt is trusted — whether it's being drafted for the first time (per
+`sprint-lifecycle.md` Rule 2) or being retroactively checked before its implementation starts.
+This is what gives Rule 2's "prompts are drafted at the start of the batch" actual teeth: a
+rule about *when* to draft is not a rule about *how thoroughly*, and this protocol is the *how*.
+
+Used by: the `scout` subagent (`.claude/agents/scout.md`), the `fukuii-sprint-research` skill.
+Referenced by: `sprint-lifecycle.md` (Rule 2/3), `finding-resolution.md` (the disposition every
+finding this protocol surfaces must get), CLAUDE.md's protocol table.
+
+---
+
+## Why this exists
+
+Batch 1 (opaque-type migration, July 2026) grew from ~9 originally-scoped prompts into ~25
+commits / 11 major items over several days. Reconstructed root causes, each mapped to a rule
+below:
+
+1. Research (`opaque-type-gap.md`) grepped `src/main` only — missed ~248 test-source leakage
+   sites, which became the single biggest unplanned item (IP-14, 105 files). → Rule (a).
+2. A single grep pass under/over-counted per type; only a second, differently-patterned "deep
+   detail" audit caught the real numbers — one pass was not sufficient evidence of
+   completeness. → Rule (b).
+3. Half-typed sibling fields in the same DTO (one field converted, the adjacent field left raw)
+   were invisible to textual grep — needed reading full file context, not just matched
+   lines. → Rule (c).
+4. A prior regression precedent ("convert the whole file-family in one commit, never
+   partially") wasn't known when a partial fix was originally scoped, forcing expensive
+   mid-sprint re-scoping. → Rule (d).
+5. An unrelated, pre-existing test-source compile baseline (~100 errors, nothing to do with the
+   sprint) went undiscovered until deep into the sprint, then blocked
+   `testOnly`/`testEssential` verification queue-wide. → Rule (e).
+
+A finding this protocol surfaces is an audit finding under `finding-resolution.md`, not an
+incidental find under `inline-cleanup.md` — the whole point of running it is to find issues, so
+every finding gets one of `finding-resolution.md`'s three dispositions immediately, in the same
+pass, never left as a bare "flagged, TBD."
+
+---
+
+## Rule (a): Multi-tree sweep, never main-source only
+
+Every discovery pass uses `scripts/agent-tooling/lib/site-sweep.sh --scope all` (the default —
+searches `src/main/`, `src/test/`, and `src/it/` concurrently), not a hand-rolled grep scoped to
+one tree. Narrowing to `--scope main` is a deliberate, stated choice for a batch that is
+genuinely main-source-only (e.g. a change to a file with no test-source callers at all) — not
+the default assumption.
+
+## Rule (b): A second, differently-patterned pass is required before trusting "clean"
+
+A single grep pass is not sufficient evidence of completeness. Run the sweep a second time with
+a broadened or differently-worded pattern set (synonyms, partial matches, adjacent field/method
+names) before declaring a type or pattern family "clean." If the two passes disagree, the
+second pass's (broader) count wins, and the disagreement itself is worth noting in the drafted
+prompt's CONTEXT — it's a signal the pattern family is more slippery than a single grep can
+capture.
+
+## Rule (c): Semantic sibling-field check
+
+For every match a sweep finds, read the surrounding ~10-20 lines of the actual file — not just
+the matched line — to check for half-typed adjacent fields or parameters in the same
+class/DTO/case class that the pattern didn't catch textually (e.g. one field already converted
+to an opaque type, the field next to it still raw). A mechanical grep only ever proves "this
+exact pattern exists here," not "this file is fully consistent."
+
+## Rule (d): Precedent and regression lookup
+
+Before finalizing scope, grep `.claude/sprints/log/INDEX.md` and the current
+`.claude/sprints/QUEUE.md`'s Chase & Deferred Items for any standing precedent that would
+expand a partial fix into a full-family fix (e.g. an "all files touching this wire format land
+in one commit" rule born from a past regression). If one applies, state it explicitly in the
+drafted prompt's CONTEXT — don't let a future implementer discover the constraint mid-batch the
+way it was discovered the first time.
+
+## Rule (e): Pre-flight baseline health check
+
+Before drafting, confirm the target area is currently healthy, independent of the planned
+change. For Scala/sbt-built code: a backgrounded `sbt-run.sh compile-all` (per
+`background-script-execution.md` — never foreground) plus a representative `testOnly` sample
+from the target file list. For non-Scala batches (docs, CI config, scripts): the equivalent
+health signal — does the current CI pass, does `mkdocs build --strict` succeed, does the
+script's own smoke test pass. If the baseline is already broken, that pre-existing breakage
+becomes its own finding (per `finding-resolution.md`) and gets called out explicitly in the new
+batch's CONTEXT, so implementers aren't confused later about whose failure it is.
+
+## Rule (f): Cascade / follow-up anticipation
+
+Before finalizing the drafted prompt, explicitly answer: "if this batch's change lands, what is
+the next-order effect?" — a shared test fixture used by specs outside this batch's file list, a
+consensus-adjacent file needing forge/beacon review, a wire-format/API field needing
+conduit/versioning review, a new script or skill other protocols should cross-reference. Every
+answer gets an immediate `finding-resolution.md` disposition (absorbed / new item / explicit
+deferred entry) — this question is not rhetorical, its answers are findings.
+
+## Rule (g): Cross-batch file-overlap check
+
+Check `QUEUE.md`'s OTHER open/blocked batch sections for file overlap with the batch being
+researched — not just historical precedent in `log/INDEX.md`. A cross-batch collision (two
+batches independently planning to touch the same file, or a `BLOCKED-ON-BATCH-X` dependency
+that's stated but not actually re-verified against the current file list) is exactly the class
+of surprise Rule (d) catches for *past* incidents; this rule catches it for *concurrently
+planned* work.
+
+## Rule (h): Output contract
+
+The research pass produces exactly two things:
+
+1. A drafted, house-style kickoff prompt (CONTEXT / KNOWN FILE LIST / INSTRUCTIONS /
+   CONSTRAINTS — matching the shape already used throughout `QUEUE.md`'s batches), with an
+   explicit coverage/confidence note: which scopes were swept, how many independent pattern
+   passes ran, and the resulting file/site count.
+2. Any out-of-scope findings pre-filled into `QUEUE.md`'s Findings Resolution Log and/or Chase &
+   Deferred Items, each with a disposition already chosen per `finding-resolution.md` — never a
+   bare "flagged, not otherwise scheduled."
+
+## Who runs this, and what it does not cover
+
+The `scout` subagent (`Read`, `Grep`, `Glob`, `Bash` — read-only, no `Edit`) runs this protocol
+end to end for a given batch/topic, dispatched via the `fukuii-sprint-research` skill. `scout`
+does not edit `QUEUE.md` itself — the calling session reviews its output (the skill shows an
+actual diff/preview) before applying the edit, the same handoff shape already used for `eye`'s
+and `prism`'s read-only review output.
+
+This protocol does **not** cover: implementation (that's the batch's assigned specialist —
+mithril, forge, beacon, warden, etc.), compile/test loops beyond the single pre-flight check in
+Rule (e) (routine compile/test cadence during implementation is `testing-protocol.md`'s
+territory), or QUEUE.md's own clear/archive mechanics (that's `sprint-lifecycle.md` Rule 5 and
+the `fukuii-sprint-queue` skill).
