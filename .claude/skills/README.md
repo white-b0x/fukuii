@@ -64,15 +64,21 @@ pairing; they do **not** apply to ETC/Mordor (PoW, no CL).
 | `fukuii-tech-debt-inventory` | Inventory technical debt: deprecated APIs, suppressed warnings, TODO/FIXME, scalafmt violations | Source scan + scapegoat report |
 | `pekko-resource-audit`       | Audit for uncancelled timers, missing `watchWith` cleanup, stream materialization leaks, dispatcher starvation (ported from Nethermind's `resource-leak-audit`) | `.agents/protocols/code-style/pekko-typed-api.md` |
 | `fukuii-pr-preflight`        | Pre-flight a branch against everything CI gates before opening/updating a PR against `chippr-robotics/fukuii`: scalafmt, compile, Tier 1 tests, conditional docs-build + doc-link check | `pr-preflight-checklist.md`, `pr-preflight.sh` |
+| `fukuii-implement-eip`       | Structured EIP (→`beacon`)/ECIP (→`forge`) implementation pipeline: spec-fetch → dependent-spec map → prior-work check → implement → mandatory forge/beacon consult → wraith → eye → wrap-up summary | `consensus-change-protocol.md`, `/media/dev/2tb/dev/ECIPs/_specs/` (ported from Erigon's `erigon-implement-eip`) |
+| `fukuii-build`               | Build fukuii — `sbt compile-all` (default) or `sbt assembly` (runnable JAR) via `sbt-run.sh`, backgrounded | `sbt-run.sh` (ported from Erigon's `erigon-build`) |
+| `fukuii-test-unit`           | Run the fast unit-test tier — `sbt testEssential` via `sbt-run.sh`, or `sbt "testOnly *Foo*"` directly for a single class | `sbt-run.sh` (ported from Erigon's `erigon-test-unit`) |
+| `fukuii-test-all`            | Run fuller local tiers (`testStandard`/`testComprehensive`) plus dispatch/monitor fukuii's real CI workflows via `gh workflow run`/`gh run watch` | `sbt-run.sh`, `.github/workflows/*.yml` (ported from Erigon's `erigon-test-all`/`erigon-ci`) |
+| `fukuii-network-ports`       | Canonical port-reference table (P2P 30303 TCP+UDP, RPC HTTP 8546, WS 8552, Engine API 8551, metrics 13798) other skills point to instead of re-deriving | `network.conf`, `metrics.conf` (ported from Erigon's `erigon-network-ports`) |
+| `fukuii-ephemeral`           | Launch a throwaway Fukuii instance in a `mktemp` datadir with port-conflict avoidance (+100/+200/+300 escalation) and leftover-instance detection | `fukuii-network-ports` (ported from Erigon's `erigon-ephemeral`; clone-datadir mode deferred) |
+| `fukuii-test-hive`           | Build a local Fukuii Docker image and run one or more `ethereum/hive` simulator suites against it — the local counterpart to fukuii's 13 CI `hive-*.yml` workflows | `hive/fukuii/`, `_hive-sim.yml`, `hive-run.sh` (design: `hive/fukuii-test-hive-skill-design.md`; ported from Erigon's `hive-test`/`erigon-test-hive`) |
 
 **Category note**: everything above this line groups as "operator/node-lifecycle"
 (node health, sync, peers, backup, disk, logs, mining, keys, TLS, checkpointing, config,
 first-start, security, custom networks, PoS/CL pairing). This "Build & dependency" section
 plus `pekko-resource-audit` group as "developer-workflow" (code/build/test-quality, not node
 operation) — see `docs/research/best-practices/evm-clients/repo-patterns/IMPLEMENTATION_PLAN.md`
-Tier 6 for the several new developer-workflow skills planned to land here (EIP/ECIP
-implementation, EF-test triage, build/test wrappers, benchmark diffing, Hive local
-invocation, an RLP round-trip property test). No physical directory reorganization was
+Tier 6 for further developer-workflow skills planned to land here (EF-test triage,
+benchmark diffing, an RLP round-trip property test). No physical directory reorganization was
 done for skills (Claude Code's support for nested skill discovery is unconfirmed —
 see `.agents/protocols/tooling/agent-skills.md`); this index is the categorization mechanism instead.
 
