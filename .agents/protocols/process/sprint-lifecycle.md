@@ -14,15 +14,52 @@ Used by: ALL agents. Referenced by: `CLAUDE.md`, `inline-cleanup.md`, `finding-r
 
 ```
 research (.local/docs/research-*/)
-  -> single queue (.claude/sprints/QUEUE.md), organized in batches/sections
-  -> fresh-context-per-item implementation (self-contained kickoff block, per item)
+  -> single queue (.claude/sprints/QUEUE.md), organized in Persistent Sections + Batches
+  -> fresh-context-per-item implementation (self-contained kickoff block, per Item/Thread)
   -> mid-implementation findings -> finding-resolution.md disposition
-     -> inserted into QUEUE.md at the correct batch/logical position (never appended blind)
-  -> batch fully closes -> REQUIRED close-out pass (see below)
-  -> sprint-clear.sh --apply moves the batch: QUEUE.md -> sprints/completed/<branch>-CLEARED.md
+     -> inserted into QUEUE.md at the correct position (never appended blind)
+  -> a Batch fully closes -> REQUIRED close-out pass (see below); a Persistent Section never
+     closes as a whole — only its individual Items do
+  -> sprint-clear.sh --apply moves a closed Batch: QUEUE.md -> sprints/completed/<branch>-CLEARED.md
   -> sprint-archive.sh --apply moves the completed doc -> sprints/archive/, gated on a
      sprints/log/ entry existing for it
 ```
+
+---
+
+## Document hierarchy (as of the 2026-07-05 restructuring)
+
+`QUEUE.md` has exactly two top-level containers, plus one always-first triage gate:
+
+- **`## Critical & Security Fast-Track`** — not part of either container below; checked first,
+  ahead of everything, for the narrow set of findings that meet its bar (see the section's own
+  header and `finding-resolution.md` Rule 0). Everything else goes through one of the two
+  containers.
+- **`## Persistent Sections`** — ongoing themes that never fully close: **REPO** (repo
+  hygiene/CI/agentic tooling), **Security** (non-urgent hardening backlog), **Parity**
+  (reference-client comparison — re-extended every time a reference client updates or a new
+  EIP/ECIP lands), **Modernization** (Scala/Pekko/dependency currency — will gain a whole new
+  wave of Items the next time a Scala/Pekko LTS ships), **Performance** (optimization backlog).
+  Each holds numbered **Items** (`REPO-NN`, `PP-NN`, `MOD-NN`, `OPT-NNN`, `SEC-NN`) in its own
+  table/list. An Item gets drafted into a full kickoff prompt (a **Thread** — see below) and
+  executed the same way a Batch is, but the Section itself stays open indefinitely.
+- **`## Batches`** — finite, numbered units of work (`### Batch N — <STATUS>`) that DO close
+  and archive via `sprint-clear.sh`/`sprint-archive.sh` once done. A Batch may be split into
+  **Groupings** (sub-batches, e.g. `2a`/`2b`/`2c`) when too large for one Thread.
+
+A **Thread** is the actual fresh-context kickoff-prompt unit — one Batch, one Grouping, or one
+Persistent-Section Item, self-contained enough to paste into a brand-new Claude Code session
+with no dependency on the planning thread's context (Rule 3 below).
+
+The broader, largely-implicit top level is a **Phase** — an entire sprint arc spanning
+potentially weeks (e.g. "the July sprint"), tracked at `sprints/log/INDEX.md`'s
+"Cross-Cutting Entries" level, not as a `QUEUE.md` heading; `QUEUE.md` only ever shows the
+*current* Phase's live work.
+
+**Why this separation matters mechanically, not just for readability:** `sprint-clear.sh` only
+ever operates between the `## Batches` header and the next `## ` header. A Persistent Section
+can never be mistaken for a closeable Batch, structurally, no matter what its own heading text
+says — see that script's own header comment for the incident (2026-07-05) that motivated this.
 
 ---
 

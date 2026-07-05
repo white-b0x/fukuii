@@ -19,6 +19,25 @@ fi
 echo "## Sprint Status"
 echo
 
+# --- Persistent Sections ---
+echo "### Persistent Sections"
+echo
+for section in REPO Security Parity Modernization Performance; do
+    ITEM_COUNT=$(awk -v s="### $section" '
+      $0 ~ "^"s"( |$)" { flag=1; past_sep=0; next }
+      /^### / { flag=0 }
+      /^## / { flag=0 }
+      flag && /^\|-+\|/ { past_sep=1; next }
+      flag && past_sep && /^\| / && !/_\(none yet/ { count++ }
+      END { print count + 0 }
+    ' "$QUEUE")
+    echo "- **$section**: $ITEM_COUNT item(s)"
+done
+echo
+echo "See \`QUEUE.md\`'s \`## Persistent Sections\` for detail — these never fully close, so"
+echo "there's no OPEN/CLOSED count the way Batches have."
+echo
+
 # --- Batches ---
 BATCH_LINES=$(grep -n '^### Batch ' "$QUEUE" || true)
 if [ -z "$BATCH_LINES" ]; then
