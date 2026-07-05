@@ -1,0 +1,186 @@
+# Claude Review — mention-triggered code review bot
+#
+# Scope (Tier 4 item 9 of docs/research/best-practices/evm-clients/repo-patterns/
+# IMPLEMENTATION_PLAN.md): a single, mention-only mode. There is no auto-review-on-PR-open
+# path (unlike Nethermind's claude-review.yml) and no "review" vs. "generic mention"
+# classification (also unlike Nethermind) — every `@claude ...` mention from a trusted
+# author runs the same routing-based review prompt below. This is deliberately the leaner
+# of the two reference shapes; item 10 (structured --json-schema verdict, commit-status
+# posting, branch-protection gate) is explicitly deferred — see the note above the
+# `claude_args` line.
+#
+# Trigger shape ported from Erigon's claude.yml (four event types, no `pull_request`
+# trigger). The security gate is ported from Nethermind's claude-review.yml, NOT Erigon's:
+# Erigon's current claude.yml (re-confirmed 2026-07-05) has a bare
+# `contains(..., '@claude')` substring check with NO author_association allow-list and NO
+# same-repo-PR restriction — every mention path below is gated on the exact three-value
+# `author_association` allow-list Nethermind uses (MEMBER/COLLABORATOR/OWNER), because
+# `issue_comment` and related events run in the base-repo context with full secret access
+# even for comments left on a fork's PR. Without this gate, an external contributor could
+# trigger a Claude run (burning the OAuth token / API budget) by commenting `@claude ...`
+# on their own fork PR.
+name: Claude Review
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude:
+    # Exact three-value allow-list, ported verbatim from Nethermind's claude-review.yml —
+    # do not add CONTRIBUTOR or any other association value. This is the single most
+    # security-critical line in this file: fukuii's fork-based contribution model makes a
+    # misconfigured or missing gate here a live risk (external comment triggers a run with
+    # secret access), not a hypothetical one.
+    if: |
+      (github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        contains(fromJSON('["MEMBER","COLLABORATOR","OWNER"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        contains(fromJSON('["MEMBER","COLLABORATOR","OWNER"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' &&
+        contains(github.event.review.body, '@claude') &&
+        contains(fromJSON('["MEMBER","COLLABORATOR","OWNER"]'), github.event.review.author_association)) ||
+      (github.event_name == 'issues' &&
+        (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
+        contains(fromJSON('["MEMBER","COLLABORATOR","OWNER"]'), github.event.issue.author_association))
+    runs-on: ubuntu-latest
+    env:
+      RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    permissions:
+      # Review-only posture, ported from Nethermind's tool-restraint shape, NOT Erigon's:
+      # Erigon's claude.yml grants `contents: write` so a mentioned Claude can push commits.
+      # This workflow deliberately does NOT — no `contents: write` anywhere below, and no
+      # `Edit`/`Write` in --allowedTools further down. Claude reads code and posts comments
+      # via `gh`; it never modifies the repository.
+      pull-requests: write # Post review findings via `gh pr comment`
+      issues: write # Post review findings via `gh issue comment` (issues: opened trigger)
+      id-token: write # Required by anthropics/claude-code-action for OIDC auth
+      actions: read # Required for Claude to read CI results on PRs
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # NOTE for the next person who edits this prompt: the routing checklist below is a
+      # condensed, inlined paraphrase of four files that are the actual source of truth —
+      # .claude/agent-protocols/consensus-change-protocol.md, .claude/agents/prism.md,
+      # .claude/agents/herald.md, .claude/agents/vault.md. This prompt WILL silently drift
+      # from those files as they evolve; when any of the four changes in a way that affects
+      # its routing table or lens list, mirror the update here too. The checklist is inlined
+      # rather than delegated to "invoke the prism subagent" because this workflow runs
+      # headless via claude-code-action@v1, where Claude Code's own named-subagent
+      # delegation has not yet been piloted in this repo (see below) — the prompt must work
+      # standalone whether or not subagent delegation resolves correctly in that context.
+      - name: Run Claude Code (mention review)
+        timeout-minutes: 20
+        id: claude_review
+        uses: anthropics/claude-code-action@v1
+        with:
+          # Manual step, operator-only: this secret must be provisioned on
+          # chippr-robotics/fukuii specifically (NOT the white-b0x/fukuii origin fork, which
+          # has zero secrets configured). Confirmed absent as of 2026-07-05 (5 secrets
+          # present on the canonical repo, none of them this one). Until it is provisioned,
+          # every trigger path in this workflow is inert and fails at this step — this is
+          # the same class of expected-red state as REPO-01's NVD_API_KEY, not a bug.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR/ISSUE NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+
+            A trusted maintainer mentioned @claude on this PR/issue. List the files changed
+            in this PR (`gh pr diff --name-only` if this is a PR; skip this step for a plain
+            issue) and classify each by path family:
+
+            CONSENSUS-CRITICAL paths (per consensus-change-protocol.md's routing table):
+            - `consensus/pow/`, `consensus/validators/pow/`, Ethash/ECIP fork logic,
+              `forBlock()`, `OlympiaOpCodes` → FORGE (PoW/ETC) scope
+            - `consensus/engine/`, PoS/timestamp fork dispatch, `forTimestamp()`,
+              `OsakaOpCodes`, withdrawals, blob transactions → BEACON (PoS/ETH) scope
+            - `consensus/validators/std/`, `vm/`, `crypto/`, `domain/`,
+              `network/p2p/messages/` (RLP wire encoding), `db/storage/` → FORGE + BEACON
+              joint scope
+            For any consensus-critical file: check the PR thread for forge/beacon review
+            evidence (a specialist subagent's findings quoted or referenced in a prior
+            comment). If absent, post a **blocking** finding: "Consensus-critical file
+            <path> has no visible forge/beacon review in this thread — required before
+            merge per consensus-change-protocol.md." Also flag, per that protocol's
+            mid-implementation-scope-escalation note, any consensus-critical file touched
+            that falls OUTSIDE the PR's own stated scope/description — that is a new,
+            separate consensus-critical edit requiring its own review, even if the rest of
+            the PR is gate-free.
+
+            `network/rlpx/`, `network/p2p/` (non-message-encoding), devp2p, ForkId, SNAP,
+            DNS discovery, ENR → apply HERALD's concerns: untrusted peer data validated
+            before use, Snappy decompressed before inspection (never a "looks like RLP"
+            heuristic before decompressing), requestId wrapper present on ETH68/69/70
+            messages, no new Classic (`extends Actor`) code in `network/`/`blockchain/sync/`.
+
+            `db/` (RocksDB/storage layer) → apply VAULT's concerns: iterators closed in
+            `finally`, batches atomic (no partial flush), `EphemDataSource` never
+            instantiated in production paths, batch write order preserves parent-before-
+            child for trie nodes.
+
+            Everything else (non-consensus: sync, metrics, RPC, networking transport,
+            config, build tooling, tests, new utilities) → apply PRISM's 8 lenses:
+            1. code-functionality — edge cases, error propagation, partially-constructed
+               state visible across threads/fibers
+            2. test — one property per test, deterministic (no Thread.sleep/random seeds),
+               new behavior has matching coverage
+            3. readability — precise naming, comments explain why not what, no 40+ line
+               methods, no dense unexplained boolean conditions
+            4. code-structure — mixed responsibilities, unnecessary public surface,
+               duplicated logic, new Classic actor code in network/ or blockchain/sync/
+               (critical — those paths are mid-migration to Pekko Typed)
+            5. simplicity — speculative generality, single-caller abstractions, unguarded
+               impossible-state handling
+            6. performance — hidden O(n²), DB/RPC calls inside loops, unbounded actor/fiber
+               fan-out, Future/IO chains missing explicit ExecutionContext
+            7. security — untrusted P2P/RPC/config input validated before use, no secrets
+               logged, bounded deserialization depth/size, no unauthenticated admin-only
+               JSON-RPC methods
+            8. scala-fp — opaque types over raw String/Long, boolean-blindness, exceptions
+               from pure functions instead of Either/Option, implicit global state instead
+               of given/using
+
+            Categorize each finding by severity — critical (bug/security/perf regression),
+            warning (maintenance burden or subtle future defect), info (style/naming only)
+            — matching prism.md's severity guide.
+
+            Post a single top-level summary comment with `gh pr comment` (or
+            `gh issue comment` for a plain issue) listing findings grouped by lens/path
+            family and severity. Do not edit any source file.
+          claude_args: |
+            --model sonnet
+            --allowedTools "Bash(gh:*),WebFetch"
+          # Model note: `sonnet` is a deliberate, cost-conscious deviation from BOTH
+          # Nethermind's and Erigon's reference workflows, which pin `--model opus` on
+          # every path. Revisit only if review quality on real PRs proves insufficient.
+          #
+          # Tool note: no MCP inline-comment tool (Nethermind's mention path also omits
+          # it — only its structured review path uses
+          # mcp__github_inline_comment__create_inline_comment). Whether that MCP mechanism
+          # even works from this headless action context has not been piloted — see the
+          # DEFERRED note below — so this workflow sticks to the tool set confirmed to work
+          # in both reference implementations' mention paths: `gh` CLI and WebFetch. No
+          # `Edit`/`Write` — see the permissions block above for why.
+
+      # DEFERRED (do not attempt): the original plan called for piloting subagent
+      # delegation with one real @claude comment on a throwaway PR before finalizing this
+      # prompt's wording. That pilot cannot happen yet — CLAUDE_CODE_OAUTH_TOKEN is not
+      # provisioned, so any live trigger of this workflow fails at the step above with no
+      # useful signal. This is expected, not an incomplete task. Once the secret is
+      # provisioned, run one real mention on a throwaway PR to confirm the prompt's routing
+      # logic actually produces the intended findings before relying on this bot for real
+      # review coverage.
+      #
+      # ALSO DEFERRED (Tier 4 item 10, out of scope for this file): Nethermind's fuller
+      # auto-review + --json-schema structured `mergeable` verdict + `claude-review/reviewed`
+      # commit-status + branch-protection-gate shape. Revisit once REPO-01's CODEOWNERS is
+      # in active use with a real second reviewer — not before.
