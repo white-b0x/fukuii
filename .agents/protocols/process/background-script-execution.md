@@ -114,6 +114,36 @@ runner.
 
 ---
 
+## Cleanup — verify teardown, don't just trust it happened
+
+Starting a long-lived resource (a Docker container, a JVM node process, a Hive simulator run,
+an ephemeral datadir + P2P/RPC listener) creates an obligation to tear it down — this is a
+separate discipline from backgrounding the *command that starts it*, and just as load-bearing.
+An orphaned container or stalled JVM process is exactly the kind of resource drain
+`resource-management.md`'s "one heavy task at a time" budget assumes doesn't exist.
+
+**Rules:**
+
+1. **Every wrapper script that starts a long-lived resource must tear it down itself**, on
+   every exit path — success, failure, or interrupt (`trap ... EXIT` in bash, not just a
+   happy-path cleanup step that a mid-script failure skips). `hive-run.sh`'s clone → build →
+   run-simulator(s) → tabulate → **cleanup** sequence and `fukuii-ephemeral`'s teardown are the
+   two concrete instances of this today — cleanup is part of the script's own contract, not an
+   operator afterthought.
+2. **Don't assume a script's own cleanup step ran correctly — verify it.** After a background
+   task that started a container/process/listener completes, check for real: `docker ps`
+   (no orphaned containers matching this run), `ps aux | grep <process>` (no stalled JVM/hive
+   process still resident), `lsof -i :<port>` (the port is actually free again). This is a
+   cheap, fast check — do it before reporting the task done, not only when something looks
+   wrong.
+3. **`fukuii-ephemeral`'s "leftover detection" step is a safety net, not the primary
+   mechanism** — it exists to catch a PRIOR run's abandoned instance, not to excuse the
+   CURRENT run from cleaning up after itself. Don't rely on the next invocation's leftover
+   scan to eventually clean up what this invocation should have torn down directly.
+4. **This applies to agent-invoked test/build tooling generally**, not just Hive — any
+   ephemeral node, container, or background process an agent starts as part of a task is that
+   agent's responsibility to stop, not something to leave running "in case it's needed again."
+
 ## Anti-pattern table
 
 | Don't | Do instead |
@@ -124,6 +154,8 @@ runner.
 | Poll the log file or task status on a timer "just to check progress" | Wait for the completion notification; read the log once, on notification |
 | Build one generic "run anything in the background" framework | One script per real heavy command family, in the same shape as `sbt-run.sh` |
 | Script a command "just in case" when it already finishes in seconds with small output | Evaluate it, and if it doesn't qualify, say so explicitly instead of silently adding indirection |
+| Start a container/process/ephemeral node and assume the script's own cleanup step handled it | Verify teardown for real (`docker ps`, `ps aux`, `lsof -i`) before reporting the task done |
+| Rely on the NEXT run's leftover-detection scan to eventually clean up THIS run's resources | Every wrapper tears down what it started, on every exit path (success/failure/interrupt) |
 
 ---
 

@@ -35,7 +35,7 @@ Tracked protocols that all agents reference are read at `.claude/agent-protocols
 | `dead-code-review.md` | Three verdicts before any deletion: Wire it / Delete it / Defer — assess gap, git history, and supersession before `git rm` |
 | `worktree-protocol.md` | Sprint vs task worktree patterns, naming (`wt/<id>`), lifecycle, bin scripts, agent rules for worktree context |
 | `sprint-lifecycle.md` | The permanent queue/log/pattern pipeline for sprint work: research → single queue → fresh-context implementation → close-out (log + pattern capture) → clear → archive |
-| `background-script-execution.md` | Long/noisy/freeze-prone commands get a log-to-file wrapper script + `run_in_background: true`, never direct foreground execution or human relay |
+| `background-script-execution.md` | Long/noisy/freeze-prone commands get a log-to-file wrapper script + `run_in_background: true`, never direct foreground execution or human relay; any long-lived resource it starts (container, JVM process, ephemeral node) must be torn down and that teardown verified, not assumed |
 | `alert-wrapper-protocol.md` | STOP-AND-ALERT supervision: `watchWith` + structured alarm for actors where restart causes state corruption, instead of restart supervision |
 | `loop-handoff.md` | Maker→checker handoff contract for the looping subsystem's EXECUTE→VERIFY transition |
 | `dependency-currency.md` | Keeps prescriptive coding-pattern content (not just build pins) current for Scala 3 LTS / Pekko Typed — smell-list for Akka-Classic-era idioms bleeding into "current" docs, `currency:` header convention |
