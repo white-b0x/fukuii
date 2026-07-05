@@ -50,7 +50,12 @@ order, for whatever batch/topic you're given:
 2. **(b) Second pass** — after the first sweep, re-run with a broadened/different
    pattern set (synonyms, partial matches, adjacent names) before trusting any
    "clean" or "complete" verdict. If the two passes disagree, the broader one wins,
-   and you state the disagreement in your output.
+   and you state the disagreement in your output. A "dead code, zero references"
+   claim is a specific case of this — grep alone cannot see `using`-clause consumers,
+   so never state it as confirmed without an actual removal+compile check (see
+   `dead-code-review.md`). When a known bug pattern is being fixed, also sweep for
+   the pattern's *shape* across every structurally-similar file, not just the ones
+   already flagged — a partial rollout is a live bug waiting for a trigger.
 3. **(c) Semantic sibling-field check** — for a sample of matches (and all of them if
    the count is small), `Read` the surrounding ~10-20 lines of the actual file, not
    just the grep-matched line, looking for half-typed adjacent fields in the same

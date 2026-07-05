@@ -253,6 +253,66 @@ Ratchet: none yet — enforce via PRISM review and MITHRIL sweep after LOOM CAPS
 
 ---
 
+### S12 — Opaque-type `given` typeclass instances must pin their delegate explicitly
+
+**Status: fully enforced as of 2026-07-05** — confirmed via `given Ordering\[` sweep, all 12
+domain BigInt/Long-backed opaque types (`GasAmount`, `Wei`, `GasPrice`, `BaseFeePerGas`,
+`TotalDifficulty`, `ChainId`, `BlockNumber`, `Difficulty`, `Nonce`, `PriorityFeePerGas`,
+`Timestamp`, `MaxFeePerGas`) now use the pinned form. No other typeclass instance of this
+shape (`given Numeric[X]`/`Fractional[X]`/`Integral[X]`) currently exists in the codebase.
+Ratchet check below prevents regression on any future opaque type.
+
+**The footgun:** inside an opaque type's own companion object, the opaque type is transparently
+equal to its underlying representation (`ChainId =:= BigInt` inside `ChainId.scala`). A bare
+`given Ordering[ChainId] = Ordering.by(_.value)` lets the compiler's implicit search for
+`Ordering[BigInt]` resolve back to the `given Ordering[ChainId]` being defined — a
+self-referential lazy-val initialization that deadlocks the JVM the moment anything actually
+summons it (not at compile time; not even at the first few uses if nothing forces the lazy val
+early — it can sit latent for a long time before something triggers it).
+
+**Found by:** Batch 1.5 (2026-07-05) — writing a regression test that exercised all 12
+instances hung the JVM on `ChainId`; `ChainId` and `Timestamp` had the bare form while the
+other 10 had already been fixed to the pinned form during Batch 1's opaque-type migration.
+Neither the migration itself nor any review pass had swept for every instance of the pattern —
+only the specific types a straggler audit happened to touch got the fix.
+
+**Bare (dangerous):**
+```scala
+opaque type ChainId = BigInt
+object ChainId:
+  given Ordering[ChainId] = Ordering.by(_.value)  // ❌ can self-reference, deadlocks on use
+```
+
+**Pinned (correct):**
+```scala
+opaque type ChainId = BigInt
+object ChainId:
+  given Ordering[ChainId] = Ordering.by[ChainId, BigInt](_.value)(using scala.math.Ordering.BigInt)
+```
+
+**Greps:**
+```bash
+# Find any bare (unpinned) given Ordering on an opaque type — should return nothing
+grep -rn "given Ordering\[.*\] = Ordering\.by(_\." src/main/scala/ --include="*.scala"
+
+# Same check for Numeric/Fractional/Integral, in case a future opaque type adds one
+grep -rn "given \(Numeric\|Fractional\|Integral\)\[.*\] = .*\.by(_\." src/main/scala/ --include="*.scala"
+```
+
+Ratchet: the first grep above should always return zero matches — wire it into
+`scala3-style-check.sh` and run it any time a new opaque type gains a comparison typeclass
+instance, not just during a dedicated audit.
+
+**Consensus-critical note:** several of the 12 affected types (`ChainId`, `TotalDifficulty`,
+`BlockNumber`, `Timestamp`) live in `domain/`, which is FORGE+BEACON joint scope per
+`consensus-change-protocol.md` — even though this specific fix is behavior-preserving (same
+comparison result, only initialization-safety changes), any future application of this pattern
+to a `domain/`-scoped type still requires the consensus-change-protocol.md hard-stop, same as
+any other `domain/` edit. See that protocol's own note (added 2026-07-05) on what to do when a
+gate-worthy path is discovered mid-implementation of an otherwise gate-free batch.
+
+---
+
 ## Consensus-critical exception
 
 Standards S3–S11 do NOT apply to `consensus/`, `vm/`, `crypto/`, `domain/` without

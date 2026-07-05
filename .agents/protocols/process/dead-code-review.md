@@ -21,6 +21,29 @@ Referenced by: inline-cleanup.md, sprint-lifecycle.md, .claude/sprints/QUEUE.md
 
 ---
 
+## A grep-based "zero callers" claim is preliminary, not confirmed
+
+`grep -rn "ClassName\|methodName"` returning nothing is evidence, not proof. It cannot see a
+symbol consumed only through an invisible `using` clause (a `given` instance summoned by the
+compiler's implicit search, not referenced by name anywhere) — the exact case a textual search
+is structurally unable to detect. Treat a "confirmed dead code, zero references" verdict
+written during a review/audit pass (not during the actual deletion) as unverified until
+someone has actually attempted the removal and run `compile-all` — if you're the one writing
+the finding and haven't done that, say "grep shows zero references — verify by removal+compile
+before treating as confirmed dead," not "confirmed dead."
+
+**Incident:** during Batch 1.5 (2026-07-05), prism's BATCH-1-CLOSE review stated
+`jsonrpc/TransactionResponse.scala`'s module-level `given blockchainConfig` was "dead code
+(zero references anywhere)" based on a grep pass. That verdict was carried forward unquestioned
+into the batch's drafted kickoff prompt (an instruction to delete it). `mithril`, actually
+implementing the deletion, hit a real compile failure — `SignedTransaction.getSender` consumed
+the `given` via an invisible `using BlockchainConfig` parameter — and restored it instead of
+shipping a broken build. The grep was accurate (no textual reference existed); the *conclusion*
+drawn from it was wrong. See `.claude/agent-protocols/batch-research-protocol.md` rule (b) for
+the corresponding research-time discipline this feeds into.
+
+---
+
 ## The three verdicts
 
 ### WIRE — code that should be connected, not deleted

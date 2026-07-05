@@ -60,6 +60,22 @@ Referenced by: `fukuii/CLAUDE.md`, loom.md, wraith.md, mithril.md
 - Adding a log line in `network/p2p/messages/` → HERALD review
 - "It's just a cleanup" is not an exception
 
+**A batch's own `Gate: none` status does not extend to a file discovered mid-implementation
+that wasn't in its original scope.** If, while implementing a gate-free batch, you find you
+need to fix something in a path from the list above that the batch's KNOWN FILE LIST never
+named, that discovery is a new, separate consensus-critical edit — stop and apply the hard-stop
+rule to it specifically, even though the rest of the batch never needed a gate. Don't let the
+batch's overall gate-free framing carry over to scope it never covered.
+
+**Incident:** Batch 1.5 (2026-07-05, `Gate: none`, non-consensus cleanup) had mithril write a
+requested regression test that hung the JVM, exposing a real deadlock in `domain/ChainId.scala`
+and `domain/Timestamp.scala` — both `domain/`, both FORGE+BEACON joint scope. The fix was
+applied immediately, in the same session, without pausing for this protocol's gate — reasonable
+in the moment (the fix looked obviously behavior-preserving, matching an already-established
+pattern in 10 sibling files) but exactly the situation this protocol exists to catch regardless
+of how confident anyone is. FORGE and BEACON reviewed retroactively before commit and confirmed
+no issue, but the review should have happened before the fix, not after.
+
 ---
 
 ## Routing table

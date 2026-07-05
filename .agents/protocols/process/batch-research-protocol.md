@@ -57,6 +57,26 @@ second pass's (broader) count wins, and the disagreement itself is worth noting 
 prompt's CONTEXT — it's a signal the pattern family is more slippery than a single grep can
 capture.
 
+**A "dead code, zero references" claim is a specific case of this rule, and grep alone cannot
+close it.** A symbol consumed only through an invisible `using` clause has zero textual
+references and is not dead — see `dead-code-review.md`'s own incident writeup (Batch 1.5,
+2026-07-05: a grep-confirmed "dead" `given` turned out to be required via an invisible `using
+BlockchainConfig` parameter, only caught when the implementing agent actually attempted the
+deletion and hit a compile error). When a KNOWN FILE LIST entry states something is dead code,
+either the research pass has already attempted removal + compile itself, or the entry is
+phrased as "grep shows zero references — verify by removal+compile" rather than "confirmed
+dead" — never state the stronger claim on grep evidence alone.
+
+**When fixing a known bug pattern across a set of known-affected files, also sweep for the same
+pattern shape across every structurally-similar file in the codebase, not just the ones already
+flagged.** A partial rollout of a fix is a live bug waiting for an unlucky trigger — Batch 1.5
+found `ChainId.scala`/`Timestamp.scala` still had a self-referential `given Ordering[X]`
+deadlock that 10 sibling opaque BigInt/Long-backed types had already been fixed for during
+Batch 1's migration; nothing had swept for every instance of the *pattern*, only the specific
+types a straggler audit happened to touch. See `scala3-style.md` S12 for the resulting
+grep-verifiable ratchet — run it (or its equivalent for whatever pattern is in play) as part of
+this rule's "second pass," not just a narrower re-check of the original known sites.
+
 ## Rule (c): Semantic sibling-field check
 
 For every match a sweep finds, read the surrounding ~10-20 lines of the actual file — not just

@@ -35,7 +35,7 @@ report() {
     fi
 }
 
-echo "### Scala 3 Style Ratchet Check (S1-S9) — scala3-style.md"
+echo "### Scala 3 Style Ratchet Check (S1-S9, S12) — scala3-style.md"
 echo
 
 S1=$(grep -rn "\breturn\b" src/main/ --include="*.scala" | grep -v "//\|\"" | wc -l | tr -d ' ')
@@ -65,6 +65,9 @@ report S8 "isInstanceOf outside consensus/vm" 0 "$S8"
 
 S9=$(grep -rn "println\|System\.out\|System\.err" src/main/ --include="*.scala" | grep -v "//\|Benchmark" | wc -l | tr -d ' ')
 report S9 "println/System.out/System.err in main" 0 "$S9"
+
+S12=$(grep -rEn "given (Ordering|Numeric|Fractional|Integral)\[.*\] = .*\.by\(_\." src/main/ --include="*.scala" | wc -l | tr -d ' ')
+report S12 "bare/unpinned opaque-type given (self-ref deadlock risk)" 0 "$S12"
 
 echo
 echo "S10 (braceless syntax) has no fixed-target grep — policy for new code only."
