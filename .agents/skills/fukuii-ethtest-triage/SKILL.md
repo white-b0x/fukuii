@@ -5,8 +5,10 @@ description: >-
   src/it/scala/com/chipprbots/ethereum/ethtest/ — run the single vector, on failure
   re-execute the target transaction with a StructLogTracer for a real per-opcode trace,
   classify the failure against fukuii's ProgramError hierarchy, then follow a root-cause
-  runbook retargeted at fukuii's PoW (OlympiaOpCodes/forBlock()) vs PoS
-  (OsakaOpCodes/forTimestamp()) fork dispatch. Use when an ethtest vector fails, a new
+  runbook retargeted at fukuii's PoW (block-number dispatch via `EvmConfig.forBlock`) vs
+  PoS (timestamp-overload dispatch, same method) fork split — see `PARITY-02`
+  (`.claude/sprints/QUEUE.md`) before assuming which opcode-list object belongs to which
+  network. Use when an ethtest vector fails, a new
   fork's vectors need debugging, or asked to "triage this ethtest failure" / "trace this
   ethereum/tests vector". Read-only diagnosis (IT-scope re-execution only, no src/main
   changes, no consensus semantics altered); fixing the root cause is a separate step
@@ -131,12 +133,17 @@ improvement, not something already delivered.
   vectors are added. Identify the opcode from `op`/`pc` in the trace. Fork/opcode-set
   dispatch is **split by consensus family** in this codebase — do not check the wrong
   side:
-  - **PoW (ETC/Mordor)**: `OlympiaOpCodes` / block-number dispatch via `forBlock()`
-    (`src/main/scala/com/chipprbots/ethereum/vm/OpCode.scala`,
-    `src/main/scala/com/chipprbots/ethereum/vm/EvmConfig.scala`).
-  - **PoS (ETH/Sepolia)**: `OsakaOpCodes` / timestamp dispatch via `forTimestamp()`
-    (same two files). **Never use `forBlock()` dispatch to reason about a PoS
-    fork-gated opcode** — it is timestamp-gated, not block-number-gated.
+  - **PoW (ETC/Mordor)**: block-number dispatch via `EvmConfig.forBlock(blockNumber,
+    blockchainConfig)`, using `EtcOlympiaOpCodes` (`vm/OpCode.scala`, `vm/EvmConfig.scala`)
+    — **not** the unprefixed `OlympiaOpCodes`, which ETH's path below actually uses despite
+    the ETC-sounding name (see `PARITY-02`, `.claude/sprints/QUEUE.md`).
+  - **PoS (ETH/Sepolia)**: timestamp dispatch via the overloaded
+    `EvmConfig.forBlock(blockNumber, timestamp, blockchainConfig)` (same method, not a
+    separate `forTimestamp()`), using the unprefixed `OlympiaOpCodes` from Cancun onward,
+    and `OsakaOpCodes` from Osaka onward — currently a bare alias to `OlympiaOpCodes`, not
+    an independent definition (same two files). **Never use the single-arg `forBlock()`
+    overload to reason about a PoS fork-gated opcode** — it is timestamp-gated, not
+    block-number-gated.
   - Check the opcode is registered in the right op-code set for the vector's `network`
     field (`TestConverter.networkToConfig` maps the vector's fork name to
     `forkBlockNumbers`/`forkTimestamps` — confirm it actually activates the opcode you

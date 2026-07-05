@@ -32,8 +32,17 @@ Agharta → Phoenix → Thanos (ECIP-1099) → Magneto → Mystique → **Olympi
 **ETH/Sepolia has**: PoS consensus, timestamp fork dispatch, EIP-1559 base-fee
 burned, validator withdrawals, blob transactions (EIP-4844), Osaka fork.
 
-**Do not mix these code paths.** ETC fork config uses `OlympiaOpCodes` /
-`forBlock()`; ETH fork config uses `OsakaOpCodes` / `forTimestamp()`.
+**Do not mix these code paths.** ETC's block-number fork dispatch is
+`EvmConfig.forBlock(blockNumber, blockchainConfig)`; ETH's timestamp-based fork
+overlay is the same method's overload, `EvmConfig.forBlock(blockNumber,
+timestamp, blockchainConfig)` — there is no separate `forTimestamp()` method.
+**Fork-named opcode/fee-schedule objects in `vm/OpCode.scala`/`vm/EvmConfig.scala`
+are not reliably named after the network that actually uses them** —
+`EtcOlympiaOpCodes` is ETC's real Olympia list, while the unprefixed
+`OlympiaOpCodes` is what ETH's Cancun/Osaka path actually uses (`OsakaOpCodes`
+is currently a bare alias to it, not an independent definition). Never assume a
+name's network from its label alone — see `PARITY-02`
+(`.claude/sprints/QUEUE.md`) before touching any of these objects.
 
 ## Build & test commands
 
