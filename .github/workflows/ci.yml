@@ -45,6 +45,22 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: BSL guard — zero Akka imports (report-only, burn-in)
+        # Ported from .agents/skills/fukuii-dependency-audit/SKILL.md step 4. Any
+        # com.typesafe.akka or com.lightbend:akka* dependency is a CRITICAL BSL 1.1
+        # violation — incompatible with Fukuii's Apache 2.0 license. Grep is clean across
+        # all of src/ as of this writing; this step stays report-only
+        # (`continue-on-error: true`) for its first burn-in period, same discipline as
+        # REPO-01's new scanners, so a future false positive in the grep itself doesn't
+        # block merges before it's been proven reliable. Promote to a hard-failing step
+        # (drop continue-on-error) once burn-in confirms no false positives.
+        run: |
+          echo "=== Akka import scan (src/) ==="
+          grep -rn "import akka\." src/ --include="*.scala" && echo "::warning::Akka import found — BSL 1.1 risk, see fukuii-dependency-audit skill" || echo "✓ Zero Akka imports — BSL-clean"
+          echo "=== Akka dependency scan (project/Dependencies.scala) ==="
+          grep '"com.typesafe.akka"\|"com.lightbend".*akka' project/Dependencies.scala && echo "::warning::Akka dependency found in Dependencies.scala — BSL 1.1 risk" || echo "✓ No Akka deps in Dependencies.scala"
+        continue-on-error: true
+
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:

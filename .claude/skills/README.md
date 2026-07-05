@@ -71,6 +71,7 @@ pairing; they do **not** apply to ETC/Mordor (PoW, no CL).
 | `fukuii-network-ports`       | Canonical port-reference table (P2P 30303 TCP+UDP, RPC HTTP 8546, WS 8552, Engine API 8551, metrics 13798) other skills point to instead of re-deriving | `network.conf`, `metrics.conf` (ported from Erigon's `erigon-network-ports`) |
 | `fukuii-ephemeral`           | Launch a throwaway Fukuii instance in a `mktemp` datadir with port-conflict avoidance (+100/+200/+300 escalation) and leftover-instance detection | `fukuii-network-ports` (ported from Erigon's `erigon-ephemeral`; clone-datadir mode deferred) |
 | `fukuii-test-hive`           | Build a local Fukuii Docker image and run one or more `ethereum/hive` simulator suites against it — the local counterpart to fukuii's 13 CI `hive-*.yml` workflows | `hive/fukuii/`, `_hive-sim.yml`, `hive-run.sh` (design: `hive/fukuii-test-hive-skill-design.md`; ported from Erigon's `hive-test`/`erigon-test-hive`) |
+| `fukuii-benchmark-diff`      | Run the local `benchmark:testOnly` suites (MPT, RLP), extract timing lines via regex, store a baseline, diff two sequential runs as a before/after delta table | `build.sbt`'s `Benchmark` config, `bench-mpt.yml`/`bench-rlp.yml` (local-only subset ported from Nethermind's `gas-benchmark`) |
 
 **Category note**: everything above this line groups as "operator/node-lifecycle"
 (node health, sync, peers, backup, disk, logs, mining, keys, TLS, checkpointing, config,
