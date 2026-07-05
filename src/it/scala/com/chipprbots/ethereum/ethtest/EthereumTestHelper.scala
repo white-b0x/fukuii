@@ -17,6 +17,8 @@ import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
 import com.chipprbots.ethereum.txExecTest.ScenarioSetup
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config
+import com.chipprbots.ethereum.vm.StructLog
+import com.chipprbots.ethereum.vm.StructLogTracer
 
 /** Helper for executing blocks with the test infrastructure */
 class EthereumTestHelper(using bc: BlockchainConfig) extends ScenarioSetup:
@@ -228,6 +230,138 @@ class EthereumTestHelper(using bc: BlockchainConfig) extends ScenarioSetup:
     catch
       case e: Exception =>
         Left(s"Failed to execute blocks: ${e.getMessage}\n${e.getStackTrace.take(10).mkString("\n")}")
+
+  /** Debug-only diagnostic: re-executes a single transaction from a test vector with a
+    * [[com.chipprbots.ethereum.vm.StructLogTracer]] attached and returns its per-opcode trace.
+    *
+    * Reconstructs the pre-tx world state via the same setup path used elsewhere in this class: pre-state accounts
+    * (mirrors [[setupAndExecuteTest]]'s own step 1), then every full block strictly before `blockIndex` via the
+    * existing [[executeBlocksWithInitialState]], then a no-tracer replay (via `StxLedger.simulateTransaction`) of every
+    * transaction in the target block strictly before `txIndex`. The target transaction is then run through
+    * `StxLedger.simulateTransactionWithTracer` (the `ExecutionTracer`-accepting overload) and this method returns
+    * `tracer.getSteps` directly — NOT `tracer.getResult`, which `StructLogTracer` leaves unconditionally empty (see the
+    * `fukuii-ethtest-triage` skill for why that's a separate, unrelated finding).
+    *
+    * Read-only: reconstructs a fresh in-memory world and re-executes against it. Does not touch
+    * `BlockExecution`/production consensus paths and has no effect on already-computed chain state. Intended for
+    * interactive/triage use (see the `fukuii-ethtest-triage` skill), not for assertions in committed specs.
+    *
+    * @param test
+    *   the blockchain test vector
+    * @param txIndex
+    *   index into the target block's transactions of the transaction to trace
+    * @param blockIndexOpt
+    *   index into `test.blocks` of the block containing the target transaction; defaults to the last block (the common
+    *   single-block-vector case) when `None`
+    * @param enableMemory
+    *   capture a per-step memory snapshot (expensive; see [[StructLogTracer]])
+    * @param enableStorage
+    *   capture a per-step storage diff for SLOAD/SSTORE (expensive; see [[StructLogTracer]])
+    * @return
+    *   the target transaction's per-opcode trace, or an error message
+    */
+  def reExecuteWithTrace(
+      test: BlockchainTest,
+      txIndex: Int,
+      blockIndexOpt: Option[Int] = None,
+      enableMemory: Boolean = true,
+      enableStorage: Boolean = true
+  ): Either[String, Seq[StructLog]] =
+    import scala.util.boundary, boundary.break
+
+    try
+      boundary {
+        val blockIndex = blockIndexOpt.getOrElse(test.blocks.length - 1)
+        if blockIndex < 0 || blockIndex >= test.blocks.length then
+          break(Left(s"blockIndex $blockIndex out of range (test has ${test.blocks.length} block(s))"))
+
+        val targetBlock = test.blocks(blockIndex)
+        if txIndex < 0 || txIndex >= targetBlock.transactions.length then
+          break(
+            Left(
+              s"txIndex $txIndex out of range (block $blockIndex has ${targetBlock.transactions.length} transaction(s))"
+            )
+          )
+
+        // Step 1: set up initial pre-state — mirrors setupAndExecuteTest's own step 1.
+        val mptStorage = blockchain.getBackingMptStorage(BlockNumber(0))
+        var world = InMemoryWorldStateProxy(
+          evmCodeStorage = testBlockchainStorages.evmCodeStorage,
+          mptStorage = mptStorage,
+          getBlockHashByNumber = (_: BlockNumber) => None,
+          accountStartNonce = blockchainConfig.accountStartNonce,
+          stateRootHash = Account.EmptyStorageRootHash.value,
+          noEmptyAccounts = false,
+          ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+        )
+        test.pre.foreach { case (addressHex, accountState) =>
+          val address = Address(ByteString(parseHex(addressHex)))
+          val balance = UInt256(parseBigInt(accountState.balance))
+          val nonce = UInt256(parseBigInt(accountState.nonce))
+          val code = ByteString(parseHex(accountState.code))
+
+          val account = Account(
+            nonce = nonce,
+            balance = balance,
+            storageRoot = Account.EmptyStorageRootHash,
+            codeHash = Account.EmptyCodeHash
+          )
+
+          world = world.saveAccount(address, account)
+          if code.nonEmpty then world = world.saveCode(address, code)
+
+          accountState.storage.foreach { case (keyHex, valueHex) =>
+            val key = parseBigInt(keyHex)
+            val value = parseBigInt(valueHex)
+            val storage = world.getStorage(address)
+            val newStorage = storage.store(StorageKey(key), value)
+            world = world.saveStorage(address, newStorage)
+          }
+        }
+        val persistedWorld = InMemoryWorldStateProxy.persistState(world)
+
+        // Step 2: execute every full block strictly before the target block, reusing the same
+        // private helper setupAndExecuteTest itself uses for its own multi-block runs.
+        val priorBlocks = test.blocks.take(blockIndex)
+        val worldBeforeTargetBlock =
+          if priorBlocks.isEmpty then persistedWorld
+          else
+            executeBlocksWithInitialState(priorBlocks, persistedWorld, test.genesisBlockHeader) match
+              case Right(w)  => w
+              case Left(err) => break(Left(s"Failed to execute prior blocks: $err"))
+
+        // Step 3: replay every transaction in the target block strictly before txIndex, without
+        // a tracer, to advance the world state to just before the target transaction.
+        val targetHeader = TestConverter.toBlockHeader(targetBlock.blockHeader)
+        val worldBeforeTargetTx =
+          targetBlock.transactions.take(txIndex).foldLeft(worldBeforeTargetBlock) { (w, testTx) =>
+            val stx = TestConverter.toTransaction(testTx)
+            val sender = SignedTransaction
+              .getSender(stx)(using blockchainConfig)
+              .getOrElse(break(Left(s"Failed to recover sender for a prior transaction in block $blockIndex")))
+            stxLedger.simulateTransaction(SignedTransactionWithSender(stx, sender), targetHeader, Some(w)).worldState
+          }
+
+        // Step 4: attach a StructLogTracer to the target transaction only, and re-execute it.
+        val targetStx = TestConverter.toTransaction(targetBlock.transactions(txIndex))
+        val senderAddress = SignedTransaction
+          .getSender(targetStx)(using blockchainConfig)
+          .getOrElse(
+            break(Left(s"Failed to recover sender for the target transaction (block $blockIndex, tx $txIndex)"))
+          )
+        val tracer = new StructLogTracer(enableMemory = enableMemory, enableStorage = enableStorage)
+        val _ = stxLedger.simulateTransactionWithTracer(
+          SignedTransactionWithSender(targetStx, senderAddress),
+          targetHeader,
+          Some(worldBeforeTargetTx),
+          tracer
+        )
+
+        Right(tracer.getSteps)
+      }
+    catch
+      case e: Exception =>
+        Left(s"Failed to re-execute with trace: ${e.getMessage}\n${e.getStackTrace.take(10).mkString("\n")}")
 
   private def createParentBlockHeader(
       blockNumber: BigInt,
