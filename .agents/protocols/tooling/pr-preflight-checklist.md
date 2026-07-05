@@ -97,7 +97,13 @@ scripts/agent-tooling/sbt-run.sh <log-name> scalafmtCheckAll compile-all testEss
 
 **Docs build (only if `docs/**`/`mkdocs.yml`/`requirements-docs.txt` changed):**
 ```bash
-mkdocs build --strict                # needs requirements-docs.txt installed, e.g. into a local venv
+.local/venv-docs/bin/mkdocs build --strict   # existing project-local venv — mkdocs is NOT on
+                                              # global PATH, so `which mkdocs`/`pip show mkdocs`
+                                              # will falsely report "not installed"; always
+                                              # check this venv path before concluding the docs
+                                              # build can't be verified. If it's ever missing:
+                                              # python3 -m venv .local/venv-docs &&
+                                              # .local/venv-docs/bin/pip install -r requirements-docs.txt
 ```
 
 **Doc links (only if `docs/**`/`mkdocs.yml` changed, and only if `lychee` is
