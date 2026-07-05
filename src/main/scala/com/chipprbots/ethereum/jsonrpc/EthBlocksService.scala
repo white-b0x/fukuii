@@ -78,12 +78,16 @@ class EthBlocksService(
     val blockchainReader: BlockchainReader,
     val mining: Mining,
     val blockQueue: BlockQueue,
-    private val _forkChoiceManagerOpt: Option[ForkChoiceManager] = None
+    private val _forkChoiceManagerOpt: Option[ForkChoiceManager] = None,
+    configuredBlockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 ) extends ResolveBlock:
   final override def forkChoiceManagerOpt: Option[ForkChoiceManager] = _forkChoiceManagerOpt
   import EthBlocksService.*
 
-  given blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
+  // Threaded through the constructor (DI-friendly) rather than re-reading global Config
+  // internally; still exposed as a `given` because SignedTransaction.getSender and
+  // TransactionReceiptResponse.apply take it as a `using` parameter.
+  given blockchainConfig: BlockchainConfig = configuredBlockchainConfig
 
   /** eth_blockNumber that returns the number of most recent block.
     *

@@ -102,10 +102,14 @@ final class CheckpointDownloader(
           finally
             lockOpt.foreach(l =>
               try l.release()
-              catch case _: Throwable => ()
+              catch
+                case e: Throwable =>
+                  log.error("[CHECKPOINT DOWNLOAD] failed to release lock on {}: {}", tmpPath, e.getMessage, e)
             )
             try tmpChannel.close()
-            catch case _: Throwable => ()
+            catch
+              case e: Throwable =>
+                log.error("[CHECKPOINT DOWNLOAD] failed to close tmp channel {}: {}", tmpPath, e.getMessage, e)
 
   /** Perform the HTTP GET, appending to `tmpChannel`. Returns total bytes in the completed file. */
   private def doDownload(
@@ -184,9 +188,11 @@ final class CheckpointDownloader(
     catch case e: IOException => Left(IoError(s"body read: ${e.getMessage}"))
     finally
       try out.flush()
-      catch case _: Throwable => ()
+      catch
+        case e: Throwable =>
+          log.error("[CHECKPOINT DOWNLOAD] failed to flush output after {} bytes: {}", total, e.getMessage, e)
       try body.close()
-      catch case _: Throwable => ()
+      catch case e: Throwable => log.error("[CHECKPOINT DOWNLOAD] failed to close response body: {}", e.getMessage, e)
 
 object CheckpointDownloader:
   val DefaultProgressLogInterval: Long = 100L * 1024 * 1024 // log every 100 MiB

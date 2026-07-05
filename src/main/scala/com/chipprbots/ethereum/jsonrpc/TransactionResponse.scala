@@ -54,7 +54,26 @@ final case class TransactionData(
 
 object TransactionResponse:
 
+  // NOTE: this given is NOT dead code despite having no textual reference in this file — it is
+  // picked up implicitly by `SignedTransaction.getSender(stx)` below, which takes a `using
+  // BlockchainConfig` parameter invisible to a plain-text/grep-based "unused given" check.
+  // (A prior pass of this batch incorrectly deleted this as confirmed-dead; restored after
+  // `sbt compile-all` surfaced the missing-given error.)
   given blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
+
+  /** Per-transaction-type fields extracted from `stx.tx` in [[apply]] below. Named fields instead of a positional tuple
+    * — a transposed pair (e.g. `maxFeePerGas`/`maxPriorityFeePerGas`) previously would have compiled silently.
+    */
+  private case class TxTypeFields(
+      txType: BigInt,
+      chainId: Option[BigInt],
+      maxFeePerGas: Option[BigInt],
+      maxPriorityFeePerGas: Option[BigInt],
+      accessList: Option[Seq[Map[String, Any]]],
+      maxFeePerBlobGas: Option[BigInt],
+      blobVersionedHashes: Option[Seq[ByteString]],
+      authorizationList: Option[Seq[Map[String, Any]]]
+  )
 
   def apply(tx: TransactionData): TransactionResponse =
     TransactionResponse(tx.stx, tx.blockHeader, tx.transactionIndex)
@@ -64,16 +83,25 @@ object TransactionResponse:
       blockHeader: Option[BlockHeader] = None,
       transactionIndex: Option[Int] = None
   ): TransactionResponse =
-    val (txType, txChainId, txMaxFee, txMaxPriority, txAccessList, txMaxBlobFee, txBlobHashes, txAuthList) =
+    val txFields =
       stx.tx match
         case _: LegacyTransaction =>
           // EIP-155: extract chainId from v value for replay-protected legacy txs
           val legacyChainId = if stx.signature.v > 35 then Some((stx.signature.v - 35) / 2) else None
-          (BigInt(0), legacyChainId, None, None, None, None, None, None)
+          TxTypeFields(BigInt(0), legacyChainId, None, None, None, None, None, None)
         case tx: TransactionWithAccessList =>
-          (BigInt(1), Some(tx.chainId.value), None, None, Some(encodeAccessList(tx.accessList)), None, None, None)
+          TxTypeFields(
+            BigInt(1),
+            Some(tx.chainId.value),
+            None,
+            None,
+            Some(encodeAccessList(tx.accessList)),
+            None,
+            None,
+            None
+          )
         case tx: TransactionWithDynamicFee =>
-          (
+          TxTypeFields(
             BigInt(2),
             Some(tx.chainId.value),
             Some(tx.maxFeePerGas.value),
@@ -84,7 +112,7 @@ object TransactionResponse:
             None
           )
         case tx: BlobTransaction =>
-          (
+          TxTypeFields(
             BigInt(3),
             Some(tx.chainId.value),
             Some(tx.maxFeePerGas.value),
@@ -95,7 +123,7 @@ object TransactionResponse:
             None
           )
         case tx: SetCodeTransaction =>
-          (
+          TxTypeFields(
             BigInt(4),
             Some(tx.chainId.value),
             Some(tx.maxFeePerGas.value),
@@ -120,16 +148,16 @@ object TransactionResponse:
       gasPrice = GasPrice(effectiveGasPrice),
       gas = stx.tx.gasLimit,
       input = stx.tx.payload,
-      `type` = Some(txType),
-      chainId = txChainId,
-      maxFeePerGas = txMaxFee,
-      maxPriorityFeePerGas = txMaxPriority,
-      accessList = txAccessList,
-      maxFeePerBlobGas = txMaxBlobFee,
-      blobVersionedHashes = txBlobHashes,
-      authorizationList = txAuthList,
+      `type` = Some(txFields.txType),
+      chainId = txFields.chainId,
+      maxFeePerGas = txFields.maxFeePerGas,
+      maxPriorityFeePerGas = txFields.maxPriorityFeePerGas,
+      accessList = txFields.accessList,
+      maxFeePerBlobGas = txFields.maxFeePerBlobGas,
+      blobVersionedHashes = txFields.blobVersionedHashes,
+      authorizationList = txFields.authorizationList,
       // yParity only for typed transactions (type >= 1), not legacy
-      yParity = if txType > 0 then Some(stx.signature.v) else None,
+      yParity = if txFields.txType > 0 then Some(stx.signature.v) else None,
       v = Some(stx.signature.v),
       r = Some(stx.signature.r),
       s = Some(stx.signature.s),

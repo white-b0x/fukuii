@@ -34,7 +34,10 @@ import com.chipprbots.ethereum.utils.TxPoolConfig
 
 object PersonalService:
 
-  case class ImportRawKeyRequest(prvKey: ByteString, passphrase: String)
+  case class ImportRawKeyRequest(prvKey: ByteString, passphrase: String):
+    // Redact prvKey (and passphrase) — the default case-class toString would leak both into
+    // logs. equals/hashCode are left untouched (same reasoning as keystore.Wallet).
+    override def toString: String = s"ImportRawKeyRequest(<redacted>, <redacted>)"
   case class ImportRawKeyResponse(address: Address)
 
   case class NewAccountRequest(passphrase: String)

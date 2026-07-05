@@ -164,6 +164,117 @@ class CheckpointExporterSpec
         exporter.exportArchive(blockNumber = BlockNumber(9999), output = tmpRoot.resolve("nope.checkpoint"))
       r shouldBe Left(CheckpointExporter.NoSuchBlock(BlockNumber(9999)))
 
+    "fail cleanly when the chain weight for the requested block is missing" taggedAs UnitTest in new Setup:
+      // Header stored, but storeChainWeight deliberately skipped.
+      val header: BlockHeader = Fixtures.Blocks.Block3125369.header.copy(number = BlockNumber(50))
+      sourceWriter.storeBlockHeader(header).commit()
+
+      val exporter = new CheckpointExporter(
+        sourceStorages.storages.stateStorage,
+        sourceStorages.storages.evmCodeStorage,
+        sourceReader,
+        chainId = ChainId(BigInt(1L))
+      )
+      val r: Either[ExportError, ExportResult] =
+        exporter.exportArchive(blockNumber = header.number, output = tmpRoot.resolve("no-weight.checkpoint"))
+      r shouldBe Left(CheckpointExporter.NoChainWeight(header.number))
+
+    "return MissingTrieNode when the header's stateRoot is not present in storage" taggedAs UnitTest in new Setup:
+      val bogusRoot: ByteString = crypto.kec256(ByteString("no-such-state-root"))
+      val header: BlockHeader =
+        Fixtures.Blocks.Block3125369.header.copy(stateRoot = TrieRoot(bogusRoot), number = BlockNumber(51))
+      val weight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1)))
+      sourceWriter.storeBlockHeader(header).and(sourceWriter.storeChainWeight(header.hash, weight)).commit()
+
+      val exporter = new CheckpointExporter(
+        sourceStorages.storages.stateStorage,
+        sourceStorages.storages.evmCodeStorage,
+        sourceReader,
+        chainId = ChainId(BigInt(1L))
+      )
+      val r: Either[ExportError, ExportResult] =
+        exporter.exportArchive(blockNumber = header.number, output = tmpRoot.resolve("missing-node.checkpoint"))
+      r shouldBe Left(CheckpointExporter.MissingTrieNode(bogusRoot, isMainTrie = true))
+
+    "return MissingBytecode when an account's codeHash is not present in evmCodeStorage" taggedAs UnitTest in new Setup:
+      import MerklePatriciaTrie.defaultByteArraySerializable
+      val missingCodeHash: ByteString = crypto.kec256(ByteString("code-never-stored"))
+      val addr1: Array[Byte] = Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")
+      val accountTrie: MerklePatriciaTrie[Array[Byte], Account] = MerklePatriciaTrie[Array[Byte], Account](
+        sourceStorages.storages.stateStorage.getBackingStorage(0)
+      )
+        .put(
+          crypto.kec256(addr1),
+          Account(nonce = UInt256(0), balance = UInt256(100), codeHash = CodeHash(missingCodeHash))
+        )
+      val stateRoot: ByteString = ByteString(accountTrie.getRootHash)
+      val header: BlockHeader =
+        Fixtures.Blocks.Block3125369.header.copy(stateRoot = TrieRoot(stateRoot), number = BlockNumber(52))
+      val weight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1)))
+      sourceWriter.storeBlockHeader(header).and(sourceWriter.storeChainWeight(header.hash, weight)).commit()
+
+      val exporter = new CheckpointExporter(
+        sourceStorages.storages.stateStorage,
+        sourceStorages.storages.evmCodeStorage,
+        sourceReader,
+        chainId = ChainId(BigInt(1L))
+      )
+      val r: Either[ExportError, ExportResult] =
+        exporter.exportArchive(blockNumber = header.number, output = tmpRoot.resolve("missing-code.checkpoint"))
+      r shouldBe Left(CheckpointExporter.MissingBytecode(missingCodeHash))
+
+    "round-trip a small state through export → import with gzip = true" taggedAs UnitTest in new Setup:
+      val codeA: ByteString = ByteString("gzip-contract-bytecode")
+      val codeAHash: ByteString = crypto.kec256(codeA)
+      sourceStorages.storages.evmCodeStorage.put(codeAHash, codeA).commit()
+
+      import MerklePatriciaTrie.defaultByteArraySerializable
+      val addr1: Array[Byte] = Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")
+      val accountTrie: MerklePatriciaTrie[Array[Byte], Account] = MerklePatriciaTrie[Array[Byte], Account](
+        sourceStorages.storages.stateStorage.getBackingStorage(0)
+      )
+        .put(
+          crypto.kec256(addr1),
+          Account(nonce = UInt256(0), balance = UInt256(100), codeHash = CodeHash(codeAHash))
+        )
+      val stateRoot: ByteString = ByteString(accountTrie.getRootHash)
+
+      val header: BlockHeader =
+        Fixtures.Blocks.Block3125369.header.copy(stateRoot = TrieRoot(stateRoot), number = BlockNumber(53))
+      val weight: ChainWeight = ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(7)))
+      sourceWriter.storeBlockHeader(header).and(sourceWriter.storeChainWeight(header.hash, weight)).commit()
+
+      // Note: output path deliberately does NOT end in `.gz` — exercises the importer's
+      // magic-byte sniff (Bug 35) rather than the file-extension convention.
+      val outputPath: Path = tmpRoot.resolve("export-gzip.checkpoint")
+      val exporter = new CheckpointExporter(
+        sourceStorages.storages.stateStorage,
+        sourceStorages.storages.evmCodeStorage,
+        sourceReader,
+        chainId = ChainId(BigInt(1337L))
+      )
+      val exportResult: ExportResult = exporter.exportArchive(header.number, outputPath, gzip = true).value
+      exportResult.nodesExported should be > 0L
+      exportResult.bytecodesExported shouldBe 1L
+
+      val importer = new CheckpointImporter(
+        targetWriter,
+        targetStorages.storages.stateStorage,
+        targetStorages.storages.evmCodeStorage,
+        targetStorages.storages.appStateStorage
+      )
+      val importResult: ImportResult = importer.importFromFile(outputPath, Some(1337L)).value
+      importResult.blockNumber shouldBe header.number
+      importResult.nodesImported shouldBe exportResult.nodesExported
+      importResult.bytecodesImported shouldBe exportResult.bytecodesExported
+
+      val importedTrie: MerklePatriciaTrie[Array[Byte], Account] = MerklePatriciaTrie[Array[Byte], Account](
+        stateRoot.toArray,
+        targetStorages.storages.stateStorage.getBackingStorage(0)
+      )
+      importedTrie.get(crypto.kec256(addr1)).value.balance shouldBe UInt256(100)
+      targetStorages.storages.evmCodeStorage.get(codeAHash).map(_.toArray.toSeq) shouldBe Some(codeA.toArray.toSeq)
+
     // Regression for Bug 33 — exporter must unwrap ReferenceCountNodeStorage wrapper bytes.
     // Reading raw nodeStorage bytes on a BasicPruning chain surfaces the ref-count metadata,
     // which fails to decode as an MPT node. Exporter now goes through StateStorage so the

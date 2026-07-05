@@ -23,8 +23,6 @@ object Timestamp:
     def >=(other: Timestamp): Boolean = t >= other
     def <(other: Timestamp): Boolean = t < other
     def <=(other: Timestamp): Boolean = t <= other
-    def ==(other: Timestamp): Boolean = t == other
-    def !=(other: Timestamp): Boolean = t != other
     def min(other: Timestamp): Timestamp = if t < other then t else other
     def max(other: Timestamp): Timestamp = if t > other then t else other
     // Must call the static java.lang.Long.toHexString, NOT `t.toHexString`:
@@ -34,4 +32,9 @@ object Timestamp:
     def toHexString: String = java.lang.Long.toHexString(t)
 
   given rlpCodec: RLPCodec[Timestamp] = longEncDec.xmap((v: Long) => Timestamp(v), _.toLong)
-  given Ordering[Timestamp] = Ordering.by(_.toLong)
+  // Pin the Long ordering explicitly — same opaque-type-in-scope footgun as the BigInt-backed
+  // domain types (Nonce/Wei/TotalDifficulty/ChainId/etc.): inside this object `Timestamp =:=
+  // Long`, so the implicit `Ordering` argument of a bare `Ordering.by(_.toLong)` can resolve to
+  // the given being defined here → self-referential lazy-val init deadlock the moment it's
+  // summoned. See OpaqueOrderingResolutionSpec.
+  given Ordering[Timestamp] = Ordering.by[Timestamp, Long](_.toLong)(using scala.math.Ordering.Long)

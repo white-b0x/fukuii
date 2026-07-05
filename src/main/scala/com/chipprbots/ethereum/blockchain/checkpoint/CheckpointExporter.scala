@@ -171,7 +171,9 @@ final class CheckpointExporter(
               if exportError.isEmpty then writer.finish()
             finally
               try out.close()
-              catch case _: Throwable => ()
+              catch
+                case e: Throwable =>
+                  log.error("[CHECKPOINT EXPORT] failed to close output stream {}: {}", output, e.getMessage, e)
 
             exportError match
               case Some(err) => Left(err)

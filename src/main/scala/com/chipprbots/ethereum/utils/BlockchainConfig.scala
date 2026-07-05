@@ -132,6 +132,14 @@ case class ForkBlockNumbers(
     spiralGasTarget: Option[BigInt] = None,
     olympiaGasTarget: Option[BigInt] = None
 ):
+  // Relies on `BlockNumber`'s opaque-type erasure: at runtime every `BlockNumber` field IS a
+  // `BigInt` instance, so `collect { case i: BigInt => i }` matches all of them and skips the
+  // `Option[BigInt]` gas-target fields (an Option is never itself a BigInt). This is fragile —
+  // it silently breaks if a future field's *erased* runtime type is BigInt but it isn't a fork
+  // block number (or vice versa) — but an explicit 24-field list here would need to be kept in
+  // sync by hand on every fork addition, which is its own fragility. Feeds ForkId.scala's
+  // fork-id hash (network handshake compat) — do not change this method without `herald`/`forge`
+  // review.
   def all: List[BigInt] = this.productIterator.toList.collect { case i: BigInt =>
     i
   }

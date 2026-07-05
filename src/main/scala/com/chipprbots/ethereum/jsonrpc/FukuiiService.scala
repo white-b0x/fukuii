@@ -39,14 +39,18 @@ class FukuiiService(
     transactionHistoryService: TransactionHistoryService,
     jsonRpcConfig: JsonRpcConfig,
     syncController: TypedActorRef[SyncController.Command],
-    scheduler: Scheduler
+    scheduler: Scheduler,
+    configuredBlockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 ):
 
   import com.chipprbots.ethereum.jsonrpc.AkkaTaskOps.*
   given timeout: Timeout = Timeout(10.seconds)
   private given typedScheduler: Scheduler = scheduler
 
-  given blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
+  // Threaded through the constructor (DI-friendly) rather than re-reading global Config
+  // internally; still exposed as a `given` because TransactionHistoryService.getAccountTransactions
+  // takes it as a `using` parameter.
+  given blockchainConfig: BlockchainConfig = configuredBlockchainConfig
 
   def getAccountTransactions(
       request: GetAccountTransactionsRequest

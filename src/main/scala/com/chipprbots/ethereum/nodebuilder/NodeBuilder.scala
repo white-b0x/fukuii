@@ -600,13 +600,13 @@ trait EthTxServiceBuilder:
   )
 
 trait EthBlocksServiceBuilder:
-  self: BlockchainBuilder & MiningBuilder & BlockQueueBuilder =>
+  self: BlockchainBuilder & MiningBuilder & BlockQueueBuilder & BlockchainConfigBuilder =>
 
   /** Override in subtraits that have access to ForkChoiceManager (e.g. EngineApiBuilder) */
   def forkChoiceManagerForRpc: Option[com.chipprbots.ethereum.consensus.engine.ForkChoiceManager] = None
 
   lazy val ethBlocksService =
-    new EthBlocksService(blockchain, blockchainReader, mining, blockQueue, forkChoiceManagerForRpc)
+    new EthBlocksService(blockchain, blockchainReader, mining, blockQueue, forkChoiceManagerForRpc, blockchainConfig)
 
 trait EthUserServiceBuilder:
   self: BlockchainBuilder & BlockchainConfigBuilder & MiningBuilder & StorageBuilder =>
@@ -654,13 +654,15 @@ trait SyncControllerRefBuilder:
   def syncController: org.apache.pekko.actor.typed.ActorRef[SyncController.Command]
 
 trait FukuiiServiceBuilder:
-  self: TransactionHistoryServiceBuilder & JSONRpcConfigBuilder & SyncControllerRefBuilder & ActorSystemBuilder =>
+  self: TransactionHistoryServiceBuilder & JSONRpcConfigBuilder & SyncControllerRefBuilder & ActorSystemBuilder &
+    BlockchainConfigBuilder =>
 
   lazy val fukuiiService = new FukuiiService(
     transactionHistoryService,
     jsonRpcConfig,
     syncController,
-    classicSystem.toTyped.scheduler
+    classicSystem.toTyped.scheduler,
+    blockchainConfig
   )
 
 trait McpServiceBuilder:

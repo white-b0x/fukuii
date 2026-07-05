@@ -16,3 +16,8 @@ case class Wallet(address: Address, prvKey: ByteString):
 
   def signTx(tx: LegacyTransaction, chainId: Option[ChainId]): SignedTransactionWithSender =
     SignedTransactionWithSender(SignedTransaction.sign(tx, keyPair, chainId), Address(keyPair))
+
+  // Redact prvKey — the default case-class toString would leak the private key into logs.
+  // Do NOT redact equals/hashCode: KeyStoreImplSpec relies on structural equality (including
+  // prvKey) to assert the decrypt path recovered the correct key, not just the correct address.
+  override def toString: String = s"Wallet($address, <redacted>)"

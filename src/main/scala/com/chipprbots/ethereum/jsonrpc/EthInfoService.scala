@@ -25,6 +25,8 @@ import com.chipprbots.ethereum.ledger.StxLedger
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import com.chipprbots.ethereum.network.p2p.messages.Capability
 import com.chipprbots.ethereum.utils.BlockchainConfig
+import com.chipprbots.ethereum.utils.ForkBlockNumbers
+import com.chipprbots.ethereum.utils.Logger
 import com.chipprbots.ethereum.vm.PrecompiledContracts
 
 object EthInfoService:
@@ -89,7 +91,8 @@ class EthInfoService(
     capability: Capability,
     askTimeout: Timeout,
     scheduler: Scheduler
-) extends ResolveBlock:
+) extends ResolveBlock
+    with Logger:
 
   import EthInfoService.*
 
@@ -133,42 +136,47 @@ class EthInfoService(
 
   def config(@unused req: ConfigRequest): ServiceResponse[ConfigResponse] = IO {
     val fbn = blockchainConfig.forkBlockNumbers
-    val chainId = blockchainConfig.chainId
+    val forks = forkSchedule(fbn)
+    val currentBlock = blockchainReader.getBestBlockNumber
+    Right(selectForkConfigs(forks, currentBlock, blockchainConfig.chainId))
+  }
 
-    val basePrecompiles: Map[String, Address] = Map(
-      "ecrecover" -> PrecompiledContracts.EcDsaRecAddr,
-      "sha256" -> PrecompiledContracts.Sha256Addr,
-      "ripemd160" -> PrecompiledContracts.Rip160Addr,
-      "identity" -> PrecompiledContracts.IdAddr
-    )
-    val byzantiumPrecompiles: Map[String, Address] = basePrecompiles ++ Map(
-      "modexp" -> PrecompiledContracts.ModExpAddr,
-      "bn256Add" -> PrecompiledContracts.Bn128AddAddr,
-      "bn256ScalarMul" -> PrecompiledContracts.Bn128MulAddr,
-      "bn256Pairing" -> PrecompiledContracts.Bn128PairingAddr
-    )
-    val istanbulPrecompiles: Map[String, Address] = byzantiumPrecompiles ++ Map(
-      "blake2f" -> PrecompiledContracts.Blake2bCompressionAddr
-    )
-    val olympiaPrecompiles: Map[String, Address] = istanbulPrecompiles ++ Map(
-      "bls12381G1Add" -> PrecompiledContracts.BlsG1AddAddr,
-      "bls12381G1MultiExp" -> PrecompiledContracts.BlsG1MultiExpAddr,
-      "bls12381G2Add" -> PrecompiledContracts.BlsG2AddAddr,
-      "bls12381G2MultiExp" -> PrecompiledContracts.BlsG2MultiExpAddr,
-      "bls12381Pairing" -> PrecompiledContracts.BlsPairingAddr,
-      "bls12381MapG1" -> PrecompiledContracts.BlsMapG1Addr,
-      "bls12381MapG2" -> PrecompiledContracts.BlsMapG2Addr,
-      "p256Verify" -> PrecompiledContracts.P256VerifyAddr
-    )
+  private val basePrecompiles: Map[String, Address] = Map(
+    "ecrecover" -> PrecompiledContracts.EcDsaRecAddr,
+    "sha256" -> PrecompiledContracts.Sha256Addr,
+    "ripemd160" -> PrecompiledContracts.Rip160Addr,
+    "identity" -> PrecompiledContracts.IdAddr
+  )
+  private val byzantiumPrecompiles: Map[String, Address] = basePrecompiles ++ Map(
+    "modexp" -> PrecompiledContracts.ModExpAddr,
+    "bn256Add" -> PrecompiledContracts.Bn128AddAddr,
+    "bn256ScalarMul" -> PrecompiledContracts.Bn128MulAddr,
+    "bn256Pairing" -> PrecompiledContracts.Bn128PairingAddr
+  )
+  private val istanbulPrecompiles: Map[String, Address] = byzantiumPrecompiles ++ Map(
+    "blake2f" -> PrecompiledContracts.Blake2bCompressionAddr
+  )
+  private val olympiaPrecompiles: Map[String, Address] = istanbulPrecompiles ++ Map(
+    "bls12381G1Add" -> PrecompiledContracts.BlsG1AddAddr,
+    "bls12381G1MultiExp" -> PrecompiledContracts.BlsG1MultiExpAddr,
+    "bls12381G2Add" -> PrecompiledContracts.BlsG2AddAddr,
+    "bls12381G2MultiExp" -> PrecompiledContracts.BlsG2MultiExpAddr,
+    "bls12381Pairing" -> PrecompiledContracts.BlsPairingAddr,
+    "bls12381MapG1" -> PrecompiledContracts.BlsMapG1Addr,
+    "bls12381MapG2" -> PrecompiledContracts.BlsMapG2Addr,
+    "p256Verify" -> PrecompiledContracts.P256VerifyAddr
+  )
 
-    val noSystemContracts: Map[String, Address] = Map.empty
-    val olympiaSystemContracts: Map[String, Address] = Map(
-      "historyStorage" -> HistoryStorageAddress
-    )
+  private val noSystemContracts: Map[String, Address] = Map.empty
+  private val olympiaSystemContracts: Map[String, Address] = Map(
+    "historyStorage" -> HistoryStorageAddress
+  )
 
-    // Build fork schedule: (name, blockNumber, precompiles, systemContracts)
-    // JSON-RPC response boundary (ForkConfig.block: BigInt) — unwrap here.
-    val forks: List[(String, BigInt, Map[String, Address], Map[String, Address])] = List(
+  /** Build fork schedule: (name, blockNumber, precompiles, systemContracts). JSON-RPC response boundary
+    * (ForkConfig.block: BigInt) — unwrap here.
+    */
+  private def forkSchedule(fbn: ForkBlockNumbers): List[(String, BigInt, Map[String, Address], Map[String, Address])] =
+    List(
       ("Frontier", fbn.frontierBlockNumber.value, basePrecompiles, noSystemContracts),
       ("Homestead", fbn.homesteadBlockNumber.value, basePrecompiles, noSystemContracts),
       ("Atlantis", fbn.atlantisBlockNumber.value, byzantiumPrecompiles, noSystemContracts),
@@ -182,26 +190,26 @@ class EthInfoService(
       .sortBy(_._2)
       .distinctBy(_._2) // deduplicate by block number
 
-    val currentBlock = blockchainReader.getBestBlockNumber
-
-    def toForkConfig(
-        @unused name: String,
-        block: BigInt,
-        precompiles: Map[String, Address],
-        sysContracts: Map[String, Address]
-    ): ForkConfig =
-      ForkConfig(block, chainId, precompiles, sysContracts)
+  /** Pick current/next/last [[ForkConfig]] out of `forks` relative to `currentBlock`. `next`/`last` are only reported
+    * when a future fork actually exists — matches the previous inline behavior.
+    */
+  private def selectForkConfigs(
+      forks: List[(String, BigInt, Map[String, Address], Map[String, Address])],
+      currentBlock: BigInt,
+      chainId: ChainId
+  ): ConfigResponse =
+    def toForkConfig(f: (String, BigInt, Map[String, Address], Map[String, Address])): ForkConfig =
+      ForkConfig(f._2, chainId, f._3, f._4)
 
     // Find current fork (last fork at or before currentBlock)
     val activeForks = forks.filter(_._2 <= currentBlock)
     val futureForks = forks.filter(_._2 > currentBlock)
 
-    val current = activeForks.lastOption.map(f => toForkConfig(f._1, f._2, f._3, f._4))
-    val next = futureForks.headOption.map(f => toForkConfig(f._1, f._2, f._3, f._4))
-    val last = forks.lastOption.map(f => toForkConfig(f._1, f._2, f._3, f._4))
+    val current = activeForks.lastOption.map(toForkConfig)
+    val next = futureForks.headOption.map(toForkConfig)
+    val last = forks.lastOption.map(toForkConfig)
 
-    Right(ConfigResponse(current, next, if futureForks.nonEmpty then last else None))
-  }
+    ConfigResponse(current, next, if futureForks.nonEmpty then last else None)
 
   def call(req: CallRequest): ServiceResponse[CallResponse] =
     IO {
@@ -242,8 +250,14 @@ class EthInfoService(
       doCall(req.toCallRequest)(stxLedger.simulateTransaction).map { result =>
         val gasUsed = result.gasUsed
         val error = result.vmError.map(_.toString)
-        // Build access list from the VM's accessed addresses and storage keys
-        // For now, return empty access list with gas used (partial implementation)
+        // eth_createAccessList is only partially implemented: the VM doesn't currently track
+        // accessed addresses/storage keys during simulation, so `accessList` is always empty.
+        // gasUsed still reflects the real simulated cost. Log so callers relying on the real
+        // access list (e.g. gas-optimization tooling) don't silently get a wrong empty answer.
+        log.debug(
+          "eth_createAccessList called but access-list tracking is not implemented; returning empty accessList (gasUsed={})",
+          gasUsed
+        )
         CreateAccessListResponse(
           accessList = Seq.empty,
           gasUsed = gasUsed,
