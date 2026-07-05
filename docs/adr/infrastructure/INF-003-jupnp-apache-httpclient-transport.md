@@ -207,7 +207,8 @@ See "Why Not Alternative Solutions?" section above.
 - Code duplication reduction
 - Charset encoding handling
 
-**Security Analysis**: ✅ CodeQL analysis passed with no vulnerabilities
+**Security Analysis**: ✅ Manual review — no vulnerabilities found (CodeQL has no Scala
+extractor and was never configured for this repo; this line originally overstated it as run)
 
 **Manual Testing**: Requires UPnP-enabled router environment
 - Node should start successfully in restricted environments

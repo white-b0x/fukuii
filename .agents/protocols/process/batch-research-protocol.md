@@ -48,6 +48,14 @@ one tree. Narrowing to `--scope main` is a deliberate, stated choice for a batch
 genuinely main-source-only (e.g. a change to a file with no test-source callers at all) — not
 the default assumption.
 
+**For a batch with no `src/` surface at all (CI workflows, docs, config — e.g. REPO-\*
+items)**, `site-sweep.sh` doesn't apply — there's no `--scope docs`/`--scope github` mode, and
+there shouldn't be one bolted on just to force-fit this rule. State the substitution
+explicitly instead of narrating a `--scope main` justification that doesn't fit either: the
+sweep is a direct `grep`/`ls`/`gh api` pass over the relevant non-Scala tree (`.github/`,
+`docs/`, repo root), and it still needs the same rigor — don't skip the multi-pass discipline
+in Rule (b) just because the named tool doesn't apply.
+
 ## Rule (b): A second, differently-patterned pass is required before trusting "clean"
 
 A single grep pass is not sufficient evidence of completeness. Run the sweep a second time with
@@ -77,13 +85,26 @@ types a straggler audit happened to touch. See `scala3-style.md` S12 for the res
 grep-verifiable ratchet — run it (or its equivalent for whatever pattern is in play) as part of
 this rule's "second pass," not just a narrower re-check of the original known sites.
 
+**For docs/config batches, the same "broadened pass" idea applies to copy-pasted claims, not
+just code patterns.** REPO-01's research (2026-07-05) found a false security claim ("SLSA
+Level 3 provenance," "CodeQL static analysis on every push," both untrue) repeated across 11
+files — prior research had caught only 2 of them by checking the files it happened to cite. A
+narrow reading of Rule (b) ("re-verify in its original file") would have missed the other 9.
+When a doc/config batch finds a specific claim is wrong in one file, grep the *exact phrase*
+across the entire doc tree before treating the fix as scoped to that one file — copy-paste
+drift is the docs-world equivalent of a partial code rollout.
+
 ## Rule (c): Semantic sibling-field check
 
 For every match a sweep finds, read the surrounding ~10-20 lines of the actual file — not just
 the matched line — to check for half-typed adjacent fields or parameters in the same
 class/DTO/case class that the pattern didn't catch textually (e.g. one field already converted
 to an opaque type, the field next to it still raw). A mechanical grep only ever proves "this
-exact pattern exists here," not "this file is fully consistent."
+exact pattern exists here," not "this file is fully consistent." The same principle applies
+to a doc/config match: read the surrounding section, not just the matched line, to check
+whether adjacent claims in that same section are stale or inconsistent with what you're about
+to change (this is exactly how REPO-01's research found the SLSA/CodeQL claims sitting next to
+what would otherwise have been an isolated, correct fix).
 
 ## Rule (d): Precedent and regression lookup
 
@@ -94,6 +115,19 @@ in one commit" rule born from a past regression). If one applies, state it expli
 drafted prompt's CONTEXT — don't let a future implementer discover the constraint mid-batch the
 way it was discovered the first time.
 
+**Also check whether the finding is already being worked on, not just whether it's already
+happened.** `sprints/log/INDEX.md` only records *closed* work — it says nothing about an
+open PR already fixing the exact thing you're about to draft a prompt for. Before finalizing
+any finding as new work, run `gh pr list --state all --search "<relevant keywords>"` (or `git
+log --all --grep` for a merged-but-unlinked fix) against the actual GitHub repo, not just the
+local sprint tracker. **Incident (REPO-01, 2026-07-05):** a real CI failure (`Documentation
+Preview`/`Check Documentation Links`) was found during a pre-flight health check and nearly
+logged as a new, unaddressed Chase item — it was already root-caused and fixed in an open PR
+(discovered only because the operator asked "did you check the PRs/commit log" after the
+finding was drafted, not because the research pass checked first). Treat "is this already
+being fixed elsewhere" as a mandatory check alongside "has this happened before," not an
+afterthought triggered by someone else noticing the gap.
+
 ## Rule (e): Pre-flight baseline health check
 
 Before drafting, confirm the target area is currently healthy, independent of the planned
@@ -101,7 +135,13 @@ change. For Scala/sbt-built code: a backgrounded `sbt-run.sh compile-all` (per
 `background-script-execution.md` — never foreground) plus a representative `testOnly` sample
 from the target file list. For non-Scala batches (docs, CI config, scripts): the equivalent
 health signal — does the current CI pass, does `mkdocs build --strict` succeed, does the
-script's own smoke test pass. If the baseline is already broken, that pre-existing breakage
+script's own smoke test pass. **For batches touching CI/security/dependency tooling
+specifically, check live state, not just that workflow files parse** — `gh api`/`gh run list`
+against the actual repo (Dependency Graph contents, whether private vulnerability reporting is
+already on, recent workflow run results) surfaces facts no static file read can (REPO-01's
+research directly verified the Dependency Graph had zero JVM packages, and that vulnerability
+reporting was already enabled, both of which changed what the drafted prompt needed to say).
+If the baseline is already broken, that pre-existing breakage
 becomes its own finding (per `finding-resolution.md`) and gets called out explicitly in the new
 batch's CONTEXT, so implementers aren't confused later about whose failure it is.
 
