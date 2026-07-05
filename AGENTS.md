@@ -113,6 +113,17 @@ running Fukuii node's JSON-RPC as MCP tools/resources: see
 [`.github/copilot/mcp.json`](.github/copilot/mcp.json) for setup and available
 tools/resources/prompts.
 
+## Key Directories
+
+Subsystem-level breadcrumbs exist for the areas below — read them before making structural
+changes in that directory, not just this top-level file:
+
+| Path | Breadcrumb | Purpose |
+|------|-----------|---------|
+| `src/main/scala/com/chipprbots/ethereum/blockchain/sync/` | `blockchain/sync/AGENTS.md` | Fast/regular/SNAP sync strategies + shared peer plumbing |
+| `src/main/scala/com/chipprbots/ethereum/consensus/` | `consensus/AGENTS.md` | PoW (Ethash/ECIP)/PoS (Engine API) dual-family dispatch — mandatory gate, see `consensus-change-protocol.md` |
+| `src/main/scala/com/chipprbots/ethereum/db/` | `db/AGENTS.md` | RocksDB storage layer behind the `DataSource` abstraction |
+
 ## Where agent protocols and skills actually live
 
 Shared protocol docs and skill definitions are canonically edited under `.agents/protocols/`

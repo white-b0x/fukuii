@@ -42,24 +42,9 @@ ls src/main/scala/com/chipprbots/ethereum/db/
 
 ## Package structure
 
-```
-db/
-├── RocksDbDataSource.scala         — primary DataSource: read/write/batch
-├── RocksDbConfig.scala             — tuning: block cache, write buffer, compaction
-├── EphemDataSource.scala           — in-memory DataSource (tests + light clients)
-├── cache/
-│   ├── NodeCache.scala             — LRU cache for trie nodes (wraps Guava/Caffeine)
-│   └── BlockCache.scala            — block header LRU (reduce RocksDB reads)
-├── batch/
-│   └── RocksDbBatch.scala          — batch write accumulator + atomic commit
-├── wal/
-│   └── WriteAheadLog.scala         — WAL flushing policy + recovery entry points
-└── storage/                        — typed storage components (BlockStorage, ReceiptStorage, etc.)
-    ├── BlockStorage.scala
-    ├── ReceiptStorage.scala
-    ├── StateStorage.scala
-    └── ...
-```
+See `db/AGENTS.md` for the current directory structure and file-level breakdown
+(`dataSource/`, `components/`, `cache/`, `storage/` + subpackages) — kept as the single
+source of truth rather than duplicating a snapshot here that can drift out of sync.
 
 ## DataSource contract
 
