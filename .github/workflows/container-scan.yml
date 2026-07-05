@@ -1,0 +1,66 @@
+name: Container Scan (Trivy)
+
+# Trivy scans the production image built from docker/Dockerfile (the same
+# Dockerfile release.yml and docker.yml publish to
+# ghcr.io/chippr-robotics/fukuii) for OS-package/JRE-level CVEs. Modeled on
+# Nethermind's pre-merge PR-gated pattern (scan on every PR/push touching the
+# Dockerfile, plus a weekly cron) rather than Besu's post-publish-only
+# pattern, so problems are caught before they ship, not just audited after
+# the fact.
+#
+# fukuii ships 7 Dockerfile variants (docker/Dockerfile, Dockerfile-dev,
+# Dockerfile-base, Dockerfile.mainnet, Dockerfile.mordor, Dockerfile.bootnode,
+# plus the hive-*.yml CI-only quick Dockerfiles) — this workflow scans only
+# the canonical production image (docker/Dockerfile) for now; extending to
+# the others is a separate, deliberate follow-up.
+#
+# Burn-in: `exit-code: 0` (report-only) — this repo has never had a
+# container CVE scan run before. Tighten to `exit-code: 1` (fail the job)
+# only after a human has triaged the first report.
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - 'docker/Dockerfile'
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'docker/Dockerfile'
+  schedule:
+    - cron: '17 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    name: Trivy image scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Build image
+        run: docker build -t fukuii:${{ github.sha }} -f docker/Dockerfile .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: fukuii:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Upload Trivy results to Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif

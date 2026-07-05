@@ -42,7 +42,7 @@ docker run -d --name fukuii -p 8545:8545 chipprbots/fukuii:latest
 - **Publishing:** Automated via `.github/workflows/release.yml` on version tags
 - **Security Features:**
   - ✅ Images are signed with [Cosign](https://github.com/sigstore/cosign) (keyless signing using GitHub OIDC)
-  - ✅ SLSA Level 3 provenance attestations attached
+  - ✅ Build provenance attestation attached (not the formal SLSA Level 3 attestation — that generator was removed 2026-04-27 after persistent CI startup failures; see `release.yml`)
   - ✅ Software Bill of Materials (SBOM) included
   - ✅ Immutable digest references
 - **Tags:** Semantic versions (e.g., `v1.0.0`, `1.0`, `1`, `latest`)
@@ -108,22 +108,16 @@ cosign verify \
 - The image has not been tampered with since it was signed
 - The signature is valid and trusted
 
-### Verify SLSA Provenance
+### SLSA Provenance (not currently generated)
 
-```bash
-# Install slsa-verifier
-go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
-
-# Verify SLSA provenance
-slsa-verifier verify-image \
-  ghcr.io/chippr-robotics/fukuii:v1.0.0 \
-  --source-uri github.com/chippr-robotics/fukuii
-```
-
-**What this verifies:**
-- Build provenance meets SLSA Level 3 requirements
-- The image was built from the expected source repository
-- Build process integrity is maintained
+Formal SLSA Level 3 provenance generation (via the `slsa-framework` reusable
+workflow) was removed from `release.yml` on 2026-04-27 after it caused
+persistent `startup_failure`s that blocked every release run. `slsa-verifier`
+will not find a matching attestation for images built since that date —
+Cosign signing (verified above) plus a generic build provenance attestation
+remain the current baseline. Re-introducing formal SLSA provenance needs its
+own validation pass (see the comment above the removed job in `release.yml`)
+before this section can be restored.
 
 ## Available Images
 
@@ -534,8 +528,8 @@ Release images published to `ghcr.io/chippr-robotics/fukuii` follow supply chain
 - Signatures are stored in the Sigstore transparency log (Rekor)
 - Verifiable proof that images were built by our official GitHub Actions workflows
 
-#### 2. SLSA Provenance
-- [SLSA Level 3](https://slsa.dev/spec/v1.0/levels) provenance attestations are generated
+#### 2. Build Provenance
+- A build provenance attestation is generated (not the formal [SLSA Level 3](https://slsa.dev/spec/v1.0/levels) attestation — that generator was removed 2026-04-27 after persistent CI startup failures; see `release.yml`)
 - Provides verifiable metadata about how the image was built
 - Includes source repository, commit SHA, build parameters, and builder identity
 - Helps prevent supply chain attacks by ensuring build integrity
@@ -562,10 +556,9 @@ cosign verify \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   ghcr.io/chippr-robotics/fukuii:v1.0.0
 
-# 3. Verify SLSA provenance (optional)
-slsa-verifier verify-image \
-  ghcr.io/chippr-robotics/fukuii:v1.0.0 \
-  --source-uri github.com/chippr-robotics/fukuii
+# 3. Formal SLSA provenance verification is not currently applicable — the
+#    slsa-framework generator was removed from release.yml on 2026-04-27.
+#    Cosign signature verification above remains the supported check.
 
 # 4. Use the verified image with immutable digest
 docker pull ghcr.io/chippr-robotics/fukuii@sha256:abc123...
@@ -659,7 +652,7 @@ Fukuii uses automated workflows for container image publishing to both Docker Hu
 
 **Security Features (GHCR only):**
 - ✅ Images signed with Cosign (keyless, GitHub OIDC)
-- ✅ SLSA Level 3 provenance attestations
+- ✅ Build provenance attestation (not the formal SLSA Level 3 attestation — removed 2026-04-27, see `release.yml`)
 - ✅ SBOM (Software Bill of Materials) included
 - ✅ Immutable digest references logged
 
@@ -681,7 +674,7 @@ git push origin v1.0.0
 # 2. Creates GitHub release with artifacts
 # 3. Builds and pushes Docker images to both registries
 # 4. Signs GHCR image with Cosign
-# 5. Generates SLSA provenance
+# 5. Generates a build provenance attestation
 # 6. Logs immutable digest
 ```
 

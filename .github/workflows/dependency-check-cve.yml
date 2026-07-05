@@ -1,0 +1,95 @@
+name: Dependency Check (CVE)
+
+# NVD CVE scan via nMoncho/sbt-dependency-check (a maintained fork of the
+# archived/unmaintained albuch/sbt-dependency-check — do not swap back to
+# that one). Scans fukuii's resolved dependency set directly against the
+# NVD CVE database, using the OWASP DependencyCheck engine. Complementary
+# to, not a replacement for:
+#   - dependency-check.yml — weekly `sbt dependencyTree` version-currency
+#     report only, zero CVE/vulnerability data.
+#   - dependency-review.yml — diffs PR-introduced dependencies against
+#     GitHub's own advisory database, and only for what's in the Dependency
+#     Graph (see sbt-dependency-submission.yml).
+# This workflow is the only one of the three that queries NVD directly.
+#
+# The plugin is added as an ephemeral CI-time project/*.sbt file (written by
+# the "Add plugin" step below) rather than a permanent addition to this
+# repo's tracked project/plugins.sbt/build.sbt — nothing here changes
+# fukuii's actual build definition.
+#
+# EXPECTED RED until the NVD_API_KEY repo secret is provisioned (operator
+# manual step — see https://nvd.nist.gov/developers/request-an-api-key,
+# then add as a repo secret under Settings > Secrets and variables >
+# Actions). Without an API key the NVD API is rate-limited to the point of
+# practical failure on first run. This is expected, not a bug in this
+# workflow.
+#
+# Burn-in: report-only for now — `continue-on-error: true` on the scan step,
+# and dependencyCheckFailBuildOnCVSS is left at its plugin default (11.0 —
+# never fails a build on CVSS score alone). This repo has never had a
+# JVM-ecosystem CVE scan run before, so the first real run will likely
+# surface a genuine backlog. Tighten (drop continue-on-error, lower the CVSS
+# threshold) only after a human has triaged the first report.
+
+on:
+  schedule:
+    # Weekly, offset 30 minutes from dependency-check.yml's own Monday
+    # 9:00 UTC cron to avoid the two workflows colliding on shared runners.
+    - cron: '30 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-check-cve:
+    name: NVD CVE scan (sbt-dependency-check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'sbt'
+
+      - name: Cache NVD CVE database
+        uses: actions/cache@v5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-data-${{ github.run_id }}
+          restore-keys: nvd-data-
+
+      - name: Add sbt-dependency-check plugin (CI-only, not committed to project/plugins.sbt)
+        run: echo 'addSbtPlugin("net.nmoncho" % "sbt-dependency-check" % "1.9.2")' > project/dependency-check-plugin.sbt
+
+      - name: Configure NVD API key and report formats (CI-only, not committed to build.sbt)
+        run: |
+          {
+            echo 'import net.nmoncho.sbt.dependencycheck.settings._'
+            echo 'import org.owasp.dependencycheck.reporting.ReportGenerator.Format'
+            echo 'ThisBuild / dependencyCheckNvdApi := NvdApiSettings(apiKey = sys.env.getOrElse("NVD_API_KEY", ""))'
+            echo 'ThisBuild / dependencyCheckFormats := List(Format.HTML, Format.JSON)'
+          } > dependency-check-ci.sbt
+
+      - name: Run OWASP Dependency Check against the NVD CVE database
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: sbt dependencyCheckAllProjects
+        # Burn-in: report-only. See header comment.
+        continue-on-error: true
+
+      - name: Upload dependency-check report
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: dependency-check-report
+          path: |
+            **/dependency-check-report.html
+            **/dependency-check-report.json
+          retention-days: 30

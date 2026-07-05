@@ -40,12 +40,17 @@ label; both steps are needed when adding a genuinely new label.
 
 ## CODEOWNERS
 
-**Not currently present, and deliberately not added as part of this pass.** `git log`
-shows a single active contributor as of 2026-07 — a `CODEOWNERS` file's entire value is
-routing review by *multiple* owners across paths; with one maintainer, every line would
-resolve to the same name and add process overhead without the benefit CODEOWNERS exists
-to provide. Add this file when a second regular contributor/reviewer joins, mapping paths
-to real owners at that point — don't fabricate placeholder ownership now.
+**Present as of 2026-07: `.github/CODEOWNERS`, a lightweight root catch-all.** `git log`
+confirms two real, active maintainers — Cody Burns/Chippr Robotics LLC (`@realcodywburns`)
+and Christopher Mercer/White B0x Inc. (`@chris-mercer`) — so a single blanket line
+(`* @realcodywburns @chris-mercer`) is worth the trivial cost: every PR gets an
+auto-requested reviewer, with no per-path routing overhead. Deliberately **not** grown to
+Nethermind's per-module (~56-line) density — see
+`docs/research/best-practices/evm-clients/repo-patterns/nethermind/repo-hygiene-pattern.md`
+and `besu/repo-hygiene-pattern.md` (Besu, at ~20 maintainers, has never found per-path
+granularity worth maintaining either) for why that resolution isn't proportionate at
+fukuii's current contributor count. Grow this file only once a third regular contributor
+with distinct subsystem ownership joins.
 
 ## Notes for agents
 

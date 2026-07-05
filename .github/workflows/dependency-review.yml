@@ -1,0 +1,32 @@
+name: Dependency review
+
+# Fails a PR if any newly introduced or changed dependency has a known
+# High-or-above severity advisory in GitHub's Advisory Database. This relies
+# entirely on GitHub's Dependency Graph already being populated for both the
+# base and head refs of the PR — see sbt-dependency-submission.yml, which is
+# a hard prerequisite, not an independent nice-to-have (without it, this
+# workflow runs green while silently checking zero JVM packages). Distinct
+# from dependency-check.yml (weekly version-currency report, no
+# vulnerability data) and dependency-check-cve.yml (a separate, direct NVD
+# CVE scan against the resolved dependency set, not GitHub's advisory
+# database).
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high

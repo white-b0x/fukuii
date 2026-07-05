@@ -38,7 +38,7 @@ Fukuii is an execution layer client for EVM-compatible networks — an independe
 - **No network lock-in** — one binary runs ETC mainnet, Ethereum mainnet, testnets, and custom chains. Eliminate the operational overhead of running separate clients for separate networks.
 - **Consensus-agnostic** — PoW for ETC, PoS via Engine API for Ethereum, PoA for enterprise consortium chains, custom derivation for L2s. The client adapts to the network; the network does not dictate the client.
 - **Future-proof** — as networks evolve and new consensus mechanisms emerge, the pluggable architecture absorbs them without a rewrite.
-- **Verifiable artifact chain** — every release ships with SLSA Level 3 provenance, a CycloneDX SBOM, and a Cosign keyless signature. Operators under SOC2 audit or institutional procurement can verify exactly what they're running, from source commit to deployed container.
+- **Verifiable artifact chain** — every release ships with a Cosign keyless signature, a build provenance attestation, and a CycloneDX SBOM. Operators under SOC2 audit or institutional procurement can verify exactly what they're running, from source commit to deployed container.
 - **Client diversity** — Scala/JVM is a distinct implementation with a different dependency tree and failure profile. Risk frameworks requiring multiple independent client implementations can deploy Fukuii without running two instances of the same codebase.
 
 ## Who Uses Fukuii
@@ -232,13 +232,13 @@ The Barad-dûr reference deployment is the enterprise topology: Kong API gateway
 - Container images run as non-root with minimal attack surface
 
 **Supply Chain Security**
-- SLSA Level 3 provenance attestations on all release artifacts
 - Cosign keyless image signing (GitHub OIDC — no long-lived signing keys)
+- Build provenance attestation on release container images (formal SLSA Level 3 attestation was removed 2026-04-27 after persistent CI startup failures — see `release.yml`; Cosign signing + this provenance attestation remain the current baseline)
 - Software Bill of Materials in CycloneDX format attached to every release
-- Weekly automated dependency monitoring
-- CodeQL static analysis on every push
+- Weekly automated dependency monitoring, plus PR-gated dependency review and a scheduled NVD CVE scan against the resolved dependency set
+- Semgrep static analysis (Scala-aware rulesets) on every push and PR, plus Trivy container-image scanning — CodeQL has no Scala extractor, so it does not run against fukuii's own code
 
-For SOC2-audited operators: SLSA provenance, SBOM, and signed artifacts support evidence collection for software integrity and change management controls. Structured logging integrates with SIEM systems.
+For SOC2-audited operators: build provenance, SBOM, and signed artifacts support evidence collection for software integrity and change management controls. Structured logging integrates with SIEM systems.
 
 **Operational patterns**
 
@@ -297,7 +297,7 @@ Download the latest release from the [Releases page](https://github.com/chippr-r
 ### Option 1: Docker (Recommended)
 
 ```bash
-# GHCR is the primary registry — all images are SLSA-signed with provenance attestations
+# GHCR is the primary registry — all images are Cosign-signed with a build provenance attestation
 docker pull ghcr.io/chippr-robotics/fukuii:<version>
 
 # Verify the image signature

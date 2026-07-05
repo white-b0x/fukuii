@@ -1,0 +1,16 @@
+# CODEOWNERS
+#
+# Lightweight, deliberately not per-module: fukuii has two real, active
+# maintainers today (Cody Burns/Chippr Robotics LLC, Christopher Mercer/White
+# B0x Inc. — confirmed via `git log`). A per-path/per-module CODEOWNERS at
+# Nethermind's ~56-line density adds review-request overhead without adding
+# routing signal when every line would resolve to the same one or two names.
+# See `.agents/protocols/tooling/github-workflows.md` and
+# `docs/research/best-practices/evm-clients/repo-patterns/nethermind/repo-hygiene-pattern.md`
+# / `besu/repo-hygiene-pattern.md` (Besu — 20 maintainers — has never found
+# per-path granularity worth maintaining either) for the reasoning. Grow this
+# file only once a third regular contributor with distinct subsystem
+# ownership joins.
+
+# Root catch-all — every path not matched more specifically below.
+* @realcodywburns @chris-mercer

@@ -507,7 +507,7 @@ When a release is created (via git tag `vX.Y.Z`), the release workflow automatic
 - ✅ Attaches all artifacts to GitHub release
 - ✅ Builds and publishes container images to `ghcr.io/chippr-robotics/fukuii`
 - ✅ Signs images with [Cosign](https://docs.sigstore.dev/cosign/overview/) (keyless, GitHub OIDC)
-- ✅ Generates SLSA Level 3 provenance attestations
+- ✅ Generates a build provenance attestation (not the formal SLSA Level 3 attestation — removed 2026-04-27 after persistent CI startup failures; see `release.yml`)
 - ✅ Outputs immutable digest references for tamper-proof deployments
 - ✅ Closes matching milestone
 

@@ -28,7 +28,7 @@ The versioning and release process is fully automated through GitHub Actions:
   - Distribution ZIP and assembly JAR
   - Auto-generated CHANGELOG from commit history
   - SBOM (Software Bill of Materials)
-  - Signed Docker images with SLSA provenance
+  - Signed Docker images with a build provenance attestation (not the formal SLSA Level 3 attestation — removed 2026-04-27, see `release.yml`)
 - **release-drafter.yml**: Maintains draft releases with categorized changes as PRs are merged
 
 **How It Works:**
