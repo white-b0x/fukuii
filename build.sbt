@@ -324,6 +324,22 @@ lazy val node = {
         Defaults.testSettings
           ++ org.scalafmt.sbt.ScalafmtPlugin.scalafmtConfigSettings
           :+ (parallelExecution := false)
+          // sbt config-axis delegation gotcha: `val Integration = config("it").extend(Test)`
+          // (see above) means any key left unset on the Integration axis silently falls back
+          // to the Test axis's value. commonSettings' `(Test / testOptions) += ... "-l
+          // IntegrationTest"` (added to keep network-dependent tests out of plain `sbt test`)
+          // was therefore ALSO silently excluding every test tagged IntegrationTest from
+          // `IntegrationTest / test` itself — which is exactly the tag every ethtest spec
+          // class carries (`taggedAs (IntegrationTest, EthereumTest, SlowTest)`), so 8 of the
+          // 9 ethtest spec classes ran zero tests every night while still reporting a green
+          // "Suites: completed" summary (only EthSmokeSpec, tagged EthSmoke only, survived).
+          // This `:=` (not `+=`) fully replaces the inherited value instead of appending to
+          // it, so Integration/testOptions carries ONLY what this config actually needs.
+          :+ (testOptions := Seq(Tests.Argument("-oDG")))
+          :+ (testOptions += {
+            val reportsDir = (Test / target).value / "test-reports"
+            Tests.Setup(_ => IO.createDirectory(reportsDir))
+          })
           :+ (testGrouping := {
             val tests = (definedTests).value
             tests.map { test =>
@@ -539,7 +555,11 @@ addCommandAlias(
 )
 
 // testComprehensive - Tier 3: Comprehensive tests (< 3 hours)
-// Runs all tests including the ethereum/tests compliance suite. No exclusions.
+// Runs all tests including the ethereum/tests compliance suite. `test`/`testOnly` (Test
+// config) still exclude EthashMinerSpec/IntegrationTest per commonSettings, but
+// `IntegrationTest / testOnly` now genuinely runs its full suite — including every
+// IntegrationTest-tagged ethtest spec class — since the Integration-axis testOptions
+// override above stopped it from silently inheriting those same Test-scoped exclusions.
 addCommandAlias(
   "testComprehensive",
   """; compile-all
