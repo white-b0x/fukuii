@@ -128,6 +128,26 @@ finding was drafted, not because the research pass checked first). Treat "is thi
 being fixed elsewhere" as a mandatory check alongside "has this happened before," not an
 afterthought triggered by someone else noticing the gap.
 
+**`gh pr list`/`git log --all --grep` only find work that was pushed as a PR or landed as a
+commit — also run `git branch -a` (and, if relevant, `git log --all --grep` against *branch
+names*, not just commit messages) to catch in-progress or abandoned work sitting on an
+unmerged branch that was never opened as a PR at all.** This is not a redundant restatement of
+the PR/commit check above — it is a genuinely different search surface with different blind
+spots, and a real, unmerged fix can exist on the canonical remote without ever surfacing in
+either of the other two checks. **Incident (REPO-07, 2026-07-05):** `gh pr list --state all
+--search` for every relevant keyword came back clean, but `git branch -a` surfaced
+`upstream/fix/hive-sync-enode` — an unmerged, un-PR'd branch, one day old, already containing a
+better fix for the exact bug being drafted (`enode.sh`'s placeholder anti-pattern), plus a
+prerequisite bug (a missing JSON-RPC namespace) the research hadn't otherwise found. When a
+matching branch is found, the disposition of *its other, unrelated content* (this incident's
+branch bundled ~30 additional files outside the fix being cherry-picked) is not this rule's
+job to resolve — surface it as its own scheduled finding per `finding-resolution.md` (an
+operator decision: finish it, PR it, or discard it), not something to fold silently into
+whatever prompt is being drafted. If the matching branch's content looks like it could be
+directly ported or emulated rather than re-derived from scratch, say so explicitly in the
+drafted prompt — re-deriving a fix that already exists, tested or not, is wasted work Rule (d)
+exists specifically to prevent.
+
 ## Rule (e): Pre-flight baseline health check
 
 Before drafting, confirm the target area is currently healthy, independent of the planned
