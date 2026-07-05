@@ -8,6 +8,7 @@ This directory contains architectural documentation for the Fukuii EVM execution
 - **[Architecture Overview](architecture-overview.md)** - High-level system architecture and component interactions, including the Engine API / Consensus Layer Integration subsystem
 - **[Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md)** - C4 architecture diagrams and visual representations
 - **[Pluggable Consensus Vision](pluggable-consensus-vision.md)** - Three-layer `fukuii-core` / `fukuii-env` / consensus-module architecture for multi-network support with Orbita sidechains
+- **[Fork Divergence](FORK_DIVERGENCE.md)** - What fukuii adds beyond its Mantis lineage, the `EvmConfig.forBlock`/timestamp-override dispatch mechanism that makes multi-network PoW/PoS support possible, and an honest list of what fukuii doesn't attempt to match
 
 ### Wire Protocol
 - **[Protocol Capability Negotiation](PROTOCOL_CAPABILITY_NEGOTIATION.md)** - How fukuii negotiates ETH/SNAP protocol versions and capabilities with peers

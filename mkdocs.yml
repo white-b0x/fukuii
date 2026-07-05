@@ -157,6 +157,7 @@ nav:
     - Architecture:
       - architecture/architecture-overview.md
       - Architecture Diagrams: architecture/ARCHITECTURE_DIAGRAMS.md
+      - Fork Divergence: architecture/FORK_DIVERGENCE.md
       - Console UI: architecture/console-ui.md
       - Snap Sync: architecture/SNAP_SYNC_IMPLEMENTATION.md
     - Development:
