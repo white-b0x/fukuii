@@ -3,8 +3,8 @@ package com.chipprbots.ethereum.blockchain.sync
 import java.net.InetSocketAddress
 
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import org.scalatest.flatspec.AnyFlatSpec
@@ -146,12 +146,14 @@ class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
   object Peers:
     implicit val system: ActorSystem = ActorSystem("PeersClient_System")
+    implicit val typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = system.toTyped
 
     val peer1: Peer =
-      Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), TestProbe().ref.toTyped[PeerActor.Command], false)
+      Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), TestProbe[PeerActor.Command]().ref, false)
     val peer2: Peer =
-      Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), TestProbe().ref.toTyped[PeerActor.Command], false)
-    val peer3: Peer = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), TestProbe().ref, false)
+      Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), TestProbe[PeerActor.Command]().ref, false)
+    val peer3: Peer =
+      Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), TestProbe[PeerActor.Command]().ref, false)
 
     // Distinct bestHash and genesisHash so isAtGenesis returns false by default.
     // Tests that need a genesis-only peer can override via `peerInfoAtGenesis`.

@@ -1,8 +1,8 @@
 package com.chipprbots.ethereum.blockchain.sync
 
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -48,7 +48,7 @@ import com.chipprbots.ethereum.utils.Config
 class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
 
   it should "return Receipts for block hashes" taggedAs (UnitTest) in new TestSetup:
-    peerEventBus.expectMsgType[SubscribeCmd].to shouldBe MessageClassifier(
+    peerEventBus.expectMessageType[SubscribeCmd].to shouldBe MessageClassifier(
       Set(
         Codes.GetPooledTransactionsCode,
         Codes.GetNodeDataCode,
@@ -78,7 +78,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(
+    networkPeerManager.expectMessage(
       NetworkPeerManagerActor.SendMessageCmd(
         ETHPackets.Receipts68(
           BigInt(0),
@@ -109,7 +109,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(
+    networkPeerManager.expectMessage(
       NetworkPeerManagerActor.SendMessageCmd(ETHPackets.BlockBodies(BigInt(0), blockBodies), peerId)
     )
 
@@ -131,7 +131,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(
+    networkPeerManager.expectMessage(
       NetworkPeerManagerActor.SendMessageCmd(BlockHeaders(BigInt(0), Seq(firstHeader, secondHeader)), peerId)
     )
 
@@ -153,7 +153,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(
+    networkPeerManager.expectMessage(
       NetworkPeerManagerActor.SendMessageCmd(BlockHeaders(BigInt(0), Seq(firstHeader, secondHeader)), peerId)
     )
 
@@ -174,7 +174,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(
+    networkPeerManager.expectMessage(
       NetworkPeerManagerActor.SendMessageCmd(BlockHeaders(BigInt(0), Seq(firstHeader, secondHeader)), peerId)
     )
 
@@ -196,7 +196,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(
+    networkPeerManager.expectMessage(
       NetworkPeerManagerActor.SendMessageCmd(BlockHeaders(BigInt(0), Seq(firstHeader, secondHeader)), peerId)
     )
 
@@ -222,7 +222,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(
+    networkPeerManager.expectMessage(
       NetworkPeerManagerActor.SendMessageCmd(BlockHeaders(BigInt(0), Seq(firstHeader, secondHeader)), peerId)
     )
 
@@ -244,7 +244,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(
+    networkPeerManager.expectMessage(
       NetworkPeerManagerActor.SendMessageCmd(BlockHeaders(BigInt(0), Seq(firstHeader, secondHeader)), peerId)
     )
 
@@ -266,7 +266,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(
+    networkPeerManager.expectMessage(
       NetworkPeerManagerActor.SendMessageCmd(BlockHeaders(BigInt(0), Seq(firstHeader, secondHeader)), peerId)
     )
 
@@ -288,7 +288,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(
+    networkPeerManager.expectMessage(
       NetworkPeerManagerActor.SendMessageCmd(
         BlockHeaders(BigInt(0), Seq(firstHeader, secondHeader, blockchainReader.genesisHeader)),
         peerId
@@ -306,7 +306,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     blockchainHost ! BlockchainHostActor.PeerEventReceived(MessageFromPeer(GetNodeData(Seq(evmCodeHash)), peerId))
 
     // then
-    networkPeerManager.expectMsg(NetworkPeerManagerActor.SendMessageCmd(NodeData(Seq(fakeEvmCode)), peerId))
+    networkPeerManager.expectMessage(NetworkPeerManagerActor.SendMessageCmd(NodeData(Seq(fakeEvmCode)), peerId))
 
   it should "return mptNode for hash" taggedAs (UnitTest) in new TestSetup:
     // given
@@ -326,10 +326,13 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
     )
 
     // then
-    networkPeerManager.expectMsg(NetworkPeerManagerActor.SendMessageCmd(NodeData(Seq(extensionNode.toBytes)), peerId))
+    networkPeerManager.expectMessage(
+      NetworkPeerManagerActor.SendMessageCmd(NodeData(Seq(extensionNode.toBytes)), peerId)
+    )
 
   trait TestSetup extends EphemBlockchainTestSetup:
     implicit override lazy val classicSystem: ActorSystem = ActorSystem("BlockchainHostActor_System")
+    implicit lazy val typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = classicSystem.toTyped
 
     blockchainWriter.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
 
@@ -369,9 +372,12 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
 
     val peerId: PeerId = PeerId("1")
 
-    val peerEventBus: TestProbe = TestProbe()
-    val networkPeerManager: TestProbe = TestProbe()
-    val pendingTxManager: TestProbe = TestProbe()
+    val peerEventBus: TestProbe[com.chipprbots.ethereum.network.PeerEventBusActor.Command] =
+      TestProbe[com.chipprbots.ethereum.network.PeerEventBusActor.Command]()
+    val networkPeerManager: TestProbe[NetworkPeerManagerActor.Command] =
+      TestProbe[NetworkPeerManagerActor.Command]()
+    val pendingTxManager: TestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command] =
+      TestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command]()
 
     val blockchainHost: org.apache.pekko.actor.typed.ActorRef[BlockchainHostActor.Command] =
       classicSystem.spawn(
@@ -381,7 +387,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers:
           peerConf,
           peerEventBus.ref,
           networkPeerManager.ref,
-          pendingTxManager.ref.toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command]
+          pendingTxManager.ref
         ),
         s"blockchain-host-${System.nanoTime()}"
       )

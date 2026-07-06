@@ -1,9 +1,7 @@
 package com.chipprbots.ethereum.jsonrpc
 
-import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 
 import cats.effect.unsafe.IORuntime
 
@@ -34,7 +32,6 @@ class TxPoolServiceSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike w
   import TxPoolService.*
 
   implicit val runtime: IORuntime = IORuntime.global
-  implicit private val classicActorSystem: ActorSystem = system.toClassic
 
   val txPoolConfig: TxPoolConfig = new TxPoolConfig:
     val txPoolSize: Int = 4096
@@ -56,18 +53,17 @@ class TxPoolServiceSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike w
     PendingTransaction(withSender.head, System.currentTimeMillis(), receivedFromLocalSource = local)
 
   trait TestSetup:
-    val probe: TestProbe = TestProbe()
+    val probe: TestProbe[PendingTransactionsManager.Command] =
+      testKit.createTestProbe[PendingTransactionsManager.Command]()
     val service = new TxPoolService(
-      probe.ref.toTyped[PendingTransactionsManager.Command],
+      probe.ref,
       5.seconds,
       txPoolConfig,
       testKit.system.scheduler
     )
 
     def replyPTM(response: PendingTransactionsResponse): Unit =
-      probe.expectMsgPF() { case req: PendingTransactionsManager.GetPendingTransactionsReq =>
-        req.replyTo ! response
-      }
+      probe.expectMessageType[PendingTransactionsManager.GetPendingTransactionsReq].replyTo ! response
 
   // ── besuTransactions ────────────────────────────────────────────────────────
 

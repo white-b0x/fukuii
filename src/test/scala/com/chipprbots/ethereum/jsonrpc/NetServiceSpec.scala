@@ -3,11 +3,10 @@ package com.chipprbots.ethereum.jsonrpc
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicReference
 
-import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.unsafe.IORuntime
@@ -41,7 +40,7 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
       .peerCount(PeerCountRequest())
       .unsafeToFuture()
 
-    val pcCmd = peerManager.expectMsgType[PeerManagerActor.GetPeersCmd]
+    val pcCmd = peerManager.expectMessageType[PeerManagerActor.GetPeersCmd]
     pcCmd.replyTo ! PeerManagerActor.Peers(
       Map(
         Peer(PeerId("peer1"), new InetSocketAddress(1), testRef, false) -> PeerActor.Status.Handshaked,
@@ -91,7 +90,7 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
       .listPeers(ListPeersRequest())
       .unsafeToFuture()
 
-    val lpCmd = peerManager.expectMsgType[PeerManagerActor.GetPeersCmd]
+    val lpCmd = peerManager.expectMessageType[PeerManagerActor.GetPeersCmd]
     lpCmd.replyTo ! PeerManagerActor.Peers(
       Map(
         Peer(
@@ -122,7 +121,7 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
       .disconnectPeer(DisconnectPeerRequest("peer1"))
       .unsafeToFuture()
 
-    val dcCmd = peerManager.expectMsgType[PeerManagerActor.DisconnectPeerByIdCmd]
+    val dcCmd = peerManager.expectMessageType[PeerManagerActor.DisconnectPeerByIdCmd]
     dcCmd.replyTo ! PeerManagerActor.DisconnectPeerResponse(disconnected = true)
 
     resF.futureValue shouldBe Right(DisconnectPeerResponse(success = true))
@@ -132,7 +131,7 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
       .disconnectPeer(DisconnectPeerRequest("nonexistent"))
       .unsafeToFuture()
 
-    val dcCmd2 = peerManager.expectMsgType[PeerManagerActor.DisconnectPeerByIdCmd]
+    val dcCmd2 = peerManager.expectMessageType[PeerManagerActor.DisconnectPeerByIdCmd]
     dcCmd2.replyTo ! PeerManagerActor.DisconnectPeerResponse(disconnected = false)
 
     resF.futureValue shouldBe Right(DisconnectPeerResponse(success = false))
@@ -144,7 +143,7 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
 
     result.isRight shouldBe true
     result.toOption.get.success shouldBe true
-    peerManager.expectMsgClass(classOf[PeerManagerActor.ConnectToPeerCmd])
+    peerManager.expectMessageType[PeerManagerActor.ConnectToPeerCmd]
 
   it should "reject invalid peer URI" taggedAs (UnitTest, RPCTest) in new TestSetup:
     // Using a URI with invalid characters that will throw URISyntaxException
@@ -175,7 +174,7 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
       .addToBlacklist(AddToBlacklistRequest("192.168.1.200", Some(300), "Test reason"))
       .unsafeToFuture()
 
-    val ablCmd = peerManager.expectMsgType[PeerManagerActor.AddToBlacklistCmd]
+    val ablCmd = peerManager.expectMessageType[PeerManagerActor.AddToBlacklistCmd]
     ablCmd.replyTo ! PeerManagerActor.AddToBlacklistResponse(added = true)
 
     resF.futureValue shouldBe Right(AddToBlacklistResponse(added = true))
@@ -185,7 +184,7 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
       .addToBlacklist(AddToBlacklistRequest("192.168.1.201", None, "Permanent ban"))
       .unsafeToFuture()
 
-    val ablCmd2 = peerManager.expectMsgType[PeerManagerActor.AddToBlacklistCmd]
+    val ablCmd2 = peerManager.expectMessageType[PeerManagerActor.AddToBlacklistCmd]
     ablCmd2.replyTo ! PeerManagerActor.AddToBlacklistResponse(added = true)
 
     resF.futureValue shouldBe Right(AddToBlacklistResponse(added = true))
@@ -195,18 +194,19 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
       .removeFromBlacklist(RemoveFromBlacklistRequest("192.168.1.100"))
       .unsafeToFuture()
 
-    val rblCmd = peerManager.expectMsgType[PeerManagerActor.RemoveFromBlacklistCmd]
+    val rblCmd = peerManager.expectMessageType[PeerManagerActor.RemoveFromBlacklistCmd]
     rblCmd.replyTo ! PeerManagerActor.RemoveFromBlacklistResponse(removed = true)
 
     resF.futureValue shouldBe Right(RemoveFromBlacklistResponse(removed = true))
 
   trait TestSetup:
     implicit val system: ActorSystem = ActorSystem("Testsystem")
-    implicit val scheduler: typed.Scheduler = system.toTyped.scheduler
+    implicit val typedSystem: typed.ActorSystem[Nothing] = system.toTyped
+    implicit val scheduler: typed.Scheduler = typedSystem.scheduler
 
-    val testRef: ActorRef = TestProbe().ref
+    val testRef: typed.ActorRef[PeerActor.Command] = TestProbe[PeerActor.Command]().ref
 
-    val peerManager: TestProbe = TestProbe()
+    val peerManager: TestProbe[PeerManagerActor.Command] = TestProbe[PeerManagerActor.Command]()
 
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
 
@@ -223,7 +223,7 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
     val netService =
       new NetService(
         nodeStatusRef,
-        peerManager.ref.toTyped[PeerManagerActor.Command],
+        peerManager.ref,
         blacklist,
         NetServiceConfig(5.seconds)
       )

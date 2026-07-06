@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.jsonrpc
 
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.unsafe.IORuntime
@@ -426,14 +426,15 @@ class EthTxServiceSpec
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   class TestSetup(implicit system: ActorSystem) extends EphemBlockchainTestSetup:
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
-    val pendingTransactionsManager: TestProbe = TestProbe()
+    val pendingTransactionsManager: TestProbe[PendingTransactionsManager.Command] =
+      testKit.createTestProbe[PendingTransactionsManager.Command]()
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     lazy val ethTxService = new EthTxService(
       blockchain,
       blockchainReader,
       mining,
-      pendingTransactionsManager.ref.toTyped[PendingTransactionsManager.Command],
+      pendingTransactionsManager.ref,
       getTransactionFromPoolTimeout,
       storagesInstance.storages.transactionMappingStorage,
       system.toTyped.scheduler
@@ -441,9 +442,7 @@ class EthTxServiceSpec
 
     /** Reply to a Typed PTM ask (GetPendingTransactionsReq) from the probe's mailbox. */
     def replyPTM(response: PendingTransactionsResponse): Unit =
-      pendingTransactionsManager.expectMsgPF() { case req: GetPendingTransactionsReq =>
-        req.replyTo ! response
-      }
+      pendingTransactionsManager.expectMessageType[GetPendingTransactionsReq].replyTo ! response
 
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
 

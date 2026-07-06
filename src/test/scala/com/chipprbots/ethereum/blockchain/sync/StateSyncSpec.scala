@@ -152,7 +152,7 @@ class StateSyncSpec
         Peer(
           PeerId(s"peer$i"),
           new InetSocketAddress("127.0.0.1", i),
-          TestProbe(i.toString).ref.toTyped[PeerActor.Command],
+          testKit.createTestProbe[PeerActor.Command](i.toString).ref,
           incomingConnection = false
         ),
         initialPeerInfo
@@ -182,9 +182,18 @@ class StateSyncSpec
       else peer.id -> NoResponse
     }
 
+    // NOT converted to a typed TestProbe: this AutoPilot's FullResponse/PartialResponse cases match
+    // `NetworkPeerManagerActor.SendMessage` (dead in production — PeerRequestHandler actually sends
+    // `SendMessageCmd`), a pre-existing bug independent of this migration (confirmed via
+    // `testOnly *StateSyncSpec*`: "sync state to different tries when peer provide mixed responses"
+    // already fails on the unmodified baseline with a MatchError). A correct typed replacement needs
+    // a real `Behavior` (Typed `TestProbe` has no `AutoPilot` hook) and ideally fixes the message-type
+    // mismatch at the same time — out of scope for this mechanical probe sweep; left as Classic pending
+    // a dedicated fix.
     val networkPeerManager: TestProbe = TestProbe()
 
-    val peerEventBus: TestProbe = TestProbe()
+    val peerEventBus: TypedTestProbe[com.chipprbots.ethereum.network.PeerEventBusActor.Command] =
+      testKit.createTestProbe[com.chipprbots.ethereum.network.PeerEventBusActor.Command]()
 
     def setAutoPilotWithProvider(trieProvider: TrieProvider, peerConfig: PeerConfig = defaultPeerConfig): Unit =
       networkPeerManager.setAutoPilot(

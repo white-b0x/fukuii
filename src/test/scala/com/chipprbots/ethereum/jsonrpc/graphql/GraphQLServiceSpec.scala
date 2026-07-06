@@ -2,9 +2,9 @@ package com.chipprbots.ethereum.jsonrpc.graphql
 
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.unsafe.IORuntime
@@ -133,8 +133,10 @@ class GraphQLServiceSpec
       storagesInstance.storages.transactionMappingStorage
     override lazy val stxLedger: StxLedger = mock[StxLedger]
     val keyStore: KeyStore = mock[KeyStore]
-    val syncProbe: TestProbe = TestProbe()
-    val pendingTxProbe: TestProbe = TestProbe()
+    val syncProbe: TestProbe[com.chipprbots.ethereum.blockchain.sync.SyncController.Command] =
+      testKit.createTestProbe[com.chipprbots.ethereum.blockchain.sync.SyncController.Command]()
+    val pendingTxProbe: TestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command] =
+      testKit.createTestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command]()
     val filterManager: org.apache.pekko.actor.typed.ActorRef[FilterManager.Command] =
       testKit.spawn(Behaviors.ignore[FilterManager.Command])
 
@@ -148,7 +150,7 @@ class GraphQLServiceSpec
       blockchain,
       blockchainReader,
       mining,
-      pendingTxProbe.ref.toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+      pendingTxProbe.ref,
       1.second,
       transactionMappingStorage,
       system.scheduler
@@ -160,7 +162,7 @@ class GraphQLServiceSpec
       mining,
       stxLedger,
       keyStore,
-      syncProbe.ref.toTyped[com.chipprbots.ethereum.blockchain.sync.SyncController.Command],
+      syncProbe.ref,
       Capability.ETH66,
       org.apache.pekko.util.Timeout(2.seconds),
       system.scheduler

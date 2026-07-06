@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.jsonrpc
 
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.unsafe.IORuntime
@@ -104,10 +104,9 @@ class EthMiningServiceSpec
 
     // Handle the actor messages
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
-    ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
-        replyTo ! OmmersPool.Ommers(Nil)
-    }
+    val getOmmers = ommersPool.expectMessageType[OmmersPool.GetOmmers]
+    getOmmers.parentBlockHash shouldBe parentBlock.hash
+    getOmmers.replyTo ! OmmersPool.Ommers(Nil)
 
     // Wait for the result
     import scala.concurrent.Await
@@ -166,10 +165,9 @@ class EthMiningServiceSpec
 
     // Handle the actor messages
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
-    ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
-        replyTo ! OmmersPool.Ommers(Nil)
-    }
+    val getOmmers = ommersPool.expectMessageType[OmmersPool.GetOmmers]
+    getOmmers.parentBlockHash shouldBe parentBlock.hash
+    getOmmers.replyTo ! OmmersPool.Ommers(Nil)
 
     // Wait for the result
     import scala.concurrent.Await
@@ -207,10 +205,9 @@ class EthMiningServiceSpec
     // Handle the actor messages
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
-    ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
-        replyTo ! OmmersPool.Ommers(Nil)
-    }
+    val getOmmers = ommersPool.expectMessageType[OmmersPool.GetOmmers]
+    getOmmers.parentBlockHash shouldBe parentBlock.hash
+    getOmmers.replyTo ! OmmersPool.Ommers(Nil)
 
     // Wait for the result
     import scala.concurrent.Await
@@ -245,10 +242,9 @@ class EthMiningServiceSpec
 
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
-    ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
-        replyTo ! OmmersPool.Ommers(Nil)
-    }
+    val getOmmers = ommersPool.expectMessageType[OmmersPool.GetOmmers]
+    getOmmers.parentBlockHash shouldBe parentBlock.hash
+    getOmmers.replyTo ! OmmersPool.Ommers(Nil)
 
     import scala.concurrent.Await
     val response: Either[JsonRpcError, GetWorkResponse] = Await.result(workFuture, 10.seconds)
@@ -385,10 +381,9 @@ class EthMiningServiceSpec
       ethMiningService.getWork(GetWorkRequest()).unsafeToFuture()
 
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
-    ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
-        replyTo ! OmmersPool.Ommers(Nil)
-    }
+    val getOmmers = ommersPool.expectMessageType[OmmersPool.GetOmmers]
+    getOmmers.parentBlockHash shouldBe parentBlock.hash
+    getOmmers.replyTo ! OmmersPool.Ommers(Nil)
 
     import scala.concurrent.Await
     val result: Either[JsonRpcError, GetWorkResponse] = Await.result(workFuture, 10.seconds)
@@ -454,7 +449,7 @@ class EthMiningServiceSpec
     result shouldEqual Right(SubmitWorkResponse(true))
     // ROOT-c: EthMiningService now wraps the MinedBlock send in SyncController.WrappedSyncProtocol so it survives the
     // SyncController Behavior[Command] boundary. The TestProbe therefore receives the wrapper, not the raw MinedBlock.
-    val wrapped = syncingController.expectMsgType[SyncController.WrappedSyncProtocol]
+    val wrapped = syncingController.expectMessageType[SyncController.WrappedSyncProtocol]
     wrapped.msg shouldBe a[SyncProtocol.MinedBlock]
 
   it should "set and get the etherbase address" taggedAs (UnitTest, RPCTest) in new TestSetup:
@@ -508,10 +503,9 @@ class EthMiningServiceSpec
     // Handle the actor messages
     replyPTM(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
-    ommersPool.expectMsgPF() {
-      case OmmersPool.GetOmmers(hash, replyTo) if hash == parentBlock.hash =>
-        replyTo ! OmmersPool.Ommers(Nil)
-    }
+    val getOmmers = ommersPool.expectMessageType[OmmersPool.GetOmmers]
+    getOmmers.parentBlockHash shouldBe parentBlock.hash
+    getOmmers.replyTo ! OmmersPool.Ommers(Nil)
 
     // Wait for the result
     import scala.concurrent.Await
@@ -525,9 +519,10 @@ class EthMiningServiceSpec
     override lazy val mining: TestMining = buildTestMining().withBlockGenerator(blockGenerator)
     override lazy val miningConfig = MiningConfigs.miningConfig
 
-    val syncingController: TestProbe = TestProbe()
-    val pendingTransactionsManager: TestProbe = TestProbe()
-    val ommersPool: TestProbe = TestProbe()
+    val syncingController: TestProbe[SyncController.Command] = testKit.createTestProbe[SyncController.Command]()
+    val pendingTransactionsManager: TestProbe[PendingTransactionsManager.Command] =
+      testKit.createTestProbe[PendingTransactionsManager.Command]()
+    val ommersPool: TestProbe[OmmersPool.Command] = testKit.createTestProbe[OmmersPool.Command]()
 
     val minerActiveTimeout: FiniteDuration = 2.seconds // Short timeout for tests
     val getTransactionFromPoolTimeout: FiniteDuration = 20.seconds
@@ -566,9 +561,9 @@ class EthMiningServiceSpec
       blockchainReader,
       mining,
       jsonRpcConfig,
-      ommersPool.ref.toTyped[OmmersPool.Command],
+      ommersPool.ref,
       syncingController.ref,
-      pendingTransactionsManager.ref.toTyped[PendingTransactionsManager.Command],
+      pendingTransactionsManager.ref,
       getTransactionFromPoolTimeout,
       this,
       coinbaseProvider,
@@ -576,9 +571,9 @@ class EthMiningServiceSpec
     )
 
     def replyPTM(response: PendingTransactionsManager.PendingTransactionsResponse): Unit =
-      pendingTransactionsManager.expectMsgPF() { case req: PendingTransactionsManager.GetPendingTransactionsReq =>
-        req.replyTo ! response
-      }
+      pendingTransactionsManager
+        .expectMessageType[PendingTransactionsManager.GetPendingTransactionsReq]
+        .replyTo ! response
 
     val difficulty = 131072
     val parentBlock: Block = Block(

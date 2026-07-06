@@ -7,7 +7,6 @@ import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.typed
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.testkit.TestActor
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.IO
@@ -104,7 +103,7 @@ class PoWMiningCoordinatorSpec
 
       "Miners mine recurrently" taggedAs (UnitTest, ConsensusTest, SlowTest) in new TestSetup:
         override def coordinatorName: String = s"AutomaticMining-${System.nanoTime()}"
-        val probe: TestProbe = TestProbe()
+        val probe = testKit.createTestProbe()
         val testMiner = new InstantMiner(blockCreator, sync.ref, ethMiningService)
         override val coordinator: org.apache.pekko.actor.typed.ActorRef[CoordinatorProtocol] = testKit.spawn(
           PoWMiningCoordinator(
@@ -117,7 +116,6 @@ class PoWMiningCoordinatorSpec
           ),
           coordinatorName
         )
-        probe.watch(coordinator.ref.toClassic)
 
         (() => blockchainReader.getBestBlock).expects().returns(Some(parentBlock)).anyNumberOfTimes()
         setBlockForMining(parentBlock)
@@ -128,7 +126,7 @@ class PoWMiningCoordinatorSpec
         sync.expectMsgType[SyncController.WrappedSyncProtocol](Timeouts.veryLongTimeout).msg shouldBe a[MinedBlock]
 
         coordinator ! StopMining
-        probe.expectTerminated(coordinator.ref.toClassic)
+        probe.expectTerminated(coordinator.ref)
 
       "Continue to attempt to mine if blockchainReader.getBestBlock return None" taggedAs (
         UnitTest,
@@ -136,7 +134,7 @@ class PoWMiningCoordinatorSpec
         SlowTest
       ) in new TestSetup:
         override def coordinatorName: String = s"AlwaysAttemptToMine-${System.nanoTime()}"
-        val probe: TestProbe = TestProbe()
+        val probe = testKit.createTestProbe()
         val testMiner = new InstantMiner(blockCreator, sync.ref, ethMiningService)
         override val coordinator: org.apache.pekko.actor.typed.ActorRef[CoordinatorProtocol] = testKit.spawn(
           PoWMiningCoordinator(
@@ -149,7 +147,6 @@ class PoWMiningCoordinatorSpec
           ),
           coordinatorName
         )
-        probe.watch(coordinator.ref.toClassic)
 
         (() => blockchainReader.getBestBlock).expects().returns(None).twice()
         (() => blockchainReader.getBestBlock).expects().returns(Some(parentBlock)).anyNumberOfTimes()
@@ -162,11 +159,11 @@ class PoWMiningCoordinatorSpec
         sync.expectMsgType[SyncController.WrappedSyncProtocol](Timeouts.veryLongTimeout).msg shouldBe a[MinedBlock]
 
         coordinator ! StopMining
-        probe.expectTerminated(coordinator.ref.toClassic)
+        probe.expectTerminated(coordinator.ref)
 
       "StopMining stops PoWMinerCoordinator" taggedAs (UnitTest, ConsensusTest, SlowTest) in new TestSetup:
         override def coordinatorName: String = s"StoppingMining-${System.nanoTime()}"
-        val probe: TestProbe = TestProbe()
+        val probe = testKit.createTestProbe()
         override val coordinator: org.apache.pekko.actor.typed.ActorRef[CoordinatorProtocol] = testKit.spawn(
           PoWMiningCoordinator(
             sync.ref,
@@ -177,14 +174,13 @@ class PoWMiningCoordinatorSpec
           ),
           coordinatorName
         )
-        probe.watch(coordinator.ref.toClassic)
 
         (() => blockchainReader.getBestBlock).expects().returns(Some(parentBlock)).anyNumberOfTimes()
         setBlockForMining(parentBlock)
         coordinator ! SetMiningMode(RecurrentMining)
         coordinator ! StopMining
 
-        probe.expectTerminated(coordinator.ref.toClassic)
+        probe.expectTerminated(coordinator.ref)
     }
   }
 

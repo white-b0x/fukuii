@@ -4,7 +4,6 @@ import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.IO
@@ -53,15 +52,15 @@ class FukuiiServiceSpec extends ScalaTestWithActorTestKit with FreeSpecBase with
       with JSONRpcConfigBuilder
       with ApisBuilder
       with SyncControllerRefBuilder:
-    lazy val pendingTransactionsManagerProbe: TestProbe = TestProbe()
+    lazy val pendingTransactionsManagerProbe: org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe[
+      com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command
+    ] = testKit.createTestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command]()
     override lazy val pendingTransactionsManager: org.apache.pekko.actor.typed.ActorRef[
       com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command
-    ] = pendingTransactionsManagerProbe.ref.toTyped[
-      com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command
-    ]
+    ] = pendingTransactionsManagerProbe.ref
 
     override lazy val syncController: TypedActorRef[SyncController.Command] =
-      TestProbe().ref.toTyped[SyncController.Command]
+      testKit.createTestProbe[SyncController.Command]().ref
 
     // FukuiiServiceBuilder requires ActorSystemBuilder for the scheduler; override directly instead.
     override lazy val fukuiiService: FukuiiService = new FukuiiService(

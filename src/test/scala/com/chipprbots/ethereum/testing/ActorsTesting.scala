@@ -1,5 +1,7 @@
 package com.chipprbots.ethereum.testing
 import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.typed.Behavior
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.testkit.TestActor.AutoPilot
 
 import com.chipprbots.ethereum.blockchain.sync.SyncController
@@ -41,3 +43,15 @@ object ActorsTesting:
           this
         case _: PendingTransactionsManager.Command => this
         case _                                     => this
+
+  /** Typed-actor equivalent of [[syncStatusAutoPilot]] for specs whose `SyncController` stub is a real
+    * `ActorRef[SyncController.Command]` (`testKit.createTestProbe` can't run an `AutoPilot` — Pekko Typed's `TestProbe`
+    * has no such hook).
+    */
+  def syncStatusBehavior(status: SyncProtocol.Status): Behavior[SyncController.Command] =
+    Behaviors.receiveMessage {
+      case SyncController.WrappedSyncProtocol(gs: SyncProtocol.GetStatus) =>
+        gs.replyTo ! status
+        Behaviors.same
+      case _ => Behaviors.same
+    }

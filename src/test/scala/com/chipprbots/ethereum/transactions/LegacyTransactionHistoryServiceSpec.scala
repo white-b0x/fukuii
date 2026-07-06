@@ -1,8 +1,7 @@
 package com.chipprbots.ethereum.transactions
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.util.ByteString
 
 import cats.effect.IO
@@ -26,14 +25,13 @@ class LegacyTransactionHistoryServiceSpec
     with Matchers
     with DiffMatcher:
 
-  implicit private val classicActorSystem: org.apache.pekko.actor.ActorSystem = system.toClassic
   class Fixture extends EphemBlockchainTestSetup:
-    val pendingTransactionManager: TestProbe = TestProbe()
-    pendingTransactionManager.setAutoPilot(PendingTransactionsManagerAutoPilot())
+    val pendingTransactionManager: TypedActorRef[PendingTransactionsManager.Command] =
+      testKit.spawn(PendingTransactionsManagerAutoPilot.behavior())
     val transactionHistoryService =
       new TransactionHistoryService(
         blockchainReader,
-        pendingTransactionManager.ref.toTyped[PendingTransactionsManager.Command],
+        pendingTransactionManager,
         Timeouts.normalTimeout,
         system.scheduler
       )
@@ -129,7 +127,7 @@ class LegacyTransactionHistoryServiceSpec
 
       for
         _ <- IO(blockchainWriter.storeBlock(blockWithTx).commit())
-        _ <- IO(pendingTransactionManager.ref ! PendingTransactionsManager.AddTransactions(txWithSender))
+        _ <- IO(pendingTransactionManager ! PendingTransactionsManager.AddTransactions(txWithSender))
         response <- transactionHistoryService.getAccountTransactions(
           txWithSender.senderAddress,
           BigInt(3125371) to BigInt(3125381)

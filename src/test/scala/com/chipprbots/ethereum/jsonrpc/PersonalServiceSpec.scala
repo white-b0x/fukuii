@@ -2,10 +2,8 @@ package com.chipprbots.ethereum.jsonrpc
 
 import java.time.Duration
 
-import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.unsafe.IORuntime
@@ -56,7 +54,6 @@ class PersonalServiceSpec
     with ScalaCheckPropertyChecks:
 
   implicit val runtime: IORuntime = IORuntime.global
-  implicit private val classicActorSystem: ActorSystem = system.toClassic
 
   "PersonalService" should "import private keys" taggedAs (UnitTest, RPCTest) in new TestSetup:
     keyStore.importPrivateKey.expects(prvKey, passphrase).returning(Right(address))
@@ -135,7 +132,7 @@ class PersonalServiceSpec
     replyPTM(PendingTransactionsResponse(Nil))
 
     res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(TxHash(stx.hash.value)))
-    txPool.expectMsg(AddOrOverrideTransaction(stx))
+    txPool.expectMessage(AddOrOverrideTransaction(stx))
 
   it should "send a transaction when having pending txs from the same sender" taggedAs (
     UnitTest,
@@ -158,7 +155,7 @@ class PersonalServiceSpec
     replyPTM(PendingTransactionsResponse(Seq(PendingTransaction(stxWithSender, 0))))
 
     res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(TxHash(newTx.hash.value)))
-    txPool.expectMsg(AddOrOverrideTransaction(newTx))
+    txPool.expectMessage(AddOrOverrideTransaction(newTx))
 
   it should "fail to send a transaction given a wrong passphrase" taggedAs (UnitTest, RPCTest) in new TestSetup:
     keyStore.unlockAccount
@@ -191,7 +188,7 @@ class PersonalServiceSpec
     replyPTM(PendingTransactionsResponse(Nil))
 
     res.futureValue shouldEqual Right(SendTransactionResponse(TxHash(stx.hash.value)))
-    txPool.expectMsg(AddOrOverrideTransaction(stx))
+    txPool.expectMessage(AddOrOverrideTransaction(stx))
 
   it should "fail to send a transaction when account is locked" taggedAs (UnitTest, RPCTest) in new TestSetup:
     val req: SendTransactionRequest = SendTransactionRequest(tx)
@@ -347,7 +344,7 @@ class PersonalServiceSpec
     replyPTM(PendingTransactionsResponse(Nil))
 
     res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(TxHash(stx.hash.value)))
-    txPool.expectMsg(AddOrOverrideTransaction(stx))
+    txPool.expectMessage(AddOrOverrideTransaction(stx))
 
   it should "produce chain specific transaction after eip155" taggedAs (UnitTest, RPCTest) in new TestSetup:
     keyStore.unlockAccount
@@ -366,7 +363,7 @@ class PersonalServiceSpec
     replyPTM(PendingTransactionsResponse(Nil))
 
     res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(TxHash(chainSpecificStx.hash.value)))
-    txPool.expectMsg(AddOrOverrideTransaction(chainSpecificStx))
+    txPool.expectMessage(AddOrOverrideTransaction(chainSpecificStx))
 
   it should "return NodeNotFound when sending transaction during sync (state unavailable)" taggedAs (
     UnitTest,
@@ -486,20 +483,22 @@ class PersonalServiceSpec
 
     val keyStore: KeyStore = mock[KeyStore]
 
-    val txPool: TestProbe = TestProbe()
+    val txPool: TestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command] =
+      testKit.createTestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command]()
     val blockchainReader: BlockchainReader = mock[BlockchainReader]
     (() => blockchainReader.getBestBranch).expects().returning(EmptyBranch).anyNumberOfTimes()
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
 
     // suggestGasPrice() is private[jsonrpc] — ScalaMock generates its proxy outside the package
     // and cannot intercept package-private methods.  Use an anonymous subclass override instead.
-    val probe2: TestProbe = TestProbe()
+    val probe2: TestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command] =
+      testKit.createTestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command]()
     implicit val oracleCfg: BlockchainConfig = Config.blockchains.blockchainConfig
     val ethTxService: EthTxService = new EthTxService(
       blockchain,
       stub[BlockchainReader],
       stub[Mining],
-      probe2.ref.toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+      probe2.ref,
       Timeouts.normalTimeout,
       stub[TransactionMappingStorage],
       system.scheduler
@@ -512,7 +511,7 @@ class PersonalServiceSpec
       new PersonalService(
         keyStore,
         blockchainReader,
-        txPool.ref.toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+        txPool.ref,
         txPoolConfig,
         new BlockchainConfigBuilder with com.chipprbots.ethereum.TestInstanceConfigProvider:
           override def blockchainConfig: BlockchainConfig = BlockchainConfig(
@@ -538,10 +537,9 @@ class PersonalServiceSpec
     def replyPTM(
         response: com.chipprbots.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
     ): Unit =
-      txPool.expectMsgPF() {
-        case req: com.chipprbots.ethereum.transactions.PendingTransactionsManager.GetPendingTransactionsReq =>
-          req.replyTo ! response
-      }
+      txPool
+        .expectMessageType[com.chipprbots.ethereum.transactions.PendingTransactionsManager.GetPendingTransactionsReq]
+        .replyTo ! response
 
     def array[T](arr: Array[T])(implicit ev: ClassTag[Array[T]]): MatcherBase =
       argThat((_: Array[T]).sameElements(arr))

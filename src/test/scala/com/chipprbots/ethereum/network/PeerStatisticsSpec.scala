@@ -3,8 +3,6 @@ package com.chipprbots.ethereum.network
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 
 import scala.concurrent.duration.*
 
@@ -20,10 +18,6 @@ class PeerStatisticsSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike 
 
   import PeerStatisticsActor.*
 
-  // Classic ActorSystem bridge for the (still Classic) PeerEventBus TestProbe.
-  implicit val classicSystem: org.apache.pekko.actor.ActorSystem =
-    system.classicSystem
-
   val TICK: Long = 50
   val mockClock: MockClock = new MockClock(0L):
     override def millis(): Long =
@@ -33,9 +27,8 @@ class PeerStatisticsSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike 
   behavior.of("PeerStatisticsActor")
 
   it should "subscribe to peer events" taggedAs (UnitTest, NetworkTest) in new Fixture:
-    // Subscriptions are sent to the Classic bus via the message adapter; the payloads are unchanged.
-    peerEventBus.expectMsgType[SubscribeCmd].to shouldBe PeerStatisticsActor.MessageSubscriptionClassifier
-    peerEventBus.expectMsgType[SubscribeCmd].to shouldBe SubscriptionClassifier.PeerDisconnectedClassifier(
+    peerEventBus.expectMessageType[SubscribeCmd].to shouldBe PeerStatisticsActor.MessageSubscriptionClassifier
+    peerEventBus.expectMessageType[SubscribeCmd].to shouldBe SubscriptionClassifier.PeerDisconnectedClassifier(
       PeerSelector.AllPeers
     )
 
@@ -75,11 +68,12 @@ class PeerStatisticsSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike 
     val statsForAllProbe: TypedTestProbe[StatsForAll] = testKit.createTestProbe[StatsForAll]()
     val statsForPeerProbe: TypedTestProbe[StatsForPeer] = testKit.createTestProbe[StatsForPeer]()
 
-    val peerEventBus: TestProbe = TestProbe()
+    val peerEventBus: TypedTestProbe[PeerEventBusActor.Command] =
+      testKit.createTestProbe[PeerEventBusActor.Command]()
     val peerStatistics: TypedActorRef[Command] =
       testKit.spawn(
         PeerStatisticsActor(
-          peerEventBus.ref.toTyped[PeerEventBusActor.Command],
+          peerEventBus.ref,
           slotDuration = 1.minute,
           slotCount = 30
         )(mockClock)

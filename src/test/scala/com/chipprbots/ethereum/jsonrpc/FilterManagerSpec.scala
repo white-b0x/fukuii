@@ -3,8 +3,6 @@ package com.chipprbots.ethereum.jsonrpc
 import org.apache.pekko.actor.testkit.typed.scaladsl.ManualTime
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.typed.ActorRef
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -423,9 +421,8 @@ class FilterManagerSpec
       testKit.createTestProbe[FilterLogs]()
     filterManager ! FilterManager.GetFilterLogs(createResp.id, logsProbe.ref)
 
-    ptmProbe.expectMsgPF() { case PendingTransactionsManager.GetPendingTransactionsReq(replyTo) =>
-      replyTo ! PendingTransactionsManager.PendingTransactionsResponse(pendingTxs.map(PendingTransaction(_, 0)))
-    }
+    ptmProbe.expectMessageType[PendingTransactionsManager.GetPendingTransactionsReq].replyTo !
+      PendingTransactionsManager.PendingTransactionsResponse(pendingTxs.map(PendingTransaction(_, 0)))
 
     val getLogsRes: PendingTransactionFilterLogs = logsProbe.expectMessageType[PendingTransactionFilterLogs]
     getLogsRes.txHashes shouldBe pendingTxs.map(_.tx.hash)
@@ -458,9 +455,8 @@ class FilterManagerSpec
       testKit.createTestProbe[FilterLogs]()
     filterManager ! FilterManager.GetFilterLogs(createResp.id, logsProbe.ref)
 
-    ptmProbe.expectMsgPF() { case PendingTransactionsManager.GetPendingTransactionsReq(replyTo) =>
-      replyTo ! PendingTransactionsManager.PendingTransactionsResponse(pendingTxs.map(PendingTransaction(_, 0)))
-    }
+    ptmProbe.expectMessageType[PendingTransactionsManager.GetPendingTransactionsReq].replyTo !
+      PendingTransactionsManager.PendingTransactionsResponse(pendingTxs.map(PendingTransaction(_, 0)))
 
     // the filter should work
     val getLogsRes: PendingTransactionFilterLogs = logsProbe.expectMessageType[PendingTransactionFilterLogs]
@@ -495,14 +491,15 @@ class FilterManagerSpec
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val keyStore: KeyStore = mock[KeyStore]
     val blockGenerator: BlockGenerator = mock[BlockGenerator]
-    val ptmProbe: TestProbe = TestProbe()(testKit.system.classicSystem)
+    val ptmProbe: org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe[PendingTransactionsManager.Command] =
+      testKit.createTestProbe[PendingTransactionsManager.Command]()
 
     val filterManager: ActorRef[FilterManager.Command] = testKit.spawn(
       FilterManager(
         blockchainReader,
         blockGenerator,
         keyStore,
-        ptmProbe.ref.toTyped[PendingTransactionsManager.Command],
+        ptmProbe.ref,
         filterConfig,
         txPoolConfig
       )

@@ -3,8 +3,8 @@ package com.chipprbots.ethereum.blockchain.sync.fast
 import java.net.InetSocketAddress
 
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import scala.io.Source
@@ -154,6 +154,7 @@ class FastSyncConcurrentPipelineSpec extends AnyFlatSpec with Matchers with Befo
 
   private object Helpers:
     implicit val system: ActorSystem = ActorSystem("FastSyncPipeline_System")
+    implicit private val typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = system.toTyped
 
     val peer1: PeerWithInfo = mkPeer("peer-1")
     val peer2: PeerWithInfo = mkPeer("peer-2")
@@ -173,7 +174,7 @@ class FastSyncConcurrentPipelineSpec extends AnyFlatSpec with Matchers with Befo
 
     def mkPeer(id: String): PeerWithInfo =
       val peer =
-        Peer(PeerId(id), new InetSocketAddress("127.0.0.1", 30303), TestProbe().ref.toTyped[PeerActor.Command], false)
+        Peer(PeerId(id), new InetSocketAddress("127.0.0.1", 30303), TestProbe[PeerActor.Command]().ref, false)
       val peerInfo = PeerInfo(
         remoteStatus,
         ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1000))),

@@ -3,13 +3,13 @@ package com.chipprbots.ethereum.jsonrpc.graphql
 import java.util.concurrent.TimeUnit
 
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.http.cors.scaladsl.model.HttpOriginMatcher
 import org.apache.pekko.http.scaladsl.model.*
 import org.apache.pekko.http.scaladsl.server.Route
 import org.apache.pekko.http.scaladsl.testkit.ScalatestRouteTest
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.unsafe.IORuntime
@@ -119,6 +119,7 @@ class GraphQLHttpRouteSpec extends AnyFlatSpec with Matchers with ScalatestRoute
   abstract class TestSetup(val graphQLEnabled: Boolean = true) extends EphemBlockchainTestSetup:
 
     implicit override lazy val classicSystem: ActorSystem = GraphQLHttpRouteSpec.this.system
+    private lazy val typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = classicSystem.toTyped
 
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     override lazy val mining: TestMining = buildTestMining().withBlockGenerator(blockGenerator)
@@ -128,8 +129,10 @@ class GraphQLHttpRouteSpec extends AnyFlatSpec with Matchers with ScalatestRoute
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
     override lazy val stxLedger: StxLedger = mock[StxLedger]
     val keyStore: KeyStore = mock[KeyStore]
-    val syncProbe: TestProbe = TestProbe()
-    val pendingTxProbe: TestProbe = TestProbe()
+    val syncProbe: TestProbe[com.chipprbots.ethereum.blockchain.sync.SyncController.Command] =
+      TestProbe[com.chipprbots.ethereum.blockchain.sync.SyncController.Command]()(typedSystem)
+    val pendingTxProbe: TestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command] =
+      TestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command]()(typedSystem)
     val filterManager: org.apache.pekko.actor.typed.ActorRef[FilterManager.Command] =
       classicSystem.spawnAnonymous(Behaviors.ignore[FilterManager.Command])
 
@@ -138,7 +141,7 @@ class GraphQLHttpRouteSpec extends AnyFlatSpec with Matchers with ScalatestRoute
       blockchain,
       blockchainReader,
       mining,
-      pendingTxProbe.ref.toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+      pendingTxProbe.ref,
       1.second,
       storagesInstance.storages.transactionMappingStorage,
       system.toTyped.scheduler
@@ -150,7 +153,7 @@ class GraphQLHttpRouteSpec extends AnyFlatSpec with Matchers with ScalatestRoute
       mining,
       stxLedger,
       keyStore,
-      syncProbe.ref.toTyped[com.chipprbots.ethereum.blockchain.sync.SyncController.Command],
+      syncProbe.ref,
       Capability.ETH66,
       org.apache.pekko.util.Timeout(2.seconds),
       system.toTyped.scheduler

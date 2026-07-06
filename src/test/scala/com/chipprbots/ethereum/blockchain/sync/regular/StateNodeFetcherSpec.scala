@@ -2,8 +2,6 @@ package com.chipprbots.ethereum.blockchain.sync.regular
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.typed.ActorRef
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import scala.compiletime.uninitialized
@@ -42,8 +40,6 @@ class StateNodeFetcherSpec
     with BeforeAndAfterEach
     with TestSyncConfig:
 
-  implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
-
   // Each test gets its own typed test kit, shut down after the test.
   private var typedKit: ActorTestKit = uninitialized
 
@@ -54,20 +50,22 @@ class StateNodeFetcherSpec
     typedKit.shutdownTestKit()
 
   /** Fixture that wires up:
-    *   - a classic TestProbe playing peersClient (catches outgoing Requests)
-    *   - a classic TestProbe playing the originalSender / replyTo on FetchStateNode
+    *   - a typed TestProbe playing peersClient (catches outgoing Requests)
+    *   - a typed TestProbe playing the originalSender / replyTo on FetchStateNode
     *   - a typed TestProbe playing the BlockFetcher supervisor
     *   - the StateNodeFetcher actor under test
     */
   private trait TestSetup:
-    val peersClientProbe: TestProbe = TestProbe()
-    val replyToProbe: TestProbe = TestProbe()
+    val peersClientProbe: org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe[PeersClient.Command] =
+      typedKit.createTestProbe[PeersClient.Command]()
+    val replyToProbe: org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe[BlockFetcher.FetchResponse] =
+      typedKit.createTestProbe[BlockFetcher.FetchResponse]()
     val supervisorProbe: org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe[FetchCommand] =
       typedKit.createTestProbe[FetchCommand]()
 
     val fetcher: ActorRef[StateNodeFetcher.StateNodeFetcherCommand] =
       typedKit.spawn(
-        StateNodeFetcher(peersClientProbe.ref.toTyped[PeersClient.Command], syncConfig, supervisorProbe.ref),
+        StateNodeFetcher(peersClientProbe.ref, syncConfig, supervisorProbe.ref),
         "state-node-fetcher"
       )
 
@@ -90,7 +88,7 @@ class StateNodeFetcherSpec
       // targeting the BestSnapPeer selector. Earlier, this same input went through
       // GetNodeData (BestNodeDataPeer) — which is unavailable on ETH68-only peer sets and
       // is the failure mode Bug 30's bytecode-recovery layer fixes.
-      val req: Request[?] = peersClientProbe.expectMsgClass(3.seconds, classOf[PeersClient.Request[?]])
+      val req: Request[?] = peersClientProbe.expectMessageType[PeersClient.Request[?]](3.seconds)
       req.message shouldBe a[GetByteCodes]
       req.message.asInstanceOf[GetByteCodes].hashes shouldBe Seq(targetHash)
       // First attempt excludes nothing; on empty/wrong responses the responding peer is added to
@@ -109,7 +107,7 @@ class StateNodeFetcherSpec
         isByteCode = false
       )
 
-      val req: Request[?] = peersClientProbe.expectMsgClass(3.seconds, classOf[PeersClient.Request[?]])
+      val req: Request[?] = peersClientProbe.expectMessageType[PeersClient.Request[?]](3.seconds)
       req.message shouldBe a[GetTrieNodes]
       req.message.asInstanceOf[GetTrieNodes].rootHash shouldBe stateRoot
       req.peerSelector shouldBe BestSnapPeerExcluding(Set.empty)
@@ -121,12 +119,13 @@ class StateNodeFetcherSpec
         originalSender = replyToProbe.ref,
         isByteCode = true
       )
-      peersClientProbe.expectMsgClass(3.seconds, classOf[PeersClient.Request[?]])
+      peersClientProbe.expectMessageType[PeersClient.Request[?]](3.seconds)
 
       // Second fetch for the SAME hash from a different sender — must NOT fire another request.
       // BlockImporter's resolvingMissingNode 30s ReceiveTimeout retries on the same hash; without
       // de-dup, every retry spawns a parallel SNAP request and overwrites the requester.
-      val secondReplyTo: TestProbe = TestProbe()
+      val secondReplyTo: org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe[BlockFetcher.FetchResponse] =
+        typedKit.createTestProbe[BlockFetcher.FetchResponse]()
       fetcher ! StateNodeFetcher.FetchStateNode(
         hash = targetHash,
         originalSender = secondReplyTo.ref,
@@ -141,7 +140,7 @@ class StateNodeFetcherSpec
         originalSender = replyToProbe.ref,
         isByteCode = true
       )
-      peersClientProbe.expectMsgClass(3.seconds, classOf[PeersClient.Request[?]])
+      peersClientProbe.expectMessageType[PeersClient.Request[?]](3.seconds)
 
       // Different hash — overwrites the in-flight requester (the previous one is abandoned in
       // favour of the new caller). This is the legitimate "give up old, start new" path,
@@ -153,7 +152,7 @@ class StateNodeFetcherSpec
         isByteCode = true
       )
 
-      val req: Request[?] = peersClientProbe.expectMsgClass(3.seconds, classOf[PeersClient.Request[?]])
+      val req: Request[?] = peersClientProbe.expectMessageType[PeersClient.Request[?]](3.seconds)
       req.message.asInstanceOf[GetByteCodes].hashes shouldBe Seq(otherHash)
 
     "exhausts after MaxStateNodeFetchRetries RetryStateNodeRequest events and signals BlockImporter" taggedAs UnitTest in new TestSetup:
@@ -162,7 +161,7 @@ class StateNodeFetcherSpec
         originalSender = replyToProbe.ref,
         isByteCode = true
       )
-      peersClientProbe.expectMsgClass(3.seconds, classOf[PeersClient.Request[?]])
+      peersClientProbe.expectMessageType[PeersClient.Request[?]](3.seconds)
 
       // Drive the retry counter directly — each RetryStateNodeRequest resets the rotation set and
       // increments attempts via retryOrExhaust. The MaxStateNodeFetchRetries-th call hits the
@@ -172,9 +171,8 @@ class StateNodeFetcherSpec
         fetcher ! StateNodeFetcher.RetryStateNodeRequest
       }
 
-      replyToProbe.expectMsgPF(3.seconds) { case FetchedStateNode(NodeData(values)) =>
-        values shouldBe empty
-      }
+      replyToProbe.expectMessageType[FetchedStateNode](3.seconds) match
+        case FetchedStateNode(NodeData(values)) => values shouldBe empty
 
     "before exhaustion, RetryStateNodeRequest does NOT signal BlockImporter" taggedAs UnitTest in new TestSetup:
       fetcher ! StateNodeFetcher.FetchStateNode(
@@ -182,7 +180,7 @@ class StateNodeFetcherSpec
         originalSender = replyToProbe.ref,
         isByteCode = true
       )
-      peersClientProbe.expectMsgClass(3.seconds, classOf[PeersClient.Request[?]])
+      peersClientProbe.expectMessageType[PeersClient.Request[?]](3.seconds)
 
       // Send fewer than MaxStateNodeFetchRetries — BlockImporter must NOT see an empty
       // response yet, otherwise the 5-min backoff fires prematurely and progress stalls.

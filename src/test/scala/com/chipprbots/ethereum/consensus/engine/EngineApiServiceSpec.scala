@@ -553,9 +553,10 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       */
     "publish BeaconHead to ForkChoiceManager listener even when the head is unknown (SYNCING short-circuit)"
       .taggedAs(UnitTest) in new EngineApiTestSetup:
-      import org.apache.pekko.testkit.TestProbe
+      import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 
-      val probe: TestProbe = TestProbe()(classicSystem)
+      val probe: TestProbe[ForkChoiceManager.BeaconHead] =
+        TestProbe[ForkChoiceManager.BeaconHead]()(classicSystem.toTyped)
       forkChoiceManager.setListener(probe.ref)
 
       val unknownHead: ByteString = ByteString(Array.fill(32)(0xab.toByte))
@@ -573,7 +574,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       // Critical assertion: BeaconHead must reach the listener so SyncController can drive
       // SNAP sync's CL-PIVOT trigger. Pre-fix this would TIMEOUT — applyForkChoiceState
       // was never called on the SYNCING short-circuit path.
-      val beacon: BeaconHead = probe.expectMsgType[ForkChoiceManager.BeaconHead]
+      val beacon: BeaconHead = probe.expectMessageType[ForkChoiceManager.BeaconHead]
       beacon.headHash shouldBe unknownHead
       beacon.knownHeader shouldBe None
   }

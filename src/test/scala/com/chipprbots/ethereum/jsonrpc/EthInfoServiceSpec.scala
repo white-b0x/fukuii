@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.jsonrpc
 
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.unsafe.IORuntime
@@ -32,7 +32,7 @@ import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
 import com.chipprbots.ethereum.ledger.StxLedger
 import com.chipprbots.ethereum.ledger.TxResult
 import com.chipprbots.ethereum.network.p2p.messages.Capability
-import com.chipprbots.ethereum.testing.ActorsTesting.syncStatusAutoPilot
+import com.chipprbots.ethereum.testing.ActorsTesting
 import com.chipprbots.ethereum.testing.Tags.*
 
 class EthServiceSpec
@@ -61,9 +61,7 @@ class EthServiceSpec
     assert(response === ChainIdResponse(blockchainConfig.chainId))
 
   it should "return syncing info if the peer is syncing" taggedAs (UnitTest, RPCTest) in new TestSetup:
-    syncingController.setAutoPilot(
-      syncStatusAutoPilot(SyncProtocol.Status.Syncing(999, Progress(200, 10000), Some(Progress(100, 144))))
-    )
+    setSyncStatus(SyncProtocol.Status.Syncing(999, Progress(200, 10000), Some(Progress(100, 144))))
 
     val response: SyncingResponse = ethService.syncing(SyncingRequest()).unsafeRunSync().toOption.get
 
@@ -81,14 +79,14 @@ class EthServiceSpec
 
   // scalastyle:off magic.number
   it should "return no syncing info if the peer is not syncing" taggedAs (UnitTest, RPCTest) in new TestSetup:
-    syncingController.setAutoPilot(syncStatusAutoPilot(SyncProtocol.Status.NotSyncing))
+    setSyncStatus(SyncProtocol.Status.NotSyncing)
 
     val response: Either[JsonRpcError, SyncingResponse] = ethService.syncing(SyncingRequest()).unsafeRunSync()
 
     response shouldEqual Right(SyncingResponse(None))
 
   it should "return no syncing info if sync is done" taggedAs (UnitTest, RPCTest) in new TestSetup:
-    syncingController.setAutoPilot(syncStatusAutoPilot(SyncProtocol.Status.SyncDone))
+    setSyncStatus(SyncProtocol.Status.SyncDone)
 
     val response: Either[JsonRpcError, SyncingResponse] = ethService.syncing(SyncingRequest()).unsafeRunSync()
 
@@ -166,7 +164,11 @@ class EthServiceSpec
     override lazy val mining: TestMining = buildTestMining().withBlockGenerator(blockGenerator)
     override lazy val miningConfig = MiningConfigs.miningConfig
 
-    val syncingController: TestProbe = TestProbe()
+    private var syncStatusToReport: SyncProtocol.Status = SyncProtocol.Status.NotSyncing
+    def setSyncStatus(status: SyncProtocol.Status): Unit = syncStatusToReport = status
+
+    lazy val syncingController: TypedActorRef[SyncController.Command] =
+      system.spawnAnonymous(ActorsTesting.syncStatusBehavior(syncStatusToReport))
 
     val currentProtocolVersion = Capability.ETH63.version
 
@@ -177,7 +179,7 @@ class EthServiceSpec
       mining,
       stxLedger,
       keyStore,
-      syncingController.ref.toTyped[SyncController.Command],
+      syncingController,
       Capability.ETH63,
       Timeouts.shortTimeout,
       system.toTyped.scheduler

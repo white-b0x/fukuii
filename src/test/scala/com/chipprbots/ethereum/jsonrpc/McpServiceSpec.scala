@@ -2,11 +2,8 @@ package com.chipprbots.ethereum.jsonrpc
 
 import java.util.concurrent.atomic.AtomicReference
 
-import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.typed
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.Timeout
 
 import cats.effect.unsafe.implicits.global
@@ -26,13 +23,15 @@ import com.chipprbots.ethereum.utils.*
 
 class McpServiceSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Matchers:
 
-  implicit private val classicActorSystem: ActorSystem = system.toClassic
   implicit override val timeout: Timeout = Timeout(3.seconds)
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
   implicit val scheduler: typed.Scheduler = system.scheduler
 
-  val peerManagerProbe: TestProbe = TestProbe()
-  val syncControllerProbe: TestProbe = TestProbe()
+  val peerManagerProbe: org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe[PeerManagerActor.Command] =
+    testKit.createTestProbe[PeerManagerActor.Command]()
+  val syncControllerProbe: org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe[
+    com.chipprbots.ethereum.blockchain.sync.SyncController.Command
+  ] = testKit.createTestProbe[com.chipprbots.ethereum.blockchain.sync.SyncController.Command]()
 
   val testBlockchainConfig: BlockchainConfig = BlockchainConfig(
     chainId = ChainId(61),
@@ -52,7 +51,7 @@ class McpServiceSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with
 
   // Use null for dependencies not exercised in basic tests
   val service = new McpService(
-    peerManagerProbe.ref.toTyped[PeerManagerActor.Command],
+    peerManagerProbe.ref,
     syncControllerProbe.ref,
     null.asInstanceOf[BlockchainReader],
     testBlockchainConfig,

@@ -1,9 +1,6 @@
 package com.chipprbots.ethereum.jsonrpc
 
-import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.IO
@@ -54,7 +51,6 @@ class GasPriceOracleSpec
     with TypeCheckedTripleEquals:
 
   implicit val runtime: IORuntime = IORuntime.global
-  implicit private val classicActorSystem: ActorSystem = system.toClassic
 
   // ─── Shared constants ──────────────────────────────────────────────────────
 
@@ -151,12 +147,12 @@ class GasPriceOracleSpec
   /** Build EthTxService with a mocked reader and given config. */
   private def svc(reader: BlockchainReader, cfg: BlockchainConfig = defaultCfg): EthTxService =
     implicit val implCfg: BlockchainConfig = cfg
-    val probe = TestProbe()
+    val probe = testKit.createTestProbe[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command]()
     new EthTxService(
       stub[Blockchain],
       reader,
       stub[Mining],
-      probe.ref.toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+      probe.ref,
       5.seconds,
       stub[TransactionMappingStorage],
       system.scheduler

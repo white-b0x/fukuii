@@ -4,9 +4,9 @@ import java.net.InetSocketAddress
 
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 
 import cats.effect.unsafe.IORuntime
 
@@ -47,10 +47,10 @@ class DebugServiceSpec
     val result: Future[Either[JsonRpcError, ListPeersInfoResponse]] =
       debugService.listPeersInfo(ListPeersInfoRequest()).unsafeToFuture()
 
-    val cmd1 = peerManager.expectMsgType[PeerManagerActor.GetPeersCmd]
+    val cmd1 = peerManager.expectMessageType[PeerManagerActor.GetPeersCmd]
     cmd1.replyTo ! Peers(Map(peer1 -> PeerActor.Status.Connecting))
 
-    val cmd1Npma = etcPeerManager.expectMsgType[NetworkPeerManagerActor.PeerInfoRequestCmd]
+    val cmd1Npma = etcPeerManager.expectMessageType[NetworkPeerManagerActor.PeerInfoRequestCmd]
     cmd1Npma.peerId shouldBe peer1.id
     cmd1Npma.replyTo ! NetworkPeerManagerActor.PeerInfoResponse(Some(peer1Info))
 
@@ -60,7 +60,7 @@ class DebugServiceSpec
     val result: Future[Either[JsonRpcError, ListPeersInfoResponse]] =
       debugService.listPeersInfo(ListPeersInfoRequest()).unsafeToFuture()
 
-    val cmd2 = peerManager.expectMsgType[PeerManagerActor.GetPeersCmd]
+    val cmd2 = peerManager.expectMessageType[PeerManagerActor.GetPeersCmd]
     cmd2.replyTo ! Peers(Map.empty)
 
     result.futureValue shouldBe Right(ListPeersInfoResponse(List.empty))
@@ -69,10 +69,10 @@ class DebugServiceSpec
     val result: Future[Either[JsonRpcError, ListPeersInfoResponse]] =
       debugService.listPeersInfo(ListPeersInfoRequest()).unsafeToFuture()
 
-    val cmd3 = peerManager.expectMsgType[PeerManagerActor.GetPeersCmd]
+    val cmd3 = peerManager.expectMessageType[PeerManagerActor.GetPeersCmd]
     cmd3.replyTo ! Peers(Map(peer1 -> PeerActor.Status.Connecting))
 
-    val cmd3Npma = etcPeerManager.expectMsgType[NetworkPeerManagerActor.PeerInfoRequestCmd]
+    val cmd3Npma = etcPeerManager.expectMessageType[NetworkPeerManagerActor.PeerInfoRequestCmd]
     cmd3Npma.peerId shouldBe peer1.id
     cmd3Npma.replyTo ! NetworkPeerManagerActor.PeerInfoResponse(None)
 
@@ -80,9 +80,10 @@ class DebugServiceSpec
 
   class TestSetup(implicit system: ActorSystem):
     implicit val scheduler: typed.Scheduler = system.toTyped.scheduler
-    val peerManager: TestProbe = TestProbe()
-    val etcPeerManager: TestProbe = TestProbe()
-    val debugService = new DebugService(peerManager.ref.toTyped[PeerManagerActor.Command], etcPeerManager.ref)
+    val peerManager: TestProbe[PeerManagerActor.Command] = testKit.createTestProbe[PeerManagerActor.Command]()
+    val etcPeerManager: TestProbe[NetworkPeerManagerActor.Command] =
+      testKit.createTestProbe[NetworkPeerManagerActor.Command]()
+    val debugService = new DebugService(peerManager.ref, etcPeerManager.ref)
 
     val peerStatus: RemoteStatus = RemoteStatus(
       capability = Capability.ETH63,
@@ -98,6 +99,6 @@ class DebugServiceSpec
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number.value,
       bestBlockHash = peerStatus.bestHash
     )
-    val peer1Probe: TestProbe = TestProbe()
+    val peer1Probe: TestProbe[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]()
     val peer1: Peer = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false)
     val peer1Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
