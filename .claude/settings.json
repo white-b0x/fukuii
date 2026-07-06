@@ -1,4 +1,9 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(bash .local/scratch/*)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
