@@ -1,7 +1,7 @@
 package com.chipprbots.ethereum.blockchain.sync.snap
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -40,8 +40,8 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
 
   it should "track pending requests" taggedAs UnitTest in {
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer = createTestPeer("test-peer", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer = createTestPeer("test-peer", testProbe.ref.toClassic)
 
     val requestId = tracker.generateRequestId()
     tracker.isPending(requestId) shouldBe false
@@ -60,8 +60,8 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
 
   it should "complete pending requests" taggedAs UnitTest in {
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer = createTestPeer("test-peer", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer = createTestPeer("test-peer", testProbe.ref.toClassic)
 
     val requestId = tracker.generateRequestId()
     tracker.trackRequest(requestId, peer, SNAPRequestTracker.RequestType.GetAccountRange) {}
@@ -75,8 +75,8 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
 
   it should "trigger timeout callback after configured duration" taggedAs UnitTest in {
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer = createTestPeer("test-peer", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer = createTestPeer("test-peer", testProbe.ref.toClassic)
 
     var timeoutCalled = false
     val requestId = tracker.generateRequestId()
@@ -97,8 +97,8 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
 
   it should "not trigger timeout if request is completed before timeout" taggedAs UnitTest in {
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer = createTestPeer("test-peer", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer = createTestPeer("test-peer", testProbe.ref.toClassic)
 
     var timeoutCalled = false
     val requestId = tracker.generateRequestId()
@@ -119,8 +119,8 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
 
   it should "validate AccountRange response with monotonic ordering" taggedAs UnitTest in {
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer = createTestPeer("test-peer", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer = createTestPeer("test-peer", testProbe.ref.toClassic)
 
     val requestId = tracker.generateRequestId()
     tracker.trackRequest(requestId, peer, SNAPRequestTracker.RequestType.GetAccountRange) {}
@@ -141,8 +141,8 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
 
   it should "reject AccountRange response with non-monotonic ordering" taggedAs UnitTest in {
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer = createTestPeer("test-peer", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer = createTestPeer("test-peer", testProbe.ref.toClassic)
 
     val requestId = tracker.generateRequestId()
     tracker.trackRequest(requestId, peer, SNAPRequestTracker.RequestType.GetAccountRange) {}
@@ -179,8 +179,8 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
 
   it should "validate StorageRanges response with monotonic ordering" taggedAs UnitTest in {
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer = createTestPeer("test-peer", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer = createTestPeer("test-peer", testProbe.ref.toClassic)
 
     val requestId = tracker.generateRequestId()
     tracker.trackRequest(requestId, peer, SNAPRequestTracker.RequestType.GetStorageRanges) {}
@@ -201,8 +201,8 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
 
   it should "reject StorageRanges response with non-monotonic ordering" taggedAs UnitTest in {
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer = createTestPeer("test-peer", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer = createTestPeer("test-peer", testProbe.ref.toClassic)
 
     val requestId = tracker.generateRequestId()
     tracker.trackRequest(requestId, peer, SNAPRequestTracker.RequestType.GetStorageRanges) {}
@@ -224,8 +224,8 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
 
   it should "validate ByteCodes response" taggedAs UnitTest in {
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer = createTestPeer("test-peer", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer = createTestPeer("test-peer", testProbe.ref.toClassic)
 
     val requestId = tracker.generateRequestId()
     tracker.trackRequest(requestId, peer, SNAPRequestTracker.RequestType.GetByteCodes) {}
@@ -241,9 +241,9 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
 
   it should "handle multiple concurrent pending requests" taggedAs UnitTest in {
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer1 = createTestPeer("peer1", testProbe.ref)
-    val peer2 = createTestPeer("peer2", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer1 = createTestPeer("peer1", testProbe.ref.toClassic)
+    val peer2 = createTestPeer("peer2", testProbe.ref.toClassic)
 
     val id1 = tracker.generateRequestId()
     val id2 = tracker.generateRequestId()
@@ -293,8 +293,8 @@ class SNAPRequestTrackerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpe
     // explicit override. The wiring proof — that `trackRequest` without an explicit timeout
     // *would* select the adaptive value — is covered by the previous test.
     val tracker = new SNAPRequestTracker()
-    val testProbe = TestProbe()
-    val peer = createTestPeer("slow-peer", testProbe.ref)
+    val testProbe = testKit.createTestProbe[Any]()
+    val peer = createTestPeer("slow-peer", testProbe.ref.toClassic)
 
     var timeoutCalled = false
     val requestId = tracker.generateRequestId()

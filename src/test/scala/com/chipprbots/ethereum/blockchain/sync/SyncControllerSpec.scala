@@ -5,6 +5,7 @@ package com.chipprbots.ethereum.blockchain.sync
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem
 
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.testkit.ExplicitlyTriggeredScheduler
 import org.apache.pekko.testkit.TestActor.AutoPilot
@@ -51,6 +52,7 @@ import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.GetReceipts as ET
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NodeData as ETH63NodeData
 import com.chipprbots.ethereum.rlp.RLPList
 import com.chipprbots.ethereum.testing.Tags.*
+import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config.SyncConfig
 
@@ -769,6 +771,8 @@ class SyncControllerSpec
     implicit override lazy val system: ActorSystem =
       ActorSystem("SyncControllerSpec_System", ConfigFactory.load("explicit-scheduler"))
 
+    implicit private def typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = system.toTyped
+
     override lazy val vm: VMImpl = new VMImpl
 
     override lazy val validators: Validators = _validators
@@ -779,7 +783,7 @@ class SyncControllerSpec
 
     val networkPeerManager: TestProbe = TestProbe()
     val peerMessageBus: TestProbe = TestProbe()
-    val pendingTransactionsManager: TestProbe = TestProbe()
+    val pendingTransactionsManager: TypedTestProbe[PendingTransactionsManager.Command] = TypedTestProbe()
 
     val ommersPool: TestProbe = TestProbe()
 
@@ -832,8 +836,7 @@ class SyncControllerSpec
           consensusAdapter,
           validators,
           peerMessageBus.ref,
-          pendingTransactionsManager.ref
-            .toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+          pendingTransactionsManager.ref,
           blockTopic,
           ommersPool.ref,
           networkPeerManager.ref,

@@ -4,9 +4,7 @@ import java.net.InetSocketAddress
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.typed
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.stream.scaladsl.Sink
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import org.scalatest.concurrent.ScalaFutures
@@ -35,33 +33,31 @@ import com.chipprbots.ethereum.testing.Tags.*
 
 class PeerEventBusActorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike with Matchers with ScalaFutures:
 
-  implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
-
   "PeerEventBusActor" should "relay messages received to subscribers" taggedAs (
     UnitTest,
     NetworkTest
   ) in new TestSetup:
 
-    val probe1: TestProbe = TestProbe()(classicSystem)
-    val probe2: TestProbe = TestProbe()(classicSystem)
+    val probe1 = testKit.createTestProbe[PeerEvent]()
+    val probe2 = testKit.createTestProbe[PeerEvent]()
     val classifier1: MessageClassifier = MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
     val classifier2: MessageClassifier = MessageClassifier(Set(Ping.code), PeerSelector.AllPeers)
-    peerEventBusActor ! SubscribeCmd(classifier1, probe1.ref.toTyped[PeerEvent])
+    peerEventBusActor ! SubscribeCmd(classifier1, probe1.ref)
 
-    peerEventBusActor ! SubscribeCmd(classifier2, probe2.ref.toTyped[PeerEvent])
+    peerEventBusActor ! SubscribeCmd(classifier2, probe2.ref)
 
     val msgFromPeer: MessageFromPeer = MessageFromPeer(Ping(), PeerId("1"))
     peerEventBusActor ! PublishCmd(msgFromPeer)
 
-    probe1.expectMsg(msgFromPeer)
-    probe2.expectMsg(msgFromPeer)
+    probe1.expectMessage(msgFromPeer)
+    probe2.expectMessage(msgFromPeer)
 
-    peerEventBusActor ! UnsubscribeCmd(classifier1, probe1.ref.toTyped[PeerEvent])
+    peerEventBusActor ! UnsubscribeCmd(classifier1, probe1.ref)
 
     val msgFromPeer2: MessageFromPeer = MessageFromPeer(Ping(), PeerId("99"))
     peerEventBusActor ! PublishCmd(msgFromPeer2)
     probe1.expectNoMessage()
-    probe2.expectMsg(msgFromPeer2)
+    probe2.expectMessage(msgFromPeer2)
 
   it should "relay messages via streams" taggedAs (UnitTest, NetworkTest) in new TestSetup:
     val classifier1: MessageClassifier = MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
@@ -75,16 +71,16 @@ class PeerEventBusActorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLi
 
     // Sync: syncProbe subscribed after both stream SubscribeCmds (same test thread → FIFO).
     // Once syncProbe confirms both publishes, both stream actors have their elements buffered.
-    val syncProbe: TestProbe = TestProbe()(classicSystem)
-    peerEventBusActor ! SubscribeCmd(classifier2, syncProbe.ref.toTyped[PeerEvent])
+    val syncProbe = testKit.createTestProbe[PeerEvent]()
+    peerEventBusActor ! SubscribeCmd(classifier2, syncProbe.ref)
 
     val msgFromPeer: MessageFromPeer = MessageFromPeer(Ping(), PeerId("1"))
     peerEventBusActor ! PublishCmd(msgFromPeer)
-    syncProbe.expectMsg(msgFromPeer)
+    syncProbe.expectMessage(msgFromPeer)
 
     val msgFromPeer2: MessageFromPeer = MessageFromPeer(Ping(), PeerId("99"))
     peerEventBusActor ! PublishCmd(msgFromPeer2)
-    syncProbe.expectMsg(msgFromPeer2)
+    syncProbe.expectMessage(msgFromPeer2)
 
     // Elements are already buffered; Futures complete as soon as take(N) demand is satisfied.
     stream1.futureValue shouldEqual Seq(msgFromPeer)
@@ -92,14 +88,14 @@ class PeerEventBusActorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLi
 
   it should "only relay matching message codes" taggedAs (UnitTest, NetworkTest) in new TestSetup:
 
-    val probe1: TestProbe = TestProbe()
+    val probe1 = testKit.createTestProbe[PeerEvent]()
     val classifier1: MessageClassifier = MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
-    peerEventBusActor ! SubscribeCmd(classifier1, probe1.ref.toTyped[PeerEvent])
+    peerEventBusActor ! SubscribeCmd(classifier1, probe1.ref)
 
     val msgFromPeer: MessageFromPeer = MessageFromPeer(Ping(), PeerId("1"))
     peerEventBusActor ! PublishCmd(msgFromPeer)
 
-    probe1.expectMsg(msgFromPeer)
+    probe1.expectMessage(msgFromPeer)
 
     val msgFromPeer2: MessageFromPeer = MessageFromPeer(Pong(), PeerId("1"))
     peerEventBusActor ! PublishCmd(msgFromPeer2)
@@ -107,82 +103,82 @@ class PeerEventBusActorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLi
 
   it should "relay peers disconnecting to its subscribers" taggedAs (UnitTest, NetworkTest) in new TestSetup:
 
-    val probe1: TestProbe = TestProbe()
-    val probe2: TestProbe = TestProbe()
+    val probe1 = testKit.createTestProbe[PeerEvent]()
+    val probe2 = testKit.createTestProbe[PeerEvent]()
     peerEventBusActor ! SubscribeCmd(
       PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("1"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
     peerEventBusActor ! SubscribeCmd(
       PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("2"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
     peerEventBusActor ! SubscribeCmd(
       PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("2"))),
-      probe2.ref.toTyped[PeerEvent]
+      probe2.ref
     )
 
     val msgPeerDisconnected: PeerDisconnected = PeerDisconnected(PeerId("2"))
     peerEventBusActor ! PublishCmd(msgPeerDisconnected)
 
-    probe1.expectMsg(msgPeerDisconnected)
-    probe2.expectMsg(msgPeerDisconnected)
+    probe1.expectMessage(msgPeerDisconnected)
+    probe2.expectMessage(msgPeerDisconnected)
 
     peerEventBusActor ! UnsubscribeCmd(
       PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("2"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
 
     peerEventBusActor ! PublishCmd(msgPeerDisconnected)
     probe1.expectNoMessage()
-    probe2.expectMsg(msgPeerDisconnected)
+    probe2.expectMessage(msgPeerDisconnected)
 
   it should "relay peers handshaked to its subscribers" taggedAs (UnitTest, NetworkTest) in new TestSetup:
 
-    val probe1: TestProbe = TestProbe()
-    val probe2: TestProbe = TestProbe()
-    peerEventBusActor ! SubscribeCmd(PeerHandshaked, probe1.ref.toTyped[PeerEvent])
-    peerEventBusActor ! SubscribeCmd(PeerHandshaked, probe2.ref.toTyped[PeerEvent])
+    val probe1 = testKit.createTestProbe[PeerEvent]()
+    val probe2 = testKit.createTestProbe[PeerEvent]()
+    peerEventBusActor ! SubscribeCmd(PeerHandshaked, probe1.ref)
+    peerEventBusActor ! SubscribeCmd(PeerHandshaked, probe2.ref)
 
     val peerHandshaked =
       new Peer(
         PeerId("peer1"),
         new InetSocketAddress("127.0.0.1", 0),
-        TestProbe().ref.toTyped[PeerActor.Command],
+        testKit.createTestProbe[PeerActor.Command]().ref,
         false,
         nodeId = Some(ByteString())
       )
     val msgPeerHandshaked: PeerHandshakeSuccessful[PeerInfo] = PeerHandshakeSuccessful(peerHandshaked, initialPeerInfo)
     peerEventBusActor ! PublishCmd(msgPeerHandshaked)
 
-    probe1.expectMsg(msgPeerHandshaked)
-    probe2.expectMsg(msgPeerHandshaked)
+    probe1.expectMessage(msgPeerHandshaked)
+    probe2.expectMessage(msgPeerHandshaked)
 
-    peerEventBusActor ! UnsubscribeCmd(PeerHandshaked, probe1.ref.toTyped[PeerEvent])
+    peerEventBusActor ! UnsubscribeCmd(PeerHandshaked, probe1.ref)
 
     peerEventBusActor ! PublishCmd(msgPeerHandshaked)
     probe1.expectNoMessage()
-    probe2.expectMsg(msgPeerHandshaked)
+    probe2.expectMessage(msgPeerHandshaked)
 
   it should "relay a single notification when subscribed twice to the same message code" taggedAs (
     UnitTest,
     NetworkTest
   ) in new TestSetup:
 
-    val probe1: TestProbe = TestProbe()
+    val probe1 = testKit.createTestProbe[PeerEvent]()
     peerEventBusActor ! SubscribeCmd(
       MessageClassifier(Set(Ping.code, Ping.code), PeerSelector.WithId(PeerId("1"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
     peerEventBusActor ! SubscribeCmd(
       MessageClassifier(Set(Ping.code, Pong.code), PeerSelector.WithId(PeerId("1"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
 
     val msgFromPeer: MessageFromPeer = MessageFromPeer(Ping(), PeerId("1"))
     peerEventBusActor ! PublishCmd(msgFromPeer)
 
-    probe1.expectMsg(msgFromPeer)
+    probe1.expectMessage(msgFromPeer)
     probe1.expectNoMessage()
 
   it should "allow to handle subscriptions using AllPeers and WithId PeerSelector at the same time" taggedAs (
@@ -190,78 +186,78 @@ class PeerEventBusActorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLi
     NetworkTest
   ) in new TestSetup:
 
-    val probe1: TestProbe = TestProbe()
+    val probe1 = testKit.createTestProbe[PeerEvent]()
     peerEventBusActor ! SubscribeCmd(
       MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
     peerEventBusActor ! SubscribeCmd(
       MessageClassifier(Set(Ping.code), PeerSelector.AllPeers),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
 
     val msgFromPeer: MessageFromPeer = MessageFromPeer(Ping(), PeerId("1"))
     peerEventBusActor ! PublishCmd(msgFromPeer)
 
     // Receive a single notification
-    probe1.expectMsg(msgFromPeer)
+    probe1.expectMessage(msgFromPeer)
     probe1.expectNoMessage()
 
     val msgFromPeer2: MessageFromPeer = MessageFromPeer(Ping(), PeerId("2"))
     peerEventBusActor ! PublishCmd(msgFromPeer2)
 
     // Receive based on AllPeers subscription
-    probe1.expectMsg(msgFromPeer2)
+    probe1.expectMessage(msgFromPeer2)
 
     peerEventBusActor ! UnsubscribeCmd(
       MessageClassifier(Set(Ping.code), PeerSelector.AllPeers),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
     peerEventBusActor ! PublishCmd(msgFromPeer)
 
     // Still received after unsubscribing from AllPeers
-    probe1.expectMsg(msgFromPeer)
+    probe1.expectMessage(msgFromPeer)
 
   it should "allow to subscribe to new messages" taggedAs (UnitTest, NetworkTest) in new TestSetup:
 
-    val probe1: TestProbe = TestProbe()
+    val probe1 = testKit.createTestProbe[PeerEvent]()
     peerEventBusActor ! SubscribeCmd(
       MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
     peerEventBusActor ! SubscribeCmd(
       MessageClassifier(Set(Ping.code, Pong.code), PeerSelector.WithId(PeerId("1"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
 
     val msgFromPeer: MessageFromPeer = MessageFromPeer(Pong(), PeerId("1"))
     peerEventBusActor ! PublishCmd(msgFromPeer)
 
-    probe1.expectMsg(msgFromPeer)
+    probe1.expectMessage(msgFromPeer)
 
   it should "not change subscriptions when subscribing to empty set" taggedAs (UnitTest, NetworkTest) in new TestSetup:
 
-    val probe1: TestProbe = TestProbe()
+    val probe1 = testKit.createTestProbe[PeerEvent]()
     peerEventBusActor ! SubscribeCmd(
       MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
     peerEventBusActor ! SubscribeCmd(
       MessageClassifier(Set(), PeerSelector.WithId(PeerId("1"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
 
     val msgFromPeer: MessageFromPeer = MessageFromPeer(Ping(), PeerId("1"))
     peerEventBusActor ! PublishCmd(msgFromPeer)
 
-    probe1.expectMsg(msgFromPeer)
+    probe1.expectMessage(msgFromPeer)
 
   it should "allow to unsubscribe from messages" taggedAs (UnitTest, NetworkTest) in new TestSetup:
 
-    val probe1: TestProbe = TestProbe()
+    val probe1 = testKit.createTestProbe[PeerEvent]()
     peerEventBusActor ! SubscribeCmd(
       MessageClassifier(Set(Ping.code, Pong.code), PeerSelector.WithId(PeerId("1"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
 
     val msgFromPeer1: MessageFromPeer = MessageFromPeer(Ping(), PeerId("1"))
@@ -269,21 +265,21 @@ class PeerEventBusActorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLi
     peerEventBusActor ! PublishCmd(msgFromPeer1)
     peerEventBusActor ! PublishCmd(msgFromPeer2)
 
-    probe1.expectMsg(msgFromPeer1)
-    probe1.expectMsg(msgFromPeer2)
+    probe1.expectMessage(msgFromPeer1)
+    probe1.expectMessage(msgFromPeer2)
 
     peerEventBusActor ! UnsubscribeCmd(
       MessageClassifier(Set(Pong.code), PeerSelector.WithId(PeerId("1"))),
-      probe1.ref.toTyped[PeerEvent]
+      probe1.ref
     )
 
     peerEventBusActor ! PublishCmd(msgFromPeer1)
     peerEventBusActor ! PublishCmd(msgFromPeer2)
 
-    probe1.expectMsg(msgFromPeer1)
+    probe1.expectMessage(msgFromPeer1)
     probe1.expectNoMessage()
 
-    peerEventBusActor ! UnsubscribeAllCmd(probe1.ref.toTyped[PeerEvent])
+    peerEventBusActor ! UnsubscribeAllCmd(probe1.ref)
 
     peerEventBusActor ! PublishCmd(msgFromPeer1)
     peerEventBusActor ! PublishCmd(msgFromPeer2)

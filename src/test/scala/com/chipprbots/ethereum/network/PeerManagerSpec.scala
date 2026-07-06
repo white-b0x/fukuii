@@ -182,12 +182,11 @@ class PeerManagerSpec
 
     val connection: TestProbe = TestProbe()
 
-    val watcher: TestProbe = TestProbe()
-    watcher.watch(connection.ref)
+    val watcher = testKit.createTestProbe[Any]()
 
     peerManager ! PeerManagerActor.HandlePeerConnectionCmd(connection.ref, new InetSocketAddress("127.0.0.1", 30340))
 
-    watcher.expectMsgClass(classOf[Terminated])
+    watcher.expectTerminated(connection.ref.toTyped[Nothing])
 
   it should "handle pending and handshaked incoming peers" taggedAs (UnitTest, NetworkTest) in new TestSetup:
     start()
@@ -219,15 +218,14 @@ class PeerManagerSpec
     probe2.expectMsg(PeerActor.HandleConnection(incomingConnection1.ref, incomingPeerAddress1))
     probe2.reply(PeerEvent.PeerHandshakeSuccessful(peer, initialPeerInfo))
 
-    val watcher: TestProbe = TestProbe()
-    watcher.watch(incomingConnection3.ref)
+    val watcher = testKit.createTestProbe[Any]()
 
     // Try to connect with 2 more.
     peerManager ! PeerManagerActor.HandlePeerConnectionCmd(incomingConnection2.ref, incomingPeerAddress2)
     peerManager ! PeerManagerActor.HandlePeerConnectionCmd(incomingConnection3.ref, incomingPeerAddress3)
 
     // The second should be terminated because max-pending is 1.
-    watcher.expectMsgClass(classOf[Terminated])
+    watcher.expectTerminated(incomingConnection3.ref.toTyped[Nothing])
 
     // Simulate the successful handshake with the 2nd incoming. It should be disconnected because max-incoming is 1.
     val probe3: TestProbe = createdPeers(3).probe
@@ -256,7 +254,7 @@ class PeerManagerSpec
     // TooManyPeers should also trigger a pruning cycle. The Typed GetStatsForAll carries a replyTo
     // ActorRef (the ephemeral ask target); reply directly to it rather than via Classic sender().
     val statsRequest: PeerStatisticsActor.GetStatsForAll =
-      peerStatistics.expectMsgType[PeerStatisticsActor.GetStatsForAll]
+      peerStatistics.expectMessageType[PeerStatisticsActor.GetStatsForAll]
     statsRequest.window shouldBe (peerConfiguration.statSlotDuration * peerConfiguration.statSlotCount)
     statsRequest.replyTo ! PeerStatisticsActor.StatsForAll(Map.empty)
     // There's only one connection that can be pruned.
@@ -266,11 +264,11 @@ class PeerManagerSpec
     start()
     handleInitialNodesDiscovery()
 
-    val requestSender: TestProbe = TestProbe()
+    val requestSender = testKit.createTestProbe[Peers]()
 
     peerManager ! PeerManagerActor.GetPeersCmd(requestSender.ref)
     // With peer status caching, GetPeers returns immediately from cache — no actor asks needed
-    requestSender.expectMsgClass(classOf[Peers])
+    requestSender.expectMessageType[Peers]
 
   it should "handle common message about sending message to peer" taggedAs (UnitTest, NetworkTest) in new TestSetup:
     start()
@@ -979,8 +977,8 @@ class PeerManagerSpec
 
     val peerDiscoveryManager: TestProbe = TestProbe()
     val peerEventBus: TestProbe = TestProbe()
-    val knownNodesManager: TestProbe = TestProbe()
-    val peerStatistics: TestProbe = TestProbe()
+    val knownNodesManager = testKit.createTestProbe[KnownNodesManager.Command]()
+    val peerStatistics = testKit.createTestProbe[PeerStatisticsActor.Command]()
 
     val bootstrapNodes: Set[Node] =
       DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes).bootstrapNodes
@@ -1044,7 +1042,7 @@ class PeerManagerSpec
           peerDiscoveryManager.ref.toTyped[PeerDiscoveryManager.Command],
           peerConfiguration,
           knownNodesManager.ref,
-          peerStatistics.ref.toTyped[PeerStatisticsActor.Command],
+          peerStatistics.ref,
           peerFactory,
           discoveryConfig,
           blacklist,
@@ -1064,7 +1062,7 @@ class PeerManagerSpec
 
       val req = peerDiscoveryManager.expectMsgClass(classOf[PeerDiscoveryManager.GetDiscoveredNodesInfoReq])
       req.replyTo ! PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes)
-      val knownReq = knownNodesManager.expectMsgType[KnownNodesManager.GetKnownNodesReq]
+      val knownReq = knownNodesManager.expectMessageType[KnownNodesManager.GetKnownNodesReq]
       knownReq.replyTo ! KnownNodesManager.KnownNodes(knownNodes)
 
   // ── Regression tests for blacklistDurationForDisconnect ────────────────────
@@ -1132,9 +1130,9 @@ class PeerManagerSpec
       incoming <- arbitrary[Boolean]
       ageMillis <- Gen.choose(0, 24 * 60 * 60 * 1000)
     yield Peer(
-      PeerId.fromRef(TestProbe().ref.toTyped[PeerActor.Command]),
+      PeerId.fromRef(testKit.createTestProbe[PeerActor.Command]().ref),
       remoteAddress = new InetSocketAddress(ip, port),
-      ref = TestProbe().ref.toTyped[PeerActor.Command],
+      ref = testKit.createTestProbe[PeerActor.Command]().ref,
       incomingConnection = incoming,
       nodeId = None,
       createTimeMillis = System.currentTimeMillis - ageMillis
