@@ -168,7 +168,7 @@ class EthServiceSpec
     def setSyncStatus(status: SyncProtocol.Status): Unit = syncStatusToReport = status
 
     lazy val syncingController: TypedActorRef[SyncController.Command] =
-      system.spawnAnonymous(ActorsTesting.syncStatusBehavior(syncStatusToReport))
+      testKit.spawn(ActorsTesting.syncStatusBehavior(syncStatusToReport))
 
     val currentProtocolVersion = Capability.ETH63.version
 
