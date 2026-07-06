@@ -18,6 +18,12 @@ Two tiers (see `.claude/agent-protocols/sprint-lifecycle.md`, Rule 4, and
   These are not background candidates — they finish in well under a second and print
   their report directly to stdout.
 
+A one-off ad hoc check that hasn't recurred belongs in neither tier — write it to
+`.local/scratch/<slug>.sh` per `.claude/agent-protocols/compound-command-scratch.md`
+instead. Both tiers here are for choreography that has already proven reusable; see
+that protocol's "Relationship to `scripts/agent-tooling/`'s promotion path" section for
+the recurrence signal that actually earns promotion into `lib/` or a top-level script.
+
 ## Top-level (background-safe command wrappers)
 
 | Script | Wraps | Used by |

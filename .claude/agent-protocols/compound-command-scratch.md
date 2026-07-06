@@ -1,0 +1,1 @@
+../../.agents/protocols/process/compound-command-scratch.md

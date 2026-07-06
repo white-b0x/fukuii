@@ -59,7 +59,10 @@ order, for whatever batch/topic you're given:
 3. **(c) Semantic sibling-field check** — for a sample of matches (and all of them if
    the count is small), `Read` the surrounding ~10-20 lines of the actual file, not
    just the grep-matched line, looking for half-typed adjacent fields in the same
-   class/DTO.
+   class/DTO. If this needs ad hoc multi-file iteration beyond `site-sweep.sh`'s own
+   coverage (a `for`/`if` shape over the match list), write it once to
+   `.local/scratch/<slug>.sh` per `compound-command-scratch.md` rather than composing
+   an inline for-loop in the Bash tool.
 4. **(d) Precedent/regression lookup** — grep `.claude/sprints/log/INDEX.md` and the
    current `QUEUE.md`'s Chase & Deferred Items for anything that would expand this
    batch's scope (a past "convert the whole family in one commit" style precedent).

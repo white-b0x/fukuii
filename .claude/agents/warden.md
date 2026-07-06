@@ -36,7 +36,11 @@ it's yours.
   `scripts/agent-tooling/README.md` for the full index and the "which tier" decision rule.
 - **`.claude/agent-protocols/`** — the shared rulebook every specialist references.
   `background-script-execution.md` (why + how long/noisy commands get backgrounded),
-  `sprint-lifecycle.md` (the QUEUE.md pipeline, its 9 numbered rules), `finding-resolution.md`
+  `compound-command-scratch.md` (ad hoc `for`/`if`/`while`/`case` constructs and ad hoc
+  variable-assignment-into-conditional shapes go to `.local/scratch/<slug>.sh`, run via
+  `bash .local/scratch/<slug>.sh` — orthogonal to `background-script-execution.md`, syntax
+  shape not runtime duration), `sprint-lifecycle.md` (the QUEUE.md pipeline, its 9 numbered
+  rules), `finding-resolution.md`
   (the three dispositions every audit finding must get), `worktree-protocol.md` (naming,
   lifecycle, merge discipline), `pre-migration-checklist.md`, `scala3-style.md`,
   `logging-standards.md`, `storage-rocksdb.md`, `pekko-typed-api.md` (each has a

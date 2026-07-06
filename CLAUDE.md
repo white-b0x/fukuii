@@ -37,6 +37,7 @@ Tracked protocols that all agents reference are read at `.claude/agent-protocols
 | `worktree-protocol.md` | Sprint vs task worktree patterns, naming (`wt/<id>`), lifecycle, bin scripts, agent rules for worktree context |
 | `sprint-lifecycle.md` | The permanent queue/log/pattern pipeline for sprint work: research → single queue → fresh-context implementation → close-out (log + pattern capture) → clear → archive |
 | `background-script-execution.md` | Long/noisy/freeze-prone commands get a log-to-file wrapper script + `run_in_background: true`, never direct foreground execution or human relay; any long-lived resource it starts (container, JVM process, ephemeral node) must be torn down and that teardown verified, not assumed |
+| `compound-command-scratch.md` | Ad hoc `for`/`while`/`until`/`if`/`case` constructs and ad hoc variable-assignment-into-conditional shapes get written once to `.local/scratch/<slug>.sh` and run via `bash .local/scratch/<slug>.sh`, instead of composed inline — the permission system can't pre-allow-list bare shell keywords or per-script variable names; orthogonal to `background-script-execution.md` (syntax shape, not runtime duration) |
 | `alert-wrapper-protocol.md` | STOP-AND-ALERT supervision: `watchWith` + structured alarm for actors where restart causes state corruption, instead of restart supervision |
 | `loop-handoff.md` | Maker→checker handoff contract for the looping subsystem's EXECUTE→VERIFY transition |
 | `dependency-currency.md` | Keeps prescriptive coding-pattern content (not just build pins) current for Scala 3 LTS / Pekko Typed — smell-list for Akka-Classic-era idioms bleeding into "current" docs, `currency:` header convention |
@@ -68,11 +69,12 @@ doesn't exist:
   maker/checker gate (`agent-protocols/loop-handoff.md`). `.claude/looping/registry.yaml` —
   not individual file headers — is the source of truth for which agents are loop-eligible.
   See `.claude/looping/README.md` for how to invoke it.
-- **`.claude/hooks/`** — `comment-policy.py`, a `PostToolUse` check on `Write`/`Edit`/
-  `MultiEdit` to `*.scala` files that flags newly added comment lines violating
-  `comments.md` (scope/incident/process narration, bare citations) — advisory only, wired
-  via the tracked `.claude/settings.json` (distinct from the untracked, operator-local
-  `.claude/settings.local.json`), never blocks a tool call.
+- **`.claude/hooks/`** — `comment-policy.py` (`PostToolUse` on `Write`/`Edit`/`MultiEdit` to
+  `*.scala` files, flags newly added comment lines violating `comments.md`) and
+  `compound-command-policy.py` (`PreToolUse` on `Bash`, nudges ad hoc compound/control-flow
+  commands toward `.local/scratch/` per `compound-command-scratch.md`) — both advisory only,
+  wired via the tracked `.claude/settings.json` (distinct from the untracked, operator-local
+  `.claude/settings.local.json`), neither ever blocks a tool call.
 - **`.claude/repo-references/`** — ~20 vendored reference repos (pekko, scala2/3, scalafix,
   scapegoat, rocksdb, json4s, circe, hive, ECIPs, EIPs, ethereum/tests, spec-kit, and
   reference clients under `clients/{nethermind,erigon,...}`). `.claude/agents/REFERENCES.md`
