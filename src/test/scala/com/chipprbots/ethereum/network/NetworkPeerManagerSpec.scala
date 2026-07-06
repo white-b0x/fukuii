@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.network
 import java.net.InetSocketAddress
 
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
@@ -220,7 +221,7 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     // then
     peersInfoHolder ! PeerInfoRequestCmd(peer1.id, requestSender.ref)
     requestSender.expectMsg(PeerInfoResponse(Some(peer1Info)))
-    peer1Probe.expectMsg(DisconnectPeer(Disconnect.Reasons.UselessPeer))
+    peer1Probe.expectMessage(DisconnectPeer(Disconnect.Reasons.UselessPeer))
 
   it should "remove peers information when a peers is disconnected" taggedAs (UnitTest, NetworkTest) in new TestSetup:
     expectInitialSubscriptions()
@@ -318,8 +319,8 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     peersInfoHolder ! PeerEventCmd(PeerHandshakeSuccessful(peer1, genesisInfo))
 
     // Expect subscriptions as usual
-    peerEventBus.expectMsgType[SubscribeCmd].to shouldBe PeerDisconnectedClassifier(PeerSelector.WithId(peer1.id))
-    peerEventBus.expectMsgType[SubscribeCmd].to shouldBe MessageClassifier(
+    peerEventBus.expectMessageType[SubscribeCmd].to shouldBe PeerDisconnectedClassifier(PeerSelector.WithId(peer1.id))
+    peerEventBus.expectMessageType[SubscribeCmd].to shouldBe MessageClassifier(
       Set(
         Codes.BlockHeadersCode,
         Codes.NewBlockCode,
@@ -362,11 +363,11 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     peersInfoHolder ! PeerEventCmd(PeerHandshakeSuccessful(peer1, eth68Info))
 
     // Drain the two subscriptions that always follow handshake.
-    peerEventBus.expectMsgType[SubscribeCmd].to shouldBe PeerDisconnectedClassifier(PeerSelector.WithId(peer1.id))
-    peerEventBus.expectMsgType[SubscribeCmd]
+    peerEventBus.expectMessageType[SubscribeCmd].to shouldBe PeerDisconnectedClassifier(PeerSelector.WithId(peer1.id))
+    peerEventBus.expectMessageType[SubscribeCmd]
 
     // The probe should land on the peerManager TestProbe as a SendMessage to peer1.
-    val sent: PeerManagerActor.SendMessageCmd = peerManager.expectMsgClass(classOf[PeerManagerActor.SendMessageCmd])
+    val sent: PeerManagerActor.SendMessageCmd = peerManager.expectMessageType[PeerManagerActor.SendMessageCmd]
     sent.peerId shouldBe peer1.id
     sent.message.code shouldBe Codes.GetBlockHeadersCode
     // ETH/66+ uses request-id-prefixed envelope.
@@ -390,11 +391,11 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     peersInfoHolder ! PeerEventCmd(PeerHandshakeSuccessful(peer1, eth69Info))
 
     // Drain the two subscriptions.
-    peerEventBus.expectMsgType[SubscribeCmd].to shouldBe PeerDisconnectedClassifier(PeerSelector.WithId(peer1.id))
-    peerEventBus.expectMsgType[SubscribeCmd]
+    peerEventBus.expectMessageType[SubscribeCmd].to shouldBe PeerDisconnectedClassifier(PeerSelector.WithId(peer1.id))
+    peerEventBus.expectMessageType[SubscribeCmd]
     // ETH/69: no GetBlockHeaders probe (latestBlock is in STATUS),
     // but a BlockRangeUpdate is sent immediately so the remote peer knows our chain range.
-    peerManager.expectMsgClass(classOf[PeerManagerActor.SendMessageCmd])
+    peerManager.expectMessageType[PeerManagerActor.SendMessageCmd]
     peerManager.expectNoMessage(100.millis)
 
   it should "discover peer block number from probe response on ETH/64-/68" taggedAs (
@@ -426,7 +427,7 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     expectInitialSubscriptions()
 
     // Register SNAP sync controller
-    peersInfoHolder ! RegisterSnapSyncControllerCmd(snapSyncController.ref.toTyped[SNAPSyncController.Command])
+    peersInfoHolder ! RegisterSnapSyncControllerCmd(snapSyncController.ref)
 
     // Setup a peer
     setupNewPeer(peer1, peer1Probe, peer1Info)
@@ -463,10 +464,10 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     peersInfoHolder ! PeerEventCmd(MessageFromPeer(byteCodes, peer1.id))
 
     // Then they should be routed to SNAPSyncController wrapped in Command ADT
-    snapSyncController.expectMsg(SNAPSyncController.AccountRangeResponse(accountRange))
-    snapSyncController.expectMsg(SNAPSyncController.StorageRangesResponse(storageRanges))
-    snapSyncController.expectMsg(SNAPSyncController.TrieNodesResponse(trieNodes))
-    snapSyncController.expectMsg(SNAPSyncController.ByteCodesResponse(byteCodes))
+    snapSyncController.expectMessage(SNAPSyncController.AccountRangeResponse(accountRange))
+    snapSyncController.expectMessage(SNAPSyncController.StorageRangesResponse(storageRanges))
+    snapSyncController.expectMessage(SNAPSyncController.TrieNodesResponse(trieNodes))
+    snapSyncController.expectMessage(SNAPSyncController.ByteCodesResponse(byteCodes))
 
   it should "handle SNAP messages gracefully when SNAPSyncController is not registered" taggedAs (
     UnitTest,
@@ -496,6 +497,7 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
 
   trait TestSetup extends EphemBlockchainTestSetup:
     implicit override lazy val classicSystem: ActorSystem = ActorSystem("PeersInfoHolderSpec_System")
+    implicit def typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = classicSystem.toTyped
 
     blockchainWriter.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
 
@@ -536,31 +538,31 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
 
     val fakeNodeId: ByteString = ByteString()
 
-    val peer1Probe: TestProbe = TestProbe()
+    val peer1Probe: TypedTestProbe[PeerActor.Command] = TypedTestProbe()
     val peer1: Peer =
       Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false, nodeId = Some(fakeNodeId))
     val peer1Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
-    val peer2Probe: TestProbe = TestProbe()
+    val peer2Probe: TypedTestProbe[PeerActor.Command] = TypedTestProbe()
     val peer2: Peer =
       Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), peer2Probe.ref, false, nodeId = Some(fakeNodeId))
     val peer2Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
-    val peer3Probe: TestProbe = TestProbe()
+    val peer3Probe: TypedTestProbe[PeerActor.Command] = TypedTestProbe()
     val peer3: Peer =
       Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref, false, nodeId = Some(fakeNodeId))
 
-    val freshPeerProbe: TestProbe = TestProbe()
+    val freshPeerProbe: TypedTestProbe[PeerActor.Command] = TypedTestProbe()
     val freshPeer: Peer =
       Peer(PeerId(""), new InetSocketAddress("127.0.0.1", 4), freshPeerProbe.ref, false, nodeId = Some(fakeNodeId))
     val freshPeerInfo: PeerInfo = initialPeerInfo.withForkAccepted(false)
 
-    val peerManager: TestProbe = TestProbe()
-    val peerEventBus: TestProbe = TestProbe()
+    val peerManager: TypedTestProbe[PeerManagerActor.Command] = TypedTestProbe()
+    val peerEventBus: TypedTestProbe[PeerEventBusActor.Command] = TypedTestProbe()
 
     val peersInfoHolder = classicSystem
       .spawn(
         NetworkPeerManagerActor.behavior(
-          peerManager.ref.toTyped[PeerManagerActor.Command],
-          peerEventBus.ref.toTyped[PeerEventBusActor.Command],
+          peerManager.ref,
+          peerEventBus.ref,
           storagesInstance.storages.appStateStorage,
           Some(forkResolver),
           isPoWChain = true
@@ -569,6 +571,12 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
       )
       .toClassic
 
+    // NOT converted to a typed TestProbe: this probe stands in for the replyTo of BOTH
+    // PeerInfoRequestCmd (ActorRef[PeerInfoResponse]) and GetHandshakedPeersCmd
+    // (ActorRef[HandshakedPeers]) throughout this file — two unrelated message types via
+    // the same Classic ref, which only Classic's untyped ActorRef can serve. Splitting this
+    // into two dedicated typed probes would touch ~30 call sites and is not a mechanical
+    // type-param swap; left as-is.
     val requestSender: TestProbe = TestProbe()
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
@@ -581,8 +589,8 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     // — still reach the handler. Tests that expect the initial subscriptions must
     // consume both.
     def expectInitialSubscriptions(): Unit =
-      peerEventBus.expectMsgType[SubscribeCmd].to shouldBe PeerHandshaked
-      peerEventBus.expectMsgType[SubscribeCmd].to shouldBe MessageClassifier(
+      peerEventBus.expectMessageType[SubscribeCmd].to shouldBe PeerHandshaked
+      peerEventBus.expectMessageType[SubscribeCmd].to shouldBe MessageClassifier(
         Set(
           com.chipprbots.ethereum.network.p2p.messages.SNAP.Codes.GetAccountRangeCode,
           com.chipprbots.ethereum.network.p2p.messages.SNAP.Codes.GetStorageRangesCode,
@@ -592,13 +600,13 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
         PeerSelector.AllPeers
       )
 
-    def setupNewPeer(peer: Peer, peerProbe: TestProbe, peerInfo: PeerInfo): Unit =
+    def setupNewPeer(peer: Peer, peerProbe: TypedTestProbe[PeerActor.Command], peerInfo: PeerInfo): Unit =
 
       peersInfoHolder ! PeerEventCmd(PeerHandshakeSuccessful(peer, peerInfo))
 
-      peerEventBus.expectMsgType[SubscribeCmd].to shouldBe PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))
+      peerEventBus.expectMessageType[SubscribeCmd].to shouldBe PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))
 
-      peerEventBus.expectMsgType[SubscribeCmd].to shouldBe MessageClassifier(
+      peerEventBus.expectMessageType[SubscribeCmd].to shouldBe MessageClassifier(
         Set(
           Codes.BlockHeadersCode,
           Codes.NewBlockCode,
@@ -628,12 +636,12 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
       val nonGenesis = peerInfo.remoteStatus.bestHash != peerInfo.remoteStatus.genesisHash
       val notEth69 = peerInfo.remoteStatus.capability != Capability.ETH69
       if nonGenesis && notEth69 then
-        val probe = peerManager.expectMsgClass(classOf[PeerManagerActor.SendMessageCmd])
+        val probe = peerManager.expectMessageType[PeerManagerActor.SendMessageCmd]
         probe.peerId shouldBe peer.id
         probe.message.code shouldBe Codes.GetBlockHeadersCode
 
   trait TestSetupWithSnapSync extends TestSetup:
-    val snapSyncController: TestProbe = TestProbe()
+    val snapSyncController: TypedTestProbe[SNAPSyncController.Command] = TypedTestProbe()
 
   // Data helpers for archive-node detection tests.
   // Does NOT override peersInfoHolder — call newReaderHolder() in each test after
@@ -663,8 +671,8 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     def newReaderHolder(): org.apache.pekko.actor.ActorRef = classicSystem
       .spawn(
         NetworkPeerManagerActor.behavior(
-          peerManager.ref.toTyped[PeerManagerActor.Command],
-          peerEventBus.ref.toTyped[PeerEventBusActor.Command],
+          peerManager.ref,
+          peerEventBus.ref,
           storagesInstance.storages.appStateStorage,
           Some(forkResolver),
           blockchainReader = Some(blockchainReader),
@@ -679,14 +687,14 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     def setupPeerOnHolder(
         holder: org.apache.pekko.actor.ActorRef,
         peer: Peer,
-        peerProbe: TestProbe,
+        peerProbe: TypedTestProbe[PeerActor.Command],
         peerInfo: PeerInfo
     ): Unit =
       holder ! PeerEventCmd(PeerHandshakeSuccessful(peer, peerInfo))
-      peerEventBus.expectMsgType[SubscribeCmd].to shouldBe PeerDisconnectedClassifier(
+      peerEventBus.expectMessageType[SubscribeCmd].to shouldBe PeerDisconnectedClassifier(
         PeerSelector.WithId(peer.id)
       )
-      peerEventBus.expectMsgType[SubscribeCmd].to shouldBe MessageClassifier(
+      peerEventBus.expectMessageType[SubscribeCmd].to shouldBe MessageClassifier(
         Set(
           Codes.BlockHeadersCode,
           Codes.NewBlockCode,
@@ -708,7 +716,7 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
       // after handshake (announces our own chain range). Consume it so it doesn't
       // bleed into subsequent peerManager expectations.
       if peerInfo.remoteStatus.capability == Capability.ETH69 then
-        peerManager.expectMsgClass(classOf[PeerManagerActor.SendMessageCmd])
+        peerManager.expectMessageType[PeerManagerActor.SendMessageCmd]
 
   it should "ETH69 archive peer: correct inflated Tier3 chainWeight after 3 consecutive unchanged probes" taggedAs (
     UnitTest,
@@ -733,7 +741,7 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
     // not at response time.
     def tick(): Unit =
       readerHolder ! RefreshPeerBestBlocksTick
-      peerManager.expectMsgClass(classOf[PeerManagerActor.SendMessageCmd])
+      peerManager.expectMessageType[PeerManagerActor.SendMessageCmd]
 
     // Tick 1: seeds lastProbeMaxBlock; counter stays 0 (first tick → case None → no increment).
     tick()
@@ -769,7 +777,7 @@ class NetworkPeerManagerSpec extends AnyFlatSpec with Matchers:
 
     // Tick 1: no recent signal → probe fires; seeds lastProbeMaxBlock, counter = 0 (case None).
     readerHolder ! RefreshPeerBestBlocksTick
-    peerManager.expectMsgClass(classOf[PeerManagerActor.SendMessageCmd])
+    peerManager.expectMessageType[PeerManagerActor.SendMessageCmd]
 
     // Mining peer sends a live block signal via BlockRangeUpdate — refreshes lastBlockSignalMs.
     // This simulates an active mining node that keeps its signal fresh across tick intervals.

@@ -1,9 +1,8 @@
 package com.chipprbots.ethereum.blockchain.sync.snap
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 
 import scala.concurrent.duration.*
 
@@ -17,6 +16,8 @@ import com.chipprbots.ethereum.db.storage.AppStateStorage
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
+import com.chipprbots.ethereum.network.NetworkPeerManagerActor
+import com.chipprbots.ethereum.network.PeerEventBusActor
 import com.chipprbots.ethereum.testing.Tags.*
 
 /** Unit tests for the Pekko Typed `ChainDownloader` (Group S6 migration).
@@ -33,8 +34,6 @@ class ChainDownloaderSpec
     with Eventually
     with org.scalamock.scalatest.MockFactory
     with TestSyncConfig:
-
-  implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
 
   // Regression for #1162: chain backfill keeps running in the background after SNAPSyncController
   // emits SnapSyncFinalized, but at lower priority. ChainDownloader needs a `YieldToRegularSync(n)`
@@ -124,23 +123,23 @@ class ChainDownloaderSpec
   private def expectProgress(
       downloader: TypedActorRef[ChainDownloader.Command]
   ): ChainDownloader.Progress =
-    val probe = TestProbe()
-    val typedProbe: TypedActorRef[ChainDownloader.Progress] = probe.ref.toTyped[ChainDownloader.Progress]
-    downloader ! ChainDownloader.GetProgress(typedProbe)
-    probe.expectMsgType[ChainDownloader.Progress](3.seconds)
+    val probe = testKit.createTestProbe[ChainDownloader.Progress]()
+    downloader ! ChainDownloader.GetProgress(probe.ref)
+    probe.expectMessageType[ChainDownloader.Progress](3.seconds)
 
   /** Spawn a Typed ChainDownloader (converted to a Classic ref for `!`). `findBestStoredHeader` probes block 1; mocking
     * it as missing makes the binary search return 0 immediately, leaving the actor in `downloading` with empty queues —
     * no real blockchain or peer infrastructure required. `peersScanInterval` is 1h in TestSyncConfig, so the periodic
     * peer scan never fires during a test (the immediate startup poll lands harmlessly on a fresh probe).
     */
-  private def newDownloader(): (TypedActorRef[ChainDownloader.Command], AppStateStorage, TestProbe) =
+  private def newDownloader()
+      : (TypedActorRef[ChainDownloader.Command], AppStateStorage, TypedTestProbe[NetworkPeerManagerActor.Command]) =
     val blockchainReader = mock[BlockchainReader]
     val blockchainWriter = mock[BlockchainWriter]
     val appStateStorage = new AppStateStorage(EphemDataSource())
-    val networkPeerManager = TestProbe()
-    val peerEventBus = TestProbe()
-    val replyToProbe = TestProbe()
+    val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
+    val peerEventBus = testKit.createTestProbe[PeerEventBusActor.Command]()
+    val replyToProbe = testKit.createTestProbe[ChainDownloader.Done.type]()
 
     blockchainReader.getBlockHeaderByNumber
       .expects(BlockNumber(1))

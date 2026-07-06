@@ -6,10 +6,10 @@ import java.net.InetSocketAddress
 import java.net.URI
 
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.testkit.ExplicitlyTriggeredScheduler
 import org.apache.pekko.testkit.TestActorRef
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import com.typesafe.config.ConfigFactory
@@ -55,8 +55,8 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     // Establish probe rlpxconnection
     peerActorHandshakeSucceeds ! ConnectTo(uri)
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.send(peerActorHandshakeSucceeds, RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.ConnectTo(uri))
+    peerActorHandshakeSucceeds ! RLPxConnectionHandler.ConnectionEstablished(ByteString())
 
     // Test that the handshake succeeded
     expectStatus(peerActorHandshakeSucceeds, StatusResponse(Handshaked))
@@ -73,11 +73,11 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     // Establish probe rlpxconnection
     peerActorHandshakeFails ! ConnectTo(uri)
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.send(peerActorHandshakeFails, RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.ConnectTo(uri))
+    peerActorHandshakeFails ! RLPxConnectionHandler.ConnectionEstablished(ByteString())
 
     // Test that the handshake failed
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
 
   it should "succeed in establishing connection in simple Hello exchange" taggedAs (
     UnitTest,
@@ -90,10 +90,10 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     // Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.send(peerActorHandshakeRequiresHello, RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.ConnectTo(uri))
+    peerActorHandshakeRequiresHello ! RLPxConnectionHandler.ConnectionEstablished(ByteString())
 
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultHello)
 
     // Test that the handshake succeeded
@@ -110,14 +110,14 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     // Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.send(peerActorHandshakeRequiresHello, RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.ConnectTo(uri))
+    peerActorHandshakeRequiresHello ! RLPxConnectionHandler.ConnectionEstablished(ByteString())
 
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.SendMessage(defaultHello))
     testScheduler.timePasses(defaultTimeout * 2)
 
     // Test that the handshake failed
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
 
   it should "fail in establishing connection in simple Hello exchange if a Status message was received" taggedAs (
     UnitTest,
@@ -130,14 +130,14 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     // Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.send(peerActorHandshakeRequiresHello, RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.ConnectTo(uri))
+    peerActorHandshakeRequiresHello ! RLPxConnectionHandler.ConnectionEstablished(ByteString())
 
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultStatusMsg)
 
     // Test that the handshake failed
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
 
   it should "ignore unhandled message while establishing connection" taggedAs (UnitTest, NetworkTest) in new TestSetup:
 
@@ -147,10 +147,10 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     // Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.send(peerActorHandshakeRequiresHello, RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.ConnectTo(uri))
+    peerActorHandshakeRequiresHello ! RLPxConnectionHandler.ConnectionEstablished(ByteString())
 
-    rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
+    rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(Pong()) // Ignored
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(Pong()) // Ignored
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(Pong()) // Ignored
@@ -165,18 +165,20 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     def testScheduler: ExplicitlyTriggeredScheduler = classicSystem.scheduler.asInstanceOf[ExplicitlyTriggeredScheduler]
 
+    implicit private def typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = classicSystem.toTyped
+
     val uri = new URI(
       "enode://18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857@47.90.36.129:30303"
     )
-    val rlpxConnectionProbe: TestProbe = TestProbe()
-    val peerMessageBus: TestProbe = TestProbe()
-    val knownNodesManager: TestProbe = TestProbe()
+    val rlpxConnectionProbe: TypedTestProbe[RLPxConnectionHandler.Command] = TypedTestProbe()
+    val peerMessageBus: TypedTestProbe[PeerEventBusActor.Command] = TypedTestProbe()
+    val knownNodesManager: TypedTestProbe[KnownNodesManager.Command] = TypedTestProbe()
 
     def peerActor(handshaker: Handshaker[PeerInfo]): TestActorRef[Nothing] = TestActorRef(
       PropsAdapter(
         PeerActor.apply(
           new InetSocketAddress("127.0.0.1", 0),
-          rlpxConnectionFactory = _ => rlpxConnectionProbe.ref.toTyped[RLPxConnectionHandler.Command],
+          rlpxConnectionFactory = _ => rlpxConnectionProbe.ref,
           peerConfiguration = Config.Network.peer,
           peerEventBus = peerMessageBus.ref,
           knownNodesManager = knownNodesManager.ref,
@@ -187,9 +189,9 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
     )
 
     def expectStatus(peer: TestActorRef[Nothing], expected: StatusResponse): Unit =
-      val statusProbe: TestProbe = TestProbe()(classicSystem)
-      peer ! GetStatus(statusProbe.ref.toTyped[StatusResponse])
-      statusProbe.expectMsg(expected)
+      val statusProbe: TypedTestProbe[StatusResponse] = TypedTestProbe()
+      peer ! GetStatus(statusProbe.ref)
+      statusProbe.expectMessage(expected)
 
   object DefaultValues:
     val defaultStatusMsg: Status = Status(

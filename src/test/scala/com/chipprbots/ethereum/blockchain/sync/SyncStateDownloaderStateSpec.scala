@@ -2,10 +2,8 @@ package com.chipprbots.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
 
-import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.util.ByteString
 
 import cats.data.NonEmptyList
@@ -26,8 +24,6 @@ import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NodeData
 import com.chipprbots.ethereum.testing.Tags.*
 
 class SyncStateDownloaderStateSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike:
-
-  implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
 
   "DownloaderState" should "schedule requests for retrieval" taggedAs (UnitTest, SyncTest) in new TestSetup:
     val newState: DownloaderState = initialState.scheduleNewNodesForRetrieval(potentialNodesHashes)
@@ -229,34 +225,34 @@ class SyncStateDownloaderStateSpec extends ScalaTestWithActorTestKit with AnyFla
         case NoUsefulDataInResponse => fail()
         case data @ UsefulData(_)   => data
 
-    val ref1: ActorRef = TestProbe().ref
-    val ref2: ActorRef = TestProbe().ref
-    val ref3: ActorRef = TestProbe().ref
-    val ref4: ActorRef = TestProbe().ref
+    val ref1: TypedActorRef[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]().ref
+    val ref2: TypedActorRef[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]().ref
+    val ref3: TypedActorRef[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]().ref
+    val ref4: TypedActorRef[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]().ref
 
     val initialState: DownloaderState = DownloaderState(Map.empty, Map.empty)
     val peer1: Peer = Peer(
       PeerId("peer1"),
       new InetSocketAddress("127.0.0.1", 1),
-      ref1.toTyped[PeerActor.Command],
+      ref1,
       incomingConnection = false
     )
     val peer2: Peer = Peer(
       PeerId("peer2"),
       new InetSocketAddress("127.0.0.1", 2),
-      ref2.toTyped[PeerActor.Command],
+      ref2,
       incomingConnection = false
     )
     val peer3: Peer = Peer(
       PeerId("peer3"),
       new InetSocketAddress("127.0.0.1", 3),
-      ref3.toTyped[PeerActor.Command],
+      ref3,
       incomingConnection = false
     )
     val notKnownPeer: Peer = Peer(
       PeerId(""),
       new InetSocketAddress("127.0.0.1", 4),
-      ref4.toTyped[PeerActor.Command],
+      ref4,
       incomingConnection = false
     )
     val peers: NonEmptyList[Peer] = NonEmptyList.fromListUnsafe(List(peer1, peer2, peer3))

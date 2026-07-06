@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.network.snapserver
 
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -41,6 +41,7 @@ import com.chipprbots.ethereum.testing.TestMptStorage
 class SnapServingActorSpec extends AnyFlatSpec with Matchers with MockFactory with BeforeAndAfterAll:
 
   implicit val system: ActorSystem = ActorSystem("SnapServingActorSpec_System")
+  implicit private def typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = system.toTyped
 
   override def afterAll(): Unit =
     val _ = system.terminate()
@@ -55,16 +56,16 @@ class SnapServingActorSpec extends AnyFlatSpec with Matchers with MockFactory wi
 
   /** Create the actor under test with a fresh TestProbe for each logical role. */
   private def makeActor(
-      peerManager: TestProbe,
-      peerEventBus: TestProbe,
+      peerManager: TypedTestProbe[PeerManagerActor.Command],
+      peerEventBus: TypedTestProbe[PeerEventBusActor.Command],
       evmCodeStorageOpt: Option[com.chipprbots.ethereum.db.storage.EvmCodeStorage] = None,
       mptStorageOpt: Option[com.chipprbots.ethereum.db.storage.MptStorage] = None,
       blockchainReader: Option[BlockchainReader] = None
   ): ActorRef = system
     .spawn(
       NetworkPeerManagerActor.behavior(
-        peerManagerActor = peerManager.ref.toTyped[PeerManagerActor.Command],
-        peerEventBusActor = peerEventBus.ref.toTyped[PeerEventBusActor.Command],
+        peerManagerActor = peerManager.ref,
+        peerEventBusActor = peerEventBus.ref,
         appStateStorage = appStateStorage,
         forkResolverOpt = None,
         initialSnapSyncControllerOpt = None,
@@ -86,8 +87,8 @@ class SnapServingActorSpec extends AnyFlatSpec with Matchers with MockFactory wi
     (ByteString(trie.getRootHash), storage)
 
   /** Drain one outbound SendMessage from the peerManager probe. */
-  private def nextSend(pm: TestProbe): PeerManagerActor.SendMessageCmd =
-    pm.expectMsgType[PeerManagerActor.SendMessageCmd](2.seconds)
+  private def nextSend(pm: TypedTestProbe[PeerManagerActor.Command]): PeerManagerActor.SendMessageCmd =
+    pm.expectMessageType[PeerManagerActor.SendMessageCmd](2.seconds)
 
   // ── Test 1: unknown peer → response still served ────────────────────────────
   //
@@ -100,8 +101,8 @@ class SnapServingActorSpec extends AnyFlatSpec with Matchers with MockFactory wi
       UnitTest,
       SyncTest
     ) in {
-      val pm = TestProbe("pm-unknown-peer")
-      val eb = TestProbe("eb-unknown-peer")
+      val pm = TypedTestProbe[PeerManagerActor.Command]("pm-unknown-peer")
+      val eb = TypedTestProbe[PeerEventBusActor.Command]("eb-unknown-peer")
       val (root, storage) = buildAccountTrie(6)
       val actor = makeActor(pm, eb, mptStorageOpt = Some(storage))
 
@@ -131,8 +132,8 @@ class SnapServingActorSpec extends AnyFlatSpec with Matchers with MockFactory wi
     UnitTest,
     SyncTest
   ) in {
-    val pm = TestProbe("pm-no-codes")
-    val eb = TestProbe("eb-no-codes")
+    val pm = TypedTestProbe[PeerManagerActor.Command]("pm-no-codes")
+    val eb = TypedTestProbe[PeerEventBusActor.Command]("eb-no-codes")
     val actor = makeActor(pm, eb, evmCodeStorageOpt = None)
 
     actor ! PeerEventCmd(
@@ -153,8 +154,8 @@ class SnapServingActorSpec extends AnyFlatSpec with Matchers with MockFactory wi
     UnitTest,
     SyncTest
   ) in {
-    val pm = TestProbe("pm-no-mpt")
-    val eb = TestProbe("eb-no-mpt")
+    val pm = TypedTestProbe[PeerManagerActor.Command]("pm-no-mpt")
+    val eb = TypedTestProbe[PeerEventBusActor.Command]("eb-no-mpt")
     val actor = makeActor(pm, eb, mptStorageOpt = None)
 
     actor ! PeerEventCmd(
@@ -183,8 +184,8 @@ class SnapServingActorSpec extends AnyFlatSpec with Matchers with MockFactory wi
   // need to build a trie for GetStorageRanges/GetTrieNodes inline.
 
   it should "echo requestId in responses from all 4 SNAP handlers" taggedAs (UnitTest, SyncTest) in {
-    val pm = TestProbe("pm-reqid-echo")
-    val eb = TestProbe("eb-reqid-echo")
+    val pm = TypedTestProbe[PeerManagerActor.Command]("pm-reqid-echo")
+    val eb = TypedTestProbe[PeerEventBusActor.Command]("eb-reqid-echo")
     val actor = makeActor(pm, eb, evmCodeStorageOpt = None, mptStorageOpt = None)
 
     actor ! PeerEventCmd(MessageFromPeer(GetAccountRange(BigInt(11), zeroHash, zeroHash, maxHash, bigBudget), testPeer))
@@ -216,8 +217,8 @@ class SnapServingActorSpec extends AnyFlatSpec with Matchers with MockFactory wi
     UnitTest,
     SyncTest
   ) in {
-    val pm = TestProbe("pm-freshness")
-    val eb = TestProbe("eb-freshness")
+    val pm = TypedTestProbe[PeerManagerActor.Command]("pm-freshness")
+    val eb = TypedTestProbe[PeerEventBusActor.Command]("eb-freshness")
 
     val freshRoot = kec256(ByteString("fresh-state-root"))
     val staleRoot = kec256(ByteString("stale-state-root"))

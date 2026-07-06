@@ -4,6 +4,8 @@ import java.net.InetSocketAddress
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.PoisonPill
+import org.apache.pekko.actor.testkit.typed.scaladsl.FishingOutcomes
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.testkit.TestActor.AutoPilot
@@ -40,6 +42,8 @@ import com.chipprbots.ethereum.ledger.*
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerInfo
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
 import com.chipprbots.ethereum.network.Peer
+import com.chipprbots.ethereum.network.PeerActor
+import com.chipprbots.ethereum.network.PeerEventBusActor.Command as PeerEventBusCommand
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import com.chipprbots.ethereum.network.PeerEventBusActor.SubscribeCmd
@@ -87,13 +91,23 @@ trait RegularSyncFixtures:
       (0 to 5).toList.map(peerId.andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
     val defaultPeer: Peer = peerByNumber(0)
 
+    // NOT converted to a typed TestProbe: NetworkPeerManagerActor.Command AutoPilots
+    // (GetHandshakedPeersCmd / SendMessageCmd matching) are installed on this probe in
+    // RegularSyncSpec.scala, and Typed TestProbe has no AutoPilot hook.
     val networkPeerManager: TestProbe = TestProbe()
-    val peerEventBus: TestProbe = TestProbe()
+    val peerEventBus: TypedTestProbe[PeerEventBusCommand] = testKit.createTestProbe[PeerEventBusCommand]()
+    // NOT converted to a typed TestProbe: an AutoPilot answering GetOmmers is installed on this
+    // probe in OnTopFixture, and Typed TestProbe has no AutoPilot hook.
     val ommersPool: TestProbe = TestProbe()
+    // NOT converted to a typed TestProbe: an AutoPilot answering GetPendingTransactionsReq is
+    // installed on this probe in OnTopFixture, and Typed TestProbe has no AutoPilot hook.
     val pendingTransactionsManager: TestProbe = TestProbe()
+    // NOT converted to a typed TestProbe: RegularSyncSpec.scala installs several AutoPilots
+    // (PeersClientAutoPilot and its subclasses) on this probe, and Typed TestProbe has no
+    // AutoPilot hook.
     val peersClient: TestProbe = TestProbe()
     // Stands in for the SyncController parent: RegularSync relays RegularSyncStuck here (8k-F).
-    val supervisor: TestProbe = TestProbe()
+    val supervisor: TypedTestProbe[SyncController.Command] = testKit.createTestProbe[SyncController.Command]()
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
     lazy val branchResolution = new BranchResolution(blockchainReader)
 
@@ -138,7 +152,7 @@ trait RegularSyncFixtures:
             .toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
           blockTopic,
           this,
-          supervisor.ref.toTyped[SyncController.Command]
+          supervisor.ref
         ),
         org.apache.pekko.actor.typed.Props.empty
           .withDispatcherFromConfig("pekko.actor.default-dispatcher")
@@ -204,7 +218,12 @@ trait RegularSyncFixtures:
     def peerId(number: Int): PeerId = PeerId(s"peer_$number")
 
     def getPeer(id: PeerId): Peer =
-      Peer(id, new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
+      Peer(
+        id,
+        new InetSocketAddress("127.0.0.1", 0),
+        testKit.createTestProbe[PeerActor.Command](id.value).ref,
+        incomingConnection = false
+      )
 
     def getPeerInfo(
         peer: Peer,
@@ -261,9 +280,9 @@ trait RegularSyncFixtures:
 
     val getSyncStatus: IO[SyncProtocol.Status] =
       IO {
-        val probe = TestProbe()
-        regularSync ! SyncProtocol.GetStatus(probe.ref.toTyped[SyncProtocol.Status])
-        probe.expectMsgType[SyncProtocol.Status]
+        val probe = testKit.createTestProbe[SyncProtocol.Status]()
+        regularSync ! SyncProtocol.GetStatus(probe.ref)
+        probe.expectMessageType[SyncProtocol.Status]
       }
 
     def pollForStatus(predicate: SyncProtocol.Status => Boolean): IO[SyncProtocol.Status] = Stream
@@ -532,9 +551,10 @@ trait RegularSyncFixtures:
     def waitForSubscription(): Unit =
       blockFetcher = peerEventBus
         .fishForMessage(max = 5.seconds) {
-          case SubscribeCmd(_: MessageClassifier, _) => true
-          case _                                     => false
+          case SubscribeCmd(_: MessageClassifier, _) => FishingOutcomes.complete
+          case _                                     => FishingOutcomes.continueAndIgnore
         }
+        .head
         .asInstanceOf[SubscribeCmd]
         .subscriber
 

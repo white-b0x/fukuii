@@ -921,6 +921,9 @@ class PivotBlockSelectorSpec
       unsubCmds.toSet shouldEqual unsubClassifiers.toSet
       subCmds.toSet shouldEqual Set(nextSub)
 
+    // NOT converted to typed TestProbes: both rely on Classic TestProbe's `.ignoreMsg` filter
+    // (silently drop matching messages before they ever reach the mailbox), which Typed TestProbe
+    // has no equivalent for.
     val networkPeerManager: TestProbe = TestProbe()
     networkPeerManager.ignoreMsg {
       case NetworkPeerManagerActor.SendMessageCmd(msg, _) if isNewBlock(msg.underlyingMsg) => true
@@ -1000,10 +1003,10 @@ class PivotBlockSelectorSpec
     val nextAnotherDifferentBlockHeader: BlockHeader =
       baseBlockHeader.copy(number = BlockNumber(expectedPivotBlock), extraData = ByteString("different3"))
 
-    val peer1TestProbe: TestProbe = TestProbe("peer1")(classicSystem)
-    val peer2TestProbe: TestProbe = TestProbe("peer2")(classicSystem)
-    val peer3TestProbe: TestProbe = TestProbe("peer3")(classicSystem)
-    val peer4TestProbe: TestProbe = TestProbe("peer4")(classicSystem)
+    val peer1TestProbe = testKit.createTestProbe[com.chipprbots.ethereum.network.PeerActor.Command]("peer1")
+    val peer2TestProbe = testKit.createTestProbe[com.chipprbots.ethereum.network.PeerActor.Command]("peer2")
+    val peer3TestProbe = testKit.createTestProbe[com.chipprbots.ethereum.network.PeerActor.Command]("peer3")
+    val peer4TestProbe = testKit.createTestProbe[com.chipprbots.ethereum.network.PeerActor.Command]("peer4")
 
     val peer1: Peer = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
     val peer2: Peer = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, false)

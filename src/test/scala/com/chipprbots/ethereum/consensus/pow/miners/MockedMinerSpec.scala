@@ -54,7 +54,7 @@ class MockedMinerSpec
         val msg: MineBlocks = MineBlocks(1, false, None)
         sendToMiner(msg)
         expectNoNewBlockMsg(noMessageTimeOut)
-        parentActor.expectMsg(MinerNotSupported(msg))
+        parentActor.expectMessage(MinerNotSupported(msg))
     }
 
     "stop mining in case of error" when {
@@ -75,7 +75,7 @@ class MockedMinerSpec
         withStartedMiner {
           sendToMiner(MineBlocks(2, withTransactions = false, None))
 
-          parentActor.expectMsg(MiningOrdered)
+          parentActor.expectMessage(MiningOrdered)
 
           val block1 = waitForMinedBlock
 
@@ -99,7 +99,7 @@ class MockedMinerSpec
 
           expectNoNewBlockMsg(noMessageTimeOut)
 
-          parentActor.expectMsg(MiningError(errorMsg))
+          parentActor.expectMessage(MiningError(errorMsg))
         }
     }
 
@@ -112,9 +112,9 @@ class MockedMinerSpec
 
         withStartedMiner {
           sendToMiner(MineBlocks(1, withTransactions = false, None))
-          parentActor.expectMsg(MiningOrdered)
+          parentActor.expectMessage(MiningOrdered)
           sendToMiner(MineBlocks(1, withTransactions = false, None))
-          parentActor.expectMsg(MinerIsWorking)
+          parentActor.expectMessage(MinerIsWorking)
 
           val block = waitForMinedBlock
 
@@ -140,7 +140,7 @@ class MockedMinerSpec
         withStartedMiner {
           sendToMiner(MineBlocks(1, withTransactions = false, Some(parentHash.value)))
 
-          parentActor.expectMsg(MiningOrdered)
+          parentActor.expectMessage(MiningOrdered)
 
           val block = waitForMinedBlock
 
@@ -158,7 +158,7 @@ class MockedMinerSpec
 
           val block = waitForMinedBlock
 
-          parentActor.expectMsg(MiningOrdered)
+          parentActor.expectMessage(MiningOrdered)
 
           validateBlock(block, parent)
         }
@@ -174,7 +174,7 @@ class MockedMinerSpec
 
           val block = waitForMinedBlock
 
-          parentActor.expectMsg(MiningOrdered)
+          parentActor.expectMessage(MiningOrdered)
 
           validateBlock(block, parent, Seq(txToMine))
         }
@@ -194,7 +194,7 @@ class MockedMinerSpec
           val block1 = waitForMinedBlock
           val block2 = waitForMinedBlock
 
-          parentActor.expectMsg(MiningOrdered)
+          parentActor.expectMessage(MiningOrdered)
 
           validateBlock(block1, parent)
           validateBlock(block2, block1)
@@ -216,7 +216,7 @@ class MockedMinerSpec
 
           val block2 = waitForMinedBlock
 
-          parentActor.expectMsg(MiningOrdered)
+          parentActor.expectMessage(MiningOrdered)
 
           validateBlock(block1, parent, Seq(txToMine))
           validateBlock(block2, block1)
@@ -250,7 +250,7 @@ class MockedMinerSpec
 
     // Reply target for the Typed ask/reply pattern (Classic sender() is gone in Typed).
     private val parentReplyTo: typed.ActorRef[MockedMiner.MockedMinerResponse] =
-      parentActor.ref.toTyped[MockedMiner.MockedMinerResponse]
+      parentActor.ref
 
     // Allow getBestBlock to be called 0 or more times since some tests use getBlockByHash instead
     (() => blockchainReader.getBestBlock).expects().returns(Some(origin)).anyNumberOfTimes()

@@ -2,6 +2,8 @@ package com.chipprbots.ethereum.consensus.pow
 
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem as ClassicSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
+import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.testkit.TestActor
 import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
@@ -25,6 +27,7 @@ import com.chipprbots.ethereum.consensus.mining.MiningConfigBuilder
 import com.chipprbots.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
 import com.chipprbots.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import com.chipprbots.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
+import com.chipprbots.ethereum.consensus.pow.miners.MockedMiner
 import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.db.storage.MptStorage
@@ -72,9 +75,13 @@ trait MinerSpecSetup
   // Tests that override classicSystem won't trigger this.
   private lazy val _defaultClassicSystem: ClassicSystem = ClassicSystem("MinerSpecSetup-DefaultSystem")
 
+  implicit def typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = classicSystem.toTyped
+
   implicit val runtime: IORuntime = IORuntime.global
-  lazy val parentActor: TestProbe = TestProbe()(classicSystem)
-  lazy val sync: TestProbe = TestProbe()(classicSystem)
+  lazy val parentActor: TypedTestProbe[MockedMiner.MockedMinerResponse] = TypedTestProbe()
+  lazy val sync: TypedTestProbe[SyncController.Command] = TypedTestProbe()
+  // NOT converted to a typed TestProbe: prepareMocks() installs AutoPilots answering GetOmmers /
+  // GetPendingTransactionsReq on these two probes, and Typed TestProbe has no AutoPilot hook.
   lazy val ommersPool: TestProbe = TestProbe()(classicSystem)
   lazy val pendingTransactionsManager: TestProbe = TestProbe()(classicSystem)
 
@@ -259,10 +266,12 @@ trait MinerSpecSetup
   protected def waitForMinedBlock(implicit timeout: Duration): Block =
     // ROOT-c: miners now wrap mined-block sends in SyncController.WrappedSyncProtocol so they survive SyncController's
     // Behavior[Command] boundary. The sync probe therefore receives the wrapper; unwrap to the MinedBlock here.
-    sync.expectMsgPF[Block](timeout) {
+    val max = timeout match
+      case f: FiniteDuration => f
+      case other => throw new IllegalArgumentException(s"waitForMinedBlock requires a finite timeout, got $other")
+    sync.receiveMessage(max) match
       case SyncController.WrappedSyncProtocol(m: SyncProtocol.MinedBlock) => m.block
-      case m: SyncProtocol.MinedBlock                                     => m.block
-    }
+      case other => throw new MatchError(s"expected a wrapped MinedBlock, got $other")
 
   protected def expectNoNewBlockMsg(timeout: FiniteDuration): Unit =
     sync.expectNoMessage(timeout)

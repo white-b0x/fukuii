@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.testkit.TestActor.AutoPilot
@@ -37,11 +38,14 @@ import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.*
 import com.chipprbots.ethereum.network.Peer
+import com.chipprbots.ethereum.network.PeerActor
+import com.chipprbots.ethereum.network.PeerEventBusActor
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import com.chipprbots.ethereum.network.PeerId
 import com.chipprbots.ethereum.network.p2p.messages.Capability
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.BlockHeaders as ETHBlockHeaders
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.GetBlockHeaders as ETHGetBlockHeaders
+import com.chipprbots.ethereum.testing.ActorsTesting.expectMessagePF
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Logger
 
@@ -64,7 +68,8 @@ class FastSyncBranchResolverActorSpec
         implicit override lazy val system: ActorSystem = self.system.classicSystem
         implicit override lazy val ioRuntime: IORuntime = IORuntime.global
 
-        val sender: TestProbe = TestProbe("sender")
+        val sender: TypedTestProbe[FastSyncBranchResolverActor.BranchResolverResponse] =
+          self.testKit.createTestProbe[FastSyncBranchResolverActor.BranchResolverResponse]("sender")
 
         val commonBlocks: List[Block] = BlockHelpers.generateChain(
           5,
@@ -100,7 +105,7 @@ class FastSyncBranchResolverActorSpec
 
         val response: BranchResolvedSuccessful = (for
           _ <- IO(fastSyncBranchResolver ! StartBranchResolver)
-          response <- IO(sender.expectMsgPF(branchResolutionTimeout)(expectation))
+          response <- IO(sender.expectMessagePF(branchResolutionTimeout)(expectation))
           _ <- IO(stopController(fastSyncBranchResolver))
         yield response).unsafeRunSync()
         assert(getBestPeers.contains(response.masterPeer))
@@ -110,7 +115,8 @@ class FastSyncBranchResolverActorSpec
           implicit override lazy val system: ActorSystem = self.system.classicSystem
           implicit override lazy val ioRuntime: IORuntime = IORuntime.global
 
-          val sender: TestProbe = TestProbe("sender")
+          val sender: TypedTestProbe[FastSyncBranchResolverActor.BranchResolverResponse] =
+            self.testKit.createTestProbe[FastSyncBranchResolverActor.BranchResolverResponse]("sender")
 
           val commonBlocks: List[Block] = BlockHelpers.generateChain(5, BlockHelpers.genesis)
           val blocksSaved: List[Block] = commonBlocks :++ BlockHelpers.generateChain(5, commonBlocks.last)
@@ -138,7 +144,7 @@ class FastSyncBranchResolverActorSpec
 
           val response: BranchResolvedSuccessful = (for
             _ <- IO(fastSyncBranchResolver ! StartBranchResolver)
-            response <- IO(sender.expectMsgPF(branchResolutionTimeout)(expectation))
+            response <- IO(sender.expectMessagePF(branchResolutionTimeout)(expectation))
             _ <- IO(stopController(fastSyncBranchResolver))
           yield response).unsafeRunSync()
           assert(getBestPeers.contains(response.masterPeer))
@@ -146,7 +152,8 @@ class FastSyncBranchResolverActorSpec
           implicit override lazy val system: ActorSystem = self.system.classicSystem
           implicit override lazy val ioRuntime: IORuntime = IORuntime.global
 
-          val sender: TestProbe = TestProbe("sender")
+          val sender: TypedTestProbe[FastSyncBranchResolverActor.BranchResolverResponse] =
+            self.testKit.createTestProbe[FastSyncBranchResolverActor.BranchResolverResponse]("sender")
 
           val commonBlocks: List[Block] = BlockHelpers.generateChain(3, BlockHelpers.genesis)
           val blocksSaved: List[Block] = commonBlocks :++ BlockHelpers.generateChain(7, commonBlocks.last)
@@ -175,7 +182,7 @@ class FastSyncBranchResolverActorSpec
 
           val response: BranchResolvedSuccessful = (for
             _ <- IO(fastSyncBranchResolver ! StartBranchResolver)
-            response <- IO(sender.expectMsgPF(branchResolutionTimeout)(expectation))
+            response <- IO(sender.expectMessagePF(branchResolutionTimeout)(expectation))
             _ <- IO(stopController(fastSyncBranchResolver))
           yield response).unsafeRunSync()
           assert(getBestPeers.contains(response.masterPeer))
@@ -184,7 +191,8 @@ class FastSyncBranchResolverActorSpec
           implicit override lazy val system: ActorSystem = self.system.classicSystem
           implicit override lazy val ioRuntime: IORuntime = IORuntime.global
 
-          val sender: TestProbe = TestProbe("sender")
+          val sender: TypedTestProbe[FastSyncBranchResolverActor.BranchResolverResponse] =
+            self.testKit.createTestProbe[FastSyncBranchResolverActor.BranchResolverResponse]("sender")
 
           val commonBlocks: List[Block] = BlockHelpers.generateChain(6, BlockHelpers.genesis)
           val blocksSaved: List[Block] = commonBlocks :++ BlockHelpers.generateChain(4, commonBlocks.last)
@@ -212,7 +220,7 @@ class FastSyncBranchResolverActorSpec
 
           val response: BranchResolvedSuccessful = (for
             _ <- IO(fastSyncBranchResolver ! StartBranchResolver)
-            response <- IO(sender.expectMsgPF(branchResolutionTimeout)(expectation))
+            response <- IO(sender.expectMessagePF(branchResolutionTimeout)(expectation))
             _ <- IO(stopController(fastSyncBranchResolver))
           yield response).unsafeRunSync()
           assert(getBestPeers.contains(response.masterPeer))
@@ -222,7 +230,8 @@ class FastSyncBranchResolverActorSpec
         implicit override lazy val system: ActorSystem = self.system.classicSystem
         implicit override lazy val ioRuntime: IORuntime = IORuntime.global
 
-        val sender: TestProbe = TestProbe("sender")
+        val sender: TypedTestProbe[FastSyncBranchResolverActor.BranchResolverResponse] =
+          self.testKit.createTestProbe[FastSyncBranchResolverActor.BranchResolverResponse]("sender")
 
         // same genesis block but no common blocks
         val blocksSaved: List[Block] = BlockHelpers.generateChain(5, BlockHelpers.genesis)
@@ -246,7 +255,7 @@ class FastSyncBranchResolverActorSpec
         log.debug(s"*** peers: ${handshakedPeers.map(p => (p._1.id, p._2.maxBlockNumber))}")
         (for
           _ <- IO(fastSyncBranchResolver ! StartBranchResolver)
-          response <- IO(sender.expectMsg(branchResolutionTimeout, BranchResolutionFailed(NoCommonBlockFound)))
+          response <- IO(sender.expectMessage(branchResolutionTimeout, BranchResolutionFailed(NoCommonBlockFound)))
           _ <- IO(stopController(fastSyncBranchResolver))
         yield response).unsafeRunSync()
     }
@@ -258,7 +267,12 @@ class FastSyncBranchResolverActorSpec
 
     def peerId(number: Int): PeerId = PeerId(s"peer_$number")
     def getPeer(id: PeerId): Peer =
-      Peer(id, new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
+      Peer(
+        id,
+        new InetSocketAddress("127.0.0.1", 0),
+        self.testKit.createTestProbe[PeerActor.Command](id.value).ref,
+        incomingConnection = false
+      )
     def getPeerInfo(peer: Peer): PeerInfo =
       val status =
         RemoteStatus(
@@ -284,6 +298,8 @@ class FastSyncBranchResolverActorSpec
         blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(TotalDifficulty(1)), saveAsBestBlock = true)
       )
 
+    // NOT converted to a typed TestProbe: NetworkPeerManagerAutoPilot is installed on this probe
+    // below, and Typed TestProbe has no AutoPilot hook.
     def createNetworkPeerManager(peers: Map[Peer, PeerInfo], blocks: Map[Int, List[Block]])(implicit
         ioRuntime: IORuntime
     ): ActorRef =
@@ -298,14 +314,14 @@ class FastSyncBranchResolverActorSpec
       networkPeerManager.ref
 
     def creatFastSyncBranchResolver(
-        fastSync: ActorRef,
+        fastSync: TypedActorRef[FastSyncBranchResolverActor.BranchResolverResponse],
         networkPeerManager: ActorRef,
         blacklist: Blacklist
     ): TypedActorRef[FastSyncBranchResolverActor.Command] =
       self.testKit.spawn(
         FastSyncBranchResolverActor(
-          replyTo = fastSync.toTyped[FastSyncBranchResolverActor.BranchResolverResponse],
-          peerEventBus = TestProbe("peer_event_bus").ref,
+          replyTo = fastSync,
+          peerEventBus = self.testKit.createTestProbe[PeerEventBusActor.Command]().ref,
           networkPeerManager = networkPeerManager,
           blockchain = blockchain,
           blockchainReader = blockchainReader,

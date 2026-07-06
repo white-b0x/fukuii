@@ -4,9 +4,8 @@ import java.net.InetSocketAddress
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ManualTime
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -33,21 +32,21 @@ class PeerRequestHandlerSpec extends ScalaTestWithActorTestKit(ManualTime.config
   trait Fixtures:
     val peerId: PeerId = PeerId("test-peer-1")
     val otherPeerId: PeerId = PeerId("other-peer")
-    val peerActorProbe: TestProbe = TestProbe()(testKit.system.toClassic)
+    val peerActorProbe: TypedTestProbe[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]()
     val peer: Peer = Peer(
       id = peerId,
       remoteAddress = new InetSocketAddress("127.0.0.1", 9000),
-      ref = peerActorProbe.ref.toTyped[PeerActor.Command],
+      ref = peerActorProbe.ref,
       incomingConnection = false
     )
     val peerEventBus: TypedActorRef[PeerEventBusActor.Command] =
       testKit.spawn(PeerEventBusActor.behavior(), s"peb-${java.util.UUID.randomUUID()}")
-    val replyTo: org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe[PeerRequestHandler.Result] =
+    val replyTo: TypedTestProbe[PeerRequestHandler.Result] =
       testKit.createTestProbe[PeerRequestHandler.Result]()
 
     given (Ping => MessageSerializable) = PingEnc(_)
 
-    def spawnPRH(npmProbe: TestProbe, timeout: FiniteDuration = 5.seconds) =
+    def spawnPRH(npmProbe: TypedTestProbe[NetworkPeerManagerActor.Command], timeout: FiniteDuration = 5.seconds) =
       testKit.spawn(
         PeerRequestHandler.behavior[Ping, Pong](
           peer = peer,
@@ -66,10 +65,10 @@ class PeerRequestHandlerSpec extends ScalaTestWithActorTestKit(ManualTime.config
     UnitTest,
     NetworkTest
   ) in new Fixtures:
-    val npmProbe = TestProbe()(testKit.system.toClassic)
+    val npmProbe = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
     spawnPRH(npmProbe)
 
-    val sent = npmProbe.expectMsgType[NetworkPeerManagerActor.SendMessageCmd]
+    val sent = npmProbe.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
     sent.peerId shouldEqual peerId
     npmProbe.expectNoMessage(100.millis)
 
@@ -77,18 +76,18 @@ class PeerRequestHandlerSpec extends ScalaTestWithActorTestKit(ManualTime.config
     UnitTest,
     NetworkTest
   ) in new Fixtures:
-    val npmProbe = TestProbe()(testKit.system.toClassic)
+    val npmProbe = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
     spawnPRH(npmProbe)
-    npmProbe.expectMsgType[NetworkPeerManagerActor.SendMessageCmd]
+    npmProbe.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
 
     peerEventBus ! PublishCmd(MessageFromPeer(Pong(), peerId))
 
     replyTo.expectMessageType[PeerRequestHandler.ResponseReceived[Pong]]
 
   it should "reply RequestFailed when the response timer fires" taggedAs (UnitTest, NetworkTest) in new Fixtures:
-    val npmProbe = TestProbe()(testKit.system.toClassic)
+    val npmProbe = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
     spawnPRH(npmProbe, timeout = 2.seconds)
-    npmProbe.expectMsgType[NetworkPeerManagerActor.SendMessageCmd]
+    npmProbe.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
 
     manualTime.timePasses(3.seconds)
 
@@ -98,18 +97,18 @@ class PeerRequestHandlerSpec extends ScalaTestWithActorTestKit(ManualTime.config
     UnitTest,
     NetworkTest
   ) in new Fixtures:
-    val npmProbe = TestProbe()(testKit.system.toClassic)
+    val npmProbe = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
     spawnPRH(npmProbe)
-    npmProbe.expectMsgType[NetworkPeerManagerActor.SendMessageCmd]
+    npmProbe.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
 
     peerEventBus ! PublishCmd(PeerDisconnected(peerId))
 
     replyTo.expectMessage(PeerRequestHandler.RequestFailed(0, peer, "connection closed"))
 
   it should "ignore a response from a different peer" taggedAs (UnitTest, NetworkTest) in new Fixtures:
-    val npmProbe = TestProbe()(testKit.system.toClassic)
+    val npmProbe = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
     spawnPRH(npmProbe)
-    npmProbe.expectMsgType[NetworkPeerManagerActor.SendMessageCmd]
+    npmProbe.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
 
     // PEB subscriber is scoped to PeerSelector.WithId(peerId) — wrong peer not routed to PRH
     peerEventBus ! PublishCmd(MessageFromPeer(Pong(), otherPeerId))
@@ -120,9 +119,9 @@ class PeerRequestHandlerSpec extends ScalaTestWithActorTestKit(ManualTime.config
     replyTo.expectMessageType[PeerRequestHandler.ResponseReceived[Pong]]
 
   it should "ignore a disconnect event for a different peer" taggedAs (UnitTest, NetworkTest) in new Fixtures:
-    val npmProbe = TestProbe()(testKit.system.toClassic)
+    val npmProbe = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
     spawnPRH(npmProbe)
-    npmProbe.expectMsgType[NetworkPeerManagerActor.SendMessageCmd]
+    npmProbe.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
 
     peerEventBus ! PublishCmd(PeerDisconnected(otherPeerId))
     replyTo.expectNoMessage(200.millis)

@@ -1,9 +1,10 @@
 package com.chipprbots.ethereum.blockchain.sync.regular
 import org.apache.pekko.actor.ActorRef
+import org.apache.pekko.actor.testkit.typed.scaladsl.FishingOutcomes
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.testkit.TestActor.AutoPilot
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.data.NonEmptyList
@@ -107,7 +108,7 @@ class RegularSyncSpec
         new Fixture:
           regularSync ! SyncProtocol.Start
 
-          peerEventBus.expectMsgType[SubscribeCmd].to shouldBe MessageClassifier(
+          peerEventBus.expectMessageType[SubscribeCmd].to shouldBe MessageClassifier(
             Set(
               Codes.NewBlockCode,
               Codes.NewBlockHashesCode,
@@ -128,7 +129,7 @@ class RegularSyncSpec
       "fetch headers and bodies concurrently" taggedAs (UnitTest, SyncTest) in sync(new Fixture:
         regularSync ! SyncProtocol.Start
 
-        val sub136 = peerEventBus.expectMsgType[SubscribeCmd]
+        val sub136 = peerEventBus.expectMessageType[SubscribeCmd]
         sub136.subscriber ! MessageFromPeer(
           NewBlock(
             testBlocks.last,
@@ -167,7 +168,7 @@ class RegularSyncSpec
           var blockFetcher: TypedActorRef[PeerEvent] = uninitialized
 
           regularSync ! SyncProtocol.Start
-          val sub168 = peerEventBus.expectMsgType[SubscribeCmd]
+          val sub168 = peerEventBus.expectMessageType[SubscribeCmd]
           blockFetcher = sub168.subscriber
 
           peersClient.expectMsgEq(blockHeadersChunkRequest(0)).replyTo ! PeersClient.Response(
@@ -250,7 +251,7 @@ class RegularSyncSpec
 
         regularSync ! SyncProtocol.Start
 
-        val sub249 = peerEventBus.expectMsgType[SubscribeCmd]
+        val sub249 = peerEventBus.expectMessageType[SubscribeCmd]
         sub249.subscriber ! MessageFromPeer(
           NewBlock(
             testBlocks.last,
@@ -290,9 +291,12 @@ class RegularSyncSpec
           (() => blockchainReader.getBestBlockNumber).when().returns(BigInt(1000))
           (() => blockchainReader.getSnapSyncPivotBlock).when().returns(None)
 
-          val importerFetcher: TestProbe = TestProbe("importerFetcher")
-          val importerSupervisor: TestProbe = TestProbe("importerSupervisor")
-          val importerBroadcaster: TestProbe = TestProbe("importerBroadcaster")
+          val importerFetcher: TypedTestProbe[BlockFetcher.FetchCommand] =
+            testKit.createTestProbe[BlockFetcher.FetchCommand]("importerFetcher")
+          val importerSupervisor: TypedTestProbe[RegularSync.Command] =
+            testKit.createTestProbe[RegularSync.Command]("importerSupervisor")
+          val importerBroadcaster: TypedTestProbe[BlockBroadcasterActor.BroadcasterMsg] =
+            testKit.createTestProbe[BlockBroadcasterActor.BroadcasterMsg]("importerBroadcaster")
 
           for depth <- List(1, 5, 64, 128) do
             val lca = BigInt(depth)
@@ -310,7 +314,7 @@ class RegularSyncSpec
             val importer = testKit
               .spawn(
                 BlockImporter.apply(
-                  importerFetcher.ref.toTyped[BlockFetcher.FetchCommand],
+                  importerFetcher.ref,
                   consensusAdapter,
                   blockchainReader,
                   blockchainWriter,
@@ -334,14 +338,18 @@ class RegularSyncSpec
               )
 
             importer ! BlockImporter.Start
-            importerFetcher.expectMsgClass(3.seconds, classOf[BlockFetcher.Start])
-            importerSupervisor.expectMsgClass(3.seconds, classOf[RegularSync.ProgressProtocol.StartingFrom])
+            importerFetcher.expectMessageType[BlockFetcher.Start](3.seconds)
+            importerSupervisor.expectMessageType[RegularSync.ProgressProtocol.StartingFrom](3.seconds)
 
             importer ! BlockImporter.ImportDone(BlockImporter.ResolvingBranch(lca), BlockImporter.DefaultBlockImport)
 
-            val msg = importerFetcher.fishForSpecificMessage(5.seconds) {
-              case m: BlockFetcher.StrictPickBlocks if m.from == lca => m
-            }
+            val msg = importerFetcher
+              .fishForMessage(5.seconds) {
+                case m: BlockFetcher.StrictPickBlocks if m.from == lca => FishingOutcomes.complete
+                case _                                                 => FishingOutcomes.continueAndIgnore
+              }
+              .head
+              .asInstanceOf[BlockFetcher.StrictPickBlocks]
             assert(msg.from == lca, s"StrictPickBlocks.from mismatch for depth=$depth")
 
             testKit.stop(importer)
@@ -372,9 +380,12 @@ class RegularSyncSpec
 
           override lazy val blockchainWriter: BlockchainWriter = stub[BlockchainWriter]
 
-          val importerFetcher: TestProbe = TestProbe("forkImporterFetcher")
-          val importerSupervisor: TestProbe = TestProbe("forkImporterSupervisor")
-          val importerBroadcaster: TestProbe = TestProbe("forkImporterBroadcaster")
+          val importerFetcher: TypedTestProbe[BlockFetcher.FetchCommand] =
+            testKit.createTestProbe[BlockFetcher.FetchCommand]("forkImporterFetcher")
+          val importerSupervisor: TypedTestProbe[RegularSync.Command] =
+            testKit.createTestProbe[RegularSync.Command]("forkImporterSupervisor")
+          val importerBroadcaster: TypedTestProbe[BlockBroadcasterActor.BroadcasterMsg] =
+            testKit.createTestProbe[BlockBroadcasterActor.BroadcasterMsg]("forkImporterBroadcaster")
 
           val forkBlockTopic: org.apache.pekko.actor.typed.ActorRef[
             org.apache.pekko.actor.typed.pubsub.Topic.Command[com.chipprbots.ethereum.jsonrpc.NewBlockImported]
@@ -390,7 +401,7 @@ class RegularSyncSpec
           val importer: TypedActorRef[BlockImporter.Command] = testKit
             .spawn(
               BlockImporter.apply(
-                importerFetcher.ref.toTyped[BlockFetcher.FetchCommand],
+                importerFetcher.ref,
                 consensusAdapter,
                 blockchainReader,
                 blockchainWriter,
@@ -414,8 +425,8 @@ class RegularSyncSpec
             )
 
           importer ! BlockImporter.Start
-          importerFetcher.expectMsgClass(3.seconds, classOf[BlockFetcher.Start])
-          importerSupervisor.expectMsgClass(3.seconds, classOf[RegularSync.ProgressProtocol.StartingFrom])
+          importerFetcher.expectMessageType[BlockFetcher.Start](3.seconds)
+          importerSupervisor.expectMessageType[RegularSync.ProgressProtocol.StartingFrom](3.seconds)
 
           // Escalate to fork recovery — spawns FastSyncBranchResolverActor and enters resolvingFork.
           importer ! BlockImporter.StartForkRecovery(BigInt(15))
@@ -426,9 +437,13 @@ class RegularSyncSpec
           )
 
           // The importer must invalidate the fetcher's blocks from lca + 1 (resolver-driven rollback).
-          val invalidate = importerFetcher.fishForSpecificMessage(5.seconds) {
-            case m: BlockFetcher.InvalidateBlocksFrom => m
-          }
+          val invalidate = importerFetcher
+            .fishForMessage(5.seconds) {
+              case _: BlockFetcher.InvalidateBlocksFrom => FishingOutcomes.complete
+              case _                                    => FishingOutcomes.continueAndIgnore
+            }
+            .head
+            .asInstanceOf[BlockFetcher.InvalidateBlocksFrom]
           assert(
             invalidate.fromBlock == lca + 1,
             s"expected InvalidateBlocksFrom(${lca + 1}), got ${invalidate.fromBlock}"
@@ -497,7 +512,7 @@ class RegularSyncSpec
 
           regularSync ! SyncProtocol.Start
 
-          val sub383 = peerEventBus.expectMsgType[SubscribeCmd]
+          val sub383 = peerEventBus.expectMessageType[SubscribeCmd]
           sub383.subscriber ! MessageFromPeer(
             NewBlock(
               alternativeBlocks.last,
@@ -559,7 +574,7 @@ class RegularSyncSpec
 
         regularSync ! SyncProtocol.Start
 
-        val sub445 = peerEventBus.expectMsgType[SubscribeCmd]
+        val sub445 = peerEventBus.expectMessageType[SubscribeCmd]
         val blockFetcher: TypedActorRef[PeerEvent] = sub445.subscriber
         sub445.subscriber ! MessageFromPeer(
           NewBlock(
@@ -719,7 +734,7 @@ class RegularSyncSpec
         val newBlock: Block = testBlocks.last
 
         regularSync ! SyncProtocol.Start
-        val sub576 = peerEventBus.expectMsgType[SubscribeCmd]
+        val sub576 = peerEventBus.expectMessageType[SubscribeCmd]
 
         sub576.subscriber ! MessageFromPeer(
           NewBlock(newBlock, ChainWeight.totalDifficultyOnly(TotalDifficulty(BigInt(1))).totalDifficulty),
@@ -744,7 +759,7 @@ class RegularSyncSpec
 
         regularSync ! SyncProtocol.Start
 
-        val sub598 = peerEventBus.expectMsgType[SubscribeCmd]
+        val sub598 = peerEventBus.expectMessageType[SubscribeCmd]
         sub598.subscriber ! MessageFromPeer(
           NewBlock(
             testBlocks.last,
@@ -813,7 +828,7 @@ class RegularSyncSpec
 
         regularSync ! SyncProtocol.Start
 
-        val sub665 = peerEventBus.expectMsgType[SubscribeCmd]
+        val sub665 = peerEventBus.expectMessageType[SubscribeCmd]
         sub665.subscriber ! MessageFromPeer(
           NewBlock(
             testBlocks.last,
@@ -913,7 +928,7 @@ class RegularSyncSpec
           _ <- IO(regularSync ! SyncProtocol.Start)
           before <- getSyncStatus
           _ <- IO {
-            val sub766 = peerEventBus.expectMsgType[SubscribeCmd]
+            val sub766 = peerEventBus.expectMessageType[SubscribeCmd]
             sub766.subscriber ! MessageFromPeer(
               NewBlock(
                 testBlocks.last,
@@ -943,7 +958,7 @@ class RegularSyncSpec
           _ <- IO {
             regularSync ! SyncProtocol.Start
 
-            val sub796 = peerEventBus.expectMsgType[SubscribeCmd]
+            val sub796 = peerEventBus.expectMessageType[SubscribeCmd]
             sub796.subscriber ! MessageFromPeer(
               NewBlock(
                 testBlocks.last,
@@ -970,7 +985,7 @@ class RegularSyncSpec
           _ <- IO {
             regularSync ! SyncProtocol.Start
 
-            val sub824 = peerEventBus.expectMsgType[SubscribeCmd]
+            val sub824 = peerEventBus.expectMessageType[SubscribeCmd]
             sub824.subscriber ! MessageFromPeer(
               NewBlock(
                 testBlocks.last,
@@ -1000,7 +1015,7 @@ class RegularSyncSpec
 
             regularSync ! SyncProtocol.Start
 
-            val sub854 = peerEventBus.expectMsgType[SubscribeCmd]
+            val sub854 = peerEventBus.expectMessageType[SubscribeCmd]
             sub854.subscriber ! MessageFromPeer(
               NewBlock(
                 testBlocks.last,

@@ -3,6 +3,8 @@ package com.chipprbots.ethereum.blockchain.sync
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
+import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.Timeout
@@ -29,6 +31,7 @@ import com.chipprbots.ethereum.domain.Transaction
 import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.Peer
+import com.chipprbots.ethereum.network.PeerEventBusActor
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets
 import com.chipprbots.ethereum.rlp.RLPList
 import com.chipprbots.ethereum.rlp.RLPValue
@@ -82,9 +85,11 @@ class FastSyncSpec extends ScalaTestWithActorTestKit() with FreeSpecBase with Sp
         // the backlink finds no canonical ancestor and the pivot is (correctly) rejected.
         BlockHelpers.genesis :: testBlocks
       )
-    lazy val peerEventBus: TestProbe = TestProbe("peer_event-bus")
-    lazy val syncControllerProbe: TestProbe = TestProbe("sync-controller")
-    lazy val fastSync: ActorRef = self.testKit
+    lazy val peerEventBus: TypedTestProbe[PeerEventBusActor.Command] =
+      self.testKit.createTestProbe[PeerEventBusActor.Command]()
+    lazy val syncControllerProbe: TypedTestProbe[FastSync.SyncControllerMsg] =
+      self.testKit.createTestProbe[FastSync.SyncControllerMsg]()
+    lazy val fastSyncTyped: TypedActorRef[FastSync.Command] = self.testKit
       .spawn(
         FastSync.behavior(
           fastSyncStateStorage = storagesInstance.storages.fastSyncStateStorage,
@@ -105,7 +110,7 @@ class FastSyncSpec extends ScalaTestWithActorTestKit() with FreeSpecBase with Sp
           syncController = syncControllerProbe.ref
         )
       )
-      .toClassic
+    lazy val fastSync: ActorRef = fastSyncTyped.toClassic
 
     val saveGenesis: IO[Unit] = IO {
       blockchainWriter.save(
@@ -135,9 +140,9 @@ class FastSyncSpec extends ScalaTestWithActorTestKit() with FreeSpecBase with Sp
     val startSync: IO[Unit] = IO(fastSync ! FastSync.WrappedSyncProtocol(SyncProtocol.Start))
 
     val getSyncStatus: IO[Status] = IO.async_[Status] { cb =>
-      val replyProbe = TestProbe("get-status-reply")
-      fastSync ! FastSync.WrappedSyncProtocol(SyncProtocol.GetStatus(replyProbe.ref.toTyped[Status]))
-      cb(Right(replyProbe.expectMsgClass(timeout.duration, classOf[Status])))
+      val replyProbe = self.testKit.createTestProbe[Status]("get-status-reply")
+      fastSync ! FastSync.WrappedSyncProtocol(SyncProtocol.GetStatus(replyProbe.ref))
+      cb(Right(replyProbe.expectMessageType[Status](timeout.duration)))
     }
 
   override def createFixture(): Fixture = new Fixture
@@ -188,6 +193,10 @@ class FastSyncSpec extends ScalaTestWithActorTestKit() with FreeSpecBase with Sp
 
           val msg = ETHPackets.Receipts68(requestId = 1, receiptsForBlocks = receiptsForBlocks)
 
+          // NOT converted to a typed TestProbe: this watches for the ABSENCE of Terminated (proving
+          // fastSync did not crash) — Typed TestProbe only exposes `expectTerminated` (which has the
+          // opposite polarity: it fails unless termination happens) with no standalone `.watch()`
+          // hook to pair with a "still alive" assertion.
           val watcher = TestProbe()
           watcher.watch(fastSync)
           fastSync ! FastSync.WrappedPrhResult(ResponseReceived(0, peer, msg, timeTaken = 0L))
@@ -257,13 +266,12 @@ class FastSyncSpec extends ScalaTestWithActorTestKit() with FreeSpecBase with Sp
           _ <- pivotFiber.joinWith(cats.effect.IO.raiseError(new RuntimeException("pivot fiber canceled")))
           _ <- blocksFiber.joinWith(cats.effect.IO.raiseError(new RuntimeException("blocks fiber canceled")))
           _ <- cats.effect.IO {
-            val watcher = TestProbe("watchdog-test-probe")
-            watcher.watch(fastSync)
+            val watcher = self.testKit.createTestProbe()
             // Inject the message SyncStateSchedulerActor emits when no ETH63-67 peers serve GetNodeData.
             fastSync ! SyncStateSchedulerActor.NetworkIncompatible
             // FastSync calls cleanup() + context.become(idle) → orphaned children terminate →
             // idle receives Terminated → DeathPactException → FastSync terminates.
-            watcher.expectTerminated(fastSync, timeout.duration)
+            watcher.expectTerminated(fastSyncTyped, timeout.duration)
           }
         yield succeed).timeout(timeout.duration)
       }

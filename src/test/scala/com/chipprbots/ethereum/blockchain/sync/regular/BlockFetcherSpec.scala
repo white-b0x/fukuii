@@ -4,9 +4,8 @@ import java.net.InetSocketAddress
 import java.util.UUID
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.*
@@ -35,6 +34,8 @@ import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.HeadersSeq
 import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.network.Peer
+import com.chipprbots.ethereum.network.PeerActor
+import com.chipprbots.ethereum.network.PeerEventBusActor
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerSelector
 import com.chipprbots.ethereum.network.PeerEventBusActor.SubscribeCmd
 import com.chipprbots.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -44,6 +45,8 @@ import com.chipprbots.ethereum.network.p2p.messages.ETHPackets
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.BlockRangeUpdate
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NewBlock
 import com.chipprbots.ethereum.security.SecureRandomBuilder
+import com.chipprbots.ethereum.testing.ActorsTesting.expectMessagePF
+import com.chipprbots.ethereum.testing.ActorsTesting.fishForSpecificMessage
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.utils.Config.SyncConfig
@@ -77,7 +80,7 @@ class BlockFetcherSpec
 
       // Mark first blocks as invalid, no further request should be done
       blockFetcher ! InvalidateBlocksFrom(1, "")
-      peersClient.expectMsgClass(classOf[BlacklistPeer])
+      peersClient.expectMessageType[BlacklistPeer]
 
       peersClient.expectNoMessage()
 
@@ -88,7 +91,7 @@ class BlockFetcherSpec
         ETHPackets.BlockHeaders(BigInt(0), secondBlocksBatch.map(_.header))
       refExpectingReply ! PeersClient.Response(fakePeer, secondGetBlockHeadersResponse)
 
-      peersClient.expectMsgPF() {
+      peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockHeaders, _, _, _) if msg.block == Left(1) => ()
       }
       testKit.stop(blockFetcher)
@@ -107,15 +110,15 @@ class BlockFetcherSpec
 
       // Mark first blocks as invalid, no further request should be done
       blockFetcher ! InvalidateBlocksFrom(1, "")
-      peersClient.expectMsgClass(classOf[BlacklistPeer])
+      peersClient.expectMessageType[BlacklistPeer]
 
       peersClient.expectNoMessage()
 
       // Failure of the second request should make the fetcher resume with his requests
       refExpectingReply ! PeersClient.RequestFailed(fakePeer, BlacklistReason.RegularSyncRequestFailed(""))
 
-      peersClient.expectMsgClass(classOf[BlacklistPeer])
-      peersClient.expectMsgPF() {
+      peersClient.expectMessageType[BlacklistPeer]
+      peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockHeaders, _, _, _) if msg.block == Left(1) => ()
       }
       testKit.stop(blockFetcher)
@@ -130,15 +133,15 @@ class BlockFetcherSpec
       handleFirstBlockBatch()
 
       // Fetcher should blacklist the peer and retry asking for the same bodies
-      peersClient.expectMsgClass(classOf[BlacklistPeer])
-      peersClient.expectMsgPF() {
+      peersClient.expectMessageType[BlacklistPeer]
+      peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockBodies, _, _, _)
             if msg.hashes == firstBlocksBatch.map(_.hash) =>
           ()
       }
 
       // Fetcher should not enqueue any new block
-      importer.send(blockFetcher.toClassic, PickBlocks(syncConfig.blocksBatchSize, importer.ref.toTyped[FetchResponse]))
+      blockFetcher ! PickBlocks(syncConfig.blocksBatchSize, importer.ref)
       importer.expectNoMessage(100.millis)
       testKit.stop(blockFetcher)
 
@@ -173,10 +176,10 @@ class BlockFetcherSpec
       // We need to wait a while in order to allow fetcher to process all the blocks
       testKit.system.classicSystem.scheduler.scheduleOnce(Timeouts.shortTimeout) {
         // Fetcher should enqueue all the received blocks
-        importer.send(blockFetcher.toClassic, PickBlocks(firstBlocksBatch.size, importer.ref.toTyped[FetchResponse]))
+        blockFetcher ! PickBlocks(firstBlocksBatch.size, importer.ref)
       }
 
-      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+      importer.expectMessagePF() { case BlockFetcher.PickedBlocks(blocks) =>
         blocks.map(_.hash).toList shouldEqual firstBlocksBatch.map(_.hash)
       }
       testKit.stop(blockFetcher)
@@ -197,7 +200,7 @@ class BlockFetcherSpec
       firstBodiesSender ! PeersClient.Response(fakePeer, getBlockBodiesResponse1)
 
       // Second part request
-      val secondBodiesReplyTo: ActorRef[PeersClient.ResponseMessage] = peersClient.expectMsgPF() {
+      val secondBodiesReplyTo: ActorRef[PeersClient.ResponseMessage] = peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockBodies, _, _, replyTo)
             if msg.hashes == subChain2.map(_.hash) =>
           replyTo
@@ -208,8 +211,8 @@ class BlockFetcherSpec
       secondBodiesReplyTo ! PeersClient.Response(fakePeer, getBlockBodiesResponse2)
 
       // If we try to pick the whole chain we should only receive the first part
-      importer.send(blockFetcher.toClassic, PickBlocks(firstBlocksBatch.size, importer.ref.toTyped[FetchResponse]))
-      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+      blockFetcher ! PickBlocks(firstBlocksBatch.size, importer.ref)
+      importer.expectMessagePF() { case BlockFetcher.PickedBlocks(blocks) =>
         blocks.map(_.hash).toList shouldEqual subChain1.map(_.hash)
       }
       testKit.stop(blockFetcher)
@@ -261,8 +264,8 @@ class BlockFetcherSpec
         ETHPackets.BlockBodies(BigInt(0), alternativeSecondBlocksBatch.drop(6).map(_.body))
       )
 
-      importer.send(blockFetcher.toClassic, PickBlocks(syncConfig.blocksBatchSize, importer.ref.toTyped[FetchResponse]))
-      importer.expectMsgPF(Timeouts.normalTimeout) { case BlockFetcher.PickedBlocks(blocks) =>
+      blockFetcher ! PickBlocks(syncConfig.blocksBatchSize, importer.ref)
+      importer.expectMessagePF(Timeouts.normalTimeout) { case BlockFetcher.PickedBlocks(blocks) =>
         val headers = blocks.map(_.header).toList
         assert(HeadersSeq.areChain(headers))
       }
@@ -270,8 +273,8 @@ class BlockFetcherSpec
 
     // BF-1A: ETH/69 head-following via BlockRangeUpdate
     "should include BlockRangeUpdateCode in peer event subscription" taggedAs (UnitTest, SyncTest) in new TestSetup:
-      blockFetcher ! BlockFetcher.Start(importer.ref.toTyped[BlockImporter.Command], 0)
-      val sub = peerEventBus.expectMsgType[SubscribeCmd]
+      blockFetcher ! BlockFetcher.Start(testKit.createTestProbe[BlockImporter.Command]().ref, 0)
+      val sub = peerEventBus.expectMessageType[SubscribeCmd]
       sub.to match
         case MessageClassifier(codes, _) =>
           codes should contain(Codes.BlockRangeUpdateCode)
@@ -290,7 +293,7 @@ class BlockFetcherSpec
       val update: BlockRangeUpdate =
         ETHPackets.BlockRangeUpdate(BigInt(0), BigInt(100), org.apache.pekko.util.ByteString.empty)
       blockFetcher ! AdaptedMessageFromEventBus(update, fakePeer.id)
-      peersClient.expectMsgPF() {
+      peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockHeaders, _, _, _) if msg.block == Left(1) => ()
       }
       testKit.stop(blockFetcher)
@@ -300,7 +303,7 @@ class BlockFetcherSpec
       // Start from block 5; knownTop initialises to 6 so fetcher immediately requests block 6
       startFetcher(fromBlock = 5)
       // Consume the initial GetBlockHeaders(6) request triggered by fetchBlocks at Start
-      val initSender: ActorRef[PeersClient.ResponseMessage] = peersClient.expectMsgPF() {
+      val initSender: ActorRef[PeersClient.ResponseMessage] = peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockHeaders, _, _, replyTo) if msg.block == Left(BigInt(6)) =>
           replyTo
       }
@@ -311,7 +314,7 @@ class BlockFetcherSpec
       val singleHeader = singleBlock.header
       initSender ! PeersClient.Response(fakePeer, ETHPackets.BlockHeaders(BigInt(0), List(singleHeader)))
       // BlockFetcher now requests bodies for block 6
-      val bodiesSender: ActorRef[PeersClient.ResponseMessage] = peersClient.expectMsgPF() {
+      val bodiesSender: ActorRef[PeersClient.ResponseMessage] = peersClient.expectMessagePF() {
         case PeersClient.Request(_: ETHPackets.GetBlockBodies, _, _, replyTo) =>
           replyTo
       }
@@ -319,8 +322,8 @@ class BlockFetcherSpec
       // Importer picks the block; this advances lastBlock to 6 so isOnTop becomes true.
       // expectNoMessage gives BlockFetcher time to process the bodies and update state.
       peersClient.expectNoMessage(300.millis)
-      importer.send(blockFetcher.toClassic, PickBlocks(1, importer.ref.toTyped[FetchResponse]))
-      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(_) => () }
+      blockFetcher ! PickBlocks(1, importer.ref)
+      importer.expectMessagePF() { case BlockFetcher.PickedBlocks(_) => () }
       // isOnTop=true now (set during PickBlocks processing above); PrintStatus should probe for block 7
       blockFetcher ! BlockFetcher.PrintStatus
       // Use fishForSpecificMessage to tolerate any intermediate messages (e.g. status logs)
@@ -337,7 +340,7 @@ class BlockFetcherSpec
       startFetcher()
       // Trigger to set knownTop=1000 (high, so fetcher knows more blocks exist)
       triggerFetching(1000)
-      val requestSender: ActorRef[PeersClient.ResponseMessage] = peersClient.expectMsgPF() {
+      val requestSender: ActorRef[PeersClient.ResponseMessage] = peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockHeaders, _, _, replyTo) if msg.block == Left(1) =>
           replyTo
       }
@@ -358,7 +361,7 @@ class BlockFetcherSpec
 
       startFetcher()
 
-      peersClient.expectMsgPF() {
+      peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockHeaders, _, _, _) if msg.block == Left(1) => ()
       }
 
@@ -366,7 +369,7 @@ class BlockFetcherSpec
       peersClient.expectNoMessage(500.millis)
 
       // Request should timeout and retry - wait for the timeout + retry interval
-      peersClient.expectMsgPF(syncConfig.peerResponseTimeout + 5.seconds) {
+      peersClient.expectMessagePF(syncConfig.peerResponseTimeout + 5.seconds) {
         case PeersClient.Request(msg: ETHPackets.GetBlockHeaders, _, _, _) if msg.block == Left(1) => ()
       }
       testKit.stop(blockFetcher)
@@ -380,7 +383,7 @@ class BlockFetcherSpec
 
       // Drain the initial in-flight GetBlockHeaders request and reply with empty headers so
       // inFlightHeaders returns to 0 (the slot must be free before TickFetch can dispatch again).
-      val initReplyTo: ActorRef[PeersClient.ResponseMessage] = peersClient.expectMsgPF() {
+      val initReplyTo: ActorRef[PeersClient.ResponseMessage] = peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockHeaders, _, _, replyTo) if msg.block == Left(1) =>
           replyTo
       }
@@ -393,17 +396,21 @@ class BlockFetcherSpec
       // Fetcher must remain alive and responsive: TickFetch re-evaluates dispatch and sends
       // another GetBlockHeaders when the slot is available.
       blockFetcher ! BlockFetcher.TickFetch
-      peersClient.expectMsgPF() {
+      peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockHeaders, _, _, _) if msg.block == Left(1) => ()
       }
       testKit.stop(blockFetcher)
   }
 
   trait TestSetup extends TestSyncConfig:
-    val peersClient: TestProbe = TestProbe()(testKit.system.classicSystem)
-    val peerEventBus: TestProbe = TestProbe()(testKit.system.classicSystem)
-    val importer: TestProbe = TestProbe()(testKit.system.classicSystem)
-    val regularSync: TestProbe = TestProbe()(testKit.system.classicSystem)
+    val peersClient: TypedTestProbe[PeersClient.Command] = testKit.createTestProbe[PeersClient.Command]()
+    val peerEventBus: TypedTestProbe[PeerEventBusActor.Command] = testKit.createTestProbe[PeerEventBusActor.Command]()
+    // Only the FetchResponse role (direct PickBlocks asks) is exercised by this spec's assertions;
+    // the BlockImporter.Command role registered via Start (spontaneous ImportNewBlock sends) is
+    // never observed here, so it gets its own throwaway probe below instead of sharing this identity.
+    val importer: TypedTestProbe[BlockFetcher.FetchResponse] = testKit.createTestProbe[BlockFetcher.FetchResponse]()
+    val regularSync: TypedTestProbe[RegularSync.ProgressProtocol] =
+      testKit.createTestProbe[RegularSync.ProgressProtocol]()
 
     lazy val validators = new MockValidatorsAlwaysSucceed
 
@@ -416,12 +423,12 @@ class BlockFetcherSpec
       peerResponseTimeout = 5.minutes
     )
 
-    val fakePeerActor: TestProbe = TestProbe()(testKit.system.classicSystem)
+    val fakePeerActor: TypedTestProbe[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]()
     val fakePeer: Peer = Peer(PeerId("fakePeer"), new InetSocketAddress("127.0.0.1", 9000), fakePeerActor.ref, false)
 
     lazy val blockFetcher: ActorRef[BlockFetcher.FetchCommand] = testKit.spawn(
       BlockFetcher(
-        peersClient.ref.toTyped[PeersClient.Command],
+        peersClient.ref,
         peerEventBus.ref,
         regularSync.ref,
         syncConfig,
@@ -431,9 +438,9 @@ class BlockFetcherSpec
     )
 
     def startFetcher(fromBlock: BigInt = 0): Unit =
-      blockFetcher ! BlockFetcher.Start(importer.ref.toTyped[BlockImporter.Command], fromBlock)
+      blockFetcher ! BlockFetcher.Start(testKit.createTestProbe[BlockImporter.Command]().ref, fromBlock)
 
-      peerEventBus.expectMsgType[SubscribeCmd].to shouldBe MessageClassifier(
+      peerEventBus.expectMessageType[SubscribeCmd].to shouldBe MessageClassifier(
         Set(Codes.NewBlockCode, Codes.NewBlockHashesCode, Codes.BlockHeadersCode, Codes.BlockRangeUpdateCode),
         PeerSelector.AllPeers
       )
@@ -461,14 +468,14 @@ class BlockFetcherSpec
     var pendingBodiesSender: Option[ActorRef[PeersClient.ResponseMessage]] = None
 
     def handleFirstBlockBatchHeaders(): Unit =
-      val (requestId, headersReplyTo) = peersClient.expectMsgPF() {
+      val (requestId, headersReplyTo) = peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockHeaders, _, _, replyTo) if msg.block == Left(1) =>
           (msg.requestId, replyTo)
       }
       val firstGetBlockHeadersResponse = ETHPackets.BlockHeaders(requestId, firstBlocksBatch.map(_.header))
       headersReplyTo ! PeersClient.Response(fakePeer, firstGetBlockHeadersResponse)
 
-      def classifyNext(): Unit = peersClient.expectMsgPF() {
+      def classifyNext(): Unit = peersClient.expectMessagePF() {
         case PeersClient.Request(msg: ETHPackets.GetBlockBodies, _, _, replyTo)
             if msg.hashes == firstBlocksBatch.map(_.hash) =>
           pendingBodiesSender = Some(replyTo)

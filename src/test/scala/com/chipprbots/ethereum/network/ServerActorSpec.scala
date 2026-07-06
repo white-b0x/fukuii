@@ -5,7 +5,6 @@ import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicReference
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.io.Tcp
 import org.apache.pekko.testkit.TestProbe
 
@@ -36,7 +35,7 @@ class ServerActorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike wit
     NetworkTest
   ) in {
     val holder = freshHolder()
-    val pm = TestProbe()
+    val pm = testKit.createTestProbe[PeerManagerActor.Command]()
     // TCP probe absorbs the Bind request so no real socket binding happens.
     val tcpProbe = TestProbe()
     val actor = testKit.spawn(ServerActor.testApply(holder, pm.ref, blacklist, tcpProbe.ref), "server-test-1")
@@ -64,7 +63,7 @@ class ServerActorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike wit
     NetworkTest
   ) in {
     val holder = freshHolder()
-    val pm = TestProbe()
+    val pm = testKit.createTestProbe[PeerManagerActor.Command]()
     val tcpProbe = TestProbe()
     val actor = testKit.spawn(ServerActor.testApply(holder, pm.ref, blacklist, tcpProbe.ref), "server-test-2")
 
@@ -94,7 +93,7 @@ class ServerActorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike wit
 
   it should "fall back to loopback when DetectedIP carries None" taggedAs (UnitTest, NetworkTest) in {
     val holder = freshHolder()
-    val pm = TestProbe()
+    val pm = testKit.createTestProbe[PeerManagerActor.Command]()
     val tcpProbe = TestProbe()
     val actor = testKit.spawn(ServerActor.testApply(holder, pm.ref, blacklist, tcpProbe.ref), "server-test-3")
 

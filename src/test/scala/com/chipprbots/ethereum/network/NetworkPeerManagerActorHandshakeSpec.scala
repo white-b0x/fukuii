@@ -4,8 +4,8 @@ import java.net.InetSocketAddress
 
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -37,8 +37,6 @@ import com.chipprbots.ethereum.testing.Tags.*
 // refactors while still covering the critical paths.
 class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike with Matchers:
 
-  implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
-
   private val nodeIdHex = "aa" * 64
   private val nodeIdBytes = ByteString(Hex.decode(nodeIdHex))
   private val peerId = PeerId(nodeIdHex)
@@ -59,14 +57,15 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
 
   // ── helpers ──────────────────────────────────────────────────────────────────
 
-  private def newNpma(): (ActorRef, TestProbe, TestProbe) =
-    val pm = TestProbe()
-    val bus = TestProbe()
+  private def newNpma()
+      : (ActorRef, TypedTestProbe[PeerManagerActor.Command], TypedTestProbe[PeerEventBusActor.Command]) =
+    val pm = testKit.createTestProbe[PeerManagerActor.Command]()
+    val bus = testKit.createTestProbe[PeerEventBusActor.Command]()
     val ref = testKit
       .spawn(
         NetworkPeerManagerActor.behavior(
-          pm.ref.toTyped[PeerManagerActor.Command],
-          bus.ref.toTyped[PeerEventBusActor.Command],
+          pm.ref,
+          bus.ref,
           new AppStateStorage(EphemDataSource()),
           forkResolverOpt = None,
           isPoWChain = false
@@ -80,24 +79,36 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
   //   1. Subscribe(PeerHandshaked)
   //   2. Subscribe(MessageClassifier(SNAP request codes, AllPeers))
   // Drain them before running per-test assertions.
-  private def drainInitialSubscriptions(bus: TestProbe): Unit =
-    bus.expectMsgType[SubscribeCmd]
-    bus.expectMsgType[SubscribeCmd]
+  private def drainInitialSubscriptions(bus: TypedTestProbe[PeerEventBusActor.Command]): Unit =
+    bus.expectMessageType[SubscribeCmd]
+    bus.expectMessageType[SubscribeCmd]
 
   private def outboundPeer(): Peer =
-    Peer(peerId, outboundAddr, TestProbe().ref, incomingConnection = false, nodeId = Some(nodeIdBytes))
+    Peer(
+      peerId,
+      outboundAddr,
+      testKit.createTestProbe[PeerActor.Command]().ref,
+      incomingConnection = false,
+      nodeId = Some(nodeIdBytes)
+    )
 
   private def outboundPeer2(): Peer =
     Peer(
       peerId,
       new InetSocketAddress("127.0.0.1", 30305),
-      TestProbe().ref,
+      testKit.createTestProbe[PeerActor.Command]().ref,
       incomingConnection = false,
       nodeId = Some(nodeIdBytes)
     )
 
   private def inboundPeer(): Peer =
-    Peer(peerId, inboundAddr, TestProbe().ref, incomingConnection = true, nodeId = Some(nodeIdBytes))
+    Peer(
+      peerId,
+      inboundAddr,
+      testKit.createTestProbe[PeerActor.Command]().ref,
+      incomingConnection = true,
+      nodeId = Some(nodeIdBytes)
+    )
 
   // ── tests ────────────────────────────────────────────────────────────────────
 
@@ -108,8 +119,8 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
 
     npma ! PeerEventCmd(PeerHandshakeSuccessful(outboundPeer(), peerInfo))
 
-    bus.expectMsgType[SubscribeCmd] // PeerDisconnectedClassifier
-    bus.expectMsgType[SubscribeCmd] // MessageClassifier
+    bus.expectMessageType[SubscribeCmd] // PeerDisconnectedClassifier
+    bus.expectMessageType[SubscribeCmd] // MessageClassifier
     bus.expectNoMessage(100.millis)
   }
 
@@ -121,8 +132,8 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
     drainInitialSubscriptions(bus)
 
     npma ! PeerEventCmd(PeerHandshakeSuccessful(outboundPeer(), peerInfo))
-    bus.expectMsgType[SubscribeCmd]
-    bus.expectMsgType[SubscribeCmd]
+    bus.expectMessageType[SubscribeCmd]
+    bus.expectMessageType[SubscribeCmd]
 
     npma ! PeerEventCmd(PeerHandshakeSuccessful(inboundPeer(), peerInfo)) // same PeerId, inbound wins
     bus.expectNoMessage(100.millis)
@@ -135,7 +146,7 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
     val (npma, _, bus) = newNpma()
     drainInitialSubscriptions(bus)
     npma ! PeerEventCmd(PeerHandshakeSuccessful(outboundPeer(), peerInfo))
-    bus.expectMsgType[SubscribeCmd]; bus.expectMsgType[SubscribeCmd]
+    bus.expectMessageType[SubscribeCmd]; bus.expectMessageType[SubscribeCmd]
     npma ! PeerEventCmd(PeerHandshakeSuccessful(inboundPeer(), peerInfo))
     bus.expectNoMessage(100.millis)
 
@@ -149,15 +160,15 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
     val (npma, _, bus) = newNpma()
     drainInitialSubscriptions(bus)
     npma ! PeerEventCmd(PeerHandshakeSuccessful(outboundPeer(), peerInfo))
-    bus.expectMsgType[SubscribeCmd]; bus.expectMsgType[SubscribeCmd]
+    bus.expectMessageType[SubscribeCmd]; bus.expectMessageType[SubscribeCmd]
     npma ! PeerEventCmd(PeerHandshakeSuccessful(inboundPeer(), peerInfo))
     npma ! PeerEventCmd(PeerDisconnected(peerId)) // outbound dying — suppressed
     bus.expectNoMessage(200.millis)
 
     // Genuine disconnect from the inbound must now evict the peer normally
     npma ! PeerEventCmd(PeerDisconnected(peerId))
-    bus.expectMsgType[UnsubscribeCmd]
-    bus.expectMsgType[UnsubscribeCmd]
+    bus.expectMessageType[UnsubscribeCmd]
+    bus.expectMessageType[UnsubscribeCmd]
   }
 
   // C1 — drop: second outbound for the same PeerId must be silently dropped.
@@ -165,15 +176,15 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
     val (npma, _, bus) = newNpma()
     drainInitialSubscriptions(bus)
     npma ! PeerEventCmd(PeerHandshakeSuccessful(outboundPeer(), peerInfo))
-    bus.expectMsgType[SubscribeCmd]; bus.expectMsgType[SubscribeCmd]
+    bus.expectMessageType[SubscribeCmd]; bus.expectMessageType[SubscribeCmd]
 
     npma ! PeerEventCmd(PeerHandshakeSuccessful(outboundPeer2(), peerInfo)) // duplicate outbound — DROPPED
     bus.expectNoMessage(100.millis)
 
     // Original peer is still retained
     npma ! PeerEventCmd(PeerDisconnected(peerId))
-    bus.expectMsgType[UnsubscribeCmd]
-    bus.expectMsgType[UnsubscribeCmd]
+    bus.expectMessageType[UnsubscribeCmd]
+    bus.expectMessageType[UnsubscribeCmd]
   }
 
   // C2 — drop: second inbound for the same PeerId must also be silently dropped.
@@ -181,14 +192,14 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
     val (npma, _, bus) = newNpma()
     drainInitialSubscriptions(bus)
     npma ! PeerEventCmd(PeerHandshakeSuccessful(inboundPeer(), peerInfo))
-    bus.expectMsgType[SubscribeCmd]; bus.expectMsgType[SubscribeCmd]
+    bus.expectMessageType[SubscribeCmd]; bus.expectMessageType[SubscribeCmd]
 
     npma ! PeerEventCmd(
       PeerHandshakeSuccessful(
         Peer(
           peerId,
           new InetSocketAddress("127.0.0.1", 55556),
-          TestProbe().ref,
+          testKit.createTestProbe[PeerActor.Command]().ref,
           incomingConnection = true,
           nodeId = Some(nodeIdBytes)
         ),
@@ -199,8 +210,8 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
 
     // Original peer is still retained
     npma ! PeerEventCmd(PeerDisconnected(peerId))
-    bus.expectMsgType[UnsubscribeCmd]
-    bus.expectMsgType[UnsubscribeCmd]
+    bus.expectMessageType[UnsubscribeCmd]
+    bus.expectMessageType[UnsubscribeCmd]
   }
 
   // D — eviction: genuine disconnect evicts the peer; a second PeerDisconnected is ignored.
@@ -208,11 +219,11 @@ class NetworkPeerManagerActorHandshakeSpec extends ScalaTestWithActorTestKit wit
     val (npma, _, bus) = newNpma()
     drainInitialSubscriptions(bus)
     npma ! PeerEventCmd(PeerHandshakeSuccessful(outboundPeer(), peerInfo))
-    bus.expectMsgType[SubscribeCmd]; bus.expectMsgType[SubscribeCmd]
+    bus.expectMessageType[SubscribeCmd]; bus.expectMessageType[SubscribeCmd]
 
     npma ! PeerEventCmd(PeerDisconnected(peerId))
-    bus.expectMsgType[UnsubscribeCmd]
-    bus.expectMsgType[UnsubscribeCmd]
+    bus.expectMessageType[UnsubscribeCmd]
+    bus.expectMessageType[UnsubscribeCmd]
 
     // Peer is now gone — second disconnect must be ignored (no Unsubscribes)
     npma ! PeerEventCmd(PeerDisconnected(peerId))

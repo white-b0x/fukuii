@@ -20,6 +20,7 @@ import org.scalamock.scalatest.MockFactory
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.Timeouts
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import com.chipprbots.ethereum.blockchain.sync.SyncController
 import com.chipprbots.ethereum.consensus.blocks.BlockTimestampProvider
 import com.chipprbots.ethereum.consensus.blocks.DefaultBlockTimestampProvider
 import com.chipprbots.ethereum.consensus.blocks.PendingBlock
@@ -142,6 +143,8 @@ class JsonRpcControllerFixture(implicit
 
   val blockGenerator: StubPoWBlockGenerator = new StubPoWBlockGenerator
 
+  // NOT converted to a typed TestProbe: JsonRpcControllerEthSpec.scala installs an AutoPilot
+  // (syncStatusAutoPilot) on this probe, and Typed TestProbe has no AutoPilot hook.
   val syncingController: TestProbe = TestProbe()
 
   override lazy val stxLedger: StxLedger = mock[StxLedger]
@@ -159,6 +162,9 @@ class JsonRpcControllerFixture(implicit
 
   val keyStore: KeyStore = mock[KeyStore]
 
+  // NOT converted to typed TestProbes: JsonRpcControllerEthSpec.scala installs AutoPilots
+  // (ptmAutoPilot / a GetOmmers AutoPilot) on these two probes, and Typed TestProbe has no
+  // AutoPilot hook.
   val pendingTransactionsManager: TestProbe = TestProbe()
   val ommersPool: TestProbe = TestProbe()
   val filterManager: org.apache.pekko.actor.typed.ActorRef[FilterManager.Command] =
@@ -185,7 +191,7 @@ class JsonRpcControllerFixture(implicit
     mining,
     stxLedger,
     keyStore,
-    syncingController.ref.toTyped[com.chipprbots.ethereum.blockchain.sync.SyncController.Command],
+    syncingController.ref.toTyped[SyncController.Command],
     Capability.ETH63,
     Timeouts.shortTimeout,
     system.toTyped.scheduler
@@ -198,8 +204,9 @@ class JsonRpcControllerFixture(implicit
     mining,
     config,
     ommersPool.ref.toTyped[OmmersPool.Command],
-    syncingController.ref.toTyped[com.chipprbots.ethereum.blockchain.sync.SyncController.Command],
-    pendingTransactionsManager.ref.toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+    syncingController.ref.toTyped[SyncController.Command],
+    pendingTransactionsManager.ref
+      .toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
     getTransactionFromPoolTimeout,
     this,
     coinbaseProvider,
@@ -212,7 +219,8 @@ class JsonRpcControllerFixture(implicit
     blockchain,
     blockchainReader,
     mining,
-    pendingTransactionsManager.ref.toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+    pendingTransactionsManager.ref
+      .toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
     getTransactionFromPoolTimeout,
     storagesInstance.storages.transactionMappingStorage,
     system.toTyped.scheduler
@@ -237,8 +245,8 @@ class JsonRpcControllerFixture(implicit
   val fukuiiService: FukuiiService = mock[FukuiiService]
   implicit val scheduler: typed.Scheduler = system.toTyped.scheduler
   val mcpService: McpService = new McpService(
-    TestProbe().ref.toTyped[PeerManagerActor.Command],
-    TestProbe().ref,
+    actorTestKit.createTestProbe[PeerManagerActor.Command]().ref,
+    actorTestKit.createTestProbe[SyncController.Command]().ref,
     null,
     null,
     new java.util.concurrent.atomic.AtomicReference[com.chipprbots.ethereum.utils.NodeStatus](),

@@ -1,8 +1,6 @@
 package com.chipprbots.ethereum.consensus.engine
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -27,8 +25,6 @@ import com.chipprbots.ethereum.testing.Tags.*
   * on post-merge chains.
   */
 class ForkChoiceManagerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike with Matchers:
-
-  implicit private val classicActorSystem: org.apache.pekko.actor.ActorSystem = system.toClassic
 
   trait Fixture extends EphemBlockchainTestSetup:
     val fcm = new ForkChoiceManager(blockchainReader, blockchainWriter)
@@ -57,24 +53,24 @@ class ForkChoiceManagerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLi
     val knownHeadHash: ByteString = storedHeader.hash.value
 
   "ForkChoiceManager" should "publish BeaconHead with knownHeader=None when head is unknown (SYNCING branch)" taggedAs UnitTest in new Fixture:
-    val probe: TestProbe = TestProbe()
+    val probe = testKit.createTestProbe[ForkChoiceManager.BeaconHead]()
     fcm.setListener(probe.ref)
 
     val state: ForkChoiceState = ForkChoiceState(unknownHeadHash, ByteString.empty, ByteString.empty)
     fcm.applyForkChoiceState(state) shouldBe Left("SYNCING")
 
-    val received: BeaconHead = probe.expectMsgType[ForkChoiceManager.BeaconHead]
+    val received: BeaconHead = probe.expectMessageType[ForkChoiceManager.BeaconHead]
     received.headHash shouldBe unknownHeadHash
     received.knownHeader shouldBe None
 
   it should "publish BeaconHead with knownHeader=Some when head is locally known" taggedAs UnitTest in new Fixture:
-    val probe: TestProbe = TestProbe()
+    val probe = testKit.createTestProbe[ForkChoiceManager.BeaconHead]()
     fcm.setListener(probe.ref)
 
     val state: ForkChoiceState = ForkChoiceState(knownHeadHash, ByteString.empty, ByteString.empty)
     fcm.applyForkChoiceState(state) shouldBe Right(())
 
-    val received: BeaconHead = probe.expectMsgType[ForkChoiceManager.BeaconHead]
+    val received: BeaconHead = probe.expectMessageType[ForkChoiceManager.BeaconHead]
     received.headHash shouldBe knownHeadHash
     received.knownHeader.map(_.number) shouldBe Some(BigInt(12345))
 
@@ -84,21 +80,21 @@ class ForkChoiceManagerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLi
     fcm.applyForkChoiceState(state) shouldBe Left("SYNCING")
 
   it should "stop publishing after clearListener" taggedAs UnitTest in new Fixture:
-    val probe: TestProbe = TestProbe()
+    val probe = testKit.createTestProbe[ForkChoiceManager.BeaconHead]()
     fcm.setListener(probe.ref)
     fcm.applyForkChoiceState(ForkChoiceState(knownHeadHash, ByteString.empty, ByteString.empty))
-    probe.expectMsgType[ForkChoiceManager.BeaconHead]
+    probe.expectMessageType[ForkChoiceManager.BeaconHead]
 
     fcm.clearListener()
     fcm.applyForkChoiceState(ForkChoiceState(unknownHeadHash, ByteString.empty, ByteString.empty))
     probe.expectNoMessage()
 
   it should "replace the previously-registered listener on a second setListener" taggedAs UnitTest in new Fixture:
-    val first: TestProbe = TestProbe()
-    val second: TestProbe = TestProbe()
+    val first = testKit.createTestProbe[ForkChoiceManager.BeaconHead]()
+    val second = testKit.createTestProbe[ForkChoiceManager.BeaconHead]()
     fcm.setListener(first.ref)
     fcm.setListener(second.ref)
 
     fcm.applyForkChoiceState(ForkChoiceState(knownHeadHash, ByteString.empty, ByteString.empty))
-    second.expectMsgType[ForkChoiceManager.BeaconHead]
+    second.expectMessageType[ForkChoiceManager.BeaconHead]
     first.expectNoMessage()

@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.transactions
 import java.net.InetSocketAddress
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.scaladsl.AskPattern.*
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.testkit.TestProbe
@@ -40,8 +41,11 @@ import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.SendMessageCmd
 import com.chipprbots.ethereum.network.Peer
+import com.chipprbots.ethereum.network.PeerActor
+import com.chipprbots.ethereum.network.PeerEventBusActor
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent
 import com.chipprbots.ethereum.network.PeerId
+import com.chipprbots.ethereum.network.PeerManagerActor
 import com.chipprbots.ethereum.network.handshaker.Handshaker.HandshakeResult
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.SignedTransactions
@@ -579,11 +583,11 @@ class PendingTransactionsManagerSpec
     ): SignedTransactionWithSender =
       SignedTransactionWithSender(SignedTransaction.sign(tx, keyPair, Some(ChainId(BigInt(0x3d)))), Address(keyPair))
 
-    val peer1TestProbe: TestProbe = TestProbe()
+    val peer1TestProbe: TypedTestProbe[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]()
     val peer1: Peer = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, false)
-    val peer2TestProbe: TestProbe = TestProbe()
+    val peer2TestProbe: TypedTestProbe[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]()
     val peer2: Peer = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.2", 9000), peer2TestProbe.ref, false)
-    val peer3TestProbe: TestProbe = TestProbe()
+    val peer3TestProbe: TypedTestProbe[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]()
     val peer3: Peer = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref, false)
 
     val txPoolConfig: TxPoolConfig = new TxPoolConfig:
@@ -597,9 +601,11 @@ class PendingTransactionsManagerSpec
     implicit lazy val typedScheduler: org.apache.pekko.actor.typed.Scheduler = testKit.system.scheduler
     implicit val askTimeout: org.apache.pekko.util.Timeout = org.apache.pekko.util.Timeout(Timeouts.veryLongTimeout)
 
-    val peerManager: TestProbe = TestProbe()
+    val peerManager: TypedTestProbe[PeerManagerActor.Command] = testKit.createTestProbe[PeerManagerActor.Command]()
+    // NOT converted to a typed TestProbe: this probe is driven with Classic-only `.receiveWhile`
+    // (collect messages while a partial function matches), which Typed TestProbe has no equivalent for.
     val etcPeerManager: TestProbe = TestProbe()
-    val peerMessageBus: TestProbe = TestProbe()
+    val peerMessageBus: TypedTestProbe[PeerEventBusActor.Command] = testKit.createTestProbe[PeerEventBusActor.Command]()
     val pendingTxTopic: org.apache.pekko.actor.typed.ActorRef[
       org.apache.pekko.actor.typed.pubsub.Topic.Command[com.chipprbots.ethereum.jsonrpc.NewPendingTransaction]
     ] = testKit.spawn(
