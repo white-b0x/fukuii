@@ -26,6 +26,7 @@ Tracked protocols that all agents reference are read at `.claude/agent-protocols
 | `inline-cleanup.md` | "Hunt and seek" — what to fix opportunistically, what to log to the queue |
 | `finding-resolution.md` | Every audit/review finding gets scheduled (existing IP, new IP, or a real future-batch entry) — never left as a bare flagged-but-unscheduled note |
 | `logging-standards.md` | Preferred logging API, levels, message format, SLF4J patterns |
+| `comments.md` | Default-to-no-comment policy; when a comment is warranted; sanctioned exceptions (`// MIGRATION:`, `@nowarn` reason lines, `not given` annotations); scaladoc vs. inline-comment distinction |
 | `scala3-style.md` | S1–S11 Scala 3 standards with grep-verifiable ratchets (S11: opaque type full-layer propagation) |
 | `scala3-given-migration.md` | G1–G3 operational pitfalls for `given/using` migration (P3a findings, applies to P3b) |
 | `pekko-typed-api.md` | P1–P25 Pekko Typed API preferences + TL1/TL2 Cats Effect integration rules |

@@ -10,6 +10,10 @@ regressions are detectable.
 Used by: MITHRIL (primary), LOOM, WRAITH, all agents writing Scala
 Referenced by: mithril.md, inline-cleanup.md
 
+**Comment content** (what a `//` should say, when scaladoc differs, PR/issue-citation policy)
+is out of scope here — this doc governs Scala-3 *language idioms*, not comment content. See
+`comments.md`.
+
 ---
 
 ## The ratchet model
