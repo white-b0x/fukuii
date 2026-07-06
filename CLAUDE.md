@@ -44,6 +44,7 @@ Tracked protocols that all agents reference are read at `.claude/agent-protocols
 | `github-workflows.md` | Workflow naming/concurrency conventions, PR template, label automation — and why `.github/CODEOWNERS` is deliberately not present yet (single-maintainer repo) |
 | `pr-preflight-checklist.md` | What actually gates a PR (fork-PR differences included) and the local `pr-preflight.sh` composite check that confirms it before pushing, instead of discovering it via CI |
 | `batch-research-protocol.md` | Multi-pass research (main+test+it sweep, second broadened pass, precedent/cross-batch-overlap lookup, pre-flight health check) that must run before a QUEUE.md batch's kickoff prompt is trusted — run by the `scout` subagent |
+| `systemic-review-protocol.md` | Recurring (monthly) bird's-eye module-vs-reference-client comparison methodology: verdict taxonomy, test-classification taxonomy, reference-client authority model, per-subsystem doc template, parallel-lens/sequential-item execution rule — backs the "Systemic Review" persistent section (`SR-NN`/`SR-EXT-NN`) in QUEUE.md |
 
 ## Reference index
 
