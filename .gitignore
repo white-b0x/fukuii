@@ -79,9 +79,14 @@ ops/*/captured-logs/
 # checkouts) stays untracked — those are full working trees, never committed content.
 # The rest of .claude/sprints/ (QUEUE.md, patterns/, completed/, archive/) stays
 # untracked/operator-local — genuinely ephemeral working state.
+# .claude/hooks/ (comment-policy.py, advisory PostToolUse check) and the new tracked
+# .claude/settings.json that wires it are shared team tooling, same as agents/skills below —
+# .claude/settings.local.json stays untracked/operator-local, unaffected by this exception.
 .claude/*
 !.claude/agents/
 !.claude/skills/
+!.claude/hooks/
+!.claude/settings.json
 !.claude/agent-protocols/
 !.claude/looping/
 .claude/looping/state/*/

@@ -67,6 +67,11 @@ doesn't exist:
   maker/checker gate (`agent-protocols/loop-handoff.md`). `.claude/looping/registry.yaml` —
   not individual file headers — is the source of truth for which agents are loop-eligible.
   See `.claude/looping/README.md` for how to invoke it.
+- **`.claude/hooks/`** — `comment-policy.py`, a `PostToolUse` check on `Write`/`Edit`/
+  `MultiEdit` to `*.scala` files that flags newly added comment lines violating
+  `comments.md` (scope/incident/process narration, bare citations) — advisory only, wired
+  via the tracked `.claude/settings.json` (distinct from the untracked, operator-local
+  `.claude/settings.local.json`), never blocks a tool call.
 - **`.claude/repo-references/`** — ~20 vendored reference repos (pekko, scala2/3, scalafix,
   scapegoat, rocksdb, json4s, circe, hive, ECIPs, EIPs, ethereum/tests, spec-kit, and
   reference clients under `clients/{nethermind,erigon,...}`). `.claude/agents/REFERENCES.md`
