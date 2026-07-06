@@ -32,7 +32,7 @@ class HealingFrontierStorage(val dataSource: DataSource)
   def keySerializer: ByteString => IndexedSeq[Byte] = identity
   def keyDeserializer: IndexedSeq[Byte] => ByteString = k => ByteString.fromArrayUnsafe(k.toArray)
   def valueSerializer: Seq[ByteString] => IndexedSeq[Byte] = ps => ArraySeq.unsafeWrapArray(rlp.encode(ps))
-  def valueDeserializer: IndexedSeq[Byte] => Seq[ByteString] = bytes => rlp.decode[Seq[ByteString]](bytes.toArray)
+  def valueDeserializer: IndexedSeq[Byte] => Seq[ByteString] = bytes => rlp.decodeStrict[Seq[ByteString]](bytes.toArray)
 
   /** Drain the entire persisted frontier (hash -> pathset), excluding the completeness sentinel. Called once on
     * `[HEAL-RESTART]` to resume healing without the full-state DFS. Throws if iteration errors or a stored value fails

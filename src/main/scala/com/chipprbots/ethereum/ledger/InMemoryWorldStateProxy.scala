@@ -165,7 +165,7 @@ class InMemoryWorldStateProxyStorage(
         val slotHash = kec256(ByteString(slotKey))
         flat.getSlot(acctHash, slotHash).flatMap { rawValue =>
           // Decode RLP-encoded BigInt value
-          try Some(com.chipprbots.ethereum.rlp.decode[BigInt](rawValue.toArray))
+          try Some(com.chipprbots.ethereum.rlp.decodeStrict[BigInt](rawValue.toArray))
           catch case _: Exception => None // Malformed data — fall through to MPT
         }
       case _ => None

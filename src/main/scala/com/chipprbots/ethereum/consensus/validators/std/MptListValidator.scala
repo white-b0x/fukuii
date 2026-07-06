@@ -6,13 +6,13 @@ import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.mpt.ByteArraySerializable
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie
 import com.chipprbots.ethereum.rlp.RLPImplicits.given
-import com.chipprbots.ethereum.rlp.decode
+import com.chipprbots.ethereum.rlp.decodeStrict
 import com.chipprbots.ethereum.rlp.encode
 
 object MptListValidator:
 
   lazy val intByteArraySerializable: ByteArraySerializable[Int] = new ByteArraySerializable[Int]:
-    override def fromBytes(bytes: Array[Byte]): Int = decode[Int](bytes)
+    override def fromBytes(bytes: Array[Byte]): Int = decodeStrict[Int](bytes)
     override def toBytes(input: Int): Array[Byte] = encode(input)
 
   /** This function validates if a lists matches a Mpt Hash. To do so it inserts into an ephemeral MPT (itemIndex, item)

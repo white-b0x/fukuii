@@ -98,6 +98,13 @@ package object rlp {
 
   def decode[T](data: Array[Byte])(implicit dec: RLPDecoder[T]): T = dec.decode(RLP.rawDecode(data))
 
+  /** Strict variant of [[decode]]: decodes exactly one self-contained RLP item and throws [[RLPException]] if any
+    * trailing bytes remain unconsumed. Use for buffers that by design hold exactly one encoded item (stored state
+    * values, persisted records, per-item deserializers). Keep the lenient [[decode]] for buffers that legitimately hold
+    * an item followed by more bytes (e.g. an RLPx frame whose message-type prefix precedes the payload).
+    */
+  def decodeStrict[T](data: Array[Byte])(implicit dec: RLPDecoder[T]): T = dec.decode(RLP.rawDecodeStrict(data))
+
   def decode[T](data: RLPEncodeable)(implicit dec: RLPDecoder[T]): T = dec.decode(data)
 
   def rawDecode(input: Array[Byte]): RLPEncodeable = RLP.rawDecode(input)

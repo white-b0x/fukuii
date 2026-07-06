@@ -21,7 +21,7 @@ package object domain:
         ByteUtils.padLeft(ByteString(BigIntegers.asUnsignedByteArray(input.bigInteger)), 32).toArray[Byte]
 
     val rlpBigIntSerializer: ByteArraySerializable[BigInt] = new ByteArraySerializable[BigInt]:
-      override def fromBytes(bytes: Array[Byte]): BigInt = rlp.decode[BigInt](bytes)
+      override def fromBytes(bytes: Array[Byte]): BigInt = rlp.decodeStrict[BigInt](bytes)
 
       override def toBytes(input: BigInt): Array[Byte] = rlp.encode[BigInt](input)
 

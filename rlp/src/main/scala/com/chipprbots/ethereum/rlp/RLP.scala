@@ -80,6 +80,18 @@ private[rlp] object RLP {
     */
   private[rlp] def rawDecode(data: Array[Byte]): RLPEncodeable = decodeWithPos(data, 0)._1
 
+  /** Like [[rawDecode]], but requires the whole input buffer to be consumed by the single decoded item. Throws
+    * [[RLPException]] if any trailing bytes remain after the first item. Use for buffers that must hold exactly one
+    * self-contained RLP item (stored state values, persisted records) rather than a stream of items or a
+    * prefix-plus-payload frame — the latter must keep using the lenient [[rawDecode]].
+    */
+  private[rlp] def rawDecodeStrict(data: Array[Byte]): RLPEncodeable = {
+    val (encodeable, endPos) = decodeWithPos(data, 0)
+    if (endPos != data.length)
+      throw RLPException(s"Malformed RLP: item consumed $endPos of ${data.length} bytes, trailing bytes remain")
+    encodeable
+  }
+
   /** This function encodes an RLPEncodeable instance
     *
     * @param input
