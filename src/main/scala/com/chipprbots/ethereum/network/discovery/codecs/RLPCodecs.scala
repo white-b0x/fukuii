@@ -30,6 +30,13 @@ import com.chipprbots.ethereum.rlp.RLPValue
 
 /** RLP codecs based on https://github.com/ethereum/devp2p/blob/master/discv4.md */
 object RLPCodecs extends ContentCodecs with PayloadCodecs:
+  // This adapter always reports the full input as consumed (`DecodeResult(_, BitVector.empty)`), so it is only
+  // correct when the caller already guarantees the bits handed to it are exactly one self-contained RLP item (e.g.
+  // `enrContentCodec`/`v5EnrCodec`, ultimately backing ENR decode off `authData.drop(recordStart)` in a discv5
+  // handshake — the record occupies exactly the rest of the buffer per discv5-wire.md's `authdata-size` field, no
+  // forward-compat padding). Use `decodeStrict` so a truncated/malformed record is rejected loudly instead of
+  // silently decoding a valid prefix and ignoring trailing bytes — matches go-ethereum's `rlp.DecodeBytes` for ENR
+  // (p2p/discover/v5wire/encoding.go's `decodeHandshakeRecord`).
   given codecFromRLPCodec[T: RLPCodec]: Codec[T] =
     Codec[T](
       (value: T) =>
@@ -37,7 +44,7 @@ object RLPCodecs extends ContentCodecs with PayloadCodecs:
         Attempt.successful(BitVector(bytes))
       ,
       (bits: BitVector) =>
-        val tryDecode = Try(rlp.decode[T](bits.toByteArray))
+        val tryDecode = Try(rlp.decodeStrict[T](bits.toByteArray))
         Attempt.fromTry(tryDecode.map(DecodeResult(_, BitVector.empty)))
     )
 
@@ -301,6 +308,11 @@ trait PayloadCodecs:
             val packetType: Byte = head.toByte()
             val packetData: Array[Byte] = tail.toByteArray
 
+            // Deliberately lenient (`rlp.decode`, not `decodeStrict`): discv4.md's EIP-8 forward-compatibility
+            // clause requires implementations to "ignore any additional elements in the packet-data list as well as
+            // any extra data after the list" — i.e. trailing bytes after the RLP list are valid, not malformed.
+            // go-ethereum matches this via a Stream-based decode plus a `Rest []rlp.RawValue `rlp:"tail"`` field on
+            // every packet struct (p2p/discover/v4wire/v4wire.go) rather than a strict whole-buffer decode.
             val tryPayload: Try[Payload] = Try {
               packetType match
                 case PacketType.Ping        => rlp.decode[Payload.Ping](packetData)

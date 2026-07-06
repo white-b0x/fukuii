@@ -106,6 +106,13 @@ case class AuthHandshaker(
       macData = Some(sizeBytes.toArray)
     )
 
+    // Deliberately lenient (`rlp.decode`, not `decodeStrict`): `plaintext` is `ack-body || ack-padding` per
+    // rlpx.md — EIP-8 defines `ack-padding` as "arbitrary data" and requires implementations to "ignore any
+    // additional list elements in auth-body and ack-body". Our own `initiate()` above always appends
+    // 100-300 bytes of random padding to the symmetric auth-body, so real peers (go-ethereum, besu,
+    // nethermind) commonly do the same for ack-body — a strict whole-buffer decode here would break every
+    // handshake against a peer that pads. Same rationale already documented for the auth-body/init side in
+    // `AuthInitiateMessageV4.scala`'s `toAuthInitiateMessageV4`.
     val message =
       try rlp.decode[AuthResponseMessageV4](plaintext)
       catch

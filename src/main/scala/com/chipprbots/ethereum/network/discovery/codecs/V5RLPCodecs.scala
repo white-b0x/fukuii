@@ -30,7 +30,15 @@ import com.chipprbots.ethereum.rlp.RLPList
   */
 object V5RLPCodecs extends V5ContentCodecs with V5PayloadCodecs:
 
-  /** Adapter so we can summon `Codec[Payload]` from any `RLPCodec[Payload]`. */
+  /** Adapter so we can summon `Codec[Payload]` from any `RLPCodec[Payload]`.
+    *
+    * Always reports the full input as consumed (`DecodeResult(_, BitVector.empty)`), so it's only correct when the
+    * caller guarantees the bits handed to it are exactly one self-contained RLP item — true for its actual use
+    * (`v5EnrCodec`, decoding an ENR record off `authData.drop(recordStart)` in a discv5 handshake, which occupies
+    * exactly the rest of the buffer per discv5-wire.md's `authdata-size` field, no forward-compat padding). Uses
+    * `decodeStrict` to reject a truncated/malformed record instead of silently accepting a valid prefix — matches
+    * go-ethereum's `rlp.DecodeBytes` for ENR (p2p/discover/v5wire/encoding.go's `decodeHandshakeRecord`).
+    */
   given codecFromRLPCodec[T: RLPCodec]: Codec[T] =
     Codec[T](
       (value: T) =>
@@ -38,7 +46,7 @@ object V5RLPCodecs extends V5ContentCodecs with V5PayloadCodecs:
         Attempt.successful(BitVector(bytes))
       ,
       (bits: BitVector) =>
-        val tryDecode = Try(rlp.decode[T](bits.toByteArray))
+        val tryDecode = Try(rlp.decodeStrict[T](bits.toByteArray))
         Attempt.fromTry(tryDecode.map(DecodeResult(_, BitVector.empty)))
     )
 
@@ -208,14 +216,19 @@ trait V5PayloadCodecs:
           val msgType: Byte = head.toByte()
           val body: Array[Byte] = tail.toByteArray
 
+          // Strict (`decodeStrict`, not `decode`): unlike discv4, discv5-wire.md defines no forward-compatibility
+          // carve-out for trailing bytes after a message's RLP list, and none of the `message-data` structs above
+          // have a `Rest`-style tail field. go-ethereum decodes with `rlp.DecodeBytes` (p2p/discover/v5wire/msg.go's
+          // `DecodeMessage`), which explicitly requires the input to contain "exactly one value and no trailing
+          // data" — trailing bytes here indicate a malformed/malicious message, not a spec-sanctioned extension.
           val attempt: Try[Payload] = Try {
             msgType match
-              case Payload.MessageType.Ping     => rlp.decode[Payload.Ping](body)
-              case Payload.MessageType.Pong     => rlp.decode[Payload.Pong](body)
-              case Payload.MessageType.FindNode => rlp.decode[Payload.FindNode](body)
-              case Payload.MessageType.Nodes    => rlp.decode[Payload.Nodes](body)
-              case Payload.MessageType.TalkReq  => rlp.decode[Payload.TalkRequest](body)
-              case Payload.MessageType.TalkResp => rlp.decode[Payload.TalkResponse](body)
+              case Payload.MessageType.Ping     => rlp.decodeStrict[Payload.Ping](body)
+              case Payload.MessageType.Pong     => rlp.decodeStrict[Payload.Pong](body)
+              case Payload.MessageType.FindNode => rlp.decodeStrict[Payload.FindNode](body)
+              case Payload.MessageType.Nodes    => rlp.decodeStrict[Payload.Nodes](body)
+              case Payload.MessageType.TalkReq  => rlp.decodeStrict[Payload.TalkRequest](body)
+              case Payload.MessageType.TalkResp => rlp.decodeStrict[Payload.TalkResponse](body)
               case other =>
                 throw new RuntimeException(s"unknown discv5 message type: 0x${(other & 0xff).toHexString}")
           }
