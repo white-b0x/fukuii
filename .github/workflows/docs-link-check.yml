@@ -45,7 +45,6 @@ jobs:
             --verbose
             --no-progress
             --accept 200,204
-            --exclude-mail
             --exclude 'localhost'
             --exclude '127.0.0.1'
             --exclude 'github.com/.*/edit/'
@@ -65,7 +64,9 @@ jobs:
             automated
 
       - name: Comment on PR
-        if: steps.lychee.outcome == 'failure' && github.event_name == 'pull_request'
+        # Skip on fork PRs — posting a comment needs a write token forks don't get
+        # (same fork-guard autofix.yml and pr-management.yml already use).
+        if: steps.lychee.outcome == 'failure' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ github.event.pull_request.number }}
