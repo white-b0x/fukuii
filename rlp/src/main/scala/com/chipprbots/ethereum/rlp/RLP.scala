@@ -221,6 +221,8 @@ private[rlp] object RLP {
     */
   private[rlp] def getItemBounds(data: Array[Byte], pos: Int): ItemBounds =
     if (data.isEmpty) throw RLPException("Empty Data")
+    else if (pos >= data.length)
+      throw RLPException(s"Truncated RLP: attempt to read item at position $pos of ${data.length} bytes")
     else {
       val prefix: Int = data(pos) & 0xff
       if (prefix == OffsetShortItem) {
@@ -232,6 +234,8 @@ private[rlp] object RLP {
         ItemBounds(start = pos + 1, end = pos + length, isList = false)
       } else if (prefix < OffsetShortList) {
         val lengthOfLength = prefix - OffsetLongItem
+        if (pos + 1 + lengthOfLength > data.length)
+          throw RLPException("Truncated RLP: length-of-length prefix extends beyond data")
         val length = bigEndianMinLengthToInt(data, pos + 1, lengthOfLength)
         val beginPos = pos + 1 + lengthOfLength
         ItemBounds(start = beginPos, end = beginPos + length - 1, isList = false)
@@ -240,6 +244,8 @@ private[rlp] object RLP {
         ItemBounds(start = pos + 1, end = pos + length, isList = true)
       } else {
         val lengthOfLength = prefix - OffsetLongList
+        if (pos + 1 + lengthOfLength > data.length)
+          throw RLPException("Truncated RLP: length-of-length prefix extends beyond data")
         val length = bigEndianMinLengthToInt(data, pos + 1, lengthOfLength)
         val beginPos = pos + 1 + lengthOfLength
         ItemBounds(start = beginPos, end = beginPos + length - 1, isList = true)

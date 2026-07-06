@@ -507,6 +507,17 @@ class RLPSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ScalaCheck
     }
   }
 
+  test("Arbitrary bytes: rawDecodeStrict-then-encode round-trips when decoding succeeds", UnitTest, RLPTest) {
+    forAll(Gen.listOf(Arbitrary.arbitrary[Byte]).map(_.toArray)) { (input: Array[Byte]) =>
+      scala.util.Try(RLP.rawDecodeStrict(input)) match {
+        case scala.util.Failure(_: RLPException) => // not valid RLP, or valid-prefix-plus-trailing-bytes — both correctly rejected
+        case scala.util.Failure(e)               => fail(s"rawDecodeStrict threw a non-RLPException: $e")
+        case scala.util.Success(decoded)         =>
+          assert(RLP.encode(decoded).sameElements(input))
+      }
+    }
+  }
+
   test("Encode Seq", UnitTest, RLPTest) {
     forAll(Gen.nonEmptyListOf(Gen.choose[Long](0, Long.MaxValue))) { (aLongList: List[Long]) =>
       val aLongSeq: Seq[Long] = aLongList
