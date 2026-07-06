@@ -2,10 +2,10 @@
 name: fukuii-test-hive
 description: >-
   Build a local Fukuii Docker image and run one or more ethereum/hive
-  simulator suites against it — the interactive counterpart to fukuii's 13
+  simulator suites against it — the interactive counterpart to fukuii's 12
   CI `hive-*.yml` workflows. Use when asked to "run hive tests", "test
   against hive locally", "run the engine/rpc-compat/sync/consensus/devp2p/
-  graphql/pyspec/smoke/consume-engine/consume-rlp/osaka/prague suite", to
+  graphql/smoke/consume-engine/consume-rlp/osaka/prague suite", to
   reproduce a failing hive check from a PR, or to validate a change before
   opening a PR. Builds the fukuii assembly, syncs `hive/fukuii/` into an
   ephemeral hive checkout (never trusting a previously-copied adapter),
@@ -65,18 +65,23 @@ branch and waiting for CI.
 | `smoke-genesis` | `smoke/genesis` | timelimit 20m |
 | `smoke-network` | `smoke/network` | timelimit 20m |
 | `graphql` | `ethereum/graphql` | `--sim.parallelism 1` (order-sensitive mempool tests); timelimit 20m |
-| `pyspec` | `ethereum/pyspec` | timelimit 60m |
 | `consume-engine` | `ethereum/eels/consume-engine` | `--sim.buildarg disable_strict_exception_matching=nimbus-el,fukuii`; timelimit 60m; accepts `sim_limit=` override |
 | `consume-rlp` | `ethereum/eels/consume-rlp` | same buildarg; timelimit 60m; accepts `sim_limit=` override |
 | `osaka` | `ethereum/eels/consume-engine` | `--sim.limit '.*fork_Osaka.*'`; pinned EEST fixtures (see Phase 2b); threshold default 0 |
 | `prague` | `ethereum/eels/consume-engine` | `--sim.limit '.*fork_Prague.*'`; pinned EEST fixtures; threshold default 400 |
 
 Groups: `smoke` = smoke-genesis + smoke-network. `compliance` = consensus +
-engine + rpc-compat + devp2p + pyspec + graphql. `eels` = consume-engine +
+engine + rpc-compat + devp2p + graphql. `eels` = consume-engine +
 consume-rlp + osaka + prague. `all` = every suite above.
 
+`ethereum/pyspec` (formerly a 13th suite, `hive-pyspec.yml`) was removed —
+upstream Hive deleted the `ethereum/pyspec` simulator directory
+(`7b0ce986`), and the workflow had been silently reporting a false-green
+0/0/0 "success" ever since. `consume-engine`/`consume-rlp` above are its
+already-covered modern replacements.
+
 **Keeping this skill's suite table in sync**: this table is a snapshot of the
-13 `.github/workflows/hive-*.yml` files as of the date this skill was
+12 `.github/workflows/hive-*.yml` files as of the date this skill was
 written. If a workflow's `--sim`, timelimit, `clients`, `gate_pattern`, or
 `gate_exclude` changes, update this table in the same PR — do not let it
 drift the way `hive/README.md`'s own suite-status table already has.

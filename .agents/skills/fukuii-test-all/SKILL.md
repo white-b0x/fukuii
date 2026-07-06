@@ -46,14 +46,16 @@ log's tail on completion notification for the pass/fail summary and `EXIT CODE`.
 
 ### Dispatch table
 
-fukuii has 27 workflow files as of this writing; the ones most relevant to dispatch
-on demand (verified `workflow_dispatch:` support against each file directly — don't
-assume from this table alone if it's been a while):
+fukuii has 27 workflow files as of this writing (this count and the rest of this
+table drift independently of the Hive-specific note below — don't assume either
+is current without checking `ls .github/workflows/`); the ones most relevant to
+dispatch on demand (verified `workflow_dispatch:` support against each file
+directly — don't assume from this table alone if it's been a while):
 
 | Workflow name (`gh workflow run "<name>"`) | File | Notes |
 |---|---|---|
 | `CI` | `ci.yml` | Main build+test gate. **Required this session's `workflow_dispatch:` addition to be dispatchable at all** — every other workflow below already supported it. |
-| `Hive · consensus` | `hive-consensus.yml` | One of 13 Hive suites — see `fukuii-test-hive` for the local equivalent and full suite table. |
+| `Hive · consensus` | `hive-consensus.yml` | One of 12 Hive suites — see `fukuii-test-hive` for the local equivalent and full suite table. |
 | `Hive · engine` | `hive-engine.yml` | |
 | `Hive · rpc-compat` | `hive-rpc-compat.yml` | |
 | `Hive · sync` | `hive-sync.yml` | |
@@ -61,14 +63,18 @@ assume from this table alone if it's been a while):
 | `Hive · smoke-genesis` | `hive-smoke-genesis.yml` | |
 | `Hive · smoke-network` | `hive-smoke-network.yml` | |
 | `Hive · graphql` | `hive-graphql.yml` | |
-| `Hive · pyspec` | `hive-pyspec.yml` | |
 | `Hive · consume-engine` | `hive-consume-engine.yml` | |
 | `Hive · consume-rlp` | `hive-consume-rlp.yml` | |
-| `Hive Osaka Suite` | `hive-osaka.yml` | Named differently from the other 12 Hive workflows — doesn't follow the `Hive · <suite>` convention. |
-| `Hive Prague Suite` | `hive-prague.yml` | Same naming note as Osaka. |
+| `Hive Osaka Suite` | `hive-osaka.yml` | Named differently from the other Hive workflows — doesn't follow the `Hive · <suite>` convention. Now a thin caller of `_hive-sim.yml` (was a standalone duplicate pipeline). |
+| `Hive Prague Suite` | `hive-prague.yml` | Same naming note as Osaka; same thin-caller conversion. |
 | `Ethereum/Tests Nightly` | `ethereum-tests-nightly.yml` | Full EF test corpus, normally nightly-scheduled. |
 | `Fast Distro` | `fast-distro.yml` | |
 | `Release` | `release.yml` | Do not dispatch casually — confirm intent first, this cuts a release. |
+
+`Hive · pyspec` (`hive-pyspec.yml`) was deleted — it targeted `ethereum/pyspec`,
+a simulator directory upstream Hive removed, and had been silently reporting a
+false-green 0/0/0 "success" every run. `consume-engine`/`consume-rlp` above are
+its already-covered modern replacements.
 
 `_hive-sim.yml` is a reusable `workflow_call`-only workflow — it has no
 `workflow_dispatch` and cannot be targeted directly; dispatch the specific
