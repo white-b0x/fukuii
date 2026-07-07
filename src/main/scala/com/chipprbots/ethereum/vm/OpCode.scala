@@ -162,22 +162,37 @@ object OpCodes:
   val SpiralOpCodes: List[OpCode] =
     PUSH0 +: PhoenixOpCodes
 
-  /** EIP-7939 / ECIP-1121: CLZ included in Olympia for ETC's block-based fork path. ETC uses forBlock() →
-    * OlympiaConfigBuilder; Osaka uses forTimestamp() (ETH only). Besu ClassicEVMs.olympiaOperations() confirms CLZ is
-    * required here for ETC.
+  /** ETH London opcode set (EIP-3198 BASEFEE, added with EIP-1559 at London). go-ethereum's newLondonInstructionSet
+    * applies enable3198, so BASEFEE (0x48) is present from London onward. ETH-only: the shared PhoenixOpCodes bundle
+    * (also ETC Phoenix / ETH Istanbul-Berlin) must not carry BASEFEE, since ETC does not get BASEFEE until its Olympia
+    * fork — so this is a distinct ETH literal that references, but does not mutate, Phoenix.
+    */
+  val EthLondonOpCodes: List[OpCode] =
+    BASEFEE +: PhoenixOpCodes
+
+  /** ETH Shanghai opcode set: London + PUSH0 (EIP-3855). BASEFEE carried from EthLondonOpCodes. ETH-only. */
+  val EthShanghaiOpCodes: List[OpCode] =
+    PUSH0 +: EthLondonOpCodes
+
+  /** ETH Cancun opcode set (timestamp-based, EvmConfig Cancun overlay). Adds EIP-4844 (BLOBHASH), EIP-7516
+    * (BLOBBASEFEE), EIP-1153 (TLOAD/TSTORE) and EIP-5656 (MCOPY) over Shanghai. Does NOT include CLZ (EIP-7939): per
+    * go-ethereum, CLZ is added only at Osaka (newOsakaInstructionSet = Prague + enable7939), not Cancun/Prague. This
+    * list is ETH-only; ETC's block-based Olympia uses EtcOlympiaOpCodes instead.
     */
   val OlympiaOpCodes: List[OpCode] =
-    CLZ :: (List(BASEFEE, BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY) ++ SpiralOpCodes)
+    List(BASEFEE, BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY) ++ SpiralOpCodes
 
-  /** ETC Olympia opcode list (ECIP-1121 via block-based fork). Excludes EIP-4844 (BLOBHASH) and EIP-7516 (BLOBBASEFEE)
-    * which are ETH-only: core-geth ETC Olympia config has no EIP4844FBlock or EIP7516FBlock. Besu
-    * ClassicEVMs.olympiaOperations() confirms these are absent for ETC.
+  /** ETC Olympia opcode list (ECIP-1121 via block-based fork). Includes CLZ (ECIP-1121). Excludes EIP-4844 (BLOBHASH)
+    * and EIP-7516 (BLOBBASEFEE) which are ETH-only: core-geth ETC Olympia config has no EIP4844FBlock or EIP7516FBlock.
+    * Besu ClassicEVMs.olympiaOperations() confirms these are absent for ETC.
     */
   val EtcOlympiaOpCodes: List[OpCode] =
     CLZ :: (List(BASEFEE, TLOAD, TSTORE, MCOPY) ++ SpiralOpCodes)
 
-  /** ETH Osaka (timestamp-based); CLZ already present via OlympiaOpCodes. */
-  val OsakaOpCodes: List[OpCode] = OlympiaOpCodes
+  /** ETH Osaka opcode set = Cancun + CLZ (EIP-7939). Matches go-ethereum newOsakaInstructionSet = Prague + enable7939;
+    * Prague adds no new EVM opcode over Cancun, so Osaka = Cancun + CLZ. ETH-only.
+    */
+  val OsakaOpCodes: List[OpCode] = CLZ :: OlympiaOpCodes
 
 object OpCode:
   def sliceBytes(bytes: ByteString, offset: UInt256, size: UInt256): ByteString =

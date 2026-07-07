@@ -36,7 +36,7 @@ object EvmConfig:
     // Apply timestamp-based fork upgrades for ETH chains
     if blockchainConfig.isShanghaiTimestamp(timestamp) then
       config = config.copy(
-        opCodeList = SpiralOpCodes, // Adds PUSH0 (EIP-3855)
+        opCodeList = EthShanghaiOpCodes, // Adds PUSH0 (EIP-3855); carries BASEFEE (EIP-3198) from London
         eip3651Enabled = true, // Warm COINBASE
         eip3860Enabled = true // Initcode metering
       )
@@ -105,6 +105,8 @@ object EvmConfig:
   val PhoenixOpCodes: OpCodeList = OpCodeList(OpCodes.PhoenixOpCodes)
   val MagnetoOpCodes: OpCodeList = PhoenixOpCodes
   val SpiralOpCodes: OpCodeList = OpCodeList(OpCodes.SpiralOpCodes)
+  val EthLondonOpCodes: OpCodeList = OpCodeList(OpCodes.EthLondonOpCodes)
+  val EthShanghaiOpCodes: OpCodeList = OpCodeList(OpCodes.EthShanghaiOpCodes)
   val OlympiaOpCodes: OpCodeList = OpCodeList(OpCodes.OlympiaOpCodes)
   val EtcOlympiaOpCodes: OpCodeList = OpCodeList(OpCodes.EtcOlympiaOpCodes)
   val OsakaOpCodes: OpCodeList = OpCodeList(OpCodes.OsakaOpCodes)
@@ -201,11 +203,13 @@ object EvmConfig:
       eip6049DeprecationEnabled = true
     )
 
-  /** London-only config for ETH chains. Enables EIP-1559/3529/3541 without Shanghai+ EIPs. Used when Olympia block
-    * number differs from Spiral/Mystique (i.e., ETH fork schedule).
+  /** London-only config for ETH chains. Enables EIP-1559/3198/3529/3541 without Shanghai+ EIPs. Used when Olympia block
+    * number differs from Spiral/Mystique (i.e., ETH fork schedule). ETH-only: reached solely via the etcForksDisabled
+    * branch in forBlock, so the EthLondonOpCodes list (which adds BASEFEE) never affects the ETC path.
     */
   val LondonConfigBuilder: EvmConfigBuilder = config =>
     MagnetoConfigBuilder(config).copy(
+      opCodeList = EthLondonOpCodes, // EIP-3198: BASEFEE (0x48) from London
       feeSchedule = new ethereum.vm.FeeSchedule.MystiqueFeeSchedule, // EIP-3529 refund changes
       eip3541Enabled = true // EIP-3541: reject 0xEF contracts
     )
