@@ -77,6 +77,12 @@ class PeerActorHandshakingSpec extends ScalaTestWithActorTestKit(ManualTime.conf
     // Test that the handshake failed
     rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
 
+    // NETWORK-01: a handshake-failure disconnect must notify PeerManagerActor so
+    // getBlacklistDuration() can blacklist the peer by reason.
+    peerManagerProbe.expectMessage(
+      PeerManagerActor.PeerClosedConnectionCmd("127.0.0.1", defaultReasonDisconnect.toLong)
+    )
+
   it should "succeed in establishing connection in simple Hello exchange" taggedAs (
     UnitTest,
     NetworkTest
@@ -164,6 +170,7 @@ class PeerActorHandshakingSpec extends ScalaTestWithActorTestKit(ManualTime.conf
     val rlpxConnectionProbe: TypedTestProbe[RLPxConnectionHandler.Command] = TypedTestProbe()
     val peerMessageBus: TypedTestProbe[PeerEventBusActor.Command] = TypedTestProbe()
     val knownNodesManager: TypedTestProbe[KnownNodesManager.Command] = TypedTestProbe()
+    val peerManagerProbe: TypedTestProbe[PeerManagerActor.Command] = TypedTestProbe()
 
     def peerActor(handshaker: Handshaker[PeerInfo]): ActorRef[PeerActor.Command] = testKit.spawn(
       PeerActor.apply(
@@ -173,7 +180,8 @@ class PeerActorHandshakingSpec extends ScalaTestWithActorTestKit(ManualTime.conf
         peerEventBus = peerMessageBus.ref,
         knownNodesManager = knownNodesManager.ref,
         incomingConnection = false,
-        initHandshaker = handshaker
+        initHandshaker = handshaker,
+        peerManagerRef = peerManagerProbe.ref
       )
     )
 

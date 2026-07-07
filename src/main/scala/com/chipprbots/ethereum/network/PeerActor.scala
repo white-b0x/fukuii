@@ -23,6 +23,7 @@ import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPe
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.PeerHandshakeSuccessful
 import com.chipprbots.ethereum.network.PeerEventBusActor.Command as PeerEventBusCommand
 import com.chipprbots.ethereum.network.PeerEventBusActor.PublishCmd
+import com.chipprbots.ethereum.network.PeerManagerActor
 import com.chipprbots.ethereum.network.PeerManagerActor.PeerConfiguration
 import com.chipprbots.ethereum.network.handshaker.Handshaker
 import com.chipprbots.ethereum.network.handshaker.Handshaker.HandshakeComplete.HandshakeFailure
@@ -125,7 +126,8 @@ object PeerActor:
       peerEventBus: ActorRef[PeerEventBusCommand],
       knownNodesManager: ActorRef[KnownNodesManager.Command],
       incomingConnection: Boolean,
-      initHandshaker: Handshaker[R]
+      initHandshaker: Handshaker[R],
+      peerManagerRef: ActorRef[PeerManagerActor.Command]
   ): Behavior[Command] =
     Behaviors.withStash(100) { stash =>
       Behaviors.setup { context =>
@@ -138,6 +140,7 @@ object PeerActor:
           incomingConnection,
           initHandshaker,
           stash,
+          peerManagerRef,
           context
         ).waitingForInitialCommand()
       }
@@ -156,7 +159,8 @@ object PeerActor:
       incomingConnection: Boolean,
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
-      capabilities: List[Capability]
+      capabilities: List[Capability],
+      peerManagerRef: ActorRef[PeerManagerActor.Command]
   ): org.apache.pekko.actor.Props =
     org.apache.pekko.actor.typed.scaladsl.adapter.PropsAdapter(
       apply(
@@ -166,7 +170,8 @@ object PeerActor:
         peerEventBus,
         knownNodesManager,
         incomingConnection,
-        initHandshaker = handshaker
+        initHandshaker = handshaker,
+        peerManagerRef = peerManagerRef
       )
     )
   // scalastyle:on parameter.number
@@ -204,6 +209,7 @@ object PeerActor:
       incomingConnection: Boolean,
       initHandshaker: Handshaker[R],
       stash: StashBuffer[Command],
+      peerManagerRef: ActorRef[PeerManagerActor.Command],
       context: ActorContext[Command]
   ):
 
@@ -277,6 +283,14 @@ object PeerActor:
             case Some(uri) if numRetries < peerConfiguration.connectMaxRetries =>
               scheduleConnectRetry(uri, numRetries)
             case Some(uri) =>
+              // Retries exhausted without ever establishing RLPx — never received a wire
+              // Disconnect (no connection was ever up to receive one on). Restores the
+              // pre-migration signal (removed in 222623960); reason=Other, matching
+              // handleTerminated's equivalent retries-exhausted branch below.
+              peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(
+                peerAddress.getHostString,
+                Disconnect.Reasons.Other.toLong
+              )
               knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri)
               Behaviors.stopped
             case None =>
@@ -385,6 +399,9 @@ object PeerActor:
             Disconnect.reasonToString(reason)
           )
           rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
+          // Notify PeerManagerActor so the handshake-failure reason (e.g. IncompatibleP2pProtocolVersion)
+          // triggers getBlacklistDuration — prevents immediate reconnect to a newly-incompatible peer.
+          peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(peerAddress.getHostString, reason.toLong)
           disconnectFromPeer(rlpxConnection, reason)
 
     // -----------------------------------------------------------------------
@@ -443,6 +460,16 @@ object PeerActor:
         case Some(uri) if numRetries < peerConfiguration.connectMaxRetries =>
           scheduleConnectRetry(uri, numRetries + 1)
         case Some(uri) =>
+          // Retries exhausted with no wire Disconnect ever received — a hard TCP close.
+          // Restores the pre-migration signal (removed in 222623960) so a peer that drops us
+          // this way still earns a (short-tier, reason=Other) blacklist instead of an immediate
+          // reconnect. Cannot double-fire with handleDisconnect: once a wire Disconnect is
+          // received, the actor either stops immediately or moves to disconnected(), which does
+          // not handle RlpxTerminated — so this branch is only reached when no Disconnect arrived.
+          peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(
+            peerAddress.getHostString,
+            Disconnect.Reasons.Other.toLong
+          )
           knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri)
           // TCP already closed remotely — no need for the disconnect PoisonPill delay
           // (normally used to let a Disconnect wire message flush). Stop immediately so
@@ -469,11 +496,32 @@ object PeerActor:
             s"This typically indicates: ForkId mismatch, malformed message, or protocol incompatibility. " +
             s"Check peer logs or enable debug logging for RLP bytes."
         )
+      // Restore the reason-based blacklist path that PeerManagerActor.handleConnections expects.
+      // The Classic shell that forwarded PeerClosedConnection → PeerClosedConnectionCmd was removed
+      // in commit 0f802b01e; PeerActor must now send it directly so getBlacklistDuration() and the
+      // SNAP-aware lenient-blacklist logic fire for every peer-initiated disconnect with a reason.
+      //
+      // This is the original pre-migration allowlist (222623960^), faithfully restored — NOT every
+      // reason fires the Cmd. BreachOfProtocol is deliberately excluded (falls through `case _`):
+      // getBlacklistDuration maps BreachOfProtocol to the PERMANENT tier, and a *received*
+      // Disconnect(BreachOfProtocol) is the PEER accusing US of a breach — a low-bar, often-transient
+      // condition (fork/version edge cases, decode hiccups mid-sync). Permanent-banning on the peer's
+      // own accusation would progressively suffocate the peer set. The genuinely-misbehaving case (we
+      // self-detect a peer sending garbage → self-initiated DisconnectPeer(BreachOfProtocol) below at
+      // the invalid-BlockRangeUpdate site, or in RLPxConnectionHandler's decode-failure path) is a
+      // separate, currently-unwired path — intentionally out of NETWORK-01's scope.
       d.reason match
         case IncompatibleP2pProtocolVersion | UselessPeer | NullNodeIdentityReceived | UnexpectedIdentity |
             IdentityTheSame | Other =>
+          peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(peerAddress.getHostString, d.reason)
           rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
-        case _ => // nothing
+        case TooManyPeers | TcpSubsystemError | DisconnectRequested | ClientQuitting | TimeoutOnReceivingAMessage =>
+          peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(peerAddress.getHostString, d.reason)
+        case AlreadyConnected =>
+          // NB-8: Propagate AlreadyConnected so PeerManagerActor can detect the inbound connection
+          // is already covering this maintained peer and skip the 30s reconnect timer.
+          peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(peerAddress.getHostString, d.reason)
+        case _ => // BreachOfProtocol (and any future reason code) — no blacklist signal, see above.
       log.debug(s"Received {}. Closing connection with peer ${peerAddress.getHostString}:${peerAddress.getPort}", d)
       status match
         case Handshaked =>

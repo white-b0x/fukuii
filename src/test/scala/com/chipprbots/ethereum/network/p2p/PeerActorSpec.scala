@@ -39,6 +39,7 @@ import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
 import com.chipprbots.ethereum.network.PeerActor.GetStatus
 import com.chipprbots.ethereum.network.PeerActor.Status.Handshaked
 import com.chipprbots.ethereum.network.PeerActor.StatusResponse
+import com.chipprbots.ethereum.network.PeerManagerActor
 import com.chipprbots.ethereum.network.PeerManagerActor.FastSyncHostConfiguration
 import com.chipprbots.ethereum.network.PeerManagerActor.PeerConfiguration
 import com.chipprbots.ethereum.network.handshaker.NetworkHandshaker
@@ -87,6 +88,14 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
       peer ! RLPxConnectionHandler.ConnectionFailed
     }
 
+    // NETWORK-01: once connectMaxRetries is exhausted with no RLPx connection ever established
+    // (no wire Disconnect possible), PeerActor must still notify PeerManagerActor (reason=Other)
+    // so the peer earns a short-tier blacklist instead of an immediate reconnect. Restores the
+    // pre-migration signal removed in 222623960.
+    peerManagerRef.expectMessage(
+      PeerManagerActor.PeerClosedConnectionCmd("127.0.0.1", Reasons.Other.toLong)
+    )
+
     deathProbe.expectTerminated(peer)
 
   it should "try to reconnect on broken rlpx connection" taggedAs (UnitTest, NetworkTest) in new NodeStatusSetup
@@ -116,6 +125,7 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
 
     val peerMessageBus = testKit.spawn(PeerEventBusActor.behavior(), s"peer-event-bus-${java.util.UUID.randomUUID()}")
     val knownNodesManager: TestProbe[KnownNodesManager.Command] = testKit.createTestProbe()
+    val peerManagerProbe: TestProbe[PeerManagerActor.Command] = testKit.createTestProbe()
 
     val peer: ActorRef[PeerActor.Command] = testKit.spawn(
       PeerActor.apply(
@@ -125,7 +135,8 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
         peerMessageBus,
         knownNodesManager.ref,
         false,
-        handshaker
+        handshaker,
+        peerManagerProbe.ref
       )
     )
 
@@ -364,7 +375,8 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
         peerMessageBus,
         knownNodesManager.ref,
         false,
-        Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false)
+        Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false),
+        peerManagerRef.ref
       )
     )
 
@@ -399,6 +411,13 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
 
     peer ! RLPxConnectionHandler.MessageReceived(Disconnect(Reasons.Other))
 
+    // NETWORK-01: PeerActor must notify PeerManagerActor of the disconnect reason so
+    // reason-based blacklisting (getBlacklistDuration) is reachable in production —
+    // the Classic shell that used to forward this was removed in 0f802b01e.
+    peerManagerRef.expectMessage(
+      PeerManagerActor.PeerClosedConnectionCmd("127.0.0.1", Reasons.Other.toLong)
+    )
+
     // No terminated message instantly
     deathProbe.expectNoMessage()
 
@@ -406,6 +425,35 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
     manualTime.timePasses(peerConf.disconnectPoisonPillTimeout)
 
     deathProbe.expectTerminated(peer)
+
+  it should "not notify PeerManagerActor on a received Disconnect(BreachOfProtocol)" taggedAs (
+    UnitTest,
+    NetworkTest
+  ) in new TestSetup:
+    saveEtcChainAtDaoFork()
+
+    peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
+
+    rlpxConnection.expectMessageType[RLPxConnectionHandler.ConnectTo]
+    peer ! RLPxConnectionHandler.ConnectionEstablished(remoteNodeId)
+
+    eth68Handshake(
+      remoteHello = Hello(4, "test-client", Seq(Capability.ETH68), 9000, ByteString("unused")),
+      remoteStatus = etcStatus68()
+    )
+
+    val statusProbe: TestProbe[StatusResponse] = testKit.createTestProbe()
+    peer ! GetStatus(statusProbe.ref)
+    statusProbe.expectMessage(StatusResponse(Handshaked))
+
+    // NETWORK-01: a RECEIVED Disconnect(BreachOfProtocol) is the peer accusing US of a breach —
+    // getBlacklistDuration maps BreachOfProtocol to the permanent tier, so permanent-banning on the
+    // peer's own (often transient/ambiguous) accusation would suffocate the peer set over time.
+    // Faithful to the pre-migration original (222623960^): this reason must NOT reach
+    // PeerManagerActor from the received-disconnect path.
+    peer ! RLPxConnectionHandler.MessageReceived(Disconnect(Reasons.BreachOfProtocol))
+
+    peerManagerRef.expectNoMessage()
 
   it should "stop when Disconnect(AlreadyConnected) is received during handshake" taggedAs (
     UnitTest,
@@ -423,7 +471,8 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
         peerMessageBus,
         knownNodesManager.ref,
         false,
-        handshaker
+        handshaker,
+        peerManagerRef.ref
       )
     )
 
@@ -435,6 +484,12 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
     peerUnderTest ! RLPxConnectionHandler.MessageReceived(Disconnect(Reasons.AlreadyConnected))
 
     deathProbe.expectTerminated(peerUnderTest)
+
+    // NETWORK-01: PeerManagerActor must be notified of the disconnect reason so
+    // getBlacklistDuration() can apply the correct tier — even for pre-handshake disconnects.
+    peerManagerRef.expectMessage(
+      PeerManagerActor.PeerClosedConnectionCmd("127.0.0.1", Reasons.AlreadyConnected.toLong)
+    )
 
   trait BlockUtils:
 
@@ -547,6 +602,9 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
     val knownNodesManager: TestProbe[KnownNodesManager.Command] =
       testKit.createTestProbe[KnownNodesManager.Command]()
 
+    val peerManagerRef: TestProbe[PeerManagerActor.Command] =
+      testKit.createTestProbe[PeerManagerActor.Command]()
+
     val peer: ActorRef[PeerActor.Command] = testKit.spawn(
       PeerActor.apply(
         new InetSocketAddress("127.0.0.1", 0),
@@ -555,7 +613,8 @@ class PeerActorSpec extends ScalaTestWithActorTestKit(ManualTime.config) with An
         peerMessageBus,
         knownNodesManager.ref,
         false,
-        handshaker
+        handshaker,
+        peerManagerRef.ref
       )
     )
 

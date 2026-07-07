@@ -33,6 +33,7 @@ import com.chipprbots.ethereum.network.PeerActor.GetStatus
 import com.chipprbots.ethereum.network.PeerActor.StatusResponse
 import com.chipprbots.ethereum.network.PeerId
 import com.chipprbots.ethereum.network.PeerEventBusActor
+import com.chipprbots.ethereum.network.PeerManagerActor
 import com.chipprbots.ethereum.network.PeerEventBusActor.SubscribeCmd
 import com.chipprbots.ethereum.network.rlpx.RLPxConnectionHandler
 import com.chipprbots.ethereum.network.p2p.messages.Capability
@@ -85,6 +86,7 @@ class BlockRangeUpdateDecodePathSpec
       val rlpxProbe = testKit.createTestProbe[RLPxConnectionHandler.Command]()
       val eventBusProbe = testKit.createTestProbe[PeerEventBusActor.Command]()
       val knownProbe = testKit.createTestProbe[KnownNodesManager.Command]()
+      val peerManagerProbe = testKit.createTestProbe[PeerManagerActor.Command]()
       val peer: TestActorRef[Nothing] = TestActorRef(
         PropsAdapter(
           PeerActor.apply(
@@ -94,7 +96,8 @@ class BlockRangeUpdateDecodePathSpec
             eventBusProbe.ref,
             knownProbe.ref,
             false,
-            MockHandshakerAlwaysSucceeds(dummyStatus, BigInt(0), true)
+            MockHandshakerAlwaysSucceeds(dummyStatus, BigInt(0), true),
+            peerManagerProbe.ref
           )
         )
       )(cs)
@@ -122,6 +125,7 @@ class BlockRangeUpdateDecodePathSpec
       val rlpxProbe = testKit.createTestProbe[RLPxConnectionHandler.Command]()
       val eventBusProbe = testKit.createTestProbe[PeerEventBusActor.Command]()
       val knownProbe = testKit.createTestProbe[KnownNodesManager.Command]()
+      val peerManagerProbe = testKit.createTestProbe[PeerManagerActor.Command]()
       val peer: TestActorRef[Nothing] = TestActorRef(
         PropsAdapter(
           PeerActor.apply(
@@ -131,7 +135,8 @@ class BlockRangeUpdateDecodePathSpec
             eventBusProbe.ref,
             knownProbe.ref,
             false,
-            MockHandshakerAlwaysSucceeds(dummyStatus, BigInt(0), true)
+            MockHandshakerAlwaysSucceeds(dummyStatus, BigInt(0), true),
+            peerManagerProbe.ref
           )
         )
       )(cs)
