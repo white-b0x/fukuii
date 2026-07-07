@@ -27,6 +27,7 @@ Tracked protocols that all agents reference are read at `.claude/agent-protocols
 | `finding-resolution.md` | Every audit/review finding gets scheduled (existing IP, new IP, or a real future-batch entry) — never left as a bare flagged-but-unscheduled note |
 | `logging-standards.md` | Preferred logging API, levels, message format, SLF4J patterns |
 | `comments.md` | Default-to-no-comment policy; when a comment is warranted; sanctioned exceptions (`// MIGRATION:`, `@nowarn` reason lines, `not given` annotations); scaladoc vs. inline-comment distinction |
+| `nomenclature.md` | Two-tier vocabulary: neutral ecosystem terms (`PoW`/`PoS`, chain ID, EIP/ECIP-NNNN) at the shared/framework level, network-specific fork/event names (`London`, `the Merge`, `Osaka`, `Olympia`) as family-local instance labels only — the anti-conflation ratchet one layer above `scala3-style.md`'s `Eth*`/`Etc*` symbol rule |
 | `scala3-style.md` | S1–S11 Scala 3 standards with grep-verifiable ratchets (S11: opaque type full-layer propagation) |
 | `scala3-given-migration.md` | G1–G3 operational pitfalls for `given/using` migration (P3a findings, applies to P3b) |
 | `pekko-typed-api.md` | P1–P25 Pekko Typed API preferences + TL1/TL2 Cats Effect integration rules |
@@ -103,6 +104,7 @@ subagent for source-code analysis/modification; use a `.claude/skills/fukuii-*` 
 | :-------- | :--------- | :--------- |
 | `forge`   | **PoW** consensus (currently ETC/Mordor): EVM, Ethash mining, crypto, state, block rewards, hard forks, EIP/ECIP | **Before** any PoW consensus change |
 | `beacon`  | **PoS** consensus (currently ETH/Sepolia): timestamp forks, Osaka EIPs, withdrawals, blobs, execution payload | **Before** any PoS consensus change |
+| `banksy`  | **Client-layer policy** (non-consensus, protocol-relevant — sits between forge/beacon and herald): mempool/txpool admission gates, block-production transaction selection/ordering, gas-price/tip floors (ECIP-1122 `MIN_MINER_TIP`), network-authoritative gas-target schedule, subjective fork-choice (MESS/ECIP-1100) | **Before** any change to admission gates, tip/price floors, gas-target enforcement, or MESS/reorg scoring — the state-root litmus decides banksy vs. forge/beacon |
 | `eye`     | Validation: compile + run the right test tier, check chain compatibility, report pass/fail | **After** code changes |
 | `wraith`  | Scala 3 compile errors / build failures | On compile failures |
 | `herald`  | P2P / RLPx / ETH wire protocol, Snappy, handshakes, multi-client interop | On networking issues |
@@ -135,6 +137,28 @@ Triggers: PR/diff mentions "EIP"/"ECIP"; changes under `consensus/`, `vm/`,
 `crypto/`, `domain/`; anything affecting block validation, rewards, or signing.
 May skip for docs-only, build config, non-consensus test infra, or pure network
 formatting (use `herald`).
+
+**The forge/beacon ↔ banksy co-review interface.** `banksy` owns the client-layer
+policy tier — mempool/txpool admission, transaction selection, tip/gas-target
+floors, MESS subjective fork-choice — which is protocol-relevant but explicitly
+*not* consensus (the litmus: does the change alter the state root?). This
+produces two required co-review directions, not a one-way handoff:
+
+- **banksy owns, forge co-signs**: MESS / ECIP-1100 (`consensus/mess/`,
+  `ledger/BranchResolution.scala`) — subjective and non-state-root, so it's
+  banksy's to edit, but its entire purpose is reorg/51%-attack resistance, so
+  forge must co-sign every change before it lands.
+- **forge owns, banksy is a required consult**: ECIP-1017 emission
+  (`BlockRewardCalculator.scala`) and ECIP-1111 base-fee floor/Treasury routing
+  (`BlockPreparator.scala`) — both state-affecting and therefore forge's to
+  implement, but they define the network security-budget economics that
+  banksy's ECIP-1122 tip floor is sized against, so banksy must be consulted
+  before either lands.
+
+Route MESS or admission/tip-floor/gas-target changes to `banksy` first; route
+emission/base-fee-floor changes to `forge` first but loop in `banksy` before
+merging. See `banksy.md` for the full charter and `consensus-change-protocol.md`
+for the canonical litmus text.
 
 ## OODA loop for large migrations / multi-file work
 

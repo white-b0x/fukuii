@@ -51,6 +51,7 @@ Full index: [`.claude/agents/REFERENCES.md`](REFERENCES.md)
 - Opaque type propagation patterns (full catalogue for S11): `docs/research/best-practices/scala/type-safety.md`
 - Codebase audit (52 S11 and Pekko violations with file:line): `docs/research/best-practices/codebase-audit.md`
 - Worktree discipline (sprint vs task patterns, naming, lifecycle, agent rules): `~/.claude/agent-protocols/worktree-protocol.md`
+- Ecosystem-consistent naming: neutral EIP/ECIP/chain-ID vocabulary at the shared level, network fork/event names as family-local labels only — apply when renaming or modernizing any symbol that touches network identity: `~/.claude/agent-protocols/nomenclature.md`
 
 ## Operating rules
 

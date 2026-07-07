@@ -6,7 +6,13 @@ or migration commits from silently altering chain state, wire behavior, or
 cryptographic correctness.
 
 Used by: ALL agents (hard stop — non-negotiable)
-Referenced by: `fukuii/CLAUDE.md`, loom.md, wraith.md, mithril.md
+Referenced by: `fukuii/CLAUDE.md`, loom.md, wraith.md, mithril.md, banksy.md
+
+**Vocabulary counterpart:** the naming trap this protocol's `OlympiaOpCodes` mentions
+allude to (ETH's Cancun path reusing ETC's own fork name — see `PARITY-02`,
+`.claude/sprints/QUEUE.md`) is a code-symbol instance of a broader naming discipline —
+see `nomenclature.md` for the general rule: neutral ecosystem vocabulary at the shared
+level, network fork/event names as family-local instance labels only.
 
 ---
 
@@ -42,6 +48,65 @@ Referenced by: `fukuii/CLAUDE.md`, loom.md, wraith.md, mithril.md
 - `db/` — RocksDB config, WAL, batch writes, LRU cache
 - EphemDataSource, DataSource contracts
 - State trie reads/writes that aren't purely domain-level
+
+**Client-layer policy — NOT consensus (route to BANKSY):**
+- `transactions/PendingTransactionsManager.scala`,
+  `transactions/SignedTransactionsFilterActor.scala` — mempool/txpool admission
+  gates (ECIP-1122 `MIN_MINER_TIP` floor and similar)
+- `consensus/blocks/BlockGeneratorSkeleton.scala` — block-production transaction
+  selection/ordering (the production-side redundant tip-floor enforcement)
+- `utils/BlockchainConfig.scala` fields `minTip`, `spiralGasTarget`,
+  `olympiaGasTarget` and the `min-tip`/`*-gas-target` keys in
+  `conf/base/chains/*-chain.conf` — operator-tunable client parameters, not
+  consensus rules
+- `consensus/mess/ArtificialFinality.scala`, `consensus/mess/MESSConfig.scala`,
+  and the reorg-decision path in `ledger/BranchResolution.scala` — MESS /
+  ECIP-1100 subjective fork-choice scoring (see co-review note below)
+
+---
+
+## The state-root litmus — forge/beacon vs. banksy
+
+Before routing a client-layer-looking change to forge, beacon, or banksy, apply
+this test: **does the change alter the state root?**
+
+- **YES** — it's forge (PoW) or beacon (PoS) territory, even if the change
+  looks like "just a config parameter." Balances, storage, emission, and
+  treasury credits are consensus regardless of how the value is sourced.
+- **NO, and the parameter is operator-tunable without a hard fork** — it's
+  banksy's: mempool/txpool admission, transaction-selection ordering, tip/gas
+  floors, gas-target schedules, subjective fork-choice (MESS). ECIP-1122 itself
+  chooses chain configuration over consensus for exactly this reason
+  ("operator-configurable minimums allow the network to adapt ... without
+  requiring a hard fork").
+
+**Worked example — the canonical case for this litmus**: ECIP-1122's
+`MIN_MINER_TIP` (1 gwei) and ECIP-1111's `MIN_BASE_FEE` (1 gwei) are the same
+numeric floor from the same Olympia fee model, but opposite ownership —
+`MIN_BASE_FEE` is redirected to the ECIP-1112 Treasury (a balance change, state
+root, forge's), `MIN_MINER_TIP` is an admission/selection gate that changes
+which transactions are considered, not any account balance (banksy's).
+
+### Bidirectional co-ownership (banksy ↔ forge)
+
+A proposal's *concerns* can split across the litmus, producing co-review in
+both directions — this is not a one-way handoff:
+
+- **banksy owns, forge co-signs**: MESS / ECIP-1100. It is subjective
+  (score depends on local observation timing, not chain data a third party can
+  verify) and does not touch any state root, so it's banksy's to edit — but its
+  purpose is reorg/51%-attack resistance, so **no MESS change lands without a
+  forge co-review**, regardless of how small the diff looks.
+- **forge owns, banksy is a required consult**: ECIP-1017 emission
+  (`BlockRewardCalculator.scala`) and ECIP-1111 base-fee floor/Treasury routing
+  (`BlockPreparator.scala`). These are state-affecting and forge's to implement,
+  but they define the network security-budget economics that banksy's
+  ECIP-1122 tip floor is sized against — banksy must be in the room before
+  either lands, even though banksy does not edit the code.
+
+The shared overlap zone across both directions is *network security economics*
+(ECIP-1017 emission ↔ ECIP-1122 tip floor ↔ MESS reorg resistance) — forge and
+banksy approach it from opposite sides.
 
 ---
 
@@ -93,6 +158,11 @@ no issue, but the review should have happened before the fix, not after.
 | RLP encoding of domain types | FORGE + BEACON + HERALD |
 | New PoW-family network added | FORGE |
 | New PoS-family network added | BEACON |
+| Mempool/txpool admission gates, tip/price floors | BANKSY |
+| Block-production transaction selection/ordering | BANKSY |
+| Gas-target schedule (production ceiling, not header validation) | BANKSY |
+| MESS / ECIP-1100 subjective fork-choice scoring | BANKSY (owns) + FORGE (co-signs) |
+| ECIP-1017 emission, ECIP-1111 base-fee floor/Treasury routing | FORGE (owns) + BANKSY (required consult) |
 
 ---
 

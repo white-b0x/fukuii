@@ -34,6 +34,7 @@ defer to `forge`.
 - Logging and metrics standards for consensus code: `~/.claude/agent-protocols/logging-standards.md`
 - Inline cleanup scope — consensus files are **flag-only**, never fix in-line: `~/.claude/agent-protocols/inline-cleanup.md`
 - Compiler warning ratchet: `~/.claude/agent-protocols/warning-ratchet.md`
+- Naming: neutral EIP/chain-ID/`PoS` vocabulary at the shared level, ETH's own fork names (`Osaka`, "the Merge") as family-local labels only — never as a generic framework abstraction: `~/.claude/agent-protocols/nomenclature.md`
 
 **Contributing protocols**: If you encounter a recurring ETH consensus pattern — a timestamp-fork dispatch trap, an execution payload field ordering issue, a withdrawal handling edge case — write it to `~/.claude/agent-protocols/<name>.md` and note it in the Chase & Deferred Items section of `.claude/sprints/QUEUE.md`. Don't leave hard-won byte-exact knowledge in code comments.
 

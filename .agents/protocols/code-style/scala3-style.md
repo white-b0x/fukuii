@@ -14,6 +14,11 @@ Referenced by: mithril.md, inline-cleanup.md
 is out of scope here — this doc governs Scala-3 *language idioms*, not comment content. See
 `comments.md`.
 
+**Naming vocabulary** (which terms are shared/framework-level vs. network-family-local — the
+discipline behind the `Eth*`/`Etc*` no-conflation rule applied throughout this codebase) is
+also out of scope here — see `nomenclature.md`, which generalizes that rule one layer above
+the code symbol, to the vocabulary an agent reaches for before writing a symbol at all.
+
 ---
 
 ## The ratchet model
