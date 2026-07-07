@@ -286,7 +286,9 @@ object PeerActor:
               // Retries exhausted without ever establishing RLPx — never received a wire
               // Disconnect (no connection was ever up to receive one on). Restores the
               // pre-migration signal (removed in 222623960); reason=Other, matching
-              // handleTerminated's equivalent retries-exhausted branch below.
+              // handleTerminated's equivalent retries-exhausted branch below. Self-classified
+              // event — always notifies unconditionally, exempt from
+              // PeerDisconnectPolicy.receivedDisconnectAction (see that object's doc).
               peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(
                 peerAddress.getHostString,
                 Disconnect.Reasons.Other.toLong
@@ -401,6 +403,9 @@ object PeerActor:
           rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
           // Notify PeerManagerActor so the handshake-failure reason (e.g. IncompatibleP2pProtocolVersion)
           // triggers getBlacklistDuration — prevents immediate reconnect to a newly-incompatible peer.
+          // Self-classified event (our handshaker's own conclusion, not a peer-supplied claim) — always
+          // notifies unconditionally, exempt from PeerDisconnectPolicy.receivedDisconnectAction (see
+          // that object's doc for why this is intentional, not an inconsistency).
           peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(peerAddress.getHostString, reason.toLong)
           disconnectFromPeer(rlpxConnection, reason)
 
@@ -466,6 +471,8 @@ object PeerActor:
           // reconnect. Cannot double-fire with handleDisconnect: once a wire Disconnect is
           // received, the actor either stops immediately or moves to disconnected(), which does
           // not handle RlpxTerminated — so this branch is only reached when no Disconnect arrived.
+          // Self-classified event — always notifies unconditionally, exempt from
+          // PeerDisconnectPolicy.receivedDisconnectAction (see that object's doc).
           peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(
             peerAddress.getHostString,
             Disconnect.Reasons.Other.toLong
@@ -501,27 +508,15 @@ object PeerActor:
       // in commit 0f802b01e; PeerActor must now send it directly so getBlacklistDuration() and the
       // SNAP-aware lenient-blacklist logic fire for every peer-initiated disconnect with a reason.
       //
-      // This is the original pre-migration allowlist (222623960^), faithfully restored — NOT every
-      // reason fires the Cmd. BreachOfProtocol is deliberately excluded (falls through `case _`):
-      // getBlacklistDuration maps BreachOfProtocol to the PERMANENT tier, and a *received*
-      // Disconnect(BreachOfProtocol) is the PEER accusing US of a breach — a low-bar, often-transient
-      // condition (fork/version edge cases, decode hiccups mid-sync). Permanent-banning on the peer's
-      // own accusation would progressively suffocate the peer set. The genuinely-misbehaving case (we
-      // self-detect a peer sending garbage → self-initiated DisconnectPeer(BreachOfProtocol) below at
-      // the invalid-BlockRangeUpdate site, or in RLPxConnectionHandler's decode-failure path) is a
-      // separate, currently-unwired path — intentionally out of NETWORK-01's scope.
-      d.reason match
-        case IncompatibleP2pProtocolVersion | UselessPeer | NullNodeIdentityReceived | UnexpectedIdentity |
-            IdentityTheSame | Other =>
-          peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(peerAddress.getHostString, d.reason)
-          rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
-        case TooManyPeers | TcpSubsystemError | DisconnectRequested | ClientQuitting | TimeoutOnReceivingAMessage =>
-          peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(peerAddress.getHostString, d.reason)
-        case AlreadyConnected =>
-          // NB-8: Propagate AlreadyConnected so PeerManagerActor can detect the inbound connection
-          // is already covering this maintained peer and skip the 30s reconnect timer.
-          peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(peerAddress.getHostString, d.reason)
-        case _ => // BreachOfProtocol (and any future reason code) — no blacklist signal, see above.
+      // Notify/removeKnownNode decision (including the deliberate BreachOfProtocol exclusion — a
+      // *received* accusation, not a self-detected breach) lives in
+      // [[PeerDisconnectPolicy.receivedDisconnectAction]], the single source of truth shared with
+      // PeerManagerActor's blacklist-tier lookup. See that object's doc for the full rationale.
+      val action = PeerDisconnectPolicy.receivedDisconnectAction(d.reason)
+      if action.shouldNotify then
+        peerManagerRef ! PeerManagerActor.PeerClosedConnectionCmd(peerAddress.getHostString, d.reason)
+      if action.removeKnownNode then
+        rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
       log.debug(s"Received {}. Closing connection with peer ${peerAddress.getHostString}:${peerAddress.getPort}", d)
       status match
         case Handshaked =>

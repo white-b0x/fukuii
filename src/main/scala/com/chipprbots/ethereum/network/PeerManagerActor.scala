@@ -514,7 +514,7 @@ object PeerManagerActor:
       // the full short duration so we can re-dial it within seconds. Bounded by MaxSnapLenientBlacklists to stop a
       // misbehaving peer from flap-looping. Permanent (BreachOfProtocol-tier) bans are left untouched — the exemption
       // must never swallow a genuine breach.
-      val isSoftTier = baseDuration == peerConfiguration.shortBlacklistDuration
+      val isSoftTier = PeerDisconnectPolicy.tier(reason) == PeerDisconnectPolicy.BlacklistTier.Short
       if isSoftTier && snapCapableHosts.contains(peerAddress) then
         val lenientCount = snapLenientBlacklists.getOrElse(peerAddress, 0)
         if lenientCount < PeerManagerActor.MaxSnapLenientBlacklists then
@@ -1096,36 +1096,19 @@ object PeerManagerActor:
 
   /** Translate an inbound `Disconnect.Reasons.*` code into the blacklist duration we apply when the peer initiated the
     * disconnect. Extracted from the actor instance so it's directly unit-testable without spinning up a TestActorRef.
-    *
-    * Policy tiers (longest-first for readability):
-    *   - **Permanent** for protocol violations (`BreachOfProtocol`, `IncompatibleP2pProtocolVersion`,
-    *     `NullNodeIdentityReceived`). Besu's PeerDenylistManager does the same.
-    *   - **Short** for soft "peer selection policy" rejections — the peer disconnected us because of how they pick
-    *     counterparties, not because we did anything wrong. Covers `Other`, `UselessPeer`, `TooManyPeers`,
-    *     `AlreadyConnected`, `ClientQuitting`, `TcpSubsystemError`, `DisconnectRequested`,
-    *     `TimeoutOnReceivingAMessage`. Long blacklist on these classes destroys the peer pool during initial sync:
-    *     peers reject us as uninteresting (we're at genesis / mid-SNAP-sync), we IP-blacklist them, and by the time
-    *     they'd accept us again we still can't re-dial. Sepolia 2026-05-13: 100+ peers blacklisted within 5 min, pool
-    *     collapsed to one peer; ETC mainnet has the same pattern.
-    *   - **Long** for anything else (catch-all).
-    *
-    * The classification of `UselessPeer` as a SHORT-tier rejection (was: LONG, via the `_` wildcard) is the substantive
-    * change. `UselessPeer` is a *the-peer-rejected-us* signal, not a protocol violation, and our state is highly
-    * dynamic during initial sync — fast re-dials are the right policy.
+    * Tier classification itself lives in [[PeerDisconnectPolicy.tier]] — the single source of truth shared with
+    * `PeerActor.handleDisconnect`'s notify decision; see that object's doc for the peer-scarce-network rationale
+    * (Sepolia 2026-05-13 pool collapse) and the `UselessPeer` SHORT-tier classification.
     */
   private[network] def blacklistDurationForDisconnect(
       reason: Long,
       shortBlacklistDuration: FiniteDuration,
       longBlacklistDuration: FiniteDuration
   ): FiniteDuration =
-    import Disconnect.Reasons.*
-    reason match
-      case BreachOfProtocol | IncompatibleP2pProtocolVersion | NullNodeIdentityReceived =>
-        DefaultPermanentBlacklistDuration
-      case TooManyPeers | AlreadyConnected | ClientQuitting | Other | UselessPeer | TcpSubsystemError |
-          DisconnectRequested | TimeoutOnReceivingAMessage =>
-        shortBlacklistDuration
-      case _ => longBlacklistDuration
+    PeerDisconnectPolicy.tier(reason) match
+      case PeerDisconnectPolicy.BlacklistTier.Permanent => DefaultPermanentBlacklistDuration
+      case PeerDisconnectPolicy.BlacklistTier.Short     => shortBlacklistDuration
+      case PeerDisconnectPolicy.BlacklistTier.Long      => longBlacklistDuration
 
   sealed abstract class ConnectionError
 
