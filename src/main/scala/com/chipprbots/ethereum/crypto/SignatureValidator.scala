@@ -10,9 +10,10 @@ import com.chipprbots.ethereum.crypto
 import com.chipprbots.ethereum.jsonrpc.JsonMethodsImplicits
 import com.chipprbots.ethereum.security.SecureRandomBuilder
 import com.chipprbots.ethereum.utils.ByteStringUtils
+import com.chipprbots.ethereum.utils.Logger
 
 // scalastyle:off regex
-object SignatureValidator extends App with SecureRandomBuilder with JsonMethodsImplicits:
+object SignatureValidator extends App with SecureRandomBuilder with JsonMethodsImplicits with Logger:
 
   args match
     case Array(pk, sig, msgHash) =>
@@ -23,8 +24,12 @@ object SignatureValidator extends App with SecureRandomBuilder with JsonMethodsI
         signature.flatMap(_.publicKey(msg))
       } match
         case Failure(exception) =>
-          System.err.println(
-            s"Can't recover public key from signature [$sig] and msg [$msgHash]: ERROR: ${exception.getMessage}"
+          log.error(
+            "Can't recover public key from signature [{}] and msg [{}]: ERROR: {}",
+            sig,
+            msgHash,
+            exception.getMessage,
+            exception
           )
           sys.exit(1)
         case Success(recoveredPk) =>
@@ -32,15 +37,19 @@ object SignatureValidator extends App with SecureRandomBuilder with JsonMethodsI
           recoveredPk match
             case Some(recoveredKey) =>
               if recoveredKey == publicKey then
-                System.err.println(
-                  s"Recovered public key [${ByteStringUtils.hash2string(recoveredKey)}] is the same as given one"
+                log.info(
+                  "Recovered public key [{}] is the same as given one",
+                  ByteStringUtils.hash2string(recoveredKey)
                 )
               else
-                System.err.println(s"Recovered public key [${ByteStringUtils
-                    .hash2string(recoveredKey)}] is different than given [${ByteStringUtils.hash2string(publicKey)}]")
+                log.error(
+                  "Recovered public key [{}] is different than given [{}]",
+                  ByteStringUtils.hash2string(recoveredKey),
+                  ByteStringUtils.hash2string(publicKey)
+                )
                 sys.exit(1)
             case None =>
-              System.err.println(s"Can't recover public key from signature [$sig] and msg [$msgHash]")
+              log.error("Can't recover public key from signature [{}] and msg [{}]", sig, msgHash)
               sys.exit(1)
     case _ =>
       val keyPair = crypto.generateKeyPair(secureRandom)
@@ -49,7 +58,10 @@ object SignatureValidator extends App with SecureRandomBuilder with JsonMethodsI
       val hashStr = ByteStringUtils.hash2string(ByteString(hash))
       val signature = ECDSASignature.sign(hash, keyPair)
       val sigStr = ByteStringUtils.hash2string(signature.toBytes)
-      System.err.println(
-        s"Bad Input. Example usage: [signature-validator publicKey signature message_hash]. Example: [signature-validator $pkStr $sigStr $hashStr]"
+      log.error(
+        "Bad Input. Example usage: [signature-validator publicKey signature message_hash]. Example: [signature-validator {} {} {}]",
+        pkStr,
+        sigStr,
+        hashStr
       )
       sys.exit(1)
