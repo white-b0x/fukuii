@@ -41,6 +41,7 @@ import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.*
 import com.chipprbots.ethereum.network.Peer
 import com.chipprbots.ethereum.network.PeerActor
+import com.chipprbots.ethereum.network.PeerEventBusActor
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import com.chipprbots.ethereum.network.PeerId
 import com.chipprbots.ethereum.network.p2p.messages.Capability
@@ -62,11 +63,14 @@ class StateSyncSpec
 
   "StateSync" should "sync state to different tries" taggedAs (UnitTest, SyncTest) in new TestSetup():
     forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
-      val trieProvider = TrieProvider()
-      val target = trieProvider.buildWorld(nodeData)
-      setAutoPilotWithProvider(trieProvider)
-      syncStateSchedulerActor ! StartSyncingTo(TrieRoot(target), 1)
-      syncInitResponse.expectMessage(20.seconds, StateSyncFinished)
+      val fixture = newSchedulerFixture()
+      try
+        val trieProvider = TrieProvider()
+        val target = trieProvider.buildWorld(nodeData)
+        setAutoPilotWithProvider(fixture.networkPeerManager, fixture.peerEventBus, trieProvider)
+        fixture.actor ! StartSyncingTo(TrieRoot(target), 1)
+        fixture.syncInitResponse.expectMessage(20.seconds, StateSyncFinished)
+      finally testKit.stop(fixture.actor)
     }
 
   it should "sync state to different tries when peers provide different set of data each time" taggedAs (
@@ -74,11 +78,14 @@ class StateSyncSpec
     SyncTest
   ) in new TestSetup():
     forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
-      val trieProvider1 = TrieProvider()
-      val target = trieProvider1.buildWorld(nodeData)
-      setAutoPilotWithProvider(trieProvider1, partialResponseConfig)
-      syncStateSchedulerActor ! StartSyncingTo(TrieRoot(target), 1)
-      syncInitResponse.expectMessage(20.seconds, StateSyncFinished)
+      val fixture = newSchedulerFixture()
+      try
+        val trieProvider1 = TrieProvider()
+        val target = trieProvider1.buildWorld(nodeData)
+        setAutoPilotWithProvider(fixture.networkPeerManager, fixture.peerEventBus, trieProvider1, partialResponseConfig)
+        fixture.actor ! StartSyncingTo(TrieRoot(target), 1)
+        fixture.syncInitResponse.expectMessage(20.seconds, StateSyncFinished)
+      finally testKit.stop(fixture.actor)
     }
 
   it should "sync state to different tries when peer provide mixed responses" taggedAs (
@@ -86,22 +93,28 @@ class StateSyncSpec
     SyncTest
   ) in new TestSetup():
     forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
-      val trieProvider1 = TrieProvider()
-      val target = trieProvider1.buildWorld(nodeData)
-      setAutoPilotWithProvider(trieProvider1, mixedResponseConfig)
-      syncStateSchedulerActor ! StartSyncingTo(TrieRoot(target), 1)
-      syncInitResponse.expectMessage(20.seconds, StateSyncFinished)
+      val fixture = newSchedulerFixture()
+      try
+        val trieProvider1 = TrieProvider()
+        val target = trieProvider1.buildWorld(nodeData)
+        setAutoPilotWithProvider(fixture.networkPeerManager, fixture.peerEventBus, trieProvider1, mixedResponseConfig)
+        fixture.actor ! StartSyncingTo(TrieRoot(target), 1)
+        fixture.syncInitResponse.expectMessage(20.seconds, StateSyncFinished)
+      finally testKit.stop(fixture.actor)
     }
 
   it should "restart state sync when requested" taggedAs (UnitTest, SyncTest) in new TestSetup():
     forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
-      val trieProvider1 = TrieProvider()
-      val target = trieProvider1.buildWorld(nodeData)
-      setAutoPilotWithProvider(trieProvider1)
-      syncStateSchedulerActor ! StartSyncingTo(TrieRoot(target), 1)
-      syncStateSchedulerActor ! RestartRequested
-      // Stats go to syncInitStats; responses go to syncInitResponse — wait directly for WaitingForNewTargetBlock.
-      syncInitResponse.expectMessage(20.seconds, WaitingForNewTargetBlock)
+      val fixture = newSchedulerFixture()
+      try
+        val trieProvider1 = TrieProvider()
+        val target = trieProvider1.buildWorld(nodeData)
+        setAutoPilotWithProvider(fixture.networkPeerManager, fixture.peerEventBus, trieProvider1)
+        fixture.actor ! StartSyncingTo(TrieRoot(target), 1)
+        fixture.actor ! RestartRequested
+        // Stats go to syncInitStats; responses go to syncInitResponse — wait directly for WaitingForNewTargetBlock.
+        fixture.syncInitResponse.expectMessage(20.seconds, WaitingForNewTargetBlock)
+      finally testKit.stop(fixture.actor)
     }
 
   it should "start state sync when receiving start signal while bloom filter is loading" taggedAs (
@@ -113,21 +126,17 @@ class StateSyncSpec
       val blockchainReader = BlockchainReader(storages)
       (blockchainReader, BlockchainImpl(storages, blockchainReader))
 
+    val fixture = newSchedulerFixture()
     val nodeData: IndexedSeq[MptNodeData] = (0 until 1000).map(i => MptNodeData(Address(i), None, Seq(), i))
     val trieProvider1: TrieProvider = TrieProvider()
     val target: ByteString = trieProvider1.buildWorld(nodeData)
-    setAutoPilotWithProvider(trieProvider1)
-    syncStateSchedulerActor ! StartSyncingTo(TrieRoot(target), 1)
-    syncInitResponse.expectMessage(20.seconds, StateSyncFinished)
+    setAutoPilotWithProvider(fixture.networkPeerManager, fixture.peerEventBus, trieProvider1)
+    fixture.actor ! StartSyncingTo(TrieRoot(target), 1)
+    fixture.syncInitResponse.expectMessage(20.seconds, StateSyncFinished)
 
   class TestSetup extends EphemBlockchainTestSetup with TestSyncConfig:
     implicit override lazy val classicSystem: ActorSystem = StateSyncSpec.this.system.classicSystem
     type PeerConfig = Map[PeerId, PeerAction]
-    // Two Typed probes — SSA now sends responses and stats to separate typed refs.
-    val syncInitResponse: TypedTestProbe[SyncStateSchedulerActor.SyncStateSchedulerActorResponse] =
-      testKit.createTestProbe[SyncStateSchedulerActor.SyncStateSchedulerActorResponse]()
-    val syncInitStats: TypedTestProbe[SyncStateSchedulerActor.StateSyncStats] =
-      testKit.createTestProbe[SyncStateSchedulerActor.StateSyncStats]()
 
     val peerStatus: RemoteStatus = RemoteStatus(
       capability = Capability.ETH63,
@@ -159,8 +168,6 @@ class StateSyncSpec
       )
     }.toMap
 
-    val blacklist: Blacklist = CacheBasedBlacklist.empty(100)
-
     sealed trait PeerAction
     case object FullResponse extends PeerAction
     case object PartialResponse extends PeerAction
@@ -182,37 +189,47 @@ class StateSyncSpec
       else peer.id -> NoResponse
     }
 
-    // NOT converted to a typed TestProbe: this AutoPilot's FullResponse/PartialResponse cases match
-    // `NetworkPeerManagerActor.SendMessage` (dead in production — PeerRequestHandler actually sends
-    // `SendMessageCmd`), a pre-existing bug independent of this migration (confirmed via
-    // `testOnly *StateSyncSpec*`: "sync state to different tries when peer provide mixed responses"
-    // already fails on the unmodified baseline with a MatchError). A correct typed replacement needs
-    // a real `Behavior` (Typed `TestProbe` has no `AutoPilot` hook) and ideally fixes the message-type
-    // mismatch at the same time — out of scope for this mechanical probe sweep; left as Classic pending
-    // a dedicated fix.
-    val networkPeerManager: TestProbe = TestProbe()
-
-    val peerEventBus: TypedTestProbe[com.chipprbots.ethereum.network.PeerEventBusActor.Command] =
-      testKit.createTestProbe[com.chipprbots.ethereum.network.PeerEventBusActor.Command]()
-
-    def setAutoPilotWithProvider(trieProvider: TrieProvider, peerConfig: PeerConfig = defaultPeerConfig): Unit =
+    // NOT converted to a typed TestProbe: this AutoPilot needs an `AutoPilot` hook, which
+    // Typed `TestProbe` does not have. Created fresh per scheduler fixture (see newSchedulerFixture)
+    // so a stale request from a previous forAll iteration cannot reach the current iteration's AutoPilot.
+    //
+    // Responses are delivered by PUBLISHING MessageFromPeer to a real PeerEventBusActor, not by
+    // `sender ! MessageFromPeer`. The Typed PeerRequestHandler receives peer responses only through a
+    // PeerEventBus subscription (SubscribeCmd + MessageClassifier); a Typed actor sending SendMessageCmd
+    // to this classic probe leaves `sender` = deadLetters, so a direct reply is silently dropped and the
+    // scheduler stalls (StateSyncFinished never arrives). Mirrors PeerRequestHandlerSpec's PublishCmd path.
+    def setAutoPilotWithProvider(
+        networkPeerManager: TestProbe,
+        peerEventBus: TypedActorRef[PeerEventBusActor.Command],
+        trieProvider: TrieProvider,
+        peerConfig: PeerConfig = defaultPeerConfig
+    ): Unit =
+      given scala.concurrent.ExecutionContext = classicSystem.dispatcher
+      // The Typed PeerRequestHandler sends SendMessageCmd and *then* subscribes to the PEB. Publishing the
+      // response synchronously here can race ahead of that subscription and be dropped (the PEB only delivers
+      // to current subscribers). Production is immune because real network latency guarantees the subscription
+      // is registered before any response arrives; a tiny scheduler delay reproduces that ordering deterministically.
+      def publishResponse(responseMsg: NodeData, peer: PeerId): Unit =
+        classicSystem.scheduler.scheduleOnce(20.milliseconds)(
+          peerEventBus ! PeerEventBusActor.PublishCmd(MessageFromPeer(responseMsg, peer))
+        )
       networkPeerManager.setAutoPilot(
         new AutoPilot:
           override def run(sender: ActorRef, msg: Any): AutoPilot =
             msg match
-              case SendMessage(msg: GetNodeDataEnc, peer) =>
+              case SendMessageCmd(msg: GetNodeDataEnc, peer) =>
                 peerConfig(peer) match
                   case FullResponse =>
                     val responseMsg =
                       NodeData(trieProvider.getNodes(msg.underlyingMsg.mptElementsHashes.toList).map(_.data))
-                    sender ! MessageFromPeer(responseMsg, peer)
+                    publishResponse(responseMsg, peer)
                     this
                   case PartialResponse =>
                     val random: ThreadLocalRandom = ThreadLocalRandom.current()
                     val elementsToServe = random.nextInt(minMptNodeRequest, maxMptNodeRequest + 1)
                     val toGet = msg.underlyingMsg.mptElementsHashes.toList.take(elementsToServe)
                     val responseMsg = NodeData(trieProvider.getNodes(toGet).map(_.data))
-                    sender ! MessageFromPeer(responseMsg, peer)
+                    publishResponse(responseMsg, peer)
                     this
                   case NoResponse =>
                     this
@@ -245,9 +262,31 @@ class StateSyncSpec
     def genRandomByteString(): ByteString =
       ByteString.fromArrayUnsafe(genRandomArray())
 
-    lazy val syncStateSchedulerActor: TypedActorRef[SyncStateSchedulerActor.Command] =
+    // A fully isolated scheduler + its collaborator probes. The scheduler actor is a stateful,
+    // long-lived actor with a ScanPeers timer and PeerRequestHandler children; reusing one instance
+    // across ScalaCheck forAll iterations lets an in-flight (or timer-scheduled) GetNodeData request
+    // for iteration N-1's random trie reach iteration N's rebound AutoPilot, whose single-trie
+    // TrieProvider lacks those hashes -> "Missing expected data in storage" / a stalled StateSyncFinished.
+    // Spawning a fresh fixture per iteration (and stopping it afterwards) removes the cross-talk.
+    final case class SchedulerFixture(
+        actor: TypedActorRef[SyncStateSchedulerActor.Command],
+        networkPeerManager: TestProbe,
+        peerEventBus: TypedActorRef[PeerEventBusActor.Command],
+        syncInitResponse: TypedTestProbe[SyncStateSchedulerActor.SyncStateSchedulerActorResponse],
+        syncInitStats: TypedTestProbe[SyncStateSchedulerActor.StateSyncStats]
+    )
+
+    def newSchedulerFixture(): SchedulerFixture =
+      val networkPeerManager: TestProbe = TestProbe()
+      val syncInitResponse = testKit.createTestProbe[SyncStateSchedulerActor.SyncStateSchedulerActorResponse]()
+      val syncInitStats = testKit.createTestProbe[SyncStateSchedulerActor.StateSyncStats]()
+      // A real PeerEventBusActor: the Typed PeerRequestHandler children the scheduler spawns receive peer
+      // responses via a PeerEventBus subscription, so the AutoPilot must publish MessageFromPeer here (see
+      // setAutoPilotWithProvider). A bare probe cannot route SubscribeCmd, which is why responses were lost.
+      val peerEventBus: TypedActorRef[PeerEventBusActor.Command] = testKit.spawn(PeerEventBusActor.behavior())
+      val blacklist: Blacklist = CacheBasedBlacklist.empty(100)
       val (blockchainReader, _) = buildBlockChain()
-      testKit.spawn(
+      val actor = testKit.spawn(
         SyncStateSchedulerActor.behavior(
           SyncStateScheduler(
             blockchainReader,
@@ -258,9 +297,10 @@ class StateSyncSpec
           ),
           syncConfig,
           networkPeerManager.ref,
-          peerEventBus.ref,
+          peerEventBus,
           blacklist,
           syncInitResponse.ref,
           syncInitStats.ref
         )
       )
+      SchedulerFixture(actor, networkPeerManager, peerEventBus, syncInitResponse, syncInitStats)
