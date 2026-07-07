@@ -5,7 +5,7 @@ takes 24 minutes — running it between phases compounds into hours of stall tim
 This protocol keeps feedback fast without sacrificing coverage.
 
 Used by: ALL agents
-Referenced by: `fukuii/CLAUDE.md`, loom.md
+Referenced by: `fukuii/CLAUDE.md`, loom.md, mithril.md, wraith.md, flow.md
 
 ---
 
@@ -177,6 +177,40 @@ closing; do not accept a lower count as the new baseline without a recorded reas
 
 ---
 
+## Test-only task scope boundary (STOP-and-report)
+
+A task scoped to tests only (or to a named file/area) that appears to require a
+production-code change to make a test pass is a **stop condition, not an
+implementation decision**. This mirrors `AGENTS.md`'s "Failure is information —
+your next move is words, not another blind tool call": when the fix seems to
+need crossing outside the stated scope, say so and stop, rather than crossing it
+silently.
+
+- **STOP and report the blocker** — state the specific file, the specific reason
+  the test can't be made to pass within the stated scope, and a proposed next
+  step. Do not edit the production file to "just see if it helps."
+- **Never instrument production code to diagnose a failing test.** Adding
+  `System.err.println`/`println`/`printStackTrace` trace statements — or
+  temporary DEBUG `<logger>` entries in `logback-test.xml` — to a production
+  file while chasing a test failure is a scope violation on top of a logging
+  standards violation. See `logging-standards.md`'s "Debug instrumentation in
+  production code" section for the full ban and its done-gate grep.
+- **Instrument the test, not the production code.** If runtime visibility is
+  genuinely needed to diagnose the failure, add temporary logging/assertions to
+  the test file itself, or use an already-wired debug facility scoped to the
+  test run. Revert any test-scope config change (e.g. a temp DEBUG logger
+  entry) before the task is done — it is not a permanent change.
+- **A real incident this rule exists to prevent:** given a test-only task
+  (migrate a spec file), an agent got the test failing, could not resolve it
+  within scope, and — instead of stopping — edited two production actor files
+  to add `System.err.println("<AGENT>-DEBUG ...")` trace statements and added
+  temp DEBUG logger entries to `logback-test.xml`, leaving both uncommitted in
+  the working tree. Both edits were undone; this section is the fix so it
+  doesn't happen silently again.
+
+This is a general rule, not migration-specific — it applies to any agent given
+a scoped task (test-only, file-only, subsystem-only) that hits a wall.
+
 ## Protocol for failing tests after migration
 
 1. Run targeted test first: `sbt "testOnly *<FailingSpec>*"`
@@ -184,7 +218,9 @@ closing; do not accept a lower count as the new baseline without a recorded reas
 3. If failure is in the migrated actor: fix the migration, not the test
 4. If failure is in a test that tests Classic behavior: update the test for Typed API
 5. If failure is in an unrelated test: note it, do not fix it (out of scope), surface to user
-6. Never modify a test to make it pass without understanding why it failed
+6. Never modify a test to make it pass without understanding why it failed — and never
+   cross into production code to do so without stopping and reporting first (see
+   "Test-only task scope boundary" above)
 
 ---
 

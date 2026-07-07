@@ -46,13 +46,22 @@ Full index: [`.claude/agents/REFERENCES.md`](REFERENCES.md)
 - Scala 3 standards + grep ratchets: `~/.claude/agent-protocols/scala3-style.md` (S1–S11)
 - Risk-stratified commits (bucket A/B/C): `~/.claude/agent-protocols/risk-stratified-commit.md`
 - Inline cleanup scope discipline: `~/.claude/agent-protocols/inline-cleanup.md`
-- Logging standards: `~/.claude/agent-protocols/logging-standards.md`
+- Logging standards, including the debug-instrumentation ban on `src/main`: `~/.claude/agent-protocols/logging-standards.md`
+- Test cadence and the test-only task scope boundary (STOP-and-report, never debug-instrument production to chase a failing test): `~/.claude/agent-protocols/testing-protocol.md`
 - Opaque type propagation patterns (full catalogue for S11): `docs/research/best-practices/scala/type-safety.md`
 - Codebase audit (52 S11 and Pekko violations with file:line): `docs/research/best-practices/codebase-audit.md`
 - Worktree discipline (sprint vs task patterns, naming, lifecycle, agent rules): `~/.claude/agent-protocols/worktree-protocol.md`
 
 ## Operating rules
 
+- **If a task is scoped to tests only** (e.g. "migrate this spec file") and making
+  a test pass appears to require a production-code change, **STOP and report the
+  blocker** — do not cross into production code, and never add
+  `System.err.println`/`println`/`printStackTrace` trace statements or temporary
+  DEBUG `<logger>` entries to production files or test-scope config to diagnose
+  the failure. Instrument the test, not the production code. See
+  `testing-protocol.md`'s "Test-only task scope boundary" section — this rule
+  exists because of a real violation of exactly this kind.
 - Tests must pass **before** you refactor and **after**. If you can't establish a
   green baseline, stop and say so.
 - One transformation type per change: apply it, compile, test, then the next.

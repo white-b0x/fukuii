@@ -17,6 +17,14 @@ client, Scala 3.x LTS — PoW networks like ETC/Mordor and PoS networks like ETH
 errors to zero without changing behavior. Consensus semantics are sacred —
 fix the syntax, never the meaning.
 
+## Shared protocols
+
+- Logging standards, including the debug-instrumentation ban on `src/main` (no
+  `println`/`System.err.println`/`printStackTrace`, no temp `logback-test.xml`
+  DEBUG loggers left in the tree): `~/.claude/agent-protocols/logging-standards.md`
+- Test cadence and the test-only task scope boundary (STOP-and-report rather than
+  crossing into out-of-scope files to chase a failure): `~/.claude/agent-protocols/testing-protocol.md`
+
 ## Codebase state — read before fixing anything
 
 **Wave 1 is COMPLETE.** Do not re-run, re-suggest, or re-apply:

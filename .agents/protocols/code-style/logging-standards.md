@@ -17,7 +17,7 @@ and human-readable narrative; metrics give time-series trend, alerting, and aggr
 `DistributionSummary` calls alongside the log statements.
 
 Used by: ALL agents
-Referenced by: inline-cleanup.md, loom.md, wraith.md
+Referenced by: inline-cleanup.md, loom.md, wraith.md, flow.md, mithril.md
 
 ---
 
@@ -524,6 +524,39 @@ grep -rn "private def" src/main/ --include="*.scala" -A20 \
 
 ---
 
+## Debug instrumentation in production code (MANDATORY — zero tolerance)
+
+**NEVER** add `System.err.println`, `System.out.println`, bare `println(...)`, or
+`printStackTrace()` to `src/main` (production) code — for any reason, including to
+trace down a failing test. Production code has exactly one sanctioned logging API:
+SLF4J, via `ctx.log` / a `LoggerFactory` logger / `asyncLog`, at the levels above.
+There is no "temporary" exception here — a `println` added to diagnose a test
+failure is exactly as much a violation as one left in by accident, and it does not
+become acceptable because it will "obviously" be removed later.
+
+This includes temporary DEBUG `<logger>` entries added to `logback-test.xml` (or
+any other test-scope logging config) while investigating — these MUST be reverted
+before the task is considered done. A temporary config change left in the working
+tree is not a permanent fix and is not "done."
+
+**If you need runtime visibility while diagnosing a failing test: instrument the
+test, not the production code.** Add temporary logging/assertions to the test file
+itself, or run with an existing debug flag/log level already wired for that
+purpose — never edit `src/main` or leave test-scope config changes in the tree.
+See `testing-protocol.md`'s "Test-only task scope boundary" section for the
+broader STOP-and-report rule this instrumentation ban is part of.
+
+**Done-gate** — a task is NOT complete if this shows any newly-added hits
+attributable to it (run before declaring done, not just at PR time):
+```bash
+grep -rn "System\.err\.println\|System\.out\.println\|printStackTrace\|MITHRIL-DEBUG\|TEMP DEBUG" \
+  src/main src/test/resources
+```
+`MITHRIL-DEBUG`/`TEMP DEBUG` are example marker strings from a real violation —
+treat any similarly-shaped `<AGENT>-DEBUG` or ad hoc trace marker the same way.
+
+---
+
 ## What NOT to log
 
 | Avoid | Reason |
@@ -593,8 +626,11 @@ scripts/agent-tooling/lib/logging-standards-check.sh
 # log.warning — target: 0
 grep -rn "log\.warning" src/main/ --include="*.scala" | wc -l
 
-# println in main sources — target: 0
-grep -rn "^\s*println\|System\.out\.print" src/main/ --include="*.scala" | wc -l
+# println / System.err.println / printStackTrace in main sources — target: 0
+grep -rn "^\s*println\|System\.out\.print\|System\.err\.print\|printStackTrace" src/main/ --include="*.scala" | wc -l
+
+# Leftover debug-instrumentation markers (temp trace prints, temp DEBUG loggers) — target: 0
+grep -rn "MITHRIL-DEBUG\|TEMP DEBUG" src/main/ src/test/resources/ | wc -l
 
 # String interpolation in log calls — target: 0
 grep -rn 'log\.\(debug\|info\|warn\|error\)(s"' src/main/ --include="*.scala" | wc -l

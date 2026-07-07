@@ -4,9 +4,9 @@
 #
 # Usage: logging-standards-check.sh
 #
-# Why this exists: the doc's closing section lists 10 grep checks meant to be run
-# together as a logging-quality ratchet. Running them one at a time is 10 tool calls;
-# this runs all of them and reports count vs. stated target per check.
+# Why this exists: the doc's closing section lists grep checks meant to be run
+# together as a logging-quality ratchet. Running them one at a time is many tool
+# calls; this runs all of them and reports count vs. stated target per check.
 #
 # Some checks (silent catch blocks, off-thread ctx.log, private-def ctx.log) are the
 # doc's own "approximate — verify manually" checks: a nonzero count is a candidate list
@@ -40,8 +40,8 @@ echo
 L1=$(grep -rn "log\.warning" src/main/ --include="*.scala" | wc -l | tr -d ' ')
 report L1 "log.warning (should be log.warn)" 0 "$L1"
 
-L2=$(grep -rn "^\s*println\|System\.out\.print" src/main/ --include="*.scala" | wc -l | tr -d ' ')
-report L2 "println / System.out.print" 0 "$L2"
+L2=$(grep -rn "^\s*println\|System\.out\.print\|System\.err\.print\|printStackTrace" src/main/ --include="*.scala" | wc -l | tr -d ' ')
+report L2 "println / System.err|out.print / printStackTrace" 0 "$L2"
 
 L3=$(grep -rn 'log\.\(debug\|info\|warn\|error\)(s"' src/main/ --include="*.scala" | wc -l | tr -d ' ')
 report L3 "String interpolation in log calls" 0 "$L3"
@@ -66,6 +66,9 @@ report L9 "private defs using ctx.log (manual review)" "info-only" "$L9"
 
 L10=$(grep -rn 'log\.\(info\|warn\|error\|debug\)("[A-Za-z][^=]*{}' src/main/ --include="*.scala" | wc -l | tr -d ' ')
 report L10 "Positional log messages (no key= prefix)" 0 "$L10"
+
+L11=$(grep -rn "MITHRIL-DEBUG\|TEMP DEBUG" src/main/ src/test/resources/ 2>/dev/null | wc -l | tr -d ' ')
+report L11 "Leftover debug-instrumentation markers" 0 "$L11"
 
 echo
 echo "L5/L6 are the doc's own 'approximate' checks — a nonzero count is a candidate"

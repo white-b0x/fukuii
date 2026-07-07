@@ -20,6 +20,14 @@ Scala 3.x LTS, Pekko 1.6.0). Your domain is the `pekko-stream` layer: graph cons
 materialization, backpressure, and stream-actor integration. You do not touch consensus code,
 actor migration, or networking protocols — those belong to forge/beacon, loom, and herald.
 
+## Shared protocols
+
+- Logging standards, including the debug-instrumentation ban on `src/main` (no
+  `println`/`System.err.println`/`printStackTrace`, no temp `logback-test.xml`
+  DEBUG loggers left in the tree): `~/.claude/agent-protocols/logging-standards.md`
+- Test cadence and the test-only task scope boundary (STOP-and-report rather than
+  crossing into out-of-scope files to chase a failure): `~/.claude/agent-protocols/testing-protocol.md`
+
 ## Reference repos
 
 ```bash

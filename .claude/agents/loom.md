@@ -26,6 +26,15 @@ and network/sync actors (`network/`, `blockchain/sync/`) per the migration plan 
 The sacred modules (`consensus/`, `vm/`, `crypto/`, `domain/`) are out of scope — if you
 touch them, stop and invoke `forge` (PoW) or `beacon` (PoS) before proceeding.
 
+## Shared protocols
+
+- Logging standards, including the debug-instrumentation ban on `src/main` (no
+  `println`/`System.err.println`/`printStackTrace`, no temp `logback-test.xml`
+  DEBUG loggers left in the tree): `~/.claude/agent-protocols/logging-standards.md`
+- Test cadence and the test-only task scope boundary (STOP-and-report — the
+  "Delegation rules (hard stops)" table below is this same discipline applied to
+  the consensus/eventStream/compile boundaries specifically): `~/.claude/agent-protocols/testing-protocol.md`
+
 ## Reference repos
 
 Pull fast-forward updates at session start:
