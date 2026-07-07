@@ -20,6 +20,19 @@
 # 2026-07-04 — see QUEUE-PATH-01 in QUEUE.md's Chase & Deferred Items for the sibling
 # path-drift issue found same session).
 #
+# Fence-awareness (fixed 2026-07-06, caught before any --apply — see the awk comment below
+# for the exact mechanism): the boundary logic above is not enough by itself. Batch bodies
+# wrap their prompts in triple-backtick ``` fences, and INSIDE those fences the prompt text
+# itself uses "## CONTEXT"/"## INSTRUCTIONS"/etc. as sub-headers (they're prompts for another
+# agent, not QUEUE.md structure). Plain awk has no notion of "inside a fence" — its "^## "
+# check for closing "## Batches" doesn't distinguish a real QUEUE.md heading from the exact
+# same text sitting inside a fenced prompt body. Confirmed empirically: with the pre-fix awk,
+# running against a CLOSED "### Batch 2" whose sub-batch 2a prompt is fenced, extraction
+# stopped after only 79 lines (cut off inside 2a's fence, mid-prompt) instead of the full
+# ~277-line section spanning sub-batches 2a/2b/2c. The fix tracks fence state and passes
+# fenced lines through untouched (to whichever side is already active) without evaluating any
+# header-boundary rule while inside a fence — see the awk itself.
+#
 # Real incident (Batch 1.5 close, 2026-07-05, pre-restructuring): back when Persistent
 # Sections (then just "REPO-*") lived at the same "### " level *inside* "## Batches", the
 # boundary regex required the next header to literally start with "### Batch " — since
@@ -67,8 +80,27 @@ trap 'rm -f "$KEEP_FILE" "$EXTRACT_FILE"' EXIT
 # extraction no matter what their own heading text looks like. Within "## Batches", a batch
 # section ends at the next level-3 "### " header — not at nested "## " sub-headers inside
 # the batch body (see header comment for why).
+#
+# Fence-aware: every "^```" line toggles `in_fence`. While `in_fence` is true (including the
+# line that just opened or closed the fence), the line is routed to whichever side
+# (extract/keep) is already active and NONE of the header-boundary rules below run — a
+# "## CONTEXT" or "### Batch N" sitting inside a fenced prompt body can never flip
+# `in_batches`/`in_closed`, because only unfenced (real QUEUE.md structure) lines reach that
+# logic. This assumes fukuii's markdown always balances ``` pairs, which our own fence usage
+# guarantees. Batch headers themselves ("### Batch N — CLOSED") are never inside a fence, so
+# this doesn't change how batch boundaries are detected — it only stops fenced prompt bodies
+# from being mistaken for QUEUE.md structure.
 awk -v extract="$EXTRACT_FILE" -v keep="$KEEP_FILE" '
   {
+    if ($0 ~ /^```/) {
+      in_fence = !in_fence
+      if (in_closed) print > extract; else print > keep
+      next
+    }
+    if (in_fence) {
+      if (in_closed) print > extract; else print > keep
+      next
+    }
     if ($0 ~ /^## Batches[[:space:]]*$/) {
       in_batches = 1; in_closed = 0
       print > keep
