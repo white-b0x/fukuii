@@ -71,14 +71,15 @@ ops/*/captured-logs/
 # source under .agents/ (see .agents/protocols/agent-skills.md). The mechanical
 # helper/wrapper scripts formerly here now live at scripts/agent-tooling/ (moved
 # 2026-07, Nethermind-style: portable, not Claude-specific, shared team tooling).
-# .claude/sprints/log/ — the permanent, sprint-agnostic record of what changed and why,
-# which deserves the same durability/team-visibility as modernization-log/ did before it,
-# and .claude/worktrees/bin/ — the worktree lifecycle scripts, moved here (out of
+# .claude/worktrees/bin/ — the worktree lifecycle scripts, moved here (out of
 # agent-protocols/worktrees/bin/) to sit next to the worktree dirs themselves, same
 # layout as .claude/looping/bin/. The rest of .claude/worktrees/ (the actual worktree
 # checkouts) stays untracked — those are full working trees, never committed content.
-# The rest of .claude/sprints/ (QUEUE.md, patterns/, completed/, archive/) stays
-# untracked/operator-local — genuinely ephemeral working state.
+# The rest of .claude/sprints/ (QUEUE.md, patterns/, completed/, archive/, and — as of
+# 2026-07-07 — log/) stays untracked/operator-local. log/ was previously tracked as a
+# durable team record, but is now operator-local to avoid a stream of log-only commits
+# on shared history; the sprint-lifecycle close-out still writes it, it just isn't
+# committed (re-track later by removing the .claude/sprints/log/ line below if desired).
 # .claude/hooks/ (comment-policy.py, advisory PostToolUse check) and the new tracked
 # .claude/settings.json that wires it are shared team tooling, same as agents/skills below —
 # .claude/settings.local.json stays untracked/operator-local, unaffected by this exception.
@@ -96,6 +97,7 @@ ops/*/captured-logs/
 .claude/sprints/patterns/
 .claude/sprints/completed/
 .claude/sprints/archive/
+.claude/sprints/log/
 !.claude/worktrees/
 .claude/worktrees/*
 !.claude/worktrees/bin/
