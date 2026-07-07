@@ -6,6 +6,15 @@
 # Rule 5). --force bypasses the check (use only when you've confirmed the log entry exists
 # under a different name/wording).
 # Dry-run by default: reports the decision, changes nothing unless --apply is given.
+#
+# archive/<basename> is the CUMULATIVE retirement archive for a sprint basename — a given
+# basename (e.g. july-fourth-CLEARED.md) can be archived more than once across a sprint's
+# life as later batches close out. If archive/<basename> does NOT already exist, this script
+# moves the completed file there (unchanged from prior behavior). If archive/<basename>
+# ALREADY exists, the completed content is APPENDED after the existing archive content (with
+# a visible separator marker recording where it came from and when), then the completed
+# source is removed. Never do a bare `mv`/overwrite onto an existing archive file — that
+# silently destroys every batch archived there before this run.
 # Used by: fukuii-sprint-queue skill.
 
 set -euo pipefail
@@ -61,16 +70,46 @@ else
     echo "$HIT" | sed "s|^$LOG_DIR/|  log/|"
 fi
 
+DEST="$ARCHIVE_DIR/$BASENAME"
+
 echo
-echo "Would move: $SRC -> $ARCHIVE_DIR/$BASENAME"
+if [ -f "$DEST" ]; then
+    MODE="append"
+    EXISTING_LINES=$(wc -l < "$DEST")
+    SRC_LINES=$(wc -l < "$SRC")
+    echo "Archive destination already exists: $DEST ($EXISTING_LINES lines)"
+    echo "Would APPEND: $SRC ($SRC_LINES lines) -> $DEST (cumulative archive, not overwritten)"
+else
+    MODE="move"
+    echo "Would move: $SRC -> $DEST"
+fi
 
 if [ "$APPLY" -eq 0 ]; then
     echo
-    echo "Dry run only — re-run with --apply to perform the move."
+    echo "Dry run only — re-run with --apply to perform the $MODE."
     exit 0
 fi
 
 mkdir -p "$ARCHIVE_DIR"
-mv "$SRC" "$ARCHIVE_DIR/$BASENAME"
-echo
-echo "Done. Archived to $ARCHIVE_DIR/$BASENAME."
+
+if [ "$MODE" = "append" ]; then
+    BEFORE_LINES=$(wc -l < "$DEST")
+    SRC_LINES=$(wc -l < "$SRC")
+    BATCHES=$(grep -h '^### Batch' "$SRC" | sed 's/^### //' | paste -sd ',' -)
+    {
+        echo ""
+        printf '<!-- appended from completed/%s on archive (%s UTC); source batches: %s -->\n' \
+            "$BASENAME" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$BATCHES"
+        echo ""
+        cat "$SRC"
+    } >> "$DEST"
+    rm "$SRC"
+    AFTER_LINES=$(wc -l < "$DEST")
+    echo
+    echo "Appended to existing archive ($BEFORE_LINES + $SRC_LINES = $((BEFORE_LINES + SRC_LINES)) content lines,"
+    echo "plus 3 separator lines -> $DEST now has $AFTER_LINES lines total)."
+else
+    mv "$SRC" "$DEST"
+    echo
+    echo "Done. Archived to $DEST."
+fi
