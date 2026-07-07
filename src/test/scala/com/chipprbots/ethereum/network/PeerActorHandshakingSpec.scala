@@ -1,19 +1,15 @@
-// §8a-retro batch 5: DEFERRED — TestActorRef requires Classic-only API;
-// migrate when PeerActor is Typed (Wave 3 network sprint)
 package com.chipprbots.ethereum.network
 
 import java.net.InetSocketAddress
 import java.net.URI
 
-import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.ManualTime
+import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.ExplicitlyTriggeredScheduler
-import org.apache.pekko.testkit.TestActorRef
+import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.util.ByteString
 
-import com.typesafe.config.ConfigFactory
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.domain.Difficulty
@@ -41,7 +37,9 @@ import com.chipprbots.ethereum.network.rlpx.RLPxConnectionHandler
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
 
-class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
+class PeerActorHandshakingSpec extends ScalaTestWithActorTestKit(ManualTime.config) with AnyFlatSpecLike with Matchers:
+
+  val manualTime: ManualTime = ManualTime()
 
   it should "succeed in establishing connection if the handshake is always successful" taggedAs (
     UnitTest,
@@ -50,7 +48,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     import DefaultValues.*
 
-    val peerActorHandshakeSucceeds: TestActorRef[Nothing] =
+    val peerActorHandshakeSucceeds: ActorRef[PeerActor.Command] =
       peerActor(MockHandshakerAlwaysSucceeds(defaultStatus, defaultBlockNumber, defaultForkAccepted))
 
     // Establish probe rlpxconnection
@@ -68,7 +66,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     import DefaultValues.*
 
-    val peerActorHandshakeFails: TestActorRef[Nothing] =
+    val peerActorHandshakeFails: ActorRef[PeerActor.Command] =
       peerActor(MockHandshakerAlwaysFails(defaultReasonDisconnect))
 
     // Establish probe rlpxconnection
@@ -86,7 +84,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     import DefaultValues.*
 
-    val peerActorHandshakeRequiresHello: TestActorRef[Nothing] = peerActor(MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello: ActorRef[PeerActor.Command] = peerActor(MockHandshakerRequiresHello())
 
     // Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
@@ -106,7 +104,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     import DefaultValues.*
 
-    val peerActorHandshakeRequiresHello: TestActorRef[Nothing] = peerActor(MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello: ActorRef[PeerActor.Command] = peerActor(MockHandshakerRequiresHello())
 
     // Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
@@ -114,7 +112,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.ConnectionEstablished(ByteString())
 
     rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.SendMessage(defaultHello))
-    testScheduler.timePasses(defaultTimeout * 2)
+    manualTime.timePasses(defaultTimeout * 2)
 
     // Test that the handshake failed
     rlpxConnectionProbe.expectMessage(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
@@ -126,7 +124,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     import DefaultValues.*
 
-    val peerActorHandshakeRequiresHello: TestActorRef[Nothing] = peerActor(MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello: ActorRef[PeerActor.Command] = peerActor(MockHandshakerRequiresHello())
 
     // Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
@@ -143,7 +141,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
 
     import DefaultValues.*
 
-    val peerActorHandshakeRequiresHello: TestActorRef[Nothing] = peerActor(MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello: ActorRef[PeerActor.Command] = peerActor(MockHandshakerRequiresHello())
 
     // Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
@@ -160,13 +158,6 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
     expectStatus(peerActorHandshakeRequiresHello, StatusResponse(Handshaked))
 
   trait TestSetup extends EphemBlockchainTestSetup:
-    implicit override lazy val classicSystem: ActorSystem =
-      ActorSystem("PeerActorSpec_System", ConfigFactory.load("explicit-scheduler"))
-
-    def testScheduler: ExplicitlyTriggeredScheduler = classicSystem.scheduler.asInstanceOf[ExplicitlyTriggeredScheduler]
-
-    implicit private def typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = classicSystem.toTyped
-
     val uri = new URI(
       "enode://18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857@47.90.36.129:30303"
     )
@@ -174,21 +165,19 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers:
     val peerMessageBus: TypedTestProbe[PeerEventBusActor.Command] = TypedTestProbe()
     val knownNodesManager: TypedTestProbe[KnownNodesManager.Command] = TypedTestProbe()
 
-    def peerActor(handshaker: Handshaker[PeerInfo]): TestActorRef[Nothing] = TestActorRef(
-      PropsAdapter(
-        PeerActor.apply(
-          new InetSocketAddress("127.0.0.1", 0),
-          rlpxConnectionFactory = _ => rlpxConnectionProbe.ref,
-          peerConfiguration = Config.Network.peer,
-          peerEventBus = peerMessageBus.ref,
-          knownNodesManager = knownNodesManager.ref,
-          incomingConnection = false,
-          initHandshaker = handshaker
-        )
+    def peerActor(handshaker: Handshaker[PeerInfo]): ActorRef[PeerActor.Command] = testKit.spawn(
+      PeerActor.apply(
+        new InetSocketAddress("127.0.0.1", 0),
+        rlpxConnectionFactory = _ => rlpxConnectionProbe.ref,
+        peerConfiguration = Config.Network.peer,
+        peerEventBus = peerMessageBus.ref,
+        knownNodesManager = knownNodesManager.ref,
+        incomingConnection = false,
+        initHandshaker = handshaker
       )
     )
 
-    def expectStatus(peer: TestActorRef[Nothing], expected: StatusResponse): Unit =
+    def expectStatus(peer: ActorRef[PeerActor.Command], expected: StatusResponse): Unit =
       val statusProbe: TypedTestProbe[StatusResponse] = TypedTestProbe()
       peer ! GetStatus(statusProbe.ref)
       statusProbe.expectMessage(expected)

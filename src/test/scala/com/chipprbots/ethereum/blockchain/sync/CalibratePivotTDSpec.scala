@@ -1,20 +1,18 @@
-// §8a-retro batch 5: DEFERRED — TestActorRef used for .children inspection (Classic-only API);
-// migrate when SyncController test no longer needs child inspection (Wave 3 network sprint)
 package com.chipprbots.ethereum.blockchain.sync
 
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.FishingOutcomes
+import org.apache.pekko.actor.testkit.typed.scaladsl.ManualTime
+import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
+import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.ExplicitlyTriggeredScheduler
-import org.apache.pekko.testkit.TestActorRef
 
-import scala.concurrent.Await
 import scala.concurrent.duration.*
 
-import com.typesafe.config.ConfigFactory
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.concurrent.Eventually
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.Fixtures
@@ -43,13 +41,18 @@ import com.chipprbots.ethereum.utils.Config.SyncConfig
   *
   * T7/T8 use the SyncController actor (regular-sync mode) to verify end-to-end behaviour.
   */
-class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach:
+// `SyncController` pins children to `sync-dispatcher`, declared in `application-test.conf` — the config
+// `ActorTestKit.ApplicationTestConfig` normally loads (bare-ctor `ScalaTestWithActorTestKit()`). Passing an
+// explicit `customConfig` (required for `ManualTime.config`) bypasses that default, so it must be re-added
+// as a fallback here.
+class CalibratePivotTDSpec
+    extends ScalaTestWithActorTestKit(ManualTime.config.withFallback(ActorTestKit.ApplicationTestConfig))
+    with AnyFlatSpecLike
+    with Matchers
+    with Eventually:
+  self =>
 
-  private var _pendingCleanup: () => Unit = () => ()
-
-  override protected def afterEach(): Unit =
-    try _pendingCleanup()
-    finally _pendingCleanup = () => ()
+  val manualTime: ManualTime = ManualTime()
 
   // ─── T5 / T6: Pure interpolation math ────────────────────────────────────
   //
@@ -189,15 +192,19 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       // back with peerTD (Tier 2 path: STATUS only, no NewBlock blockNum)
       syncController ! SyncController.WrappedSyncProtocol(SyncProtocol.CalibrateChainWeightFromPeer(peerTD, BigInt(0)))
 
-      val stored: Option[ChainWeight] = blockchainReader.getChainWeightByHash(
-        blockchainReader.getBestBlockHeader.get.hash
-      )
-      stored shouldBe defined
-      stored.get.totalDifficulty.value shouldBe peerTD
-      // Stored TD now ≈ peerTD; ratio on next restart = ~1×
-      val correctedTD: BigInt = stored.get.totalDifficulty.value
-      val ratioAfter: Double = correctedTD.toDouble / peerTD.toDouble
-      ratioAfter should be(1.0 +- 0.01) // within 1% of peerTD
+      // `syncController` now runs on a real dispatcher (testKit.spawn), not TestActorRef's synchronous
+      // CallingThreadDispatcher — poll until the write lands.
+      eventually {
+        val stored: Option[ChainWeight] = blockchainReader.getChainWeightByHash(
+          blockchainReader.getBestBlockHeader.get.hash
+        )
+        stored shouldBe defined
+        stored.get.totalDifficulty.value shouldBe peerTD
+        // Stored TD now ≈ peerTD; ratio on next restart = ~1×
+        val correctedTD: BigInt = stored.get.totalDifficulty.value
+        val ratioAfter: Double = correctedTD.toDouble / peerTD.toDouble
+        ratioAfter should be(1.0 +- 0.01) // within 1% of peerTD
+      }
 
   // ─── T7.2 Calibration is sticky across restarts ────────────────────────────
   it should "store the corrected TD so subsequent imports accumulate from the right base" taggedAs (
@@ -236,13 +243,16 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       // Mixed network: NPA has ETH68 STATUS TD, no NewBlock blockNum yet
       syncController ! SyncController.WrappedSyncProtocol(SyncProtocol.CalibrateChainWeightFromPeer(peerTD, BigInt(0)))
 
-      val stored: Option[ChainWeight] = blockchainReader.getChainWeightByHash(
-        blockchainReader.getBestBlockHeader.get.hash
-      )
-      stored.get.totalDifficulty.value shouldBe peerTD // Tier 2: peerTD direct
+      // Poll until the async actor's write lands (real dispatcher, not TestActorRef's synchronous send).
+      eventually {
+        val stored: Option[ChainWeight] = blockchainReader.getChainWeightByHash(
+          blockchainReader.getBestBlockHeader.get.hash
+        )
+        stored.get.totalDifficulty.value shouldBe peerTD // Tier 2: peerTD direct
+      }
 
       // No retry: calibration succeeded
-      testScheduler.timePasses(30.minutes)
+      manualTime.timePasses(30.minutes)
       networkPeerManager.expectNoMessage(200.millis)
 
   // ─── T8.2 Pure ETH69 network: retry until anchor found ────────────────────
@@ -255,7 +265,7 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       syncController ! SyncController.WrappedSyncProtocol(
         SyncProtocol.CalibrateChainWeightFromPeer(BigInt(0), BigInt(0))
       )
-      testScheduler.timePasses(30.minutes)
+      manualTime.timePasses(30.minutes)
       networkPeerManager.expectMessage(CalibrateChainWeightNowCmd)
 
       // Now install an anchor so attempt 2 succeeds
@@ -270,7 +280,7 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       syncController ! SyncController.WrappedSyncProtocol(
         SyncProtocol.CalibrateChainWeightFromPeer(BigInt(0), BigInt(0))
       )
-      testScheduler.timePasses(30.minutes)
+      manualTime.timePasses(30.minutes)
       networkPeerManager.expectNoMessage(200.millis) // no retry after success
 
   // ─── T8.3 Re-calibration of an already-correct node is idempotent ─────────
@@ -304,20 +314,18 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       syncController ! SyncController.WrappedSyncProtocol(SyncProtocol.CalibrateChainWeightFromPeer(peerTD, peerBlock))
 
       val expectedTD: BigInt = peerTD * bestBlockNum / peerBlock
-      val stored: Option[ChainWeight] = blockchainReader.getChainWeightByHash(
-        blockchainReader.getBestBlockHeader.get.hash
-      )
-      stored.get.totalDifficulty.value shouldBe expectedTD
+      eventually {
+        val stored: Option[ChainWeight] = blockchainReader.getChainWeightByHash(
+          blockchainReader.getBestBlockHeader.get.hash
+        )
+        stored.get.totalDifficulty.value shouldBe expectedTD
+      }
 
   // ─── Shared actor setup ───────────────────────────────────────────────────
 
   trait CalibrationActorSetup extends EphemBlockchainTestSetup with TestSyncConfig with TestSyncPeers:
 
-    implicit override lazy val system: ActorSystem =
-      ActorSystem("CalibratePivotTDSpec_System", ConfigFactory.load("explicit-scheduler"))
-
-    def testScheduler: ExplicitlyTriggeredScheduler =
-      system.scheduler.asInstanceOf[ExplicitlyTriggeredScheduler]
+    implicit override lazy val system: ActorSystem = self.system.classicSystem
 
     implicit private def typedSystem: org.apache.pekko.actor.typed.ActorSystem[Nothing] = system.toTyped
 
@@ -341,42 +349,41 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
       blacklistDuration = 1.second
     )
 
-    // SyncController is Pekko Typed (Group ROOT). Spawn through PropsAdapter so the Classic TestActorRef machinery
-    // and `someTimePasses()`/ExplicitlyTriggeredScheduler timing still work.
+    // SyncController is Pekko Typed (Group ROOT). Spawn directly through the shared ActorTestKit;
+    // externalSchedulerOpt threads the ManualTime-controlled scheduler shared with `manualTime`.
+    private val blockTopicId = java.util.UUID.randomUUID()
     lazy val blockTopic: org.apache.pekko.actor.typed.ActorRef[
       org.apache.pekko.actor.typed.pubsub.Topic.Command[com.chipprbots.ethereum.jsonrpc.NewBlockImported]
-    ] = system.spawn(
+    ] = testKit.spawn(
       org.apache.pekko.actor.typed.pubsub.Topic[com.chipprbots.ethereum.jsonrpc.NewBlockImported](
-        "block-imported-topic"
+        s"block-imported-topic-$blockTopicId"
       ),
-      "block-imported-topic"
+      s"block-imported-topic-$blockTopicId"
     )
 
-    lazy val syncController: TestActorRef[Nothing] = TestActorRef(
-      org.apache.pekko.actor.typed.scaladsl.adapter.PropsAdapter(
-        SyncController(
-          blockchain,
-          blockchainReader,
-          blockchainWriter,
-          storagesInstance.storages.appStateStorage,
-          storagesInstance.storages.blockNumberMappingStorage,
-          storagesInstance.storages.evmCodeStorage,
-          storagesInstance.storages.stateStorage,
-          storagesInstance.storages.nodeStorage,
-          storagesInstance.storages.flatSlotStorage,
-          storagesInstance.storages.fastSyncStateStorage,
-          consensusAdapter,
-          validators,
-          peerMessageBus.ref,
-          pendingTransactionsManager.ref,
-          blockTopic,
-          ommersPool.ref,
-          networkPeerManager.ref,
-          blacklist,
-          syncConfig,
-          this,
-          externalSchedulerOpt = Some(system.scheduler)
-        )
+    lazy val syncController: ActorRef[SyncController.Command] = testKit.spawn(
+      SyncController(
+        blockchain,
+        blockchainReader,
+        blockchainWriter,
+        storagesInstance.storages.appStateStorage,
+        storagesInstance.storages.blockNumberMappingStorage,
+        storagesInstance.storages.evmCodeStorage,
+        storagesInstance.storages.stateStorage,
+        storagesInstance.storages.nodeStorage,
+        storagesInstance.storages.flatSlotStorage,
+        storagesInstance.storages.fastSyncStateStorage,
+        consensusAdapter,
+        validators,
+        peerMessageBus.ref,
+        pendingTransactionsManager.ref,
+        blockTopic,
+        ommersPool.ref,
+        networkPeerManager.ref,
+        blacklist,
+        syncConfig,
+        this,
+        externalSchedulerOpt = Some(system.scheduler)
       )
     )
 
@@ -392,7 +399,7 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
     def drainRegistration(): Unit =
       syncController ! SyncController.WrappedSyncProtocol(SyncProtocol.Start)
       networkPeerManager.expectMessageType[RegisterChainWeightCalibrationTargetCmd]
-      testScheduler.timePasses(31.seconds)
+      manualTime.timePasses(31.seconds)
       // Fish past N GetHandshakedPeersCmd (one per PeerListSupportNg actor) until the T+30s startup
       // CalibrateChainWeightNowCmd is consumed, leaving the probe queue empty for test assertions.
       networkPeerManager.fishForMessage(3.seconds) {
@@ -432,9 +439,4 @@ class CalibratePivotTDSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
         buf += h
         prev = h
       buf.toVector
-
-    def cleanup(): Unit = Await.result(system.terminate(), 10.seconds)
-
-    // Register teardown with the outer spec's afterEach lifecycle hook
-    CalibratePivotTDSpec.this._pendingCleanup = cleanup
 // scalastyle:on magic.number
