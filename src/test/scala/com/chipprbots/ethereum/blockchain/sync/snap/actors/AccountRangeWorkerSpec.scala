@@ -2,7 +2,7 @@ package com.chipprbots.ethereum.blockchain.sync.snap.actors
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
-import org.apache.pekko.testkit.TestProbe as ClassicTestProbe
+import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -51,8 +51,8 @@ class AccountRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
   "AccountRangeWorker" should "send GetAccountRange to peer via NetworkPeerManager on FetchAccountRange" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("ar-peer-1", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("ar-peer-1", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId = BigInt(1)
@@ -70,8 +70,8 @@ class AccountRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
   it should "report TaskComplete to coordinator on proof-only empty-range response" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("ar-peer-2", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("ar-peer-2", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
     val (root, rangeProof) = proofOnlyRange()
 
@@ -96,8 +96,8 @@ class AccountRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
     // The worker should complete the task rather than failing it.
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("ar-peer-2b", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("ar-peer-2b", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId = BigInt(20)
@@ -115,8 +115,8 @@ class AccountRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
   it should "report TaskFailed to coordinator on RequestTimeout" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("ar-peer-3", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("ar-peer-3", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId = BigInt(3)
@@ -133,8 +133,8 @@ class AccountRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
   it should "report TaskFailed to coordinator on WorkerPeerDisconnected" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("ar-peer-4", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("ar-peer-4", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId = BigInt(4)
@@ -151,8 +151,8 @@ class AccountRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
   it should "report TaskFailed(0, Worker busy) when FetchAccountRange arrives while already working" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("ar-peer-5", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("ar-peer-5", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId1 = BigInt(5)
@@ -171,8 +171,8 @@ class AccountRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
   it should "return to idle after timeout and accept a new task" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("ar-peer-6", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("ar-peer-6", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId1 = BigInt(7)
@@ -191,8 +191,8 @@ class AccountRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
   it should "ignore response with mismatched request ID" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("ar-peer-7", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("ar-peer-7", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId = BigInt(9)
@@ -212,8 +212,8 @@ class AccountRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
   it should "silently drop a late response (correct reqId) that arrives after RequestTimeout" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("ar-peer-8", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("ar-peer-8", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId = BigInt(10)

@@ -2,7 +2,7 @@ package com.chipprbots.ethereum.blockchain.sync.snap.actors
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
-import org.apache.pekko.testkit.TestProbe as ClassicTestProbe
+import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -11,6 +11,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.blockchain.sync.snap.*
+import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.p2p.messages.SNAP.StorageRanges
 import com.chipprbots.ethereum.testing.PeerTestHelpers
 import com.chipprbots.ethereum.testing.Tags.*
@@ -35,16 +36,16 @@ class StorageRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
   private def makeWorker(
       coordinator: TestProbe[StorageRangeCoordinator.Command]
   ): org.apache.pekko.actor.typed.ActorRef[StorageRangeWorker.Command] =
-    val networkPeerManager = ClassicTestProbe()
+    val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
     val requestTracker = new SNAPRequestTracker()(classicSystem.scheduler)
     testKit.spawn(
-      StorageRangeWorker(coordinator.ref, networkPeerManager.ref, requestTracker)
+      StorageRangeWorker(coordinator.ref, networkPeerManager.ref.toClassic, requestTracker)
     )
 
   "StorageRangeWorker" should "announce peer availability to coordinator on FetchStorageRanges" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("peer-1", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("peer-1", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator)
 
     worker ! StorageRangeCoordinator.FetchStorageRanges(makeStorageTask(), peer)
@@ -54,8 +55,8 @@ class StorageRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
 
   it should "forward StorageRangesResponseMsg to coordinator while working" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("peer-2", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("peer-2", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator)
 
     worker ! StorageRangeCoordinator.FetchStorageRanges(makeStorageTask(), peer)
@@ -69,8 +70,8 @@ class StorageRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
 
   it should "return to idle after forwarding response (accept a second FetchStorageRanges)" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("peer-3", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("peer-3", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator)
 
     // First cycle
@@ -87,8 +88,8 @@ class StorageRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
 
   it should "report StorageTaskFailed to coordinator on StorageRequestTimeout" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("peer-4", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("peer-4", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator)
 
     worker ! StorageRangeCoordinator.FetchStorageRanges(makeStorageTask(), peer)
@@ -104,8 +105,8 @@ class StorageRangeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecL
 
   it should "transition back to idle via StorageCheckIdle when no request is pending" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("peer-5", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("peer-5", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator)
 
     worker ! StorageRangeCoordinator.FetchStorageRanges(makeStorageTask(), peer)

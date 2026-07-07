@@ -43,6 +43,10 @@ class SNAPFakePeer(
   val served: AtomicLong = new AtomicLong(0)
   val dropped: AtomicBoolean = new AtomicBoolean(false)
 
+  // NOT converted to Typed: Typed actors have no sender()/implicit-reply-to-caller equivalent, and
+  // this mechanism (reply to whoever sent SendMessageCmd) has no replyTo field to use instead
+  // (production's real response path is SNAPSyncController -> coordinator, not this). Permanent
+  // Classic API by necessity, not a pending migration.
   val probe: TestProbe =
     val p = TestProbe(peer.id.value + "-network-peer-manager")
     p.setAutoPilot(

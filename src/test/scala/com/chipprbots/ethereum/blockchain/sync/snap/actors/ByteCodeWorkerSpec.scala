@@ -2,7 +2,7 @@ package com.chipprbots.ethereum.blockchain.sync.snap.actors
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
-import org.apache.pekko.testkit.TestProbe as ClassicTestProbe
+import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -43,8 +43,8 @@ class ByteCodeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike 
   "ByteCodeWorker" should "send GetByteCodes to peer via NetworkPeerManager on ByteCodeWorkerFetchTask" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("bc-peer-1", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("bc-peer-1", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val task = makeTask()
@@ -63,8 +63,8 @@ class ByteCodeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike 
   it should "forward ByteCodesResponseMsg to coordinator on happy-path response" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("bc-peer-2", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("bc-peer-2", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId = BigInt(2)
@@ -81,8 +81,8 @@ class ByteCodeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike 
   it should "return to idle after response and process a stashed ByteCodeWorkerFetchTask" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("bc-peer-3", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("bc-peer-3", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     // First task
@@ -107,8 +107,8 @@ class ByteCodeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike 
   it should "report ByteCodeTaskFailed to coordinator on ByteCodeRequestTimeout" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("bc-peer-4", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("bc-peer-4", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId = BigInt(5)
@@ -123,8 +123,8 @@ class ByteCodeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike 
   it should "return to idle after timeout and accept a new ByteCodeWorkerFetchTask" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("bc-peer-5", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("bc-peer-5", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId1 = BigInt(6)
@@ -144,8 +144,8 @@ class ByteCodeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike 
   it should "return to idle on ByteCodeWorkerRelease and unstash queued tasks" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("bc-peer-6", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("bc-peer-6", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId1 = BigInt(8)
@@ -167,8 +167,8 @@ class ByteCodeWorkerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike 
   it should "ignore ByteCodesResponseMsg for mismatched request ID" taggedAs UnitTest in {
     val coordinator = makeCoordinatorProbe()
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val peerProbe = ClassicTestProbe()
-    val peer = PeerTestHelpers.createTestPeer("bc-peer-7", peerProbe.ref)
+    val peerProbe = testKit.createTestProbe[Any]()
+    val peer = PeerTestHelpers.createTestPeer("bc-peer-7", peerProbe.ref.toClassic)
     val worker = makeWorker(coordinator, networkPeerManager)
 
     val reqId = BigInt(10)

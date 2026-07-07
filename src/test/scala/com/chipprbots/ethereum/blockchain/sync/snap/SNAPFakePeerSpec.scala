@@ -1,7 +1,7 @@
 package com.chipprbots.ethereum.blockchain.sync.snap
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -30,7 +30,7 @@ class SNAPFakePeerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike 
   private val maxHash = ByteString(Array.fill(32)(0xff.toByte))
 
   "SNAPFakePeer.empty" should "respond to GetAccountRange with empty AccountRange and boundary proof" taggedAs UnitTest in {
-    val replyProbe = TestProbe()
+    val replyProbe = testKit.createTestProbe[AccountRangeCoordinator.AccountRangeResponseMsg]()
     val fakePeer = SNAPFakePeer.empty(classicSystem, "fp-empty-1")
     val req = GetAccountRange(
       requestId = BigInt(1),
@@ -45,11 +45,11 @@ class SNAPFakePeerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike 
         new GetAccountRange.GetAccountRangeEnc(req),
         fakePeer.peer.id
       ),
-      replyProbe.ref
+      replyProbe.ref.toClassic
     )
 
     // SNAPFakePeer sends AccountRangeResponseMsg back to the sender (replyProbe here)
-    val msg = replyProbe.expectMsgType[AccountRangeCoordinator.AccountRangeResponseMsg](1.second)
+    val msg = replyProbe.expectMessageType[AccountRangeCoordinator.AccountRangeResponseMsg](1.second)
     msg.response.requestId shouldBe BigInt(1)
     msg.response.accounts shouldBe empty
     msg.response.proof should not be empty // boundary proof present
@@ -59,7 +59,7 @@ class SNAPFakePeerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike 
   }
 
   "SNAPFakePeer.nonResponsive" should "not send any response and keep served count at 0" taggedAs UnitTest in {
-    val replyProbe = TestProbe()
+    val replyProbe = testKit.createTestProbe[AccountRangeCoordinator.AccountRangeResponseMsg]()
     val fakePeer = SNAPFakePeer.nonResponsive(classicSystem, "fp-nonresp-1")
     val req = GetAccountRange(
       requestId = BigInt(2),
@@ -74,7 +74,7 @@ class SNAPFakePeerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike 
         new GetAccountRange.GetAccountRangeEnc(req),
         fakePeer.peer.id
       ),
-      replyProbe.ref
+      replyProbe.ref.toClassic
     )
 
     replyProbe.expectNoMessage(200.millis)
@@ -82,7 +82,7 @@ class SNAPFakePeerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike 
   }
 
   "SNAPFakePeer.proofless" should "respond with empty AccountRange and no proof" taggedAs UnitTest in {
-    val replyProbe = TestProbe()
+    val replyProbe = testKit.createTestProbe[AccountRangeCoordinator.AccountRangeResponseMsg]()
     val fakePeer = SNAPFakePeer.proofless(classicSystem, "fp-proofless-1")
     val req = GetAccountRange(
       requestId = BigInt(3),
@@ -97,17 +97,17 @@ class SNAPFakePeerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike 
         new GetAccountRange.GetAccountRangeEnc(req),
         fakePeer.peer.id
       ),
-      replyProbe.ref
+      replyProbe.ref.toClassic
     )
 
-    val msg = replyProbe.expectMsgType[AccountRangeCoordinator.AccountRangeResponseMsg](1.second)
+    val msg = replyProbe.expectMessageType[AccountRangeCoordinator.AccountRangeResponseMsg](1.second)
     msg.response.accounts shouldBe empty
     msg.response.proof shouldBe empty // no proof — triggers stateless marking in coordinator
     fakePeer.served.get() shouldBe 1
   }
 
   "SNAPFakePeer.drop()" should "stop responding after drop() is called" taggedAs UnitTest in {
-    val replyProbe = TestProbe()
+    val replyProbe = testKit.createTestProbe[AccountRangeCoordinator.AccountRangeResponseMsg]()
     val fakePeer = SNAPFakePeer.empty(classicSystem, "fp-drop-1")
 
     fakePeer.drop()
@@ -126,7 +126,7 @@ class SNAPFakePeerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike 
         new GetAccountRange.GetAccountRangeEnc(req),
         fakePeer.peer.id
       ),
-      replyProbe.ref
+      replyProbe.ref.toClassic
     )
 
     replyProbe.expectNoMessage(200.millis) // no response after drop()
@@ -134,7 +134,7 @@ class SNAPFakePeerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike 
   }
 
   "SNAPFakePeer.reconnect()" should "resume responding after reconnect() following drop()" taggedAs UnitTest in {
-    val replyProbe = TestProbe()
+    val replyProbe = testKit.createTestProbe[AccountRangeCoordinator.AccountRangeResponseMsg]()
     val fakePeer = SNAPFakePeer.empty(classicSystem, "fp-reconnect-1")
 
     fakePeer.drop()
@@ -154,17 +154,17 @@ class SNAPFakePeerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike 
         new GetAccountRange.GetAccountRangeEnc(req),
         fakePeer.peer.id
       ),
-      replyProbe.ref
+      replyProbe.ref.toClassic
     )
 
-    val msg = replyProbe.expectMsgType[AccountRangeCoordinator.AccountRangeResponseMsg](1.second)
+    val msg = replyProbe.expectMessageType[AccountRangeCoordinator.AccountRangeResponseMsg](1.second)
     msg.response.requestId shouldBe BigInt(5)
     fakePeer.served.get() shouldBe 1
   }
 
   "SNAPFakePeer.custom" should "invoke the supplied handler for account range requests" taggedAs UnitTest in {
     val customRoot = ByteString(Array.fill(32)(0xde.toByte))
-    val replyProbe = TestProbe()
+    val replyProbe = testKit.createTestProbe[AccountRangeCoordinator.AccountRangeResponseMsg]()
     val fakePeer = SNAPFakePeer.custom(
       classicSystem,
       "fp-custom-1",
@@ -191,10 +191,10 @@ class SNAPFakePeerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike 
         new GetAccountRange.GetAccountRangeEnc(req),
         fakePeer.peer.id
       ),
-      replyProbe.ref
+      replyProbe.ref.toClassic
     )
 
-    val msg = replyProbe.expectMsgType[AccountRangeCoordinator.AccountRangeResponseMsg](1.second)
+    val msg = replyProbe.expectMessageType[AccountRangeCoordinator.AccountRangeResponseMsg](1.second)
     msg.response.requestId shouldBe BigInt(106) // handler applied +100 offset
     msg.response.proof shouldBe Seq(ByteString("custom-proof"))
     fakePeer.served.get() shouldBe 1
