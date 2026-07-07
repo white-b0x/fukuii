@@ -40,7 +40,7 @@ label; both steps are needed when adding a genuinely new label.
 
 ## CODEOWNERS
 
-**Present as of 2026-07: `.github/CODEOWNERS`, a lightweight root catch-all.** `git log`
+**`.github/CODEOWNERS` exists as a lightweight root catch-all.** `git log`
 confirms two real, active maintainers — Cody Burns/Chippr Robotics LLC (`@realcodywburns`)
 and Christopher Mercer/White B0x Inc. (`@chris-mercer`) — so a single blanket line
 (`* @realcodywburns @chris-mercer`) is worth the trivial cost: every PR gets an

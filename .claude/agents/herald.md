@@ -236,9 +236,9 @@ comments, and escalate to `forge` (ETC consensus) or `beacon` (ETH consensus) if
 turns out to affect consensus.
 
 **Pekko migration: complete.** `network/` and `blockchain/sync/` actors have been fully
-migrated to Pekko Typed — 0 `extends Actor` remain in `src/main` (repo-wide grep,
-2026-07-05; see `blockchain/sync/AGENTS.md` § Actor migration status). When touching these
-files to fix a P2P bug:
+migrated to Pekko Typed — treat any new `extends Actor` in these packages as a regression,
+not a mid-migration artifact (see `blockchain/sync/AGENTS.md` § Actor migration status for
+the current authoritative state). When touching these files to fix a P2P bug:
 - Do NOT write new `extends Actor` code — actor code in these packages must stay Pekko Typed (`Behaviors.receive`, sealed Command ADT)
 - Do NOT add `sender()` calls or `context.become` — these are Classic patterns and have no place in migrated actors
 - If a fix requires structural changes to an actor body, flag it to the main session to route through LOOM rather than improvising around the Typed API

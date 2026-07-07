@@ -41,17 +41,17 @@ migrations in W2-P2b (SubscriptionManager, FilterManager migrated to Typed).
 
 **Contributing protocols**: JSON-RPC has recurring bug shapes — wrong error code class, silent codec failure, missing param validation, subscription leak on WebSocket disconnect. If you fix the same shape twice, write the pattern to `~/.claude/agent-protocols/<name>.md` rather than leaving it in test comments.
 
-## Test baseline (clean as of scala3-cleanup-june)
+## Known fixed bug patterns (JSON-RPC test fixtures)
 
-All 76 tests across the 6 suites below are **passing** as of the
-`scala3-cleanup-june` branch. Root causes of the former 69 failures (now fixed):
+These bug shapes have occurred in this package's test suite before — recognize them if they
+resurface elsewhere in `jsonrpc/`:
 
 | Root cause | Fix |
 |---|---|
 | `filter-manager-stub` hardcoded actor name collision across test fixtures | `system.spawnAnonymous(...)` in `JsonRpcControllerFixture`, `GraphQLHttpRouteSpec`, `GraphQLServiceSpec` |
 | `ServerActorSpec` test 3: `DetectedIP(None)` arrived before `TcpBound` (different-sender ordering break) | Inject `ServerActor.TcpBound` directly from test thread; skip the Classic TcpEventBridge hop |
 
-Verify test status before starting any work:
+Verify current test status before starting any work — do not assume a past clean run still holds:
 ```bash
 sbt "testOnly *JsonRpcController* *GraphQL* *ServerActor*"
 ```

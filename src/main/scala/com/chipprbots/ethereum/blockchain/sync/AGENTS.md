@@ -55,11 +55,9 @@ top-level dispatcher deciding which one runs.
 
 ## Actor migration status
 
-Repo-wide grep (2026-07-05): 0 files under `blockchain/sync/` use `extends Actor` (Classic); 31
-use `Behaviors.` (Typed). Some agent definitions (`herald.md`, `loom.md`, `mithril.md`,
-`prism.md`, `wraith.md`) still warn this package "may be mid-migration" — treat that warning as
-possibly stale; confirm the actual actor definition directly if in doubt rather than trusting
-either this file or those.
+The Pekko Classic→Typed migration of `blockchain/sync/` actor definitions is complete — no
+`extends Actor` (Classic) actors remain in this package; all are `Behaviors.`-based (Typed).
+Treat any new `extends Actor` here as a regression, not a mid-migration artifact.
 
 ## Cross-references
 

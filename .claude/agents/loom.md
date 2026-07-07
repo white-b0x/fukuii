@@ -393,7 +393,7 @@ sbt compile-all   # must be green before starting
 | File under `consensus/`, `vm/`, `crypto/`, `domain/` would be modified | **STOP** — invoke `forge` (PoW) or `beacon` (PoS) first |
 | eventStream types cross network boundary | **STOP** — run `@SerializabilityTrait` pre-flight |
 | Compile fails after 2 targeted fix attempts | **STOP** — delegate to `wraith` |
-| `sbt testEssential` drops below 3,519 tests | **STOP** — surface to user before continuing |
+| `sbt testEssential` test count drops below the last recorded baseline in `.local/docs/test-quality-log.md` | **STOP** — surface to user before continuing |
 | More than one actor is being migrated without explicit user instruction | **STOP** — scope to one actor unless the handoff prompt explicitly authorizes a helper + proof-of-concept pair (as in PLN + FastSyncBranchResolverActor) |
 
 After implementation:
@@ -401,39 +401,14 @@ After implementation:
 - Code quality review → `prism` (non-consensus actors)
 - Test validation → `eye`
 
-## Actor migration order
+## Actor migration status
 
-**Do not restate current sprint/migration status here** — check `.claude/sprints/QUEUE.md`
-for what's actually in flight; this file drifts out of sync with reality otherwise. The
-table below is the historical group-by-group record of the network/sync actor migration
-(35 Classic actors in `network/` and `blockchain/sync/`; original plan and group order in
-`.local/docs/archive/2026-06/moderization-review-june/network-sync-pekko-migration-plan.md`):
-
-**Status update (2026-07-07, doc-hygiene pass):** repo-wide grep confirms 0 `extends Actor`
-remain anywhere in `src/main` (see `blockchain/sync/AGENTS.md` § Actor migration status) —
-every row below still marked 🔄 IN PROGRESS / ⬜ NEXT / ⬜ pending completed at some point
-after this table was last hand-updated. The commit-level detail per group is still useful
-history; the status column itself is stale and should not be read as "what's left" — there
-is nothing left.
-
-| Group | Status | Key actors |
-|-------|--------|-----------|
-| W1 | ✅ DONE | SNAP workers ×4 |
-| W2 | ✅ DONE | KnownNodesManager, PeerStatisticsActor, ServerActor |
-| S1 | ✅ DONE | Sync recovery atoms ×3 |
-| S2 | ✅ DONE | StateStorageActor, FastSyncBranchResolverActor |
-| PLN | ✅ DONE | PeerListHelper (shared infrastructure) |
-| S6 | ✅ DONE | ChainDownloader |
-| S5 | ✅ DONE `5d29511d4` | BlockBroadcasterActor (Behavior[BroadcasterMsg]), BlockImporter + RegularSync (Behavior[Any] — mixed Classic/Typed sources); PeerListHelper replaces PeerListSupportNg. 69 jsonrpc failures fixed `92584a07b`. |
-| NET | ✅ DONE | RLPxCH ✅ `f8a127870`. PeerActor ✅ `e6ccc5ac1`. PEA ✅ `59f7a1f11`. PDM ✅ `81eb751f3`. PMA ✅ `05e0c003b`+`0e9952f06` (shell+core; 8 sender→replyTo; PDM self-post timer). **BlockchainHostActor** ✅ `8ef6a4601` — pure Behavior[Command], no shell; 1-case ADT (PeerEventReceived); messageAdapter+tell subscription; 4 helpers→local defs; 3 spawn sites (NodeBuilder+CommonFakePeer+Spec); test required PeerEventReceived wrapping for 12 direct tells; 3,621/0. |
-| S3 | 🔄 IN PROGRESS | SNAP coordinators ×4. HERALD-5 ✅ CONDITIONAL. **ByteCodeCoordinator** ✅ `4f214db16`+`86930f9b1` — 4 returns removed (not 1 — lines 482/503/523/533; broader grep needed); Command non-sealed (multi-file ADT, same as other S-series); BytecodeRecoveryActor already Typed (spawn via PropsAdapter); dead PeerAvailable handler dropped; SSC ask → AskPattern(.toTyped); 21/21 BCC tests + 263/263 SNAP suite; 3,621/0. **StorageRangeCoordinator** ✅ `368c03560`+`0b43de007` — 21 returns removed (Phase 0); no child workers (dispatches GetStorageRanges directly to NPMA Classic); 1 sender() → replyTo on StorageGetProgress; SSC stagnation ask → AskPattern(.toTyped) mirrors BCC; 3 scheduler calls converted (preStart recurring → startTimerWithFixedDelay, 2× scheduleOnce → context.scheduleOnce); log.warning → log.warn (15 sites, SLF4J); files: SRC.scala + Messages.scala + SSC.scala + StorageRecoveryActor.scala + Spec; 28/28 SRC tests; 3,621/0. **AccountRangeCoordinator** ⬜ NEXT (2 Typed behaviors: receive→initial + finalizing; 6 sender() paths; 9 replyTo fields in Messages.scala). TNHC: pre-migration fix needed (10 returns) + drop @volatile. HealingStagnated outbound to SSC — not in TNHC Command ADT. |
-| S4/S7 | ⬜ post-NET | SyncStateSchedulerActor + PivotBlockSelector (S4), PeersClient + PeerRequestHandler (S7) |
-| NET2 | ⬜ post-NET+S3 | NetworkPeerManagerActor. HERALD-3 ✅ CONDITIONAL. 1 state (handleMessages), 8 var fields on Impl class, 2 sender() paths, Classic shell required (SSC uses Classic ask), SNAP ref stays Option[ActorRef], 3 scheduler calls → withTimers. |
-| SNAP1/SNAP2/ROOT/CAPSTONE | ⬜ post-W1+S3+S4/S7+NET+NET2 | HERALD-4 ✅ CONDITIONAL. SSC: 5,178 LOC, 6 named behaviors, 11 sender() → replyTo (pure status queries), ~58 var→Impl fields, 13 timers (1 untracked raw scheduler at L4058 → keyed timer), 2 .orElse partials → explicit helpers, 1 aroundReceive (stagnation dispatcher L3191 → inline in syncing), 4 hard constraints. See `.local/docs/moderization-review-june/HERALD-4-SSC-preflight.md`. Requires SPECKIT specify session to define ADT before LOOM starts. |
-
-SNAP1 (SNAPSyncController, 5,178 LOC, 6 behaviors) — HERALD-4 ✅ CONDITIONAL.
-Gates: W1 (serialization) + S3 (coordinators Typed) + S4/S7 + NET + NET2 (NPMA Typed, ConnectToPeer+SendMessage in Command ADT).
-Requires SPECKIT specify session before LOOM starts. Do not begin without it.
+The Pekko Classic→Typed migration of `network/` and `blockchain/sync/` actor definitions is
+complete. For the authoritative current state, see
+`src/main/scala/com/chipprbots/ethereum/blockchain/sync/AGENTS.md` § Actor migration status.
+Do not restate migration progress here — check `.claude/sprints/QUEUE.md` for any in-flight
+follow-on work. Historical group-by-group commit detail (which actor moved in which commit)
+lives in `.claude/sprints/log/legacy-modernization-log/`, not in this file.
 
 ## Concrete example: ResourceHealthMonitor (completed — commit c77c2ebf7)
 

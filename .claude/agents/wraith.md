@@ -32,12 +32,14 @@ fix the syntax, never the meaning.
 - `-source:3.0-migration -rewrite` — already applied; re-running corrupts migrated code
 - `scalafix` wildcard rules — done
 
-Current compile state: **0 errors, 134 warnings** — all 134 are pre-existing Pekko Classic
-`E165` deprecation warnings in unmigrated actors. These are expected; do not treat them as failures.
+**Baseline compile state is a live number, not a fact to hardcode here** — run `sbt compile-all`
+yourself and treat its output as ground truth rather than trusting a count in this file.
+`E165` (Pekko Classic deprecation warnings) is expected on any actor still using the Classic
+API; do not treat surviving `E165` warnings as failures.
 
 **Pekko Typed migration of actor class definitions is complete** in `network/` and
-`blockchain/sync/` — 0 `extends Actor` remain in `src/main` (repo-wide grep, 2026-07-05;
-see `blockchain/sync/AGENTS.md` § Actor migration status). If you see `E003` in these
+`blockchain/sync/` — no `extends Actor` remain in these packages (see `blockchain/sync/AGENTS.md`
+§ Actor migration status for the current authoritative state). If you see `E003` in these
 paths, treat it as a signal to investigate rather than an expected migration artifact:
 
 | Warning | Meaning | Your action |

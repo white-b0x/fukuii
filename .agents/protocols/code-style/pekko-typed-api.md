@@ -693,8 +693,8 @@ grep -rn "\.narrow\[" src/main/ --include="*.scala"
 
 ## P26 — Never block on a `Future` inside actor message handling or a Pekko dispatcher thread
 
-**Status:** No known production violations as of 2026-07; documented preemptively — this is
-the Pekko/Scala analog of the C#/.NET `.Result`/`.Wait()` deadlock warning, and the pattern
+**Status:** No mechanical ratchet exists for this pattern yet; documented preemptively — this
+is the Pekko/Scala analog of the C#/.NET `.Result`/`.Wait()` deadlock warning, and the pattern
 this codebase is actively migrating *toward* (Pekko Typed, `pipeToSelf`) makes it easy to
 backslide into if a migrated actor still calls out to a blocking API.
 

@@ -79,10 +79,10 @@ Full index: [`.claude/agents/REFERENCES.md`](REFERENCES.md)
   any actor file in scope (conflict registry: Pekko first, then GivenUsing).
 - **Before touching `network/` or `blockchain/sync/` actor files for idiomatic
   modernization**: the Pekko Typed migration of actor class definitions in these packages
-  is complete (0 `extends Actor` remain in `src/main`, repo-wide grep 2026-07-05) — the
-  mid-migration edit-conflict concern that used to apply here no longer does. If a future
-  LOOM session is active on one of these files for other reasons, `.claude/sprints/QUEUE.md`
-  is still the place to check, not this file.
+  is complete (see `blockchain/sync/AGENTS.md` § Actor migration status for the current
+  authoritative state) — the mid-migration edit-conflict concern that used to apply here
+  no longer does. If a future LOOM session is active on one of these files for other
+  reasons, `.claude/sprints/QUEUE.md` is still the place to check, not this file.
 
 ```bash
 sbt compile-all && sbt testEssential   # verify before and after

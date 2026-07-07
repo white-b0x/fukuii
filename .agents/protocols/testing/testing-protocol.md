@@ -13,7 +13,7 @@ Referenced by: `fukuii/CLAUDE.md`, loom.md, mithril.md, wraith.md, flow.md
 
 | Command | What runs | Time | Baseline |
 |---------|-----------|------|---------|
-| `sbt testEssential` | 3,621 unit tests | ~24 min | 3,621 / 0 failures |
+| `sbt testEssential` | Unit tests | ~24 min | 0 failures — see `.local/docs/test-quality-log.md`'s `Tier baselines` table for the current test count; do not hardcode a number here, it drifts |
 | `sbt testStandard` | Unit + integration | ~30 min | — |
 | `sbt testComprehensive` | Full ethereum/tests compliance | <3 h | — |
 
@@ -106,7 +106,7 @@ cascade is 3–4× larger than root-main alone. Using `sbt compile` between
 edits limits each cascade to main sources only; test sources recompile once
 at the end.
 
-### Affected types (known core domain, as of June 2026)
+### Affected types (known core domain)
 
 | Type | Location | Approx. dependents |
 |------|----------|-------------------|
@@ -153,7 +153,8 @@ sbt testVM
 ## What "baseline holds" means
 
 The thread-end `testEssential` run must show:
-- Test count: **3,621** (not fewer — a missing test class = silent deletion)
+- Test count: no lower than the last recorded baseline in `.local/docs/test-quality-log.md`
+  (a missing test class = silent deletion) — never hardcode the number in this file, it drifts
 - Failures: **0**
 - If count drops: investigate before closing the thread
 

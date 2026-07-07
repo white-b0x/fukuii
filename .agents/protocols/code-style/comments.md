@@ -82,15 +82,16 @@ citation**, not narration, provided it reads like fukuii's own existing practice
 This states *what must remain true* (no restart cap on this actor) and *where the constraint
 was decided* (`#1378`) in one line — a reader hitting this actor doesn't need archaeology to
 know the restart-cap omission is deliberate, not an oversight. A repo-wide sample
-(`grep -rEn '^\s*//.*#[0-9]{3,6}\b' src/main/`) found 113 such sites across 23 files as of
-2026-07 — most concentrated in `SyncController.scala`'s `PR #1378` no-restart-cap markers —
-and they read as disciplined design-constraint citations, not incident storytelling.
+(`grep -rEn '^\s*//.*#[0-9]{3,6}\b' src/main/`) found a non-trivial, already-established number
+of such sites — most concentrated in `SyncController.scala`'s `PR #1378` no-restart-cap
+markers — and they read as disciplined design-constraint citations, not incident storytelling.
+Re-run the grep yourself for the current count rather than trusting a cached number here.
 
-**Why not adopt Erigon's stricter ban:** rewriting or stripping 113 established sites to chase
+**Why not adopt Erigon's stricter ban:** rewriting or stripping these established sites to chase
 Go's convention would erase real information (which actors are deliberately supervision-
 exempt, and why) for no correctness gain — the citations already meet the "states what must
 remain true" bar the rest of this doc sets, they're just short enough to keep the reference
-inline instead of only in the PR body. These 113 sites are **house style, not grandfathered
+inline instead of only in the PR body. These sites are **house style, not grandfathered
 debt** — this is a deliberate, disclosed divergence from Erigon's Go convention, ratified
 here for future reviewers and for `REPO-08b`'s regex design to implement against.
 

@@ -117,9 +117,11 @@ build:
   confirm it isn't correctly describing ETH's actual historical event in an ETH-scoped
   comment or doc.
 
-As of 2026-07-07, `grep -rn "PreMerge\|PostMerge\|preMerge\|postMerge" src/main --include="*.scala"`
-returns 0 hits — a clean baseline worth re-checking if this ever gets promoted to a ratchet.
-A full source-code nomenclature sweep against this protocol is separately scheduled
-(`.claude/sprints/QUEUE.md`); don't duplicate it ad hoc. If that sweep produces a
-narrower, genuinely lexical pattern (e.g. a specific banned identifier), promote it to a
-grep target here rather than leaving it undiscoverable.
+A quick sanity check —
+`grep -rn "PreMerge\|PostMerge\|preMerge\|postMerge" src/main --include="*.scala"` — should
+return 0 hits; treat any hit as a signal to investigate rather than expected noise, and
+re-run it yourself rather than trusting a cached result here. A full source-code nomenclature
+sweep against this protocol is separately scheduled (`.claude/sprints/QUEUE.md`); don't
+duplicate it ad hoc. If that sweep produces a narrower, genuinely lexical pattern (e.g. a
+specific banned identifier), promote it to a grep target here rather than leaving it
+undiscoverable.

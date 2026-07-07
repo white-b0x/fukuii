@@ -264,12 +264,14 @@ Ratchet: none yet — enforce via PRISM review and MITHRIL sweep after LOOM CAPS
 
 ### S12 — Opaque-type `given` typeclass instances must pin their delegate explicitly
 
-**Status: fully enforced as of 2026-07-05** — confirmed via `given Ordering\[` sweep, all 12
-domain BigInt/Long-backed opaque types (`GasAmount`, `Wei`, `GasPrice`, `BaseFeePerGas`,
-`TotalDifficulty`, `ChainId`, `BlockNumber`, `Difficulty`, `Nonce`, `PriorityFeePerGas`,
-`Timestamp`, `MaxFeePerGas`) now use the pinned form. No other typeclass instance of this
-shape (`given Numeric[X]`/`Fractional[X]`/`Integral[X]`) currently exists in the codebase.
-Ratchet check below prevents regression on any future opaque type.
+**Enforced via the ratchet grep below**, wired into `scala3-style-check.sh` — every opaque
+type with a comparison-typeclass `given` instance (`Ordering`, `Numeric`, `Fractional`,
+`Integral`) must use the pinned form. Domain BigInt/Long-backed opaque types this applies to
+today include `GasAmount`, `Wei`, `GasPrice`, `BaseFeePerGas`, `TotalDifficulty`, `ChainId`,
+`BlockNumber`, `Difficulty`, `Nonce`, `PriorityFeePerGas`, `Timestamp`, `MaxFeePerGas` — treat
+this as illustrative, not an exhaustive count; the ratchet grep is the source of truth for
+whether any type currently violates the rule. Ratchet check below prevents regression on any
+future opaque type.
 
 **The footgun:** inside an opaque type's own companion object, the opaque type is transparently
 equal to its underlying representation (`ChainId =:= BigInt` inside `ChainId.scala`). A bare
