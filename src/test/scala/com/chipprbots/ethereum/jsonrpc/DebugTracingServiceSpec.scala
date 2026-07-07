@@ -5,6 +5,7 @@ import org.apache.pekko.util.ByteString
 
 import cats.effect.unsafe.IORuntime
 
+import org.json4s.JsonAST.*
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -78,6 +79,7 @@ class DebugTracingServiceSpec
     new TestSetup:
       val txHash: ByteString = block.body.transactionList.head.hash.value
       val txIndex = 0
+      val returnValue: ByteString = ByteString(Array[Byte](0x2a))
 
       blockchainWriter.storeBlock(block).commit()
       // Inject a parent header at the exact parentHash the block references
@@ -87,6 +89,8 @@ class DebugTracingServiceSpec
 
       txMappingStorage.get.expects(txHash).returning(Some(TransactionLocation(block.header.hash, txIndex)))
       mockLedger.advanceWorldToTx.expects(*, *, *, *).returning(mockWorld)
+      // Drive the real tracer's onTxEnd hook the way StxLedger.simulateTransactionWithTracer would,
+      // so the response reflects the tracer's actual getResult rather than an untouched fresh tracer.
       (mockLedger
         .simulateTransactionWithTracer(
           _: SignedTransactionWithSender,
@@ -95,13 +99,25 @@ class DebugTracingServiceSpec
           _: ExecutionTracer
         ))
         .expects(*, *, *, *)
-        .returning(null.asInstanceOf[TxResult])
+        .onCall { (_, _, _, tracer) =>
+          tracer.onTxEnd(gasUsed = com.chipprbots.ethereum.domain.GasAmount(21123), output = returnValue, error = None)
+          null.asInstanceOf[TxResult]
+        }
 
       val result: Either[JsonRpcError, TraceTransactionResponse] = service
         .traceTransaction(TraceTransactionRequest(txHash))
         .unsafeRunSync()
 
       result.isRight shouldBe true
+      // Regression guard for STRUCTLOG-01: the default (structLogger) tracer used to always return JNothing.
+      val response: JValue = result.getOrElse(fail("expected Right")).result
+      response should not be JNothing
+      val JObject(fields) = response: @unchecked
+      val fieldMap = fields.toMap
+      fieldMap("gas") shouldBe JInt(21123)
+      fieldMap("failed") shouldBe JBool(false)
+      fieldMap("returnValue") shouldBe JString("0x2a")
+      (fieldMap should contain).key("structLogs")
 
   // ── traceBlockByHash ─────────────────────────────────────────────────────────
 

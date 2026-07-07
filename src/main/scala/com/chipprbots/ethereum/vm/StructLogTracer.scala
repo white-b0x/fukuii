@@ -3,9 +3,11 @@ package com.chipprbots.ethereum.vm
 import org.apache.pekko.util.ByteString
 
 import org.json4s.JsonAST.*
+import org.json4s.JsonDSL.*
 
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.utils.Hex
 
 /** A single step in EVM execution, matching go-ethereum's structLog format. */
 case class StructLog(
@@ -101,12 +103,40 @@ class StructLogTracer(
     _returnValue = returnValue
     _failed = failed
 
+  override def onTxEnd(gasUsed: GasAmount, output: ByteString, error: Option[String]): Unit =
+    setResult(gasUsed, output, error.isDefined)
+
   def getSteps: Seq[StructLog] = steps.toSeq
   def gas: GasAmount = _gas
   def failed: Boolean = _failed
   def returnValue: ByteString = _returnValue
 
-  /** Not used for StructLogTracer — response is built by DebugTracingJsonMethodsImplicits using
-    * getSteps/gas/failed/returnValue. Exists to satisfy the ExecutionTracer trait.
+  /** Builds the go-ethereum-compatible default tracer response from the collected steps and tx-level result.
+    *
+    * go-ethereum reference: eth/tracers/logger/logger.go — ExecutionResult{Gas, Failed, ReturnValue, StructLogs},
+    * structLogLegacy{pc, op, gas, gasCost, depth, error, stack, memory, storage, refund}.
     */
-  override def getResult: JValue = JNothing
+  override def getResult: JValue =
+    ("gas" -> JInt(_gas.value)) ~
+      ("failed" -> JBool(_failed)) ~
+      ("returnValue" -> encodeHexBytes(_returnValue)) ~
+      ("structLogs" -> JArray(steps.map(encodeStructLog).toList))
+
+  private def encodeStructLog(log: StructLog): JValue =
+    var obj: JObject = ("pc" -> JInt(log.pc)) ~
+      ("op" -> JString(log.op)) ~
+      ("gas" -> JInt(log.gas.value)) ~
+      ("gasCost" -> JInt(log.gasCost)) ~
+      ("depth" -> JInt(log.depth)) ~
+      ("stack" -> JArray(log.stack.map(v => JString("0x" + v.toString(16))).toList))
+
+    log.memory.foreach(mem => obj = obj ~ ("memory" -> JArray(mem.map(word => JString("0x" + word)).toList)))
+    log.storage.foreach(st =>
+      obj = obj ~ ("storage" -> JObject(st.toList.map { case (k, v) => JField(k, JString(v)) }))
+    )
+    log.error.foreach(e => obj = obj ~ ("error" -> JString(e)))
+
+    obj
+
+  private def encodeHexBytes(bs: ByteString): JString =
+    if bs.isEmpty then JString("0x") else JString("0x" + Hex.toHexString(bs.toArray))
