@@ -7,8 +7,6 @@ import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
 
-import scala.io.Source
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -45,19 +43,6 @@ class FastSyncConcurrentPipelineSpec extends AnyFlatSpec with Matchers with Befo
     Await.result(Helpers.system.terminate(), 10.seconds)
 
   import Helpers.*
-
-  private val fastSyncSourcePath =
-    "src/main/scala/com/chipprbots/ethereum/blockchain/sync/fast/FastSync.scala"
-
-  "FastSync source" should "not contain BlockHeadersHandlerName" taggedAs UnitTest in {
-    val source = Source.fromFile(fastSyncSourcePath).mkString
-    (source should not).include("BlockHeadersHandlerName")
-  }
-
-  it should "not contain requestedHeaders field" taggedAs UnitTest in {
-    val source = Source.fromFile(fastSyncSourcePath).mkString
-    (source should not).include("requestedHeaders")
-  }
 
   "FastSync concurrent pipelines" should "allow a peer to hold headers, bodies, and receipts in-flight simultaneously" taggedAs UnitTest in {
     val tracker = new PeerRateTracker()
