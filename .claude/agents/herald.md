@@ -235,9 +235,10 @@ verify, commit. Add a test for each specific bug, document the root cause in cod
 comments, and escalate to `forge` (ETC consensus) or `beacon` (ETH consensus) if the issue
 turns out to affect consensus.
 
-**Pekko migration constraint:** `network/` and `blockchain/sync/` actors may be mid-migration
-from Classic to Typed — check `.claude/sprints/QUEUE.md` for current status rather than
-assuming from this file, which goes stale. When touching these files to fix a P2P bug:
-- Do NOT write new `extends Actor` code — new actor code must be Pekko Typed (`Behaviors.receive`, sealed Command ADT)
-- Do NOT add `sender()` calls or `context.become` to existing Classic actors — those are LOOM migration targets
-- If a fix requires structural changes to an actor body, flag it to the main session to route through LOOM rather than patching around the Classic pattern
+**Pekko migration: complete.** `network/` and `blockchain/sync/` actors have been fully
+migrated to Pekko Typed — 0 `extends Actor` remain in `src/main` (repo-wide grep,
+2026-07-05; see `blockchain/sync/AGENTS.md` § Actor migration status). When touching these
+files to fix a P2P bug:
+- Do NOT write new `extends Actor` code — actor code in these packages must stay Pekko Typed (`Behaviors.receive`, sealed Command ADT)
+- Do NOT add `sender()` calls or `context.become` — these are Classic patterns and have no place in migrated actors
+- If a fix requires structural changes to an actor body, flag it to the main session to route through LOOM rather than improvising around the Typed API

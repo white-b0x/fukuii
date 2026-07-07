@@ -78,10 +78,11 @@ Full index: [`.claude/agents/REFERENCES.md`](REFERENCES.md)
   `.scalafix.conf` first, and must run AFTER the Pekko Typed migration is complete for
   any actor file in scope (conflict registry: Pekko first, then GivenUsing).
 - **Before touching `network/` or `blockchain/sync/` actor files for idiomatic
-  modernization**, check `.claude/sprints/QUEUE.md` for any in-flight LOOM migration on
-  those files first — early mithril edits on a file mid-migration create conflicts. Don't
-  assume from this persona file whether a migration is active; the queue is current, this
-  file is not.
+  modernization**: the Pekko Typed migration of actor class definitions in these packages
+  is complete (0 `extends Actor` remain in `src/main`, repo-wide grep 2026-07-05) — the
+  mid-migration edit-conflict concern that used to apply here no longer does. If a future
+  LOOM session is active on one of these files for other reasons, `.claude/sprints/QUEUE.md`
+  is still the place to check, not this file.
 
 ```bash
 sbt compile-all && sbt testEssential   # verify before and after

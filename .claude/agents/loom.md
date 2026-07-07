@@ -407,7 +407,14 @@ After implementation:
 for what's actually in flight; this file drifts out of sync with reality otherwise. The
 table below is the historical group-by-group record of the network/sync actor migration
 (35 Classic actors in `network/` and `blockchain/sync/`; original plan and group order in
-`.local/docs/moderization-review-june/network-sync-pekko-migration-plan.md`):
+`.local/docs/archive/2026-06/moderization-review-june/network-sync-pekko-migration-plan.md`):
+
+**Status update (2026-07-07, doc-hygiene pass):** repo-wide grep confirms 0 `extends Actor`
+remain anywhere in `src/main` (see `blockchain/sync/AGENTS.md` § Actor migration status) —
+every row below still marked 🔄 IN PROGRESS / ⬜ NEXT / ⬜ pending completed at some point
+after this table was last hand-updated. The commit-level detail per group is still useful
+history; the status column itself is stale and should not be read as "what's left" — there
+is nothing left.
 
 | Group | Status | Key actors |
 |-------|--------|-----------|

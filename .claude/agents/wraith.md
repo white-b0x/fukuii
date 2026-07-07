@@ -35,12 +35,14 @@ fix the syntax, never the meaning.
 Current compile state: **0 errors, 134 warnings** — all 134 are pre-existing Pekko Classic
 `E165` deprecation warnings in unmigrated actors. These are expected; do not treat them as failures.
 
-**Pekko Typed migration is in progress** in `network/` and `blockchain/sync/`. These warning
-types in those paths are migration artifacts — do not patch around them:
+**Pekko Typed migration of actor class definitions is complete** in `network/` and
+`blockchain/sync/` — 0 `extends Actor` remain in `src/main` (repo-wide grep, 2026-07-05;
+see `blockchain/sync/AGENTS.md` § Actor migration status). If you see `E003` in these
+paths, treat it as a signal to investigate rather than an expected migration artifact:
 
 | Warning | Meaning | Your action |
 |---------|---------|-------------|
-| `E003` — `extends Actor` deprecated | Classic actor awaiting LOOM migration | Leave as-is; do NOT add `@nowarn` or restructure. Delegate migration to LOOM |
+| `E003` — `extends Actor` deprecated | Should not occur here anymore — flag any hit in these two paths as new/regressed Classic actor code | Leave as-is only outside `network/`/`blockchain/sync/`; otherwise escalate to LOOM, do NOT add `@nowarn` |
 | `E165` — unmatchable type in `Behavior[Any]` | Intentional `Behavior[Any]` pattern (LOOM Pattern 11) | Leave as-is |
 
 **New code discipline** — when writing code to fix a compile error:
