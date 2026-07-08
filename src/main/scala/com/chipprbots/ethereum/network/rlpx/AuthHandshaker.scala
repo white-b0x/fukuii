@@ -113,8 +113,12 @@ case class AuthHandshaker(
     // nethermind) commonly do the same for ack-body — a strict whole-buffer decode here would break every
     // handshake against a peer that pads. Same rationale already documented for the auth-body/init side in
     // `AuthInitiateMessageV4.scala`'s `toAuthInitiateMessageV4`.
-    val message =
-      try rlp.decode[AuthResponseMessageV4](plaintext)
+    //
+    // NETWORK-02: decode failure is a legitimate handshake outcome, not an exceptional one — the
+    // AuthHandshakeResult return type exists precisely so callers don't have to catch. Only the decode
+    // step itself is guarded here (not finalizeHandshake below), matching the try/catch's original scope.
+    val messageOpt: Option[AuthResponseMessageV4] =
+      try Some(rlp.decode[AuthResponseMessageV4](plaintext))
       catch
         case ex: Throwable =>
           AuthHandshaker.log.warn(
@@ -126,9 +130,13 @@ case class AuthHandshaker(
             AuthHandshaker.toLoggableHex(ByteString(plaintext)),
             ex
           )
-          throw ex
+          None
 
-    copy(responsePacketOpt = Some(data)).finalizeHandshake(message.ephemeralPublicKey, message.nonce)
+    messageOpt match
+      case Some(message) =>
+        copy(responsePacketOpt = Some(data)).finalizeHandshake(message.ephemeralPublicKey, message.nonce)
+      case None =>
+        AuthHandshakeError
 
   def handleInitialMessage(data: ByteString): (ByteString, AuthHandshakeResult) =
     val plaintext = ECIESCoder.decrypt(
@@ -183,8 +191,14 @@ case class AuthHandshaker(
       macData = Some(sizeBytes.toArray)
     )
 
-    val message =
-      try plaintext.toAuthInitiateMessageV4
+    // NETWORK-02: decode failure is a legitimate handshake outcome, not an exceptional one — return
+    // AuthHandshakeError (no response packet to send) instead of rethrowing. Keeps the return type
+    // unchanged ((ByteString, AuthHandshakeResult)) so test infra pattern-matching on the tuple shape
+    // (e.g. SecureChannelSetup) isn't disturbed; only the decode step itself is guarded, matching the
+    // try/catch's original scope — a later failure in extractEphemeralKey/finalizeHandshake still
+    // propagates uncaught, exactly as before.
+    val messageOpt: Option[AuthInitiateMessageV4] =
+      try Some(plaintext.toAuthInitiateMessageV4)
       catch
         case ex: Throwable =>
           // Log at ERROR to ensure the plaintextHex diagnostic is visible in docker compose logs.
@@ -197,28 +211,36 @@ case class AuthHandshaker(
             AuthHandshaker.toLoggableHex(ByteString(plaintext)),
             ex
           )
-          throw ex
+          None
 
-    val response = AuthResponseMessageV4(
-      ephemeralPublicKey =
-        ephemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, // interop: BC API returns CipherParameters
-      nonce = nonce,
-      version = ProtocolVersion
-    )
-    val encodedResponse = rlp.encode(response)
+    messageOpt match
+      case None =>
+        (ByteString.empty, AuthHandshakeError)
+      case Some(message) =>
+        val response = AuthResponseMessageV4(
+          ephemeralPublicKey = ephemeralKey.getPublic
+            .asInstanceOf[ECPublicKeyParameters]
+            .getQ, // interop: BC API returns CipherParameters
+          nonce = nonce,
+          version = ProtocolVersion
+        )
+        val encodedResponse = rlp.encode(response)
 
-    val encryptedSize = encodedResponse.length + ECIESCoder.OverheadSize
-    val sizePrefix = ByteBuffer.allocate(2).putShort(encryptedSize.toShort).array
-    val encryptedResponsePayload =
-      ECIESCoder.encrypt(message.publicKey, secureRandom, encodedResponse, Some(sizePrefix))
-    val packet = ByteString(sizePrefix ++ encryptedResponsePayload)
+        val encryptedSize = encodedResponse.length + ECIESCoder.OverheadSize
+        val sizePrefix = ByteBuffer.allocate(2).putShort(encryptedSize.toShort).array
+        val encryptedResponsePayload =
+          ECIESCoder.encrypt(message.publicKey, secureRandom, encodedResponse, Some(sizePrefix))
+        val packet = ByteString(sizePrefix ++ encryptedResponsePayload)
 
-    val remoteEphemeralKey = extractEphemeralKey(message.signature, message.nonce, message.publicKey)
-    val handshakeResult =
-      copy(initiatePacketOpt = Some(data), responsePacketOpt = Some(packet), remotePubKeyOpt = Some(message.publicKey))
-        .finalizeHandshake(remoteEphemeralKey, message.nonce)
+        val remoteEphemeralKey = extractEphemeralKey(message.signature, message.nonce, message.publicKey)
+        val handshakeResult =
+          copy(
+            initiatePacketOpt = Some(data),
+            responsePacketOpt = Some(packet),
+            remotePubKeyOpt = Some(message.publicKey)
+          ).finalizeHandshake(remoteEphemeralKey, message.nonce)
 
-    (packet, handshakeResult)
+        (packet, handshakeResult)
 
   private def extractEphemeralKey(signature: ECDSASignature, nonce: ByteString, publicKey: ECPoint): ECPoint =
     val agreement = new ECDHBasicAgreement

@@ -689,6 +689,21 @@ object RLPxConnectionHandler:
         )
 
         maybePreEIP8.orElse(maybePostEIP8) match
+          // NETWORK-02: handleInitialMessage(V4) now returns AuthHandshakeError (rather than
+          // throwing) when the peer's auth-init payload fails to decode. Route this case to the
+          // exact same outcome the old throw -> Try-Failure path produced — DEBUG-level log, no
+          // authFailedCount increment — instead of processHandshakeResult's AuthHandshakeError arm
+          // (WARN + metric), which stays dead code here just as it was before this fix. A public
+          // node sees constant internet-scanner probing on this path; go-ethereum/besu keep this
+          // at debug/trace to avoid WARN spam, and the metric's meaning shouldn't shift as a side
+          // effect of a throw->return signature cleanup.
+          case Success((_, AuthHandshakeError, _)) =>
+            log.debug(
+              "[Stopping Connection] Auth decode failed for peer {} - both pre-EIP8 and EIP-8 failed",
+              peerId
+            )
+            parent ! ConnectionFailed
+            stopping()
           case Success((responsePacket, result, remainingData)) =>
             log.debug("[RLPx] Auth handshake init processed for peer {}, sending response", peerId)
             bridgeWrite(bridge, responsePacket)
@@ -757,6 +772,19 @@ object RLPxConnectionHandler:
           (result, remainingData)
         }
         maybePreEIP8.orElse(maybePostEIP8) match
+          // NETWORK-02: handleResponseMessageV4 now returns AuthHandshakeError (rather than
+          // throwing) when the peer's auth-response payload fails to decode. Route this case to
+          // the exact same outcome the old throw -> Try-Failure path produced — DEBUG-level log,
+          // no authFailedCount increment — instead of processHandshakeResult's AuthHandshakeError
+          // arm (WARN + metric), which stays dead code here just as it was before this fix. See
+          // the matching comment in waitingForAuthHandshakeInit for the full rationale.
+          case Success((AuthHandshakeError, _)) =>
+            log.debug(
+              "[Stopping Connection] Response AuthHandshaker message handling failed for peer {}",
+              peerId
+            )
+            parent ! ConnectionFailed
+            stopping()
           case Success((result, remainingData)) =>
             log.debug("[RLPx] Auth handshake response processed for peer {}", peerId)
             processHandshakeResult(result, remainingData, bridge)
