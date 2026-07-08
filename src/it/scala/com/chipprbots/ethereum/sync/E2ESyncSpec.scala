@@ -247,11 +247,15 @@ class E2ESyncSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll:
           _ <- peer1.importBlocksUntil(commonBlocks)(IdentityUpdate)
           _ <- peer2.importBlocksUntil(commonBlocks)(IdentityUpdate)
 
-          // Peer1 mines additional blocks
+          // Start peer1's sync BEFORE mining. `mineNewBlocks` delivers each block to the BlockImporter
+          // via SyncProtocol.MinedBlock; while the importer is idle (pre-Start) those messages are
+          // dropped, so mining before startRegularSync leaves peer1 stuck at commonBlocks. Starting
+          // first ensures the extra blocks are actually imported (same ordering as the passing
+          // "should exchange blocks incrementally" sibling).
+          _ <- peer1.startRegularSync()
           _ <- peer1.mineNewBlocks(100.milliseconds, peer1ExtraBlocks)(IdentityUpdate)
 
-          // Start sync
-          _ <- peer1.startRegularSync()
+          // Start peer2 and connect; peer2 backfills peer1's now-longer chain.
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
 

@@ -313,11 +313,14 @@ class E2EHandshakeSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
           _ <- peer1.startRegularSync()
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
-          _ <- IO.sleep(3.seconds)
+          // After a successful handshake with a longer-chain peer, RegularSync performs full-sync
+          // backfill: peer2 (at genesis) downloads and imports peer1's historical blocks to catch up,
+          // matching go-ethereum/core-geth full-sync semantics. It does NOT stay at genesis.
+          _ <- peer2.waitForRegularSyncLoadLastBlock(100)
         yield
-          // Handshake should succeed with peer at genesis
+          // Handshake succeeded and peer2 backfilled to peer1's height.
           val peer2BestBlock = peer2.blockchainReader.getBestBlockNumber
-          peer2BestBlock shouldBe 0
+          peer2BestBlock shouldBe 100
           succeed
       }
 
