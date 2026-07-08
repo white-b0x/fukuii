@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
@@ -18,7 +18,7 @@ import Fixtures.blockchainConfig
 
 /** Tests for EIP-3651: Warm COINBASE https://eips.ethereum.org/EIPS/eip-3651
   */
-class Eip3651Spec extends AnyWordSpec with Matchers:
+class Eip3651Spec extends AnyFlatSpec with Matchers:
 
   // Config without EIP-3651 (using Mystique as base)
   val configPreEip3651: EvmConfig = EvmConfig.MystiqueConfigBuilder(blockchainConfig)
@@ -109,212 +109,209 @@ class Eip3651Spec extends AnyWordSpec with Matchers:
 
   import fxt.*
 
-  "EIP-3651" when {
+  "EIP-3651 when disabled (pre-fork)" should "treat COINBASE address as cold on first access" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val context = createContext(
+      codeReadCoinbaseBalance.code,
+      fakeHeaderPreEip3651,
+      configPreEip3651
+    )
 
-    "disabled (pre-fork)" should {
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "treat COINBASE address as cold on first access" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeReadCoinbaseBalance.code,
-          fakeHeaderPreEip3651,
-          configPreEip3651
-        )
+    // Without EIP-3651, COINBASE is cold, so BALANCE costs G_cold_account_access
+    val expectedGas = configPreEip3651.feeSchedule.G_base + // COINBASE opcode
+      configPreEip3651.feeSchedule.G_cold_account_access // BALANCE (cold)
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
+    result.error shouldBe None
+  }
 
-        // Without EIP-3651, COINBASE is cold, so BALANCE costs G_cold_account_access
-        val expectedGas = configPreEip3651.feeSchedule.G_base + // COINBASE opcode
-          configPreEip3651.feeSchedule.G_cold_account_access // BALANCE (cold)
+  it should "not include COINBASE in initial accessed addresses" taggedAs (UnitTest, VMTest) in {
+    val context = createContext(
+      codeReadCoinbaseBalance.code,
+      fakeHeaderPreEip3651,
+      configPreEip3651
+    )
 
-        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
-        result.error shouldBe None
-      }
+    val env = ExecEnv(context, context.inputData, context.recipientAddr.get)
+    val initialState = ProgramState(new VM[MockWorldState, MockStorage], context, env)
 
-      "not include COINBASE in initial accessed addresses" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeReadCoinbaseBalance.code,
-          fakeHeaderPreEip3651,
-          configPreEip3651
-        )
+    // COINBASE should not be in accessedAddresses initially
+    initialState.accessedAddresses should not contain coinbaseAddr
+  }
 
-        val env = ExecEnv(context, context.inputData, context.recipientAddr.get)
-        val initialState = ProgramState(new VM[MockWorldState, MockStorage], context, env)
+  "EIP-3651 when enabled (post-fork)" should "treat COINBASE address as warm on first access" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val context = createContext(
+      codeReadCoinbaseBalance.code,
+      fakeHeaderWithEip3651,
+      configWithEip3651
+    )
 
-        // COINBASE should not be in accessedAddresses initially
-        initialState.accessedAddresses should not contain coinbaseAddr
-      }
-    }
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-    "enabled (post-fork)" should {
+    // With EIP-3651, COINBASE is warm, so BALANCE costs G_warm_storage_read
+    val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
+      configWithEip3651.feeSchedule.G_warm_storage_read // BALANCE (warm)
 
-      "treat COINBASE address as warm on first access" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeReadCoinbaseBalance.code,
-          fakeHeaderWithEip3651,
-          configWithEip3651
-        )
+    result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
+    result.error shouldBe None
+  }
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "include COINBASE in initial accessed addresses" taggedAs (UnitTest, VMTest) in {
+    val context = createContext(
+      codeReadCoinbaseBalance.code,
+      fakeHeaderWithEip3651,
+      configWithEip3651
+    )
 
-        // With EIP-3651, COINBASE is warm, so BALANCE costs G_warm_storage_read
-        val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
-          configWithEip3651.feeSchedule.G_warm_storage_read // BALANCE (warm)
+    val env = ExecEnv(context, context.inputData, context.recipientAddr.get)
+    val initialState = ProgramState(new VM[MockWorldState, MockStorage], context, env)
 
-        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
-        result.error shouldBe None
-      }
+    // COINBASE should be in accessedAddresses initially
+    initialState.accessedAddresses should contain(coinbaseAddr)
+  }
 
-      "include COINBASE in initial accessed addresses" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeReadCoinbaseBalance.code,
-          fakeHeaderWithEip3651,
-          configWithEip3651
-        )
+  it should "save 2500 gas compared to cold access" taggedAs (UnitTest, VMTest) in {
+    // Without EIP-3651
+    val contextPreEip = createContext(
+      codeReadCoinbaseBalance.code,
+      fakeHeaderPreEip3651,
+      configPreEip3651
+    )
+    val vmPre = new VM[MockWorldState, MockStorage]
+    val resultPre = vmPre.run(contextPreEip)
 
-        val env = ExecEnv(context, context.inputData, context.recipientAddr.get)
-        val initialState = ProgramState(new VM[MockWorldState, MockStorage], context, env)
+    // With EIP-3651
+    val contextWithEip = createContext(
+      codeReadCoinbaseBalance.code,
+      fakeHeaderWithEip3651,
+      configWithEip3651
+    )
+    val vmWith = new VM[MockWorldState, MockStorage]
+    val resultWith = vmWith.run(contextWithEip)
 
-        // COINBASE should be in accessedAddresses initially
-        initialState.accessedAddresses should contain(coinbaseAddr)
-      }
+    // Gas savings should be the difference between cold and warm access
+    val gasSavings = (contextPreEip.startGas - resultPre.gasRemaining) -
+      (contextWithEip.startGas - resultWith.gasRemaining)
 
-      "save 2500 gas compared to cold access" taggedAs (UnitTest, VMTest) in {
-        // Without EIP-3651
-        val contextPreEip = createContext(
-          codeReadCoinbaseBalance.code,
-          fakeHeaderPreEip3651,
-          configPreEip3651
-        )
-        val vmPre = new VM[MockWorldState, MockStorage]
-        val resultPre = vmPre.run(contextPreEip)
+    val expectedSavings = configWithEip3651.feeSchedule.G_cold_account_access -
+      configWithEip3651.feeSchedule.G_warm_storage_read
 
-        // With EIP-3651
-        val contextWithEip = createContext(
-          codeReadCoinbaseBalance.code,
-          fakeHeaderWithEip3651,
-          configWithEip3651
-        )
-        val vmWith = new VM[MockWorldState, MockStorage]
-        val resultWith = vmWith.run(contextWithEip)
+    gasSavings shouldEqual expectedSavings
+    gasSavings shouldEqual 2500 // Standard EIP-2929 difference
+  }
 
-        // Gas savings should be the difference between cold and warm access
-        val gasSavings = (contextPreEip.startGas - resultPre.gasRemaining) -
-          (contextWithEip.startGas - resultWith.gasRemaining)
+  it should "work with EXTCODESIZE opcode" taggedAs (UnitTest, VMTest) in {
+    val context = createContext(
+      codeReadCoinbaseCodeSize.code,
+      fakeHeaderWithEip3651,
+      configWithEip3651
+    )
 
-        val expectedSavings = configWithEip3651.feeSchedule.G_cold_account_access -
-          configWithEip3651.feeSchedule.G_warm_storage_read
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        gasSavings shouldEqual expectedSavings
-        gasSavings shouldEqual 2500 // Standard EIP-2929 difference
-      }
+    val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
+      configWithEip3651.feeSchedule.G_warm_storage_read // EXTCODESIZE (warm)
 
-      "work with EXTCODESIZE opcode" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeReadCoinbaseCodeSize.code,
-          fakeHeaderWithEip3651,
-          configWithEip3651
-        )
+    result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
+    result.error shouldBe None
+  }
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "work with EXTCODEHASH opcode" taggedAs (UnitTest, VMTest) in {
+    val context = createContext(
+      codeReadCoinbaseCodeHash.code,
+      fakeHeaderWithEip3651,
+      configWithEip3651
+    )
 
-        val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
-          configWithEip3651.feeSchedule.G_warm_storage_read // EXTCODESIZE (warm)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
-        result.error shouldBe None
-      }
+    val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
+      configWithEip3651.feeSchedule.G_warm_storage_read // EXTCODEHASH (warm)
 
-      "work with EXTCODEHASH opcode" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeReadCoinbaseCodeHash.code,
-          fakeHeaderWithEip3651,
-          configWithEip3651
-        )
+    result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
+    result.error shouldBe None
+  }
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "not affect other addresses (they remain cold)" taggedAs (UnitTest, VMTest) in {
+    val context = createContext(
+      codeReadOtherBalance.code,
+      fakeHeaderWithEip3651,
+      configWithEip3651
+    )
 
-        val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
-          configWithEip3651.feeSchedule.G_warm_storage_read // EXTCODEHASH (warm)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
-        result.error shouldBe None
-      }
+    // Other addresses should still be cold
+    val expectedGas = configWithEip3651.feeSchedule.G_verylow + // PUSH20
+      configWithEip3651.feeSchedule.G_cold_account_access // BALANCE (cold)
 
-      "not affect other addresses (they remain cold)" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeReadOtherBalance.code,
-          fakeHeaderWithEip3651,
-          configWithEip3651
-        )
+    result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
+    result.error shouldBe None
+  }
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "preserve COINBASE in accessed addresses after transaction" taggedAs (UnitTest, VMTest) in {
+    val context = createContext(
+      codeReadCoinbaseBalance.code,
+      fakeHeaderWithEip3651,
+      configWithEip3651
+    )
 
-        // Other addresses should still be cold
-        val expectedGas = configWithEip3651.feeSchedule.G_verylow + // PUSH20
-          configWithEip3651.feeSchedule.G_cold_account_access // BALANCE (cold)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
-        result.error shouldBe None
-      }
+    // COINBASE should remain in accessed addresses after execution
+    result.accessedAddresses should contain(coinbaseAddr)
+  }
 
-      "preserve COINBASE in accessed addresses after transaction" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeReadCoinbaseBalance.code,
-          fakeHeaderWithEip3651,
-          configWithEip3651
-        )
+  "EIP-3651 when interaction with access lists" should "work when COINBASE is also in transaction access list" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val context = createContext(
+      codeReadCoinbaseBalance.code,
+      fakeHeaderWithEip3651,
+      configWithEip3651,
+      warmAddresses = Set(coinbaseAddr) // COINBASE also in access list
+    )
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        // COINBASE should remain in accessed addresses after execution
-        result.accessedAddresses should contain(coinbaseAddr)
-      }
-    }
+    // Should still be warm (no change in behavior)
+    val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
+      configWithEip3651.feeSchedule.G_warm_storage_read // BALANCE (warm)
 
-    "interaction with access lists" should {
+    result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
+    result.error shouldBe None
+  }
 
-      "work when COINBASE is also in transaction access list" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeReadCoinbaseBalance.code,
-          fakeHeaderWithEip3651,
-          configWithEip3651,
-          warmAddresses = Set(coinbaseAddr) // COINBASE also in access list
-        )
+  it should "work when other addresses are in access list" taggedAs (UnitTest, VMTest) in {
+    val context = createContext(
+      codeReadCoinbaseBalance.code,
+      fakeHeaderWithEip3651,
+      configWithEip3651,
+      warmAddresses = Set(otherAddr) // Other address in access list
+    )
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        // Should still be warm (no change in behavior)
-        val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
-          configWithEip3651.feeSchedule.G_warm_storage_read // BALANCE (warm)
+    // COINBASE should still be warm due to EIP-3651
+    val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
+      configWithEip3651.feeSchedule.G_warm_storage_read // BALANCE (warm)
 
-        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
-        result.error shouldBe None
-      }
-
-      "work when other addresses are in access list" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeReadCoinbaseBalance.code,
-          fakeHeaderWithEip3651,
-          configWithEip3651,
-          warmAddresses = Set(otherAddr) // Other address in access list
-        )
-
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
-
-        // COINBASE should still be warm due to EIP-3651
-        val expectedGas = configWithEip3651.feeSchedule.G_base + // COINBASE opcode
-          configWithEip3651.feeSchedule.G_warm_storage_read // BALANCE (warm)
-
-        result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
-        result.error shouldBe None
-      }
-    }
+    result.gasRemaining shouldEqual (context.startGas - GasAmount(expectedGas))
+    result.error shouldBe None
   }

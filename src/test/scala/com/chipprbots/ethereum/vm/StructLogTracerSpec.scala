@@ -3,8 +3,8 @@ package com.chipprbots.ethereum.vm
 import org.apache.pekko.util.ByteString
 
 import org.json4s.JsonAST.*
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
@@ -25,53 +25,50 @@ import com.chipprbots.ethereum.vm.MockWorldState.TestVM
   *
   * go-ethereum reference: eth/tracers/logger/logger.go — ExecutionResult{Gas, Failed, ReturnValue, StructLogs}.
   */
-class StructLogTracerSpec extends AnyWordSpec with Matchers:
+class StructLogTracerSpec extends AnyFlatSpec with Matchers:
 
-  "StructLogTracer.getResult" should {
+  "StructLogTracer.getResult" should "return JNothing-free JSON with gas/failed/returnValue/structLogs after a traced transaction" in new TestSetup:
+    val tracer = new StructLogTracer(enableMemory = false, enableStorage = false)
 
-    "return JNothing-free JSON with gas/failed/returnValue/structLogs after a traced transaction" in new TestSetup:
-      val tracer = new StructLogTracer(enableMemory = false, enableStorage = false)
+    tracer.onStep(ADD, prevState, nextState)
 
-      tracer.onStep(ADD, prevState, nextState)
+    val output: ByteString = ByteString(Array[Byte](0x2a))
+    tracer.onTxEnd(gasUsed = GasAmount(21123), output = output, error = None)
 
-      val output: ByteString = ByteString(Array[Byte](0x2a))
-      tracer.onTxEnd(gasUsed = GasAmount(21123), output = output, error = None)
+    val result: JValue = tracer.getResult
 
-      val result: JValue = tracer.getResult
+    result should not be JNothing
 
-      result should not be JNothing
+    val JObject(fields) = result: @unchecked
+    val fieldMap = fields.toMap
 
-      val JObject(fields) = result: @unchecked
-      val fieldMap = fields.toMap
+    fieldMap("gas") shouldBe JInt(21123)
+    fieldMap("failed") shouldBe JBool(false)
+    fieldMap("returnValue") shouldBe JString("0x2a")
 
-      fieldMap("gas") shouldBe JInt(21123)
-      fieldMap("failed") shouldBe JBool(false)
-      fieldMap("returnValue") shouldBe JString("0x2a")
+    val JArray(structLogs) = fieldMap("structLogs"): @unchecked
+    structLogs should have size 1
 
-      val JArray(structLogs) = fieldMap("structLogs"): @unchecked
-      structLogs should have size 1
+    val JObject(stepFields) = structLogs.head: @unchecked
+    val stepMap = stepFields.toMap
+    stepMap("op") shouldBe JString("ADD")
+    stepMap("pc") shouldBe JInt(0)
+    stepMap("depth") shouldBe JInt(1)
+    val JArray(stack) = stepMap("stack"): @unchecked
+    // Stack.push(Seq(1, 2)) makes 2 the top-most element; toSeq (and thus the structLog) lists top-of-stack first.
+    stack shouldBe List(JString("0x2"), JString("0x1"))
 
-      val JObject(stepFields) = structLogs.head: @unchecked
-      val stepMap = stepFields.toMap
-      stepMap("op") shouldBe JString("ADD")
-      stepMap("pc") shouldBe JInt(0)
-      stepMap("depth") shouldBe JInt(1)
-      val JArray(stack) = stepMap("stack"): @unchecked
-      // Stack.push(Seq(1, 2)) makes 2 the top-most element; toSeq (and thus the structLog) lists top-of-stack first.
-      stack shouldBe List(JString("0x2"), JString("0x1"))
+  it should "mark failed = true and preserve the revert data when the traced tx errors" in new TestSetup:
+    val tracer = new StructLogTracer()
 
-    "mark failed = true and preserve the revert data when the traced tx errors" in new TestSetup:
-      val tracer = new StructLogTracer()
+    tracer.onTxEnd(gasUsed = GasAmount(50000), output = ByteString.empty, error = Some("execution reverted"))
 
-      tracer.onTxEnd(gasUsed = GasAmount(50000), output = ByteString.empty, error = Some("execution reverted"))
+    val JObject(fields) = tracer.getResult: @unchecked
+    val fieldMap = fields.toMap
 
-      val JObject(fields) = tracer.getResult: @unchecked
-      val fieldMap = fields.toMap
-
-      fieldMap("failed") shouldBe JBool(true)
-      fieldMap("returnValue") shouldBe JString("0x")
-      fieldMap("structLogs") shouldBe JArray(Nil)
-  }
+    fieldMap("failed") shouldBe JBool(true)
+    fieldMap("returnValue") shouldBe JString("0x")
+    fieldMap("structLogs") shouldBe JArray(Nil)
 
   trait TestSetup:
     val config: EvmConfig = EvmConfig.ConstantinopleConfigBuilder(blockchainConfig)
