@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
@@ -18,7 +18,7 @@ import Fixtures.blockchainConfig
 
 /** Tests for EIP-3541: Reject new contracts starting with 0xEF byte https://eips.ethereum.org/EIPS/eip-3541
   */
-class Eip3541Spec extends AnyWordSpec with Matchers:
+class Eip3541Spec extends AnyFlatSpec with Matchers:
 
   val configPreMystique: EvmConfig = EvmConfig.MagnetoConfigBuilder(blockchainConfig)
   val configMystique: EvmConfig = EvmConfig.MystiqueConfigBuilder(blockchainConfig)
@@ -157,138 +157,132 @@ class Eip3541Spec extends AnyWordSpec with Matchers:
       MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(UInt256(1000000)))
     val newAddr: Address = initWorld.increaseNonce(creatorAddr).createAddress(creatorAddr)
 
-  "EIP-3541" should {
-    "be disabled before Mystique fork" taggedAs (UnitTest, VMTest) in {
-      configPreMystique.eip3541Enabled shouldBe false
-    }
-
-    "be enabled at Mystique fork" taggedAs (UnitTest, VMTest) in {
-      configMystique.eip3541Enabled shouldBe true
-    }
-
-    "isEip3541Enabled should return true for Mystique fork" taggedAs (UnitTest, VMTest) in {
-      val etcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MystiqueBlockNumber))
-      BlockchainConfigForEvm.isEip3541Enabled(etcFork) shouldBe true
-    }
-
-    "isEip3541Enabled should return false for pre-Mystique forks" taggedAs (UnitTest, VMTest) in {
-      val magnetoFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MagnetoBlockNumber))
-      BlockchainConfigForEvm.isEip3541Enabled(magnetoFork) shouldBe false
-
-      val phoenixFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.PhoenixBlockNumber))
-      BlockchainConfigForEvm.isEip3541Enabled(phoenixFork) shouldBe false
-    }
+  "EIP-3541" should "be disabled before Mystique fork" taggedAs (UnitTest, VMTest) in {
+    configPreMystique.eip3541Enabled shouldBe false
   }
 
-  "EIP-3541: Contract creation with CREATE" when {
-    "pre-Mystique fork" should {
-      "allow deploying contract starting with 0xEF byte" taggedAs (UnitTest, VMTest) in {
-        val context =
-          fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF.code, fxt.fakeHeaderPreMystique, configPreMystique)
-        val result = new VM[MockWorldState, MockStorage].run(context)
-        result.error shouldBe None
-        result.gasRemaining should be > GasAmount(0)
-      }
-    }
-
-    "post-Mystique fork (EIP-3541 enabled)" should {
-      "reject contract with one byte 0xEF" taggedAs (UnitTest, VMTest) in {
-        val context =
-          fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF.code, fxt.fakeHeaderMystique, configMystique)
-        val result = new VM[MockWorldState, MockStorage].run(context)
-        result.error shouldBe Some(InvalidCode)
-        result.gasRemaining shouldBe GasAmount.Zero
-        result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
-      }
-
-      "reject contract with two bytes 0xEF00" taggedAs (UnitTest, VMTest) in {
-        val context =
-          fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF00.code, fxt.fakeHeaderMystique, configMystique)
-        val result = new VM[MockWorldState, MockStorage].run(context)
-        result.error shouldBe Some(InvalidCode)
-        result.gasRemaining shouldBe GasAmount.Zero
-        result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
-      }
-
-      "reject contract with three bytes 0xEF0000" taggedAs (UnitTest, VMTest) in {
-        val context =
-          fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF0000.code, fxt.fakeHeaderMystique, configMystique)
-        val result = new VM[MockWorldState, MockStorage].run(context)
-        result.error shouldBe Some(InvalidCode)
-        result.gasRemaining shouldBe GasAmount.Zero
-        result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
-      }
-
-      "reject contract with 32 bytes starting with 0xEF" taggedAs (UnitTest, VMTest) in {
-        val context =
-          fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF32Bytes.code, fxt.fakeHeaderMystique, configMystique)
-        val result = new VM[MockWorldState, MockStorage].run(context)
-        result.error shouldBe Some(InvalidCode)
-        result.gasRemaining shouldBe GasAmount.Zero
-        result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
-      }
-
-      "allow deploying contract starting with 0xFE byte" taggedAs (UnitTest, VMTest) in {
-        val context =
-          fxt.createContext(fxt.initWorld, fxt.initCodeReturningFE.code, fxt.fakeHeaderMystique, configMystique)
-        val result = new VM[MockWorldState, MockStorage].run(context)
-        result.error shouldBe None
-        result.gasRemaining should be > GasAmount(0)
-      }
-
-      "allow deploying contract with empty code" taggedAs (UnitTest, VMTest) in {
-        val context =
-          fxt.createContext(fxt.initWorld, fxt.initCodeReturningEmpty.code, fxt.fakeHeaderMystique, configMystique)
-        val result = new VM[MockWorldState, MockStorage].run(context)
-        result.error shouldBe None
-        result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
-      }
-    }
+  it should "be enabled at Mystique fork" taggedAs (UnitTest, VMTest) in {
+    configMystique.eip3541Enabled shouldBe true
   }
 
-  "EIP-3541: Contract creation with CREATE opcode" when {
-    "post-Mystique fork (EIP-3541 enabled)" should {
-      "reject contract deployment via CREATE starting with 0xEF" taggedAs (UnitTest, VMTest) in {
-        // Note: Testing via CREATE opcode is complex due to init code assembly.
-        // The core validation is already tested via create transaction (recipientAddr=None).
-        // This test verifies that the EIP-3541 check applies to CREATE opcode as well.
-        // For simplicity, we test that the validation applies at the VM level.
-
-        // The validation happens in VM.saveNewContract which is called for all contract creations
-        // including those from CREATE/CREATE2 opcodes. The direct transaction tests above
-        // already verify the validation logic works correctly.
-        succeed
-      }
-    }
+  it should "isEip3541Enabled should return true for Mystique fork" taggedAs (UnitTest, VMTest) in {
+    val etcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MystiqueBlockNumber))
+    BlockchainConfigForEvm.isEip3541Enabled(etcFork) shouldBe true
   }
 
-  "EIP-3541: Contract creation with CREATE2 opcode" when {
-    "post-Mystique fork (EIP-3541 enabled)" should {
-      "reject contract deployment via CREATE2 starting with 0xEF" taggedAs (UnitTest, VMTest) in {
-        // Note: Testing via CREATE2 opcode is complex due to init code assembly.
-        // The core validation is already tested via create transaction (recipientAddr=None).
-        // This test verifies that the EIP-3541 check applies to CREATE2 opcode as well.
-        // For simplicity, we test that the validation applies at the VM level.
+  it should "isEip3541Enabled should return false for pre-Mystique forks" taggedAs (UnitTest, VMTest) in {
+    val magnetoFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MagnetoBlockNumber))
+    BlockchainConfigForEvm.isEip3541Enabled(magnetoFork) shouldBe false
 
-        // The validation happens in VM.saveNewContract which is called for all contract creations
-        // including those from CREATE/CREATE2 opcodes. The direct transaction tests above
-        // already verify the validation logic works correctly.
-        succeed
-      }
-    }
+    val phoenixFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.PhoenixBlockNumber))
+    BlockchainConfigForEvm.isEip3541Enabled(phoenixFork) shouldBe false
   }
 
-  "EIP-3541: Gas consumption" should {
-    "consume all gas when rejecting 0xEF contract" taggedAs (UnitTest, VMTest) in {
-      val context = fxt.createContext(
-        fxt.initWorld,
-        fxt.initCodeReturningEF.code,
-        fxt.fakeHeaderMystique,
-        configMystique,
-        startGas = 100000
-      )
-      val result = new VM[MockWorldState, MockStorage].run(context)
-      result.error shouldBe Some(InvalidCode)
-      result.gasRemaining shouldBe GasAmount.Zero
-    }
+  "EIP-3541: Contract creation with CREATE when pre-Mystique fork" should "allow deploying contract starting with 0xEF byte" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val context =
+      fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF.code, fxt.fakeHeaderPreMystique, configPreMystique)
+    val result = new VM[MockWorldState, MockStorage].run(context)
+    result.error shouldBe None
+    result.gasRemaining should be > GasAmount(0)
+  }
+
+  "EIP-3541: Contract creation with CREATE when post-Mystique fork (EIP-3541 enabled)" should "reject contract with one byte 0xEF" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val context =
+      fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF.code, fxt.fakeHeaderMystique, configMystique)
+    val result = new VM[MockWorldState, MockStorage].run(context)
+    result.error shouldBe Some(InvalidCode)
+    result.gasRemaining shouldBe GasAmount.Zero
+    result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
+  }
+
+  it should "reject contract with two bytes 0xEF00" taggedAs (UnitTest, VMTest) in {
+    val context =
+      fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF00.code, fxt.fakeHeaderMystique, configMystique)
+    val result = new VM[MockWorldState, MockStorage].run(context)
+    result.error shouldBe Some(InvalidCode)
+    result.gasRemaining shouldBe GasAmount.Zero
+    result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
+  }
+
+  it should "reject contract with three bytes 0xEF0000" taggedAs (UnitTest, VMTest) in {
+    val context =
+      fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF0000.code, fxt.fakeHeaderMystique, configMystique)
+    val result = new VM[MockWorldState, MockStorage].run(context)
+    result.error shouldBe Some(InvalidCode)
+    result.gasRemaining shouldBe GasAmount.Zero
+    result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
+  }
+
+  it should "reject contract with 32 bytes starting with 0xEF" taggedAs (UnitTest, VMTest) in {
+    val context =
+      fxt.createContext(fxt.initWorld, fxt.initCodeReturningEF32Bytes.code, fxt.fakeHeaderMystique, configMystique)
+    val result = new VM[MockWorldState, MockStorage].run(context)
+    result.error shouldBe Some(InvalidCode)
+    result.gasRemaining shouldBe GasAmount.Zero
+    result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
+  }
+
+  it should "allow deploying contract starting with 0xFE byte" taggedAs (UnitTest, VMTest) in {
+    val context =
+      fxt.createContext(fxt.initWorld, fxt.initCodeReturningFE.code, fxt.fakeHeaderMystique, configMystique)
+    val result = new VM[MockWorldState, MockStorage].run(context)
+    result.error shouldBe None
+    result.gasRemaining should be > GasAmount(0)
+  }
+
+  it should "allow deploying contract with empty code" taggedAs (UnitTest, VMTest) in {
+    val context =
+      fxt.createContext(fxt.initWorld, fxt.initCodeReturningEmpty.code, fxt.fakeHeaderMystique, configMystique)
+    val result = new VM[MockWorldState, MockStorage].run(context)
+    result.error shouldBe None
+    result.world.getCode(fxt.newAddr) shouldBe ByteString.empty
+  }
+
+  "EIP-3541: Contract creation with CREATE opcode when post-Mystique fork (EIP-3541 enabled)" should "reject contract deployment via CREATE starting with 0xEF" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    // Note: Testing via CREATE opcode is complex due to init code assembly.
+    // The core validation is already tested via create transaction (recipientAddr=None).
+    // This test verifies that the EIP-3541 check applies to CREATE opcode as well.
+    // For simplicity, we test that the validation applies at the VM level.
+
+    // The validation happens in VM.saveNewContract which is called for all contract creations
+    // including those from CREATE/CREATE2 opcodes. The direct transaction tests above
+    // already verify the validation logic works correctly.
+    succeed
+  }
+
+  "EIP-3541: Contract creation with CREATE2 opcode when post-Mystique fork (EIP-3541 enabled)" should "reject contract deployment via CREATE2 starting with 0xEF" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    // Note: Testing via CREATE2 opcode is complex due to init code assembly.
+    // The core validation is already tested via create transaction (recipientAddr=None).
+    // This test verifies that the EIP-3541 check applies to CREATE2 opcode as well.
+    // For simplicity, we test that the validation applies at the VM level.
+
+    // The validation happens in VM.saveNewContract which is called for all contract creations
+    // including those from CREATE/CREATE2 opcodes. The direct transaction tests above
+    // already verify the validation logic works correctly.
+    succeed
+  }
+
+  "EIP-3541: Gas consumption" should "consume all gas when rejecting 0xEF contract" taggedAs (UnitTest, VMTest) in {
+    val context = fxt.createContext(
+      fxt.initWorld,
+      fxt.initCodeReturningEF.code,
+      fxt.fakeHeaderMystique,
+      configMystique,
+      startGas = 100000
+    )
+    val result = new VM[MockWorldState, MockStorage].run(context)
+    result.error shouldBe Some(InvalidCode)
+    result.gasRemaining shouldBe GasAmount.Zero
   }

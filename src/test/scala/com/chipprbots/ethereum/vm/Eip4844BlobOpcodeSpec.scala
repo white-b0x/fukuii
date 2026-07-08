@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
@@ -31,7 +31,7 @@ import com.chipprbots.ethereum.vm.Fixtures.blockchainConfig
   *
   * go-ethereum reference: consensus/misc/eip4844/eip4844_test.go TestCalcBlobFee
   */
-class Eip4844BlobOpcodeSpec extends AnyWordSpec with Matchers:
+class Eip4844BlobOpcodeSpec extends AnyFlatSpec with Matchers:
 
   // ETC Olympia config — now uses EtcOlympiaOpCodes (BLOBHASH/BLOBBASEFEE excluded)
   val etcOlympiaConfig: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
@@ -181,242 +181,229 @@ class Eip4844BlobOpcodeSpec extends AnyWordSpec with Matchers:
       blobVersionedHashes = blobVersionedHashes
     )
 
-  "EtcOlympiaOpCodes list" should {
-
-    "exclude BLOBHASH (0x49)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-      OpCodes.EtcOlympiaOpCodes.contains(BLOBHASH) shouldBe false
-    }
-
-    "exclude BLOBBASEFEE (0x4a)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-      OpCodes.EtcOlympiaOpCodes.contains(BLOBBASEFEE) shouldBe false
-    }
-
-    "include CLZ (EIP-7939 / ECIP-1121)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-      OpCodes.EtcOlympiaOpCodes.contains(CLZ) shouldBe true
-    }
-
-    "include TLOAD (EIP-1153)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-      OpCodes.EtcOlympiaOpCodes.contains(TLOAD) shouldBe true
-    }
-
-    "include TSTORE (EIP-1153)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-      OpCodes.EtcOlympiaOpCodes.contains(TSTORE) shouldBe true
-    }
-
-    "include MCOPY (EIP-5656)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-      OpCodes.EtcOlympiaOpCodes.contains(MCOPY) shouldBe true
-    }
-
-    "include BASEFEE (EIP-3198)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-      OpCodes.EtcOlympiaOpCodes.contains(BASEFEE) shouldBe true
-    }
+  "EtcOlympiaOpCodes list" should "exclude BLOBHASH (0x49)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    OpCodes.EtcOlympiaOpCodes.contains(BLOBHASH) shouldBe false
   }
 
-  "OlympiaOpCodes (ETH) list — regression guard" should {
-
-    "still contain BLOBHASH (0x49)" taggedAs (UnitTest, VMTest) in {
-      OpCodes.OlympiaOpCodes.contains(BLOBHASH) shouldBe true
-    }
-
-    "still contain BLOBBASEFEE (0x4a)" taggedAs (UnitTest, VMTest) in {
-      OpCodes.OlympiaOpCodes.contains(BLOBBASEFEE) shouldBe true
-    }
+  it should "exclude BLOBBASEFEE (0x4a)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    OpCodes.EtcOlympiaOpCodes.contains(BLOBBASEFEE) shouldBe false
   }
 
-  "OlympiaConfigBuilder (ETC block-based fork)" should {
-
-    "not include BLOBHASH in jump table" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-      etcOlympiaConfig.byteToOpCode.get(0x49.toByte) shouldBe None
-    }
-
-    "not include BLOBBASEFEE in jump table" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-      etcOlympiaConfig.byteToOpCode.get(0x4a.toByte) shouldBe None
-    }
-
-    "include CLZ in jump table" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-      etcOlympiaConfig.byteToOpCode.get(0x1e.toByte) shouldBe Some(CLZ)
-    }
+  it should "include CLZ (EIP-7939 / ECIP-1121)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    OpCodes.EtcOlympiaOpCodes.contains(CLZ) shouldBe true
   }
 
-  "ETH Cancun config — regression guard" should {
-
-    "include BLOBHASH in jump table" taggedAs (UnitTest, VMTest) in {
-      ethCancunConfig.byteToOpCode.get(0x49.toByte) shouldBe Some(BLOBHASH)
-    }
-
-    "include BLOBBASEFEE in jump table" taggedAs (UnitTest, VMTest) in {
-      ethCancunConfig.byteToOpCode.get(0x4a.toByte) shouldBe Some(BLOBBASEFEE)
-    }
+  it should "include TLOAD (EIP-1153)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    OpCodes.EtcOlympiaOpCodes.contains(TLOAD) shouldBe true
   }
 
-  "BLOBHASH opcode (0x49)" when {
-
-    "executed on ETC Olympia block" should {
-
-      "be treated as invalid opcode" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val code = Assembly(BLOBHASH, STOP).code
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(createContext(code, etcOlympiaHeader, etcOlympiaConfig))
-        result.error shouldBe Some(InvalidOpCode(0x49.toByte))
-      }
-    }
-
-    "executed on ETH Cancun block with no blob hashes" should {
-
-      "return zero for out-of-bounds index (no error)" taggedAs (UnitTest, VMTest) in {
-        val vm = new VM[MockWorldState, MockStorage]
-        val code = Assembly(PUSH1, 0, BLOBHASH, STOP).code
-        val result = vm.run(createContext(code, cancunHeader(), ethCancunConfig, blobVersionedHashes = Seq.empty))
-        result.error shouldBe None
-      }
-    }
-
-    "executed on ETH Cancun block with a blob hash" should {
-
-      "return the versioned hash at index 0" taggedAs (UnitTest, VMTest) in {
-        val versionedHash = ByteString(Array.fill(32)(0x42.toByte))
-        val vm = new VM[MockWorldState, MockStorage]
-        val code = Assembly(PUSH1, 0, BLOBHASH, STOP).code
-        val result = vm.run(
-          createContext(code, cancunHeader(), ethCancunConfig, blobVersionedHashes = Seq(versionedHash))
-        )
-        result.error shouldBe None
-      }
-    }
+  it should "include TSTORE (EIP-1153)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    OpCodes.EtcOlympiaOpCodes.contains(TSTORE) shouldBe true
   }
 
-  "BLOBBASEFEE opcode (0x4a)" when {
-
-    "executed on ETC Olympia block" should {
-
-      "be treated as invalid opcode" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val code = Assembly(BLOBBASEFEE, STOP).code
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(createContext(code, etcOlympiaHeader, etcOlympiaConfig))
-        result.error shouldBe Some(InvalidOpCode(0x4a.toByte))
-      }
-    }
-
-    "executed on ETH Cancun block" should {
-
-      // go-ethereum test vectors from consensus/misc/eip4844/eip4844_test.go TestCalcBlobFee
-      // All with Cancun update fraction 3338477
-
-      "return 1 when excessBlobGas is 0 (min blob base fee)" taggedAs (UnitTest, VMTest) in {
-        val vm = new VM[MockWorldState, MockStorage]
-        val code = Assembly(BLOBBASEFEE, STOP).code
-        val result = vm.run(createContext(code, cancunHeader(excessBlobGas = BigInt(0)), ethCancunConfig))
-        result.error shouldBe None
-      }
-
-      "return 1 when excessBlobGas is 2314057 (just below the 1→2 threshold)" taggedAs (UnitTest, VMTest) in {
-        val vm = new VM[MockWorldState, MockStorage]
-        val code = Assembly(BLOBBASEFEE, STOP).code
-        val result = vm.run(createContext(code, cancunHeader(excessBlobGas = BigInt(2314057)), ethCancunConfig))
-        result.error shouldBe None
-      }
-
-      "return 2 when excessBlobGas is 2314058 (at the 1→2 threshold)" taggedAs (UnitTest, VMTest) in {
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(
-          createContext(
-            Assembly(
-              BLOBBASEFEE, // pushes fee
-              PUSH1,
-              0, // memory offset
-              MSTORE,
-              STOP
-            ).code,
-            cancunHeader(excessBlobGas = BigInt(2314058)),
-            ethCancunConfig
-          )
-        )
-        result.error shouldBe None
-      }
-
-      "return value > 1 for large excessBlobGas (formula sanity check)" taggedAs (UnitTest, VMTest) in {
-        // excessBlobGas = 10*1024*1024 → fee = 23 (go-ethereum reference)
-        val vm = new VM[MockWorldState, MockStorage]
-        val code = Assembly(BLOBBASEFEE, STOP).code
-        val result = vm.run(
-          createContext(
-            code,
-            cancunHeader(excessBlobGas = BigInt(10 * 1024 * 1024)),
-            ethCancunConfig
-          )
-        )
-        result.error shouldBe None
-      }
-    }
-
-    "executed on ETH Prague block (update fraction 5007716)" should {
-
-      "return 1 when excessBlobGas is 0" taggedAs (UnitTest, VMTest) in {
-        val vm = new VM[MockWorldState, MockStorage]
-        val code = Assembly(BLOBBASEFEE, STOP).code
-        val result = vm.run(createContext(code, pragueHeader(excessBlobGas = BigInt(0)), ethPragueConfig))
-        result.error shouldBe None
-      }
-    }
-
-    "executed on ETH BPO1 block (update fraction 8346193)" should {
-
-      "return 1 when excessBlobGas is 0 (BPO1 fraction selected)" taggedAs (UnitTest, VMTest) in {
-        val vm = new VM[MockWorldState, MockStorage]
-        val code = Assembly(BLOBBASEFEE, STOP).code
-        val result = vm.run(createContext(code, bpo1Header(excessBlobGas = BigInt(0)), ethBpo1Config))
-        result.error shouldBe None
-      }
-    }
-
-    "executed on ETH BPO2 block (update fraction 11684671)" should {
-
-      "return 1 when excessBlobGas is 0 (BPO2 fraction selected)" taggedAs (UnitTest, VMTest) in {
-        val vm = new VM[MockWorldState, MockStorage]
-        val code = Assembly(BLOBBASEFEE, STOP).code
-        val result = vm.run(createContext(code, bpo2Header(excessBlobGas = BigInt(0)), ethBpo2Config))
-        result.error shouldBe None
-      }
-    }
+  it should "include MCOPY (EIP-5656)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    OpCodes.EtcOlympiaOpCodes.contains(MCOPY) shouldBe true
   }
 
-  "BLOBBASEFEE formula correctness (direct opcode execution)" when {
+  it should "include BASEFEE (EIP-3198)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    OpCodes.EtcOlympiaOpCodes.contains(BASEFEE) shouldBe true
+  }
 
-    "excessBlobGas = 0" should {
+  "OlympiaOpCodes (ETH) list — regression guard" should "still contain BLOBHASH (0x49)" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    OpCodes.OlympiaOpCodes.contains(BLOBHASH) shouldBe true
+  }
 
-      "push exactly 1 onto the stack (MIN_BLOB_BASE_FEE)" taggedAs (UnitTest, VMTest) in {
-        // Push excessBlobGas=0 blob fee, then STOP. Read result from gas accounting.
-        // We verify via the state check after single-step execution.
-        val header = cancunHeader(excessBlobGas = BigInt(0))
-        val world = MockWorldState()
-          .saveAccount(ownerAddr, Account(balance = UInt256(1000), nonce = 1))
-          .saveCode(ownerAddr, ByteString.empty)
-        val config = ethCancunConfig
-        val context = ProgramContext(
-          callerAddr = callerAddr,
-          originAddr = callerAddr,
-          recipientAddr = Some(ownerAddr),
-          gasPrice = 1,
-          startGas = GasAmount(1000000),
-          inputData = ByteString.empty,
-          value = UInt256.Zero,
-          endowment = UInt256.Zero,
-          doTransfer = false,
-          blockHeader = header,
-          callDepth = 0,
-          world = world,
-          initialAddressesToDelete = Set(),
-          evmConfig = config,
-          originalWorld = world,
-          warmAddresses = Set(ownerAddr),
-          warmStorage = Set.empty
-        )
-        val env = ExecEnv(context, ByteString.empty, ownerAddr)
-        val initState = ProgramState(new MockWorldState.TestVM, context, env)
-        val result = BLOBBASEFEE.execute(initState)
-        result.error shouldBe None
-        val (top, _) = result.stack.pop()
-        top shouldBe UInt256(1)
-      }
-    }
+  it should "still contain BLOBBASEFEE (0x4a)" taggedAs (UnitTest, VMTest) in {
+    OpCodes.OlympiaOpCodes.contains(BLOBBASEFEE) shouldBe true
+  }
+
+  "OlympiaConfigBuilder (ETC block-based fork)" should "not include BLOBHASH in jump table" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    etcOlympiaConfig.byteToOpCode.get(0x49.toByte) shouldBe None
+  }
+
+  it should "not include BLOBBASEFEE in jump table" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    etcOlympiaConfig.byteToOpCode.get(0x4a.toByte) shouldBe None
+  }
+
+  it should "include CLZ in jump table" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    etcOlympiaConfig.byteToOpCode.get(0x1e.toByte) shouldBe Some(CLZ)
+  }
+
+  "ETH Cancun config — regression guard" should "include BLOBHASH in jump table" taggedAs (UnitTest, VMTest) in {
+    ethCancunConfig.byteToOpCode.get(0x49.toByte) shouldBe Some(BLOBHASH)
+  }
+
+  it should "include BLOBBASEFEE in jump table" taggedAs (UnitTest, VMTest) in {
+    ethCancunConfig.byteToOpCode.get(0x4a.toByte) shouldBe Some(BLOBBASEFEE)
+  }
+
+  "BLOBHASH opcode (0x49) when executed on ETC Olympia block" should "be treated as invalid opcode" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    val code = Assembly(BLOBHASH, STOP).code
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(createContext(code, etcOlympiaHeader, etcOlympiaConfig))
+    result.error shouldBe Some(InvalidOpCode(0x49.toByte))
+  }
+
+  "BLOBHASH opcode (0x49) when executed on ETH Cancun block with no blob hashes" should "return zero for out-of-bounds index (no error)" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val vm = new VM[MockWorldState, MockStorage]
+    val code = Assembly(PUSH1, 0, BLOBHASH, STOP).code
+    val result = vm.run(createContext(code, cancunHeader(), ethCancunConfig, blobVersionedHashes = Seq.empty))
+    result.error shouldBe None
+  }
+
+  "BLOBHASH opcode (0x49) when executed on ETH Cancun block with a blob hash" should "return the versioned hash at index 0" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val versionedHash = ByteString(Array.fill(32)(0x42.toByte))
+    val vm = new VM[MockWorldState, MockStorage]
+    val code = Assembly(PUSH1, 0, BLOBHASH, STOP).code
+    val result = vm.run(
+      createContext(code, cancunHeader(), ethCancunConfig, blobVersionedHashes = Seq(versionedHash))
+    )
+    result.error shouldBe None
+  }
+
+  "BLOBBASEFEE opcode (0x4a) when executed on ETC Olympia block" should "be treated as invalid opcode" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    val code = Assembly(BLOBBASEFEE, STOP).code
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(createContext(code, etcOlympiaHeader, etcOlympiaConfig))
+    result.error shouldBe Some(InvalidOpCode(0x4a.toByte))
+  }
+
+  // go-ethereum test vectors from consensus/misc/eip4844/eip4844_test.go TestCalcBlobFee
+  // All with Cancun update fraction 3338477
+  "BLOBBASEFEE opcode (0x4a) when executed on ETH Cancun block" should "return 1 when excessBlobGas is 0 (min blob base fee)" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val vm = new VM[MockWorldState, MockStorage]
+    val code = Assembly(BLOBBASEFEE, STOP).code
+    val result = vm.run(createContext(code, cancunHeader(excessBlobGas = BigInt(0)), ethCancunConfig))
+    result.error shouldBe None
+  }
+
+  it should "return 1 when excessBlobGas is 2314057 (just below the 1→2 threshold)" taggedAs (UnitTest, VMTest) in {
+    val vm = new VM[MockWorldState, MockStorage]
+    val code = Assembly(BLOBBASEFEE, STOP).code
+    val result = vm.run(createContext(code, cancunHeader(excessBlobGas = BigInt(2314057)), ethCancunConfig))
+    result.error shouldBe None
+  }
+
+  it should "return 2 when excessBlobGas is 2314058 (at the 1→2 threshold)" taggedAs (UnitTest, VMTest) in {
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(
+      createContext(
+        Assembly(
+          BLOBBASEFEE, // pushes fee
+          PUSH1,
+          0, // memory offset
+          MSTORE,
+          STOP
+        ).code,
+        cancunHeader(excessBlobGas = BigInt(2314058)),
+        ethCancunConfig
+      )
+    )
+    result.error shouldBe None
+  }
+
+  it should "return value > 1 for large excessBlobGas (formula sanity check)" taggedAs (UnitTest, VMTest) in {
+    // excessBlobGas = 10*1024*1024 → fee = 23 (go-ethereum reference)
+    val vm = new VM[MockWorldState, MockStorage]
+    val code = Assembly(BLOBBASEFEE, STOP).code
+    val result = vm.run(
+      createContext(
+        code,
+        cancunHeader(excessBlobGas = BigInt(10 * 1024 * 1024)),
+        ethCancunConfig
+      )
+    )
+    result.error shouldBe None
+  }
+
+  "BLOBBASEFEE opcode (0x4a) when executed on ETH Prague block (update fraction 5007716)" should "return 1 when excessBlobGas is 0" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val vm = new VM[MockWorldState, MockStorage]
+    val code = Assembly(BLOBBASEFEE, STOP).code
+    val result = vm.run(createContext(code, pragueHeader(excessBlobGas = BigInt(0)), ethPragueConfig))
+    result.error shouldBe None
+  }
+
+  "BLOBBASEFEE opcode (0x4a) when executed on ETH BPO1 block (update fraction 8346193)" should "return 1 when excessBlobGas is 0 (BPO1 fraction selected)" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val vm = new VM[MockWorldState, MockStorage]
+    val code = Assembly(BLOBBASEFEE, STOP).code
+    val result = vm.run(createContext(code, bpo1Header(excessBlobGas = BigInt(0)), ethBpo1Config))
+    result.error shouldBe None
+  }
+
+  "BLOBBASEFEE opcode (0x4a) when executed on ETH BPO2 block (update fraction 11684671)" should "return 1 when excessBlobGas is 0 (BPO2 fraction selected)" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val vm = new VM[MockWorldState, MockStorage]
+    val code = Assembly(BLOBBASEFEE, STOP).code
+    val result = vm.run(createContext(code, bpo2Header(excessBlobGas = BigInt(0)), ethBpo2Config))
+    result.error shouldBe None
+  }
+
+  "BLOBBASEFEE formula correctness (direct opcode execution) when excessBlobGas = 0" should "push exactly 1 onto the stack (MIN_BLOB_BASE_FEE)" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    // Push excessBlobGas=0 blob fee, then STOP. Read result from gas accounting.
+    // We verify via the state check after single-step execution.
+    val header = cancunHeader(excessBlobGas = BigInt(0))
+    val world = MockWorldState()
+      .saveAccount(ownerAddr, Account(balance = UInt256(1000), nonce = 1))
+      .saveCode(ownerAddr, ByteString.empty)
+    val config = ethCancunConfig
+    val context = ProgramContext(
+      callerAddr = callerAddr,
+      originAddr = callerAddr,
+      recipientAddr = Some(ownerAddr),
+      gasPrice = 1,
+      startGas = GasAmount(1000000),
+      inputData = ByteString.empty,
+      value = UInt256.Zero,
+      endowment = UInt256.Zero,
+      doTransfer = false,
+      blockHeader = header,
+      callDepth = 0,
+      world = world,
+      initialAddressesToDelete = Set(),
+      evmConfig = config,
+      originalWorld = world,
+      warmAddresses = Set(ownerAddr),
+      warmStorage = Set.empty
+    )
+    val env = ExecEnv(context, ByteString.empty, ownerAddr)
+    val initState = ProgramState(new MockWorldState.TestVM, context, env)
+    val result = BLOBBASEFEE.execute(initState)
+    result.error shouldBe None
+    val (top, _) = result.stack.pop()
+    top shouldBe UInt256(1)
   }
