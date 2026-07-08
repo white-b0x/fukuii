@@ -6,7 +6,6 @@ import org.apache.pekko.util.ByteString
 
 import cats.effect.IO
 
-import com.softwaremill.diffx.scalatest.DiffShouldMatcher
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.*
@@ -22,8 +21,7 @@ class LegacyTransactionHistoryServiceSpec
     extends ScalaTestWithActorTestKit
     with FreeSpecBase
     with SpecFixtures
-    with Matchers
-    with DiffShouldMatcher:
+    with Matchers:
 
   class Fixture extends EphemBlockchainTestSetup:
     val pendingTransactionManager: TypedActorRef[PendingTransactionsManager.Command] =

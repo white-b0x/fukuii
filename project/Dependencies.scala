@@ -69,9 +69,7 @@ object Dependencies {
     "org.scalatestplus" %% "scalacheck-1-18" % "3.2.19.0" % "test",
     "org.scalatestplus" %% "mockito-5-12" % "3.2.19.0" % "it,test",
     "org.mockito" % "mockito-core" % "5.23.0" % "it,test",
-    "org.scalacheck" %% "scalacheck" % "1.19.0" % "it,test",
-    "com.softwaremill.diffx" %% "diffx-core" % "0.9.0" % "test",
-    "com.softwaremill.diffx" %% "diffx-scalatest-should" % "0.9.0" % "test"
+    "org.scalacheck" %% "scalacheck" % "1.19.0" % "it,test"
   )
 
   val cats: Seq[ModuleID] = {
