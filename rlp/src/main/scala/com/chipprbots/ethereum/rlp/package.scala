@@ -138,7 +138,7 @@ package object rlp {
     def toBytes: Array[Byte] = encode(this.toRLPEncodable)
   }
 
-  type RLPCodec[T] = RLPEncoder[T] with RLPDecoder[T]
+  type RLPCodec[T] = RLPEncoder[T] & RLPDecoder[T]
 
   object RLPCodec {
     def instance[T](enc: T => RLPEncodeable, dec: PartialFunction[RLPEncodeable, T])(implicit
