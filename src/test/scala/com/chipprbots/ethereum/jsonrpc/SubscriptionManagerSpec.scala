@@ -228,7 +228,7 @@ class SubscriptionManagerSpec
 
   it should "not push newHeads to other connections" taggedAs UnitTest in {
     val (mgr, blockTopic) = makeManagerWithBlockTopic()
-    val (queue1, _) = makeQueue()
+    val (queue1, source1) = makeQueue()
     val (queue2, source2) = makeQueue()
     val connId1 = "conn-iso-1"
     val connId2 = "conn-iso-2"
@@ -239,18 +239,18 @@ class SubscriptionManagerSpec
     // Only conn1 subscribes
     subscribe(mgr, connId1, "newHeads")
 
+    val messages1 = collectN(source1, 1)
+
     blockTopic ! org.apache.pekko.actor.typed.pubsub.Topic.Publish(NewBlockImported(fixtureBlock))
 
-    // deliberate: this is a negative isolation test, not a message-arrival wait.
-    // We need to give the actor system time to process the Topic.Publish and
-    // potentially (incorrectly) route to conn2 before asserting it did not.
-    // A probe.expectNoMessage(200.millis) would be equivalent but requires an
-    // unused probe allocation.  The stream-based assertion that follows uses a
-    // 50ms completionTimeout — the 200ms here ensures that window has expired by
-    // the time we build the stream, so any erroneous routing has already happened.
-    // FUTURE: replace once SubscriptionManager delivery through preMaterialized
-    // queues is made synchronization-point-observable (tracked in CHASE-QUEUE).
-    Thread.sleep(200)
-    val messages2 = source2.take(1).completionTimeout(50.millis).runWith(Sink.seq)(mat)
+    // Deterministic barrier: SubscriptionManager is a single Behaviors.receiveMessage
+    // actor, so BlockImported's subscriber-foreach (including any errant push to conn2)
+    // runs synchronously to completion within one actor turn before the next message is
+    // accepted. Waiting for conn1's own (legitimate) delivery to arrive therefore proves
+    // that turn — and any hypothetical push to conn2 — is already finished. The dropHead
+    // queue retains an offered element regardless of consumer attachment, so conn2's
+    // negative check below is safe to run afterward without needing its own wait window.
+    Await.result(messages1, 5.seconds)
+    val messages2 = source2.take(1).completionTimeout(100.millis).runWith(Sink.seq)(mat)
     intercept[Exception](Await.result(messages2, 200.millis))
   }
