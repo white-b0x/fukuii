@@ -43,7 +43,9 @@ import com.chipprbots.ethereum.ledger.VMImpl
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.HandshakedPeers
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.SendMessageCmd
+import com.chipprbots.ethereum.network.PeerEventBusActor
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import com.chipprbots.ethereum.network.PeerEventBusActor.PublishCmd
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.BlockBodies
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.GetBlockBodies
@@ -102,9 +104,6 @@ class SyncControllerSpec
 
     setupAutoPilot(networkPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(newBlocks))
 
-    val watcher = TestProbe()
-    watcher.watch(syncController)
-
     eventually {
       someTimePasses()
       // switch to regular download
@@ -125,8 +124,6 @@ class SyncControllerSpec
     syncController ! SyncController.WrappedSyncProtocol(SyncProtocol.Start)
 
     val handshakedPeers = HandshakedPeers(singlePeer)
-    val watcher = TestProbe()
-    watcher.watch(syncController)
 
     val newBlocks =
       getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, syncConfig.blockHeadersPerRequest)
@@ -187,9 +184,6 @@ class SyncControllerSpec
 
     setupAutoPilot(networkPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(newBlocks), 0, 0)
 
-    val watcher = TestProbe()
-    watcher.watch(syncController)
-
     eventually {
       someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().value
@@ -231,9 +225,6 @@ class SyncControllerSpec
 
     setupAutoPilot(networkPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(blockHeaders))
 
-    val watcher = TestProbe()
-    watcher.watch(syncController)
-
     eventually {
       someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().value
@@ -257,8 +248,6 @@ class SyncControllerSpec
       syncController ! SyncController.WrappedSyncProtocol(SyncProtocol.Start)
 
       val handshakedPeers = HandshakedPeers(twoAcceptedPeers)
-      val watcher = TestProbe()
-      watcher.watch(syncController)
 
       val newBlocks =
         getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, syncConfig.blockHeadersPerRequest)
@@ -335,9 +324,6 @@ class SyncControllerSpec
 
     autopilot.updateAutoPilot(newHandshaked, newPivot, BlockchainData(newBlocks))
 
-    val watcher = TestProbe()
-    watcher.watch(syncController)
-
     eventually {
       someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().value
@@ -361,9 +347,6 @@ class SyncControllerSpec
     val freshHeader = defaultPivotBlockHeader
     val freshPeerInfo1 = defaultPeer1Info
     val freshHandshakedPeers = HandshakedPeers(Map(peer1 -> freshPeerInfo1))
-
-    val watcher = TestProbe()
-    watcher.watch(syncController)
 
     val newBlocks =
       getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, syncConfig.blockHeadersPerRequest)
@@ -456,8 +439,6 @@ class SyncControllerSpec
       syncController ! SyncController.WrappedSyncProtocol(SyncProtocol.Start)
 
       val handshakedPeers = HandshakedPeers(singlePeer)
-      val watcher = TestProbe()
-      watcher.watch(syncController)
 
       val newBlocks =
         getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, syncConfig.blockHeadersPerRequest)
@@ -530,9 +511,6 @@ class SyncControllerSpec
 
     // enable peer to respond with mpt nodes
     pilot.updateAutoPilot(newHandshakedPeers, newPivot, BlockchainData(newBlocks))
-
-    val watcher = TestProbe()
-    watcher.watch(syncController)
 
     eventually {
       someTimePasses()
@@ -825,6 +803,27 @@ class SyncControllerSpec
       "block-imported-topic"
     )
 
+    // A REAL PeerEventBusActor (spawned via the Typed adapter, same idiom as blockTopic above). The Typed
+    // PeerRequestHandler receives peer responses ONLY through a PeerEventBus subscription (SubscribeCmd +
+    // MessageClassifier); passing the passive `peerMessageBus` probe here left every response silently dropped.
+    // The AutoPilot below now delivers responses by PUBLISHING to this bus (see publishResponse).
+    lazy val realPeerEventBus: org.apache.pekko.actor.typed.ActorRef[PeerEventBusActor.Command] =
+      system.spawn(PeerEventBusActor.behavior(), s"peer-event-bus-${java.util.UUID.randomUUID()}")
+
+    // A dedicated REAL (wall-clock) scheduler for deferring response publishes. The system scheduler here is the
+    // ExplicitlyTriggeredScheduler (explicit-scheduler.conf), whose scheduled callbacks only fire on someTimePasses()
+    // — so it cannot provide the real breathing room the PRH's SubscribeCmd needs to drain before a response is
+    // published. PeerRequestHandler sends SendMessageCmd *before* it subscribes, so an immediate publish races ahead
+    // of (and is dropped by) the not-yet-registered subscription. A real 20ms delay (independent of virtual time,
+    // and well under the PRH's 2s *virtual* response timeout) establishes a genuine happens-before: the subscribe is
+    // enqueued microseconds after SendMessageCmd (same-thread continuation), so 20ms of real time guarantees the bus
+    // has processed it before the PublishCmd is enqueued; the bus's FIFO mailbox then orders subscribe-before-publish.
+    // This is the faithful transplant of StateSyncSpec's real-scheduler fix (fa16aeaf9) to an ETS-driven spec.
+    private val responsePublishScheduler: java.util.concurrent.ScheduledExecutorService =
+      java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
+
+    private val responsePublishDelayMs: Long = 20L
+
     lazy val syncController: TestActorRef[Nothing] = TestActorRef(
       org.apache.pekko.actor.typed.scaladsl.adapter.PropsAdapter(
         SyncController(
@@ -840,7 +839,7 @@ class SyncControllerSpec
           storagesInstance.storages.fastSyncStateStorage,
           consensusAdapter,
           validators,
-          peerMessageBus.ref,
+          realPeerEventBus,
           pendingTransactionsManager.ref,
           blockTopic,
           ommersPool.ref,
@@ -884,6 +883,20 @@ class SyncControllerSpec
         failedNodeRequest: Boolean,
         autoPilotProbeRef: ActorRef
     ) extends AutoPilot:
+      // Deliver a peer response by publishing to the REAL PeerEventBus after a real (wall-clock) delay, rather than
+      // `sender ! MessageFromPeer` (sender is deadLetters — a Typed PRH's tell to this Classic probe carries no
+      // sender — so a direct reply is dropped). The real delay lets the PRH's SubscribeCmd register first; see the
+      // responsePublishScheduler note above for the happens-before rationale.
+      private def publishResponse(event: MessageFromPeer): Unit =
+        responsePublishScheduler.schedule(
+          new Runnable:
+            override def run(): Unit = realPeerEventBus ! PublishCmd(event)
+          ,
+          responsePublishDelayMs,
+          java.util.concurrent.TimeUnit.MILLISECONDS
+        )
+        ()
+
       override def run(sender: ActorRef, msg: Any): AutoPilot =
         msg match
           case NetworkPeerManagerActor.GetHandshakedPeers =>
@@ -913,7 +926,7 @@ class SyncControllerSpec
             storagesInstance.storages.blockNumberMappingStorage
               .put(pivotHeader.number.value, pivotHeader.hash.value)
               .commit()
-            sender ! MessageFromPeer(ETHPackets.BlockHeaders(requestId, Seq(pivotHeader)), peer)
+            publishResponse(MessageFromPeer(ETHPackets.BlockHeaders(requestId, Seq(pivotHeader)), peer))
             this
 
           // Handle ETH66 GetBlockHeaders by block number (with requestId)
@@ -923,55 +936,57 @@ class SyncControllerSpec
             val requestedBlockNumber = underlyingMessage.block.swap.toOption.value
             if requestedBlockNumber == pivotHeader.number.value then
               // pivot block
-              sender ! MessageFromPeer(ETHPackets.BlockHeaders(requestId, Seq(pivotHeader)), peer)
+              publishResponse(MessageFromPeer(ETHPackets.BlockHeaders(requestId, Seq(pivotHeader)), peer))
             else
               val headers = generateBlockHeaders66(underlyingMessage, blockchainData)
-              sender ! MessageFromPeer(ETHPackets.BlockHeaders(requestId, headers), peer)
+              publishResponse(MessageFromPeer(ETHPackets.BlockHeaders(requestId, headers), peer))
             this
 
           // Handle ETH68/69 GetReceipts (with requestId)
           case SendMessageCmd(msg: ETHPackets.GetReceipts.GetReceiptsEnc, peer) if !onlyPivot =>
             val requestId = msg.underlyingMsg.requestId
             if failedReceiptsTries > 0 then
-              sender ! MessageFromPeer(ETHPackets.Receipts68(requestId, RLPList()), peer)
+              publishResponse(MessageFromPeer(ETHPackets.Receipts68(requestId, RLPList()), peer))
               this.copy(failedReceiptsTries = failedReceiptsTries - 1)
             else
               val rec = msg.underlyingMsg.blockHashes.flatMap(h => blockchainData.receipts.get(h))
               // For empty receipts, create an RLPList with empty receipt sequences
               val receiptsRlp = RLPList(rec.map(_ => RLPList())*)
-              sender ! MessageFromPeer(ETHPackets.Receipts68(requestId, receiptsRlp), peer)
+              publishResponse(MessageFromPeer(ETHPackets.Receipts68(requestId, receiptsRlp), peer))
               this
 
           case SendMessageCmd(msg: ETHPackets.GetBlockBodies.GetBlockBodiesEnc, peer) if !onlyPivot =>
             val requestId = msg.underlyingMsg.requestId
             if failedBodiesTries > 0 then
-              sender ! MessageFromPeer(ETHPackets.BlockBodies(requestId, Seq.empty), peer)
+              publishResponse(MessageFromPeer(ETHPackets.BlockBodies(requestId, Seq.empty), peer))
               this.copy(failedBodiesTries = failedBodiesTries - 1)
             else
               val bod = msg.underlyingMsg.hashes.flatMap(h => blockchainData.bodies.get(h))
-              sender ! MessageFromPeer(ETHPackets.BlockBodies(requestId, bod), peer)
+              publishResponse(MessageFromPeer(ETHPackets.BlockBodies(requestId, bod), peer))
               this
 
           case SendMessageCmd(msg: GetBlockBodiesEnc, peer) if !onlyPivot =>
             val requestId = msg.underlyingMsg.requestId
             if failedBodiesTries > 0 then
-              sender ! MessageFromPeer(BlockBodies(requestId, Seq.empty), peer)
+              publishResponse(MessageFromPeer(BlockBodies(requestId, Seq.empty), peer))
               this.copy(failedBodiesTries = failedBodiesTries - 1)
             else
               val bod = msg.underlyingMsg.hashes.flatMap(h => blockchainData.bodies.get(h))
-              sender ! MessageFromPeer(BlockBodies(requestId, bod), peer)
+              publishResponse(MessageFromPeer(BlockBodies(requestId, bod), peer))
               this
 
           // Handle GetNodeData (EIP-4938: rejected in ETH68, but still handled for legacy)
           case SendMessageCmd(_: ETHPackets.GetNodeData.GetNodeDataEnc, peer) if !onlyPivot =>
             stateDownloadStarted = true
             if !failedNodeRequest then
-              sender ! MessageFromPeer(
-                ETHPackets.NodeData(Seq(ByteString(defaultStateMptLeafWithAccount.toArray))),
-                peer
+              publishResponse(
+                MessageFromPeer(
+                  ETHPackets.NodeData(Seq(ByteString(defaultStateMptLeafWithAccount.toArray))),
+                  peer
+                )
               )
             if !failedNodeRequest then
-              sender ! MessageFromPeer(ETH63NodeData(Seq(defaultStateMptLeafWithAccount)), peer)
+              publishResponse(MessageFromPeer(ETH63NodeData(Seq(defaultStateMptLeafWithAccount)), peer))
             this
 
           case SendMessageCmd(_, _) =>
@@ -1117,11 +1132,24 @@ class SyncControllerSpec
     def littleTimePasses(): Unit =
       testScheduler.timePasses(300.millis)
 
+    // Advance virtual time in a step SMALLER than PivotBlockSelector's 2s ElectionTimeout/BacklinkTimeout (and
+    // PeerRequestHandler's 2s response timeout). someTimePasses() runs on the test thread; the ExplicitlyTriggered
+    // Scheduler fires all due callbacks synchronously within the call, but AutoPilot responses are delivered
+    // asynchronously (real-timer publish -> PeerEventBus -> subscriber) in the real-time gap BETWEEN eventually
+    // retries. If a single sweep advanced past a 2s timeout, that timeout would fire (synchronously) before the
+    // response could be processed, so the election/backlink would spuriously time out and blacklist the peer.
+    // A 500ms step accrues several between-retry gaps before any 2s timeout, so the response is always processed
+    // first. (Was 3000ms; the coarser step let the onlyPivot pivot-selection tests deadlock.)
     def someTimePasses(): Unit =
-      testScheduler.timePasses(3000.millis)
+      testScheduler.timePasses(500.millis)
 
     def cleanup(): Unit =
+      // Terminate the actor system FIRST so no AutoPilot is still processing SendMessageCmd (and thus scheduling a
+      // deferred publish) when the executor is torn down — otherwise a late publish is rejected by the shut-down
+      // executor (RejectedExecutionException, logged by the probe's supervisor). Once the system is fully terminated
+      // no actor can schedule, so shutting the executor down afterwards is race-free.
       Await.result(system.terminate(), 10.seconds)
+      responsePublishScheduler.shutdownNow()
 
   def withTestSetup(validators: Validators = new Mocks.MockValidatorsAlwaysSucceed)(test: TestSetup => Any): Unit =
     val testSetup = new TestSetup(validators)
