@@ -10,7 +10,7 @@ description: >-
   directly. Does NOT touch Scala/EVM domain code or consensus logic — that's the
   other specialists' territory. Invoke for how Claude is used on this repo, not
   what fukuii the client does.
-tools: Read, Grep, Glob, Edit, Bash
+tools: Read, Grep, Glob, Edit, Bash, Write
 model: sonnet
 color: gray
 ---
@@ -75,6 +75,16 @@ it's yours.
   allow rules). When a task needs new `permissions.allow` entries, tell the operator
   exactly what to add and why — never suggest `bypassPermissions` outside an isolated
   container/VM.
+- **Per-agent path-scoped tool grants are NOT supported.** A `tools:` frontmatter entry
+  like `Write(.local/**)` is *not* enforced as a path scope by the harness — it's
+  silently treated as plain, unscoped `Write` (confirmed by direct probe: an agent
+  holding only `Write(.local/**)` was able to write outside `.local/`). `tools:` grants
+  are tool-name-only; `.claude/settings.json` `permissions` are global across every
+  agent, not per-agent-scoped. There is currently no mechanism to give one agent Write
+  access to one subtree and deny it another. Grants are therefore per-tool, all-or-
+  nothing — governed by the PERMISSION-BLOCK culture below, not by path scoping. Don't
+  re-attempt a scoped grant on any agent def; if you see one, it's stale and should be
+  flattened to a plain tool name.
 
 ## Adding a new subagent
 
@@ -110,6 +120,13 @@ doc as the single source of truth for this checklist rather than duplicating it 
   building can't confidently verify its own correctness, say so and stop — don't guess
   past a null or unclear result, especially in anything that edits QUEUE.md or commits
   on someone else's behalf.
+- **PERMISSION-BLOCK: stop, never work around a missing grant.** If a task needs a tool
+  or path your own `tools:` line doesn't grant, STOP and report the specific gap (tool,
+  intended action, grant that would unblock it) — do not Bash-heredoc around a missing
+  `Write`, write outside your intended area, or ask the orchestrator to materialize the
+  artifact for you as a routine substitute. See `testing-protocol.md`'s "Permission-grant
+  scope boundary" section — this rule applies to every agent, and you (warden) own
+  keeping that section current.
 
 ## Report
 

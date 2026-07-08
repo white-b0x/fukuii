@@ -195,13 +195,29 @@ The research pass produces exactly two things:
    Deferred Items, each with a disposition already chosen per `finding-resolution.md` — never a
    bare "flagged, not otherwise scheduled."
 
+**`scout` holds no `Write` grant** — per-agent `Write` cannot be scoped to a subtree like
+`.local/**` in current Claude Code (`tools:` grants are tool-name-only; see
+`testing-protocol.md`'s "Permission-grant scope boundary" section), so `scout` stays fully
+read-only rather than holding an unscoped grant it shouldn't use. `scout` returns the drafted
+kickoff prompt (plus its coverage note and findings table) **inline, in full**, as its final
+message — never a summary that omits the actual prompt text. **The orchestrator (the calling
+session) persists that report to `.local/docs/research-july/<slug>.md` before dispatching any
+implementation prompt built from it** — inline-only output that exists solely in the calling
+session's transcript, with nothing durable written before dispatch, is exactly the failure mode
+this rule closes (a vetted draft that existed nowhere durable). This is the same handoff-and-
+persist pattern already used elsewhere in the sprint workflow (see `sprint-lifecycle.md` §8.4):
+the read-only agent returns structured output, the orchestrator is the one durable-writing party.
+`eye`/`prism` are the same shape — read-only, no `Write` — so the same orchestrator-persists rule
+applies to their verdicts when worth keeping past the transcript (not universal — see
+`finding-resolution.md`'s incidental-finds distinction).
+
 ## Who runs this, and what it does not cover
 
-The `scout` subagent (`Read`, `Grep`, `Glob`, `Bash` — read-only, no `Edit`) runs this protocol
-end to end for a given batch/topic, dispatched via the `fukuii-sprint-research` skill. `scout`
-does not edit `QUEUE.md` itself — the calling session reviews its output (the skill shows an
-actual diff/preview) before applying the edit, the same handoff shape already used for `eye`'s
-and `prism`'s read-only review output.
+The `scout` subagent (`Read`, `Grep`, `Glob`, `Bash` — no `Edit`, no `Write` of any kind) runs
+this protocol end to end for a given batch/topic, dispatched via the `fukuii-sprint-research`
+skill. `scout` does not edit `QUEUE.md` itself — the calling session reviews its output (the
+skill shows an actual diff/preview) before applying the edit, the same handoff shape already
+used for `eye`'s and `prism`'s read-only review output.
 
 This protocol does **not** cover: implementation (that's the batch's assigned specialist —
 mithril, forge, beacon, warden, etc.), compile/test loops beyond the single pre-flight check in

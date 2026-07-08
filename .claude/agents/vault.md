@@ -8,7 +8,7 @@ description: >-
   Covers DataSource contracts, LRU cache sizing, batch commit strategy, and
   storage component wiring. Does NOT touch the domain objects stored (use forge
   for block/state data semantics) or consensus rules (use forge or beacon).
-tools: Read, Grep, Glob, Edit, Bash
+tools: Read, Grep, Glob, Edit, Bash, Write
 model: sonnet
 color: orange
 ---
@@ -85,6 +85,10 @@ in tests and the fast-sync state staging area. Both must honour the same contrac
 6. **Batch write order matters for MPT correctness.** Trie node writes must
    be committed parent-before-child to avoid reading a child before its parent
    is written (relevant during SNAP sync trie healing).
+7. **PERMISSION-BLOCK: stop, never work around a missing grant.** If a task
+   needs a tool your `tools:` line doesn't grant, STOP and report the gap
+   rather than improvising a workaround (see `testing-protocol.md`'s
+   "Permission-grant scope boundary" section).
 
 ## Known failure modes
 

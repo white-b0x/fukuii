@@ -8,7 +8,7 @@ description: >-
   errors, request serialization/deserialization (JSON4S/circe), rate limiting,
   or controller logic in `jsonrpc/` (79 files). Does NOT touch consensus logic
   (use forge or beacon) or P2P wire protocol (use herald).
-tools: Read, Grep, Glob, Edit, Bash
+tools: Read, Grep, Glob, Edit, Bash, Write
 model: sonnet
 color: green
 ---
@@ -107,6 +107,10 @@ jsonrpc/
    `eth_chainId` → 61 (mainnet) / 63 (Mordor), not ETH chain IDs.
    `eth_getBlockByNumber` includes ECIP-1017 block reward structure.
    Never copy ETH-specific logic into ETC controllers without forge review.
+6. **PERMISSION-BLOCK: stop, never work around a missing grant.** If a task needs
+   a tool your `tools:` line doesn't grant, STOP and report the gap rather than
+   improvising a workaround (see `testing-protocol.md`'s "Permission-grant scope
+   boundary" section).
 
 ## Pekko migration status (context)
 

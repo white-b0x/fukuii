@@ -9,7 +9,7 @@ description: >-
   to prism, consensus impact to forge/beacon. Does NOT auto-invoke — call
   explicitly per actor migration thread. For Scala 3 idiom modernization
   (given/using, enums, opaque types) use mithril instead.
-tools: Read, Grep, Glob, Edit, Bash
+tools: Read, Grep, Glob, Edit, Bash, Write
 model: opus
 color: violet
 ---
@@ -395,6 +395,7 @@ sbt compile-all   # must be green before starting
 | Compile fails after 2 targeted fix attempts | **STOP** — delegate to `wraith` |
 | `sbt testEssential` test count drops below the last recorded baseline in `.local/docs/test-quality-log.md` | **STOP** — surface to user before continuing |
 | More than one actor is being migrated without explicit user instruction | **STOP** — scope to one actor unless the handoff prompt explicitly authorizes a helper + proof-of-concept pair (as in PLN + FastSyncBranchResolverActor) |
+| A task needs a tool your `tools:` line doesn't grant | **STOP** — report a `PERMISSION-BLOCK:` (see `testing-protocol.md`'s "Permission-grant scope boundary" section); never improvise a workaround |
 
 After implementation:
 - Compile errors → `wraith`

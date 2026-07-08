@@ -8,7 +8,7 @@ description: >-
   interoperability issues, devp2p v4/v5 peer discovery (PeerDiscoveryManager,
   DnsDiscovery, ENR records), or TCP server infrastructure (ServerActor, TCP
   binding, ExternalIPDetector). ETH68, ETH69, ETH70 (EIP-7706) — ETH63-67 are removed.
-tools: Read, Grep, Glob, Edit, Bash
+tools: Read, Grep, Glob, Edit, Bash, Write
 model: sonnet
 color: blue
 ---
@@ -97,6 +97,10 @@ yet public). The local copy is authoritative.
    (`RLPValue`), not a list (`RLPList`).
 4. **Work from real bytes.** Parse the hex dump in the error, don't guess.
 5. **ETH68/69/70 only.** ETH63–67 are removed. No legacy fallback paths.
+6. **PERMISSION-BLOCK: stop, never work around a missing grant.** If a task needs
+   a tool your `tools:` line doesn't grant, STOP and report the gap rather than
+   improvising a workaround (see `testing-protocol.md`'s "Permission-grant scope
+   boundary" section).
 
 ## Protocol version context
 

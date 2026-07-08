@@ -212,6 +212,38 @@ silently.
 This is a general rule, not migration-specific — it applies to any agent given
 a scoped task (test-only, file-only, subsystem-only) that hits a wall.
 
+## Permission-grant scope boundary (STOP-and-report)
+
+The same discipline applies when the wall is a **tool/permission grant**, not a task-scope
+boundary. Per-agent `tools:` frontmatter in `.claude/agents/*.md` grants whole tools
+(`Read`, `Edit`, `Bash`, `Write`) — it is **not** path-scoped in current Claude Code: a glob
+like `Write(.local/**)` is silently unenforced (parsed as plain `Write`), and
+`.claude/settings.json` permissions are global across all agents, not per-agent. There is no
+mechanism today to give one agent Write access to `.local/**` but not `src/**`. Confirmed by
+direct probe (PERMISSION-OVERHAUL, 2026-07-07): an agent holding only `Write(.local/**)` was
+able to write outside `.local/`. See `warden.md`'s Permissions/settings section for the fuller
+mechanism note — also note that editing a `tools:` grant only takes effect after a session
+restart, never for a mid-session spawn.
+
+Because grants are coarse (per-tool, not per-path), the fix is procedural, not technical:
+
+- If a task needs a capability the agent's `tools:` line doesn't grant (most commonly:
+  `Edit`-only agents needing to create a new file, which requires `Write`), **STOP and report
+  the specific gap** — the tool/path that's missing, exactly what action needs it, and what
+  grant would unblock it. Use a `PERMISSION-BLOCK:` marker so the gap is easy to find in a
+  transcript.
+- **Never invent a workaround.** Not a Bash-heredoc substituting for a missing `Write` (the
+  exact anti-pattern that motivated this rule — an `Edit`-only agent creating new spec files
+  via `cat <<EOF > file` instead of stopping), not writing outside the agent's intended area,
+  not handing the artifact to the orchestrator to materialize on the agent's behalf as a
+  routine substitute for a real grant.
+- This is a feedback loop, not a one-shot guess: reported `PERMISSION-BLOCK`s are how tool
+  grants get tuned to what agents actually need, empirically, over time — a workaround hides
+  the signal that the grant was wrong.
+
+This mirrors the test-only-scope rule above: "the fix seems to need crossing outside the
+stated scope" applies equally whether the boundary is a file/task scope or a tool grant.
+
 ## Protocol for failing tests after migration
 
 1. Run targeted test first: `sbt "testOnly *<FailingSpec>*"`

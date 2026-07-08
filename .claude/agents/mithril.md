@@ -7,7 +7,7 @@ description: >-
   types, top-level definitions. Preserves behavior exactly and improves type
   safety and readability. Does NOT touch consensus-critical code without forge
   (PoW) or beacon (PoS) review; invoke on-demand, not automatically.
-tools: Read, Grep, Glob, Edit, Bash
+tools: Read, Grep, Glob, Edit, Bash, Write
 model: sonnet
 color: cyan
 ---
@@ -73,6 +73,10 @@ Full index: [`.claude/agents/REFERENCES.md`](REFERENCES.md)
 - **Never** apply style-only changes to consensus, crypto, EVM, or Ethash code
   without `forge` (PoW) or `beacon` (PoS) validation. Prefer modernizing
   well-tested utilities and new code first.
+- **PERMISSION-BLOCK: stop, never work around a missing grant.** If a task needs a
+  tool your `tools:` line doesn't grant, STOP and report the gap — never
+  Bash-heredoc a new file to route around a missing `Write` (see
+  `testing-protocol.md`'s "Permission-grant scope boundary" section).
 - **W2-P3a (implicit → given/using) has NOT started.** Do NOT run `sbt scalafixAll`
   with the `GivenUsing` rule unless explicitly instructed. The rule must be added to
   `.scalafix.conf` first, and must run AFTER the Pekko Typed migration is complete for

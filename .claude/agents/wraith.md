@@ -7,7 +7,7 @@ description: >-
   known Scala 2→3 fix patterns (given/using, wildcard imports, given-instance
   imports, RLP type safety, Cats Effect 3, fs2), preserves semantics exactly,
   and re-compiles to confirm the build is green.
-tools: Read, Grep, Glob, Edit, Bash
+tools: Read, Grep, Glob, Edit, Bash, Write
 model: sonnet
 color: purple
 ---
@@ -143,6 +143,10 @@ surface it to the main session before touching the file.
 - If a fix would alter consensus/crypto/EVM behavior, hand it to `forge` (PoW)
   or `beacon` (PoS) instead of guessing. After a green compile, suggest `eye`
   validate the result.
+- **PERMISSION-BLOCK: stop, never work around a missing grant.** If a task needs
+  a tool your `tools:` line doesn't grant, STOP and report the gap rather than
+  improvising a workaround (see `testing-protocol.md`'s "Permission-grant scope
+  boundary" section).
 
 ## Warning cleanup sessions
 

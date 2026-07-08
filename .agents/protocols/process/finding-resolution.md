@@ -114,6 +114,16 @@ have a non-empty Resolution column before the log entry is considered closed. An
 with an empty or "TBD" Resolution column is a signal the orchestrator hasn't finished
 processing the audit yet — not a legitimate final state.
 
+**Upstream of this log: the finding must exist somewhere durable, not just in this table's
+source session's transcript.** `scout`/`eye`/`prism` are fully read-only — no `Edit`, no `Write`
+of any kind (per-agent `Write` cannot be scoped to a subtree like `.local/**` in current Claude
+Code, so they don't hold an unscoped grant either; see `testing-protocol.md`'s "Permission-grant
+scope boundary" section). They return their full finding/report **inline** as their final
+message; the **orchestrator** (the calling session) is the one that persists it to
+`.local/docs/research-july/<slug>.md` before treating a finding above this log as vetted — never
+merely quoted inline with nothing durable behind it. See `batch-research-protocol.md`'s Rule (h)
+addendum for `scout`'s mandatory version of this handoff.
+
 ---
 
 ## Rule 3: An audit is not "done" until its findings log is fully resolved
