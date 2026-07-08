@@ -520,7 +520,7 @@ object FastSync:
               case RequestTerminated(handler) =>
                 updateSession(s => s.copy(assignedHandlers = s.assignedHandlers - handler))
                 Behaviors.same
-              case WrappedPrhResult(r: ResponseReceived[?]) =>
+              case WrappedPrhResult(r: ResponseReceived) =>
                 handleResponses(r)
               case UpdatePivotBlock(reason) => updatePivotBlock(reason)
               case WrappedSchedulerResponse(WaitingForNewTargetBlock) =>
@@ -551,7 +551,7 @@ object FastSync:
               case _ => Behaviors.same
     }
 
-    private def handleResponses(result: ResponseReceived[?]): Behavior[Command] = result match
+    private def handleResponses(result: ResponseReceived): Behavior[Command] = result match
       case ResponseReceived(_, peer, blockHeadersMsg: ETHPackets.BlockHeaders, timeTaken) =>
         log.debug(
           "Received {} block headers from peer [{}] in {} ms",

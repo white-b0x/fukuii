@@ -255,10 +255,7 @@ object PeersClient:
                     case ETHPackets.Receipts68(_, receipts)  => (PeerRateTracker.MsgGetReceipts, receipts.items.size)
                     case _                                   => (-1, 0)
                   if msgType >= 0 then peerHelper.updateEthRate(peer.id.value, msgType, timeTaken, itemCount)
-                  replyTo ! Response(
-                    peer,
-                    message.asInstanceOf[Message]
-                  ) // cast: PRH ResponseReceived[T] is erased; T <: Message at construction
+                  replyTo ! Response(peer, message)
 
                 case PeerRequestHandler.RequestFailed(_, peer, reason) =>
                   ctx.log.warn(s"Request to peer ${peer.remoteAddress} failed - reason: $reason")

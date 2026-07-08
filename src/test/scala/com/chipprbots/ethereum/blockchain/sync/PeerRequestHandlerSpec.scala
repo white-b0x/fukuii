@@ -82,7 +82,7 @@ class PeerRequestHandlerSpec extends ScalaTestWithActorTestKit(ManualTime.config
 
     peerEventBus ! PublishCmd(MessageFromPeer(Pong(), peerId))
 
-    replyTo.expectMessageType[PeerRequestHandler.ResponseReceived[Pong]]
+    replyTo.expectMessageType[PeerRequestHandler.ResponseReceived]
 
   it should "reply RequestFailed when the response timer fires" taggedAs (UnitTest, NetworkTest) in new Fixtures:
     val npmProbe = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
@@ -116,7 +116,7 @@ class PeerRequestHandlerSpec extends ScalaTestWithActorTestKit(ManualTime.config
 
     // Correct peer responds
     peerEventBus ! PublishCmd(MessageFromPeer(Pong(), peerId))
-    replyTo.expectMessageType[PeerRequestHandler.ResponseReceived[Pong]]
+    replyTo.expectMessageType[PeerRequestHandler.ResponseReceived]
 
   it should "ignore a disconnect event for a different peer" taggedAs (UnitTest, NetworkTest) in new Fixtures:
     val npmProbe = testKit.createTestProbe[NetworkPeerManagerActor.Command]()

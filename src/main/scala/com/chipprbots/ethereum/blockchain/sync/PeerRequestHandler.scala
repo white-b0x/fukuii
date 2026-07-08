@@ -28,7 +28,7 @@ object PeerRequestHandler:
   sealed trait Result:
     def requestId: Int
   final case class RequestFailed(requestId: Int, peer: Peer, reason: String) extends Result
-  final case class ResponseReceived[T](requestId: Int, peer: Peer, response: T, timeTaken: Long) extends Result
+  final case class ResponseReceived(requestId: Int, peer: Peer, response: Message, timeTaken: Long) extends Result
 
   // ---- Typed API ----
 
