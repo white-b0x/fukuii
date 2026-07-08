@@ -1,15 +1,18 @@
-// §8a-retro batch 5: DEFERRED — TestActorRef requires Classic-only API; migrate when RLPxConnectionHandler is Typed (Wave 3 network sprint)
+// §8a-retro batch 5: MIGRATED to ScalaTestWithActorTestKit — RLPxConnectionHandler.apply is Typed
+// (Behavior[Command]). `connection`/`tcpActorProbe` stay Classic TestProbes — genuine Pekko-TCP
+// boundary (they feed InboundTcpBridge/OutboundTcpBridge's Tcp.Register), same documented exception
+// as PeerManagerSpec's connection/inboundTcp probes. `rlpxConnectionParent` is a Typed TestProbe
+// (PeerActor.Command is already Typed) per the pattern in PeerActorHandshakingSpec.
 package com.chipprbots.ethereum.network.rlpx
 
 import java.net.InetSocketAddress
 import java.net.URI
 
 import org.apache.pekko.actor.ActorRef
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
+import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
+import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.io.Tcp
-import org.apache.pekko.testkit.TestActorRef
-import org.apache.pekko.testkit.TestKit
 import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
@@ -23,7 +26,6 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.Timeouts
-import com.chipprbots.ethereum.WithActorSystemShutDown
 import com.chipprbots.ethereum.network.p2p.Message
 import com.chipprbots.ethereum.network.p2p.MessageDecoder
 import com.chipprbots.ethereum.network.p2p.MessageDecoder.DecodingError
@@ -38,16 +40,13 @@ import com.chipprbots.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfigurat
 import com.chipprbots.ethereum.security.SecureRandomBuilder
 import com.chipprbots.ethereum.testing.Tags.*
 
-// Wave 3 gate: TCP tests require TestActorRef + lastSender — blocked on Typed TCP bridge migration
 // §8a-E6: computeCapabilityOffsets tests extracted to RLPxCapabilityOffsetsSpec (pure unit, no actor deps)
 // SCALA 3 MIGRATION: Fixed by creating manual stub implementation for AuthHandshaker
 // @Ignore - Un-ignored per issue to identify test failures
-class RLPxConnectionHandlerSpec
-    extends TestKit(ActorSystem("RLPxConnectionHandlerSpec_System"))
-    with AnyFlatSpecLike
-    with WithActorSystemShutDown
-    with Matchers
-    with MockFactory:
+class RLPxConnectionHandlerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike with Matchers with MockFactory:
+
+  // Classic ActorSystem for the Classic-boundary TestProbes below (`connection`, `tcpActorProbe`).
+  implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
 
   it should "write messages send to TCP connection" taggedAs (UnitTest, NetworkTest) in new TestSetup:
     mockMessageCodec.encodeMessageHandler = Some(_ => ByteString("ping encoded"))
@@ -112,7 +111,7 @@ class RLPxConnectionHandlerSpec
     rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping())
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
 
-    val expectedHello: InitialHelloReceived = rlpxConnectionParent.expectMsgType[InitialHelloReceived]
+    val expectedHello: InitialHelloReceived = rlpxConnectionParent.expectMessageType[InitialHelloReceived]
     expectedHello.message shouldBe a[Hello]
 
     // The rlpx connection is closed after a timeout happens (after rlpxConfiguration.waitForTcpAckTimeout) and it is processed
@@ -159,7 +158,36 @@ class RLPxConnectionHandlerSpec
 
     val data: ByteString = ByteString((0 until AuthHandshaker.InitiatePacketLength).map(_.toByte).toArray)
     bridge ! Tcp.Received(data)
-    rlpxConnectionParent.expectMsg(RLPxConnectionHandler.ConnectionFailed)
+    rlpxConnectionParent.expectMessage(RLPxConnectionHandler.ConnectionFailed)
+    rlpxConnectionParent.expectTerminated(rlpxConnection)
+
+  it should "close the connection if the AuthHandshake init message decodes to an AuthHandshakeError result (not a throw)" taggedAs (
+    UnitTest,
+    NetworkTest
+  ) in new TestSetup:
+    // NETWORK-02-TESTGAP: the 2 sibling MAC-invalid tests only exercise the `Failure(ex)` branch of
+    // waitingForAuthHandshakeInit (both handleInitialMessage and handleInitialMessageV4 throw). This
+    // test exercises the other branch that reaches the same outcome: handleInitialMessage throws (so
+    // pre-EIP8 decode fails, forcing fallback to the V4/EIP-8 path) but handleInitialMessageV4 RETURNS
+    // AuthHandshakeError instead of throwing — the `case Success((_, AuthHandshakeError, _))` arm.
+    rlpxConnection ! RLPxConnectionHandler.HandleConnection(connection.ref)
+    connection.expectMsgClass(classOf[Tcp.Register])
+    val bridge = connection.lastSender
+
+    mockHandshaker.handleInitialMessageHandler = Some(_ => throw new Exception("pre-EIP8 decode fails"))
+    mockHandshaker.handleInitialMessageV4Handler = Some(_ => (ByteString.empty, AuthHandshakeError))
+
+    val data: ByteString = ByteString((0 until AuthHandshaker.InitiatePacketLength).map(_.toByte).toArray)
+    bridge ! Tcp.Received(data)
+    rlpxConnectionParent.expectMessage(RLPxConnectionHandler.ConnectionFailed)
+    // Discriminator: the `Success((_, AuthHandshakeError, _))` special-case arm short-circuits BEFORE
+    // bridgeWrite — unlike the generic `Success((responsePacket, result, remainingData))` fallback arm,
+    // which calls bridgeWrite(bridge, responsePacket) before processHandshakeResult. If the special-case
+    // arm were removed, this mocked (ByteString.empty, AuthHandshakeError) tuple would fall through to
+    // the generic arm and bridgeWrite would forward an empty Tcp.Write to `connection` (InboundTcpBridge
+    // relays every Tcp.Write it receives straight to connectionRef). Asserting no such write arrives is
+    // what makes this test a genuine regression guard rather than one that passes on both code paths.
+    connection.expectNoMessage(Timeouts.shortTimeout)
     rlpxConnectionParent.expectTerminated(rlpxConnection)
 
   it should "close the connection if the AuthHandshake response message's MAC is invalid" taggedAs (
@@ -185,7 +213,7 @@ class RLPxConnectionHandlerSpec
 
     val data: ByteString = ByteString((0 until AuthHandshaker.ResponsePacketLength).map(_.toByte).toArray)
     outboundBridge ! Tcp.Received(data)
-    rlpxConnectionParent.expectMsg(RLPxConnectionHandler.ConnectionFailed)
+    rlpxConnectionParent.expectMessage(RLPxConnectionHandler.ConnectionFailed)
     rlpxConnectionParent.expectTerminated(rlpxConnection)
 
   it should "handle SendMessage gracefully during shutdown without dead letters" in new TestSetup:
@@ -208,7 +236,7 @@ class RLPxConnectionHandlerSpec
     rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping())
 
     // The actor should gracefully handle the message and terminate without dead letters
-    rlpxConnectionParent.expectMsg(RLPxConnectionHandler.ConnectionFailed)
+    rlpxConnectionParent.expectMessage(RLPxConnectionHandler.ConnectionFailed)
     rlpxConnectionParent.expectTerminated(rlpxConnection, max = Timeouts.normalTimeout)
 
   it should "handle late Hello message after handshake without compression" taggedAs (
@@ -366,24 +394,18 @@ class RLPxConnectionHandlerSpec
       override val waitForHandshakeTimeout: FiniteDuration = Timeouts.veryLongTimeout
 
     lazy val tcpActorProbe: TestProbe = TestProbe()
-    lazy val rlpxConnectionParent: TestProbe = TestProbe()
-    lazy val typedParent: org.apache.pekko.actor.typed.ActorRef[PeerActor.Command] =
-      rlpxConnectionParent.ref.toTyped[PeerActor.Command]
-    lazy val rlpxConnection: TestActorRef[Nothing] = TestActorRef(
-      PropsAdapter(
-        RLPxConnectionHandler.apply(
-          protocolVersion :: Nil,
-          mockHandshaker,
-          (_, _, _, _, _, _) => mockMessageCodec,
-          rlpxConfiguration,
-          _ => mockHelloExtractor,
-          typedParent,
-          Some(tcpActorProbe.ref)
-        )
-      ),
-      rlpxConnectionParent.ref
+    lazy val rlpxConnectionParent: TypedTestProbe[PeerActor.Command] = testKit.createTestProbe[PeerActor.Command]()
+    lazy val rlpxConnection: TypedActorRef[RLPxConnectionHandler.Command] = testKit.spawn(
+      RLPxConnectionHandler.apply(
+        protocolVersion :: Nil,
+        mockHandshaker,
+        (_, _, _, _, _, _) => mockMessageCodec,
+        rlpxConfiguration,
+        _ => mockHelloExtractor,
+        rlpxConnectionParent.ref,
+        Some(tcpActorProbe.ref)
+      )
     )
-    rlpxConnectionParent.watch(rlpxConnection)
 
     // Setup for RLPxConnection, after it the RLPxConnectionHandler is in a handshaked state
     def setupIncomingRLPxConnection(): Unit =
@@ -431,4 +453,4 @@ class RLPxConnectionHandlerSpec
       bridge ! Tcp.Received(hello)
 
       // Connection fully established
-      rlpxConnectionParent.expectMsgClass(classOf[RLPxConnectionHandler.ConnectionEstablished])
+      rlpxConnectionParent.expectMessageType[RLPxConnectionHandler.ConnectionEstablished]
