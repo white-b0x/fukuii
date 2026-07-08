@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
@@ -22,7 +22,7 @@ import Fixtures.blockchainConfig
   * TSTORE: pop key and value from stack, store in transient storage scoped to (address, key) TLOAD: pop key from stack,
   * push value from transient storage (or 0 if not set) Transient storage is cleared at end of transaction.
   */
-class OlympiaTransientStorageSpec extends AnyWordSpec with Matchers:
+class OlympiaTransientStorageSpec extends AnyFlatSpec with Matchers:
 
   val configPreOlympia: EvmConfig = EvmConfig.SpiralConfigBuilder(blockchainConfig)
   val configOlympia: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
@@ -171,176 +171,179 @@ class OlympiaTransientStorageSpec extends AnyWordSpec with Matchers:
 
   import fxt.*
 
-  "EIP-1153 Transient Storage" when {
+  "EIP-1153 Transient Storage when TLOAD and TSTORE are used together" should "store and retrieve a value" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    val context = createContext(codeTstoreTload.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-    "TLOAD and TSTORE are used together" should {
+    result.error shouldBe None
+  }
 
-      "store and retrieve a value" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeTstoreTload.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "return 0 for unset keys" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeTloadUnset.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    result.error shouldBe None
+  }
 
-      "return 0 for unset keys" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeTloadUnset.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "store and retrieve multiple keys independently" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeMultipleKeys.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    result.error shouldBe None
+  }
 
-      "store and retrieve multiple keys independently" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeMultipleKeys.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "overwrite existing value at same key" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeOverwrite.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    result.error shouldBe None
+  }
 
-      "overwrite existing value at same key" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeOverwrite.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "clear value by storing zero" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeClear.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    result.error shouldBe None
+  }
 
-      "clear value by storing zero" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeClear.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  "EIP-1153 Transient Storage when transient storage isolation" should "be scoped to (address, key) — different addresses don't interfere" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    // Pre-populate transient storage from a different address
+    val preExisting = Map[(Address, StorageKey), BigInt](
+      (otherAddr, StorageKey(BigInt(0))) -> BigInt(999)
+    )
+    val context = createContext(
+      codeTloadUnset.code,
+      headerOlympia,
+      configOlympia,
+      transientStorage = preExisting
+    )
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
-    }
+    result.error shouldBe None
+    // ownerAddr's transient storage at key 0 should be 0, not 999
+    // (because otherAddr's storage is separate)
+  }
 
-    "transient storage isolation" should {
+  it should "preserve transient storage in result for downstream calls" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeTstoreOnly.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "be scoped to (address, key) — different addresses don't interfere" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        // Pre-populate transient storage from a different address
-        val preExisting = Map[(Address, StorageKey), BigInt](
-          (otherAddr, StorageKey(BigInt(0))) -> BigInt(999)
-        )
-        val context = createContext(
-          codeTloadUnset.code,
-          headerOlympia,
-          configOlympia,
-          transientStorage = preExisting
-        )
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    result.error shouldBe None
+    // Transient storage should contain the stored value
+    (result.transientStorage should contain).key((ownerAddr, StorageKey(BigInt(0))))
+    result.transientStorage((ownerAddr, StorageKey(BigInt(0)))) shouldEqual BigInt(42)
+  }
 
-        result.error shouldBe None
-        // ownerAddr's transient storage at key 0 should be 0, not 999
-        // (because otherAddr's storage is separate)
-      }
+  it should "not affect persistent storage (world state unchanged)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeTstoreOnly.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "preserve transient storage in result for downstream calls" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeTstoreOnly.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    result.error shouldBe None
+    // Persistent storage should be unchanged
+    result.world.getStorage(ownerAddr) shouldEqual MockStorage.Empty
+  }
 
-        result.error shouldBe None
-        // Transient storage should contain the stored value
-        (result.transientStorage should contain).key((ownerAddr, StorageKey(BigInt(0))))
-        result.transientStorage((ownerAddr, StorageKey(BigInt(0)))) shouldEqual BigInt(42)
-      }
+  "EIP-1153 Transient Storage when gas costs" should "charge G_warm_storage_read (100) for TLOAD" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    val context = createContext(codeTloadOnly.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "not affect persistent storage (world state unchanged)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeTstoreOnly.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    val expectedGas = configOlympia.feeSchedule.G_verylow + // PUSH1
+      configOlympia.feeSchedule.G_warm_storage_read // TLOAD
 
-        result.error shouldBe None
-        // Persistent storage should be unchanged
-        result.world.getStorage(ownerAddr) shouldEqual MockStorage.Empty
-      }
-    }
+    val gasUsed = context.startGas - result.gasRemaining
+    gasUsed shouldEqual expectedGas
+  }
 
-    "gas costs" should {
+  it should "charge G_warm_storage_read (100) for TSTORE" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeTstoreOnly.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "charge G_warm_storage_read (100) for TLOAD" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeTloadOnly.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    val expectedGas = configOlympia.feeSchedule.G_verylow + // PUSH1 (value)
+      configOlympia.feeSchedule.G_verylow + // PUSH1 (key)
+      configOlympia.feeSchedule.G_warm_storage_read // TSTORE
 
-        val expectedGas = configOlympia.feeSchedule.G_verylow + // PUSH1
-          configOlympia.feeSchedule.G_warm_storage_read // TLOAD
+    val gasUsed = context.startGas - result.gasRemaining
+    gasUsed shouldEqual expectedGas
+  }
 
-        val gasUsed = context.startGas - result.gasRemaining
-        gasUsed shouldEqual expectedGas
-      }
+  "EIP-1153 Transient Storage when static context" should "allow TLOAD in static context" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    val context = createContext(codeTloadOnly.code, headerOlympia, configOlympia, staticCtx = true)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "charge G_warm_storage_read (100) for TSTORE" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeTstoreOnly.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    result.error shouldBe None
+  }
 
-        val expectedGas = configOlympia.feeSchedule.G_verylow + // PUSH1 (value)
-          configOlympia.feeSchedule.G_verylow + // PUSH1 (key)
-          configOlympia.feeSchedule.G_warm_storage_read // TSTORE
+  it should "reject TSTORE in static context" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeTstoreOnly.code, headerOlympia, configOlympia, staticCtx = true)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        val gasUsed = context.startGas - result.gasRemaining
-        gasUsed shouldEqual expectedGas
-      }
-    }
+    result.error shouldBe Some(OpCodeNotAvailableInStaticContext(0x5d.toByte))
+  }
 
-    "static context" should {
+  "EIP-1153 Transient Storage when pre-Olympia" should "reject TLOAD as invalid opcode" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    val context = createContext(codeTloadOnly.code, headerPreOlympia, configPreOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "allow TLOAD in static context" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeTloadOnly.code, headerOlympia, configOlympia, staticCtx = true)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    result.error shouldBe Some(InvalidOpCode(0x5c.toByte))
+  }
 
-        result.error shouldBe None
-      }
+  it should "reject TSTORE as invalid opcode" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeTstoreOnly.code, headerPreOlympia, configPreOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "reject TSTORE in static context" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeTstoreOnly.code, headerOlympia, configOlympia, staticCtx = true)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    result.error shouldBe Some(InvalidOpCode(0x5d.toByte))
+  }
 
-        result.error shouldBe Some(OpCodeNotAvailableInStaticContext(0x5d.toByte))
-      }
-    }
+  "EIP-1153 Transient Storage when opcode list configuration" should "include TLOAD in Olympia opcode list" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    configOlympia.byteToOpCode.get(0x5c.toByte) shouldBe Some(TLOAD)
+  }
 
-    "pre-Olympia" should {
+  it should "include TSTORE in Olympia opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    configOlympia.byteToOpCode.get(0x5d.toByte) shouldBe Some(TSTORE)
+  }
 
-      "reject TLOAD as invalid opcode" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeTloadOnly.code, headerPreOlympia, configPreOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "not include TLOAD in Spiral opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    configPreOlympia.byteToOpCode.get(0x5c.toByte) shouldBe None
+  }
 
-        result.error shouldBe Some(InvalidOpCode(0x5c.toByte))
-      }
-
-      "reject TSTORE as invalid opcode" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeTstoreOnly.code, headerPreOlympia, configPreOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
-
-        result.error shouldBe Some(InvalidOpCode(0x5d.toByte))
-      }
-    }
-
-    "opcode list configuration" should {
-
-      "include TLOAD in Olympia opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        configOlympia.byteToOpCode.get(0x5c.toByte) shouldBe Some(TLOAD)
-      }
-
-      "include TSTORE in Olympia opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        configOlympia.byteToOpCode.get(0x5d.toByte) shouldBe Some(TSTORE)
-      }
-
-      "not include TLOAD in Spiral opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        configPreOlympia.byteToOpCode.get(0x5c.toByte) shouldBe None
-      }
-
-      "not include TSTORE in Spiral opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        configPreOlympia.byteToOpCode.get(0x5d.toByte) shouldBe None
-      }
-    }
+  it should "not include TSTORE in Spiral opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    configPreOlympia.byteToOpCode.get(0x5d.toByte) shouldBe None
   }

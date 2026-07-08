@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
@@ -21,7 +21,7 @@ import Fixtures.blockchainConfig
   * EIP-6049 is an informational EIP that deprecates SELFDESTRUCT but does NOT change its behavior. The opcode continues
   * to work exactly as before - this EIP only marks it as deprecated.
   */
-class Eip6049Spec extends AnyWordSpec with Matchers:
+class Eip6049Spec extends AnyFlatSpec with Matchers:
 
   // Config before EIP-6049 (Mystique fork - no deprecation flag)
   val configPreEip6049: EvmConfig = EvmConfig.MystiqueConfigBuilder(blockchainConfig)
@@ -80,125 +80,116 @@ class Eip6049Spec extends AnyWordSpec with Matchers:
 
   import fxt.*
 
-  "EIP-6049" when {
+  "EIP-6049 when configuration flag" should "be false for pre-Spiral forks" taggedAs (UnitTest, VMTest) in {
+    configPreEip6049.eip6049DeprecationEnabled shouldBe false
+  }
 
-    "configuration flag" should {
+  it should "be true for Spiral fork and later" taggedAs (UnitTest, VMTest) in {
+    configWithEip6049.eip6049DeprecationEnabled shouldBe true
+  }
 
-      "be false for pre-Spiral forks" taggedAs (UnitTest, VMTest) in {
-        configPreEip6049.eip6049DeprecationEnabled shouldBe false
-      }
+  "EIP-6049 when helper method isEip6049DeprecationEnabled" should "return false for pre-Spiral forks" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    val mystiqueEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MystiqueBlockNumber))
+    BlockchainConfigForEvm.isEip6049DeprecationEnabled(mystiqueEtcFork) shouldBe false
 
-      "be true for Spiral fork and later" taggedAs (UnitTest, VMTest) in {
-        configWithEip6049.eip6049DeprecationEnabled shouldBe true
-      }
-    }
+    val magnetoEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MagnetoBlockNumber))
+    BlockchainConfigForEvm.isEip6049DeprecationEnabled(magnetoEtcFork) shouldBe false
 
-    "helper method isEip6049DeprecationEnabled" should {
+    val phoenixEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.PhoenixBlockNumber))
+    BlockchainConfigForEvm.isEip6049DeprecationEnabled(phoenixEtcFork) shouldBe false
+  }
 
-      "return false for pre-Spiral forks" taggedAs (UnitTest, VMTest) in {
-        val mystiqueEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MystiqueBlockNumber))
-        BlockchainConfigForEvm.isEip6049DeprecationEnabled(mystiqueEtcFork) shouldBe false
+  it should "return true for Spiral fork and later" taggedAs (UnitTest, VMTest) in {
+    val spiralEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.SpiralBlockNumber))
+    BlockchainConfigForEvm.isEip6049DeprecationEnabled(spiralEtcFork) shouldBe true
+  }
 
-        val magnetoEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.MagnetoBlockNumber))
-        BlockchainConfigForEvm.isEip6049DeprecationEnabled(magnetoEtcFork) shouldBe false
+  "EIP-6049 when SELFDESTRUCT behavior" should "remain unchanged before EIP-6049" taggedAs (UnitTest, VMTest) in {
+    val context = createContext(
+      codeWithSelfDestruct.code,
+      fakeHeaderPreEip6049,
+      configPreEip6049
+    )
 
-        val phoenixEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.PhoenixBlockNumber))
-        BlockchainConfigForEvm.isEip6049DeprecationEnabled(phoenixEtcFork) shouldBe false
-      }
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "return true for Spiral fork and later" taggedAs (UnitTest, VMTest) in {
-        val spiralEtcFork = blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.SpiralBlockNumber))
-        BlockchainConfigForEvm.isEip6049DeprecationEnabled(spiralEtcFork) shouldBe true
-      }
-    }
+    // SELFDESTRUCT should work normally
+    result.error shouldBe None
+    result.addressesToDelete should contain(ownerAddr)
 
-    "SELFDESTRUCT behavior" should {
+    // Balance should be transferred to beneficiary
+    val finalWorld = result.world
+    finalWorld.getBalance(beneficiaryAddr) shouldEqual UInt256(1500) // 500 + 1000
+  }
 
-      "remain unchanged before EIP-6049" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeWithSelfDestruct.code,
-          fakeHeaderPreEip6049,
-          configPreEip6049
-        )
+  it should "remain unchanged after EIP-6049 (behavior does not change)" taggedAs (UnitTest, VMTest) in {
+    val context = createContext(
+      codeWithSelfDestruct.code,
+      fakeHeaderWithEip6049,
+      configWithEip6049
+    )
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        // SELFDESTRUCT should work normally
-        result.error shouldBe None
-        result.addressesToDelete should contain(ownerAddr)
+    // SELFDESTRUCT should work EXACTLY the same as before
+    result.error shouldBe None
+    result.addressesToDelete should contain(ownerAddr)
 
-        // Balance should be transferred to beneficiary
-        val finalWorld = result.world
-        finalWorld.getBalance(beneficiaryAddr) shouldEqual UInt256(1500) // 500 + 1000
-      }
+    // Balance should be transferred to beneficiary
+    val finalWorld = result.world
+    finalWorld.getBalance(beneficiaryAddr) shouldEqual UInt256(1500) // 500 + 1000
+  }
 
-      "remain unchanged after EIP-6049 (behavior does not change)" taggedAs (UnitTest, VMTest) in {
-        val context = createContext(
-          codeWithSelfDestruct.code,
-          fakeHeaderWithEip6049,
-          configWithEip6049
-        )
+  it should "have identical gas costs before and after EIP-6049" taggedAs (UnitTest, VMTest) in {
+    // Pre-EIP-6049
+    val contextPre = createContext(
+      codeWithSelfDestruct.code,
+      fakeHeaderPreEip6049,
+      configPreEip6049
+    )
+    val vmPre = new VM[MockWorldState, MockStorage]
+    val resultPre = vmPre.run(contextPre)
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    // With EIP-6049
+    val contextWith = createContext(
+      codeWithSelfDestruct.code,
+      fakeHeaderWithEip6049,
+      configWithEip6049
+    )
+    val vmWith = new VM[MockWorldState, MockStorage]
+    val resultWith = vmWith.run(contextWith)
 
-        // SELFDESTRUCT should work EXACTLY the same as before
-        result.error shouldBe None
-        result.addressesToDelete should contain(ownerAddr)
+    // Gas usage should be identical
+    val gasUsedPre = contextPre.startGas - resultPre.gasRemaining
+    val gasUsedWith = contextWith.startGas - resultWith.gasRemaining
 
-        // Balance should be transferred to beneficiary
-        val finalWorld = result.world
-        finalWorld.getBalance(beneficiaryAddr) shouldEqual UInt256(1500) // 500 + 1000
-      }
+    gasUsedPre shouldEqual gasUsedWith
+  }
 
-      "have identical gas costs before and after EIP-6049" taggedAs (UnitTest, VMTest) in {
-        // Pre-EIP-6049
-        val contextPre = createContext(
-          codeWithSelfDestruct.code,
-          fakeHeaderPreEip6049,
-          configPreEip6049
-        )
-        val vmPre = new VM[MockWorldState, MockStorage]
-        val resultPre = vmPre.run(contextPre)
+  it should "have zero refund in both cases (due to EIP-3529 in Mystique fork)" taggedAs (UnitTest, VMTest) in {
+    // Both Mystique and Spiral have EIP-3529, so refund should be 0 in both cases
+    configPreEip6049.feeSchedule.R_selfdestruct shouldEqual 0
+    configWithEip6049.feeSchedule.R_selfdestruct shouldEqual 0
+  }
 
-        // With EIP-6049
-        val contextWith = createContext(
-          codeWithSelfDestruct.code,
-          fakeHeaderWithEip6049,
-          configWithEip6049
-        )
-        val vmWith = new VM[MockWorldState, MockStorage]
-        val resultWith = vmWith.run(contextWith)
+  "EIP-6049 when documentation" should "indicate that EIP-6049 is informational only" taggedAs (
+    UnitTest,
+    VMTest
+  ) in {
+    // This test verifies that the behavior is unchanged
+    // EIP-6049 only deprecates SELFDESTRUCT but does not modify its behavior
+    // Future EIPs (like EIP-6780 in Ethereum Cancun) may change behavior
 
-        // Gas usage should be identical
-        val gasUsedPre = contextPre.startGas - resultPre.gasRemaining
-        val gasUsedWith = contextWith.startGas - resultWith.gasRemaining
+    info("EIP-6049 is purely informational")
+    info("SELFDESTRUCT behavior remains unchanged")
+    info("Future EIPs may modify SELFDESTRUCT behavior")
+    info("Developers should avoid using SELFDESTRUCT in new contracts")
 
-        gasUsedPre shouldEqual gasUsedWith
-      }
-
-      "have zero refund in both cases (due to EIP-3529 in Mystique fork)" taggedAs (UnitTest, VMTest) in {
-        // Both Mystique and Spiral have EIP-3529, so refund should be 0 in both cases
-        configPreEip6049.feeSchedule.R_selfdestruct shouldEqual 0
-        configWithEip6049.feeSchedule.R_selfdestruct shouldEqual 0
-      }
-    }
-
-    "documentation" should {
-
-      "indicate that EIP-6049 is informational only" taggedAs (UnitTest, VMTest) in {
-        // This test verifies that the behavior is unchanged
-        // EIP-6049 only deprecates SELFDESTRUCT but does not modify its behavior
-        // Future EIPs (like EIP-6780 in Ethereum Cancun) may change behavior
-
-        info("EIP-6049 is purely informational")
-        info("SELFDESTRUCT behavior remains unchanged")
-        info("Future EIPs may modify SELFDESTRUCT behavior")
-        info("Developers should avoid using SELFDESTRUCT in new contracts")
-
-        // No actual assertion needed - this is for documentation
-        succeed
-      }
-    }
+    // No actual assertion needed - this is for documentation
+    succeed
   }

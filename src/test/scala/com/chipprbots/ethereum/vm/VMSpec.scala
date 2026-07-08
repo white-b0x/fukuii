@@ -3,8 +3,8 @@ package com.chipprbots.ethereum.vm
 import org.apache.pekko.util.ByteString
 import org.apache.pekko.util.ByteString.empty as bEmpty
 
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
@@ -12,142 +12,139 @@ import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.vm.MockWorldState.*
 
-class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers:
+class VMSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers:
 
-  "VM" when {
+  "VM when executing message call" should "only transfer if recipient's account has no code" taggedAs (
+    UnitTest,
+    VMTest
+  ) in new MessageCall:
 
-    "executing message call" should {
+    val context: PC = getContext()
+    val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
 
-      "only transfer if recipient's account has no code" taggedAs (UnitTest, VMTest) in new MessageCall:
+    result.world.getBalance(recipientAddr.get) shouldEqual context.value
 
-        val context: PC = getContext()
-        val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
+  it should "execute recipient's contract" taggedAs (UnitTest, VMTest) in new MessageCall:
+    val inputData: ByteString = UInt256(42).bytes
 
-        result.world.getBalance(recipientAddr.get) shouldEqual context.value
+    // store first 32 bytes of input data as value at offset 0
+    val code: ByteString = Assembly(
+      PUSH1,
+      0,
+      CALLDATALOAD,
+      PUSH1,
+      0,
+      SSTORE
+    ).code
 
-      "execute recipient's contract" taggedAs (UnitTest, VMTest) in new MessageCall:
-        val inputData: ByteString = UInt256(42).bytes
+    val world: MockWorldState = defaultWorld.saveCode(recipientAddr.get, code)
 
-        // store first 32 bytes of input data as value at offset 0
-        val code: ByteString = Assembly(
-          PUSH1,
-          0,
-          CALLDATALOAD,
-          PUSH1,
-          0,
-          SSTORE
-        ).code
+    val context: PC = getContext(world = world, inputData = inputData)
 
-        val world: MockWorldState = defaultWorld.saveCode(recipientAddr.get, code)
+    val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
 
-        val context: PC = getContext(world = world, inputData = inputData)
+    result.world.getBalance(recipientAddr.get) shouldEqual context.value
+    result.world.getStorage(recipientAddr.get).load(StorageKey(0)) shouldEqual 42
 
-        val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
+  "VM when executing contract creation" should "create new contract" taggedAs (
+    UnitTest,
+    VMTest
+  ) in new ContractCreation:
+    val context1: PC = getContext()
+    val result1: ProgramResult[MockWorldState, MockStorage] = vm.run(context1)
 
-        result.world.getBalance(recipientAddr.get) shouldEqual context.value
-        result.world.getStorage(recipientAddr.get).load(StorageKey(0)) shouldEqual 42
-    }
+    result1.world.getCode(expectedNewAddress) shouldEqual defaultContractCode
+    result1.world.getBalance(expectedNewAddress) shouldEqual context1.value
+    result1.world.getStorage(expectedNewAddress).load(StorageKey(storageOffset)) shouldEqual storedValue
 
-    "executing contract creation" should {
+    val context2: PC = getContext(Some(expectedNewAddress), result1.world, bEmpty, homesteadConfig)
+    val result2: ProgramResult[MockWorldState, MockStorage] = vm.run(context2)
 
-      "create new contract" taggedAs (UnitTest, VMTest) in new ContractCreation:
-        val context1: PC = getContext()
-        val result1: ProgramResult[MockWorldState, MockStorage] = vm.run(context1)
+    result2.world.getStorage(expectedNewAddress).load(StorageKey(storageOffset)) shouldEqual secondStoredValue
 
-        result1.world.getCode(expectedNewAddress) shouldEqual defaultContractCode
-        result1.world.getBalance(expectedNewAddress) shouldEqual context1.value
-        result1.world.getStorage(expectedNewAddress).load(StorageKey(storageOffset)) shouldEqual storedValue
+  it should "go OOG if new contract's code size exceeds limit and block is after atlantis or eip161" taggedAs (
+    UnitTest,
+    VMTest
+  ) in new ContractCreation:
+    val codeSize: Int = evmBlockchainConfig.maxCodeSize.get.toInt + 1
+    val contractCode: ByteString = ByteString(Array.fill(codeSize)(-1.toByte))
 
-        val context2: PC = getContext(Some(expectedNewAddress), result1.world, bEmpty, homesteadConfig)
-        val result2: ProgramResult[MockWorldState, MockStorage] = vm.run(context2)
+    val context: PC = getContext(
+      inputData = initCode(contractCode),
+      evmConfig = homesteadConfig.copy(blockchainConfig =
+        homesteadConfig.blockchainConfig.copy(eip161BlockNumber = BlockNumber(1))
+      )
+    )
+    val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
 
-        result2.world.getStorage(expectedNewAddress).load(StorageKey(storageOffset)) shouldEqual secondStoredValue
+    result.error shouldBe Some(OutOfGas)
 
-      "go OOG if new contract's code size exceeds limit and block is after atlantis or eip161" taggedAs (
-        UnitTest,
-        VMTest
-      ) in new ContractCreation:
-        val codeSize: Int = evmBlockchainConfig.maxCodeSize.get.toInt + 1
-        val contractCode: ByteString = ByteString(Array.fill(codeSize)(-1.toByte))
+    val context1: PC = getContext(
+      inputData = initCode(contractCode),
+      evmConfig = homesteadConfig.copy(blockchainConfig =
+        homesteadConfig.blockchainConfig.copy(atlantisBlockNumber = BlockNumber(1))
+      )
+    )
+    val result1: ProgramResult[MockWorldState, MockStorage] = vm.run(context1)
 
-        val context: PC = getContext(
-          inputData = initCode(contractCode),
-          evmConfig = homesteadConfig.copy(blockchainConfig =
-            homesteadConfig.blockchainConfig.copy(eip161BlockNumber = BlockNumber(1))
-          )
-        )
-        val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
+    result1.error shouldBe Some(OutOfGas)
 
-        result.error shouldBe Some(OutOfGas)
+  it should "fail to create contract in case of address conflict (non-empty code)" taggedAs (
+    UnitTest,
+    VMTest
+  ) in new ContractCreation:
+    val nonEmptyCodeHash: ByteString = ByteString(1)
+    val world: MockWorldState =
+      defaultWorld.saveAccount(expectedNewAddress, Account(codeHash = CodeHash(nonEmptyCodeHash)))
 
-        val context1: PC = getContext(
-          inputData = initCode(contractCode),
-          evmConfig = homesteadConfig.copy(blockchainConfig =
-            homesteadConfig.blockchainConfig.copy(atlantisBlockNumber = BlockNumber(1))
-          )
-        )
-        val result1: ProgramResult[MockWorldState, MockStorage] = vm.run(context1)
+    val context: PC = getContext(world = world)
+    val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
 
-        result1.error shouldBe Some(OutOfGas)
+    result.error shouldBe Some(InvalidOpCode(INVALID.code))
 
-      "fail to create contract in case of address conflict (non-empty code)" taggedAs (
-        UnitTest,
-        VMTest
-      ) in new ContractCreation:
-        val nonEmptyCodeHash: ByteString = ByteString(1)
-        val world: MockWorldState =
-          defaultWorld.saveAccount(expectedNewAddress, Account(codeHash = CodeHash(nonEmptyCodeHash)))
+  it should "fail to create contract in case of address conflict (non-zero nonce)" taggedAs (
+    UnitTest,
+    VMTest
+  ) in new ContractCreation:
+    val world: MockWorldState = defaultWorld.saveAccount(expectedNewAddress, Account(nonce = 1))
 
-        val context: PC = getContext(world = world)
-        val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
+    val context: PC = getContext(world = world)
+    val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
 
-        result.error shouldBe Some(InvalidOpCode(INVALID.code))
+    result.error shouldBe Some(InvalidOpCode(INVALID.code))
 
-      "fail to create contract in case of address conflict (non-zero nonce)" taggedAs (
-        UnitTest,
-        VMTest
-      ) in new ContractCreation:
-        val world: MockWorldState = defaultWorld.saveAccount(expectedNewAddress, Account(nonce = 1))
+  it should "create contract if the account already has some balance, but zero nonce and empty code" taggedAs (
+    UnitTest,
+    VMTest
+  ) in new ContractCreation:
+    val world: MockWorldState = defaultWorld.saveAccount(expectedNewAddress, Account(balance = 1))
 
-        val context: PC = getContext(world = world)
-        val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
+    val context: PC = getContext(world = world)
+    val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
 
-        result.error shouldBe Some(InvalidOpCode(INVALID.code))
+    result.error shouldBe None
+    result.world.getBalance(expectedNewAddress) shouldEqual context.value + 1
+    result.world.getCode(expectedNewAddress) shouldEqual defaultContractCode
 
-      "create contract if the account already has some balance, but zero nonce and empty code" taggedAs (
-        UnitTest,
-        VMTest
-      ) in new ContractCreation:
-        val world: MockWorldState = defaultWorld.saveAccount(expectedNewAddress, Account(balance = 1))
+  it should "initialise a new contract account with zero nonce before EIP-161" taggedAs (
+    UnitTest,
+    VMTest
+  ) in new ContractCreation:
+    val context: PC = getContext(evmConfig = homesteadConfig)
+    val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
 
-        val context: PC = getContext(world = world)
-        val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
+    result.world.getAccount(expectedNewAddress).map(_.nonce) shouldEqual Some(0)
 
-        result.error shouldBe None
-        result.world.getBalance(expectedNewAddress) shouldEqual context.value + 1
-        result.world.getCode(expectedNewAddress) shouldEqual defaultContractCode
+  it should "initialise a new contract account with incremented nonce after EIP-161" taggedAs (
+    UnitTest,
+    VMTest
+  ) in new ContractCreation:
+    val world: MockWorldState = defaultWorld.copy(noEmptyAccountsCond = true)
 
-      "initialise a new contract account with zero nonce before EIP-161" taggedAs (
-        UnitTest,
-        VMTest
-      ) in new ContractCreation:
-        val context: PC = getContext(evmConfig = homesteadConfig)
-        val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
+    val context: PC = getContext(world = world, evmConfig = eip161Config)
+    val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
 
-        result.world.getAccount(expectedNewAddress).map(_.nonce) shouldEqual Some(0)
-
-      "initialise a new contract account with incremented nonce after EIP-161" taggedAs (
-        UnitTest,
-        VMTest
-      ) in new ContractCreation:
-        val world: MockWorldState = defaultWorld.copy(noEmptyAccountsCond = true)
-
-        val context: PC = getContext(world = world, evmConfig = eip161Config)
-        val result: ProgramResult[MockWorldState, MockStorage] = vm.run(context)
-
-        result.world.getAccount(expectedNewAddress).map(_.nonce) shouldEqual Some(1)
-    }
-  }
+    result.world.getAccount(expectedNewAddress).map(_.nonce) shouldEqual Some(1)
 
   trait TestSetup:
     val vm = new TestVM

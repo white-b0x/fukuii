@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
@@ -21,7 +21,7 @@ import Fixtures.blockchainConfig
   * MCOPY copies memory within the EVM memory space. Parameters: dst (destination), src (source), size (bytes to copy)
   * Handles overlapping regions safely (load-then-store pattern).
   */
-class OlympiaMcopySpec extends AnyWordSpec with Matchers:
+class OlympiaMcopySpec extends AnyFlatSpec with Matchers:
 
   val configPreOlympia: EvmConfig = EvmConfig.SpiralConfigBuilder(blockchainConfig)
   val configOlympia: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
@@ -162,68 +162,68 @@ class OlympiaMcopySpec extends AnyWordSpec with Matchers:
 
   import fxt.*
 
-  "MCOPY opcode (EIP-5656)" when {
+  "MCOPY opcode (EIP-5656) when Olympia fork is active" should "copy non-overlapping memory regions" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    val context = createContext(codeNonOverlapping.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-    "Olympia fork is active" should {
+    result.error shouldBe None
+  }
 
-      "copy non-overlapping memory regions" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeNonOverlapping.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "handle zero-size copy as no-op" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeZeroSize.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    result.error shouldBe None
+  }
 
-      "handle zero-size copy as no-op" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeZeroSize.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "copy small regions (1 byte)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeSmallCopy.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    result.error shouldBe None
+  }
 
-      "copy small regions (1 byte)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeSmallCopy.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "charge correct gas for zero-size copy (G_verylow only)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeZeroSize.code, headerOlympia, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    // Zero-size MCOPY: 3 PUSHes + MCOPY base (G_verylow=3) + 0 varGas
+    val expectedGas =
+      configOlympia.feeSchedule.G_verylow * 3 + // 3 PUSH1 opcodes
+        configOlympia.feeSchedule.G_verylow // MCOPY base gas (no varGas for size=0)
 
-      "charge correct gas for zero-size copy (G_verylow only)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeZeroSize.code, headerOlympia, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    val gasUsed = context.startGas - result.gasRemaining
+    gasUsed shouldEqual expectedGas
+  }
 
-        // Zero-size MCOPY: 3 PUSHes + MCOPY base (G_verylow=3) + 0 varGas
-        val expectedGas =
-          configOlympia.feeSchedule.G_verylow * 3 + // 3 PUSH1 opcodes
-            configOlympia.feeSchedule.G_verylow // MCOPY base gas (no varGas for size=0)
+  "MCOPY opcode (EIP-5656) when pre-Olympia" should "reject MCOPY as invalid opcode" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    val context = createContext(codeMcopySimple.code, headerPreOlympia, configPreOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        val gasUsed = context.startGas - result.gasRemaining
-        gasUsed shouldEqual expectedGas
-      }
-    }
+    result.error shouldBe Some(InvalidOpCode(0x5e.toByte))
+  }
 
-    "pre-Olympia" should {
+  "MCOPY opcode (EIP-5656) when opcode list configuration" should "include MCOPY in Olympia opcode list" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    configOlympia.byteToOpCode.get(0x5e.toByte) shouldBe Some(MCOPY)
+  }
 
-      "reject MCOPY as invalid opcode" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeMcopySimple.code, headerPreOlympia, configPreOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
-
-        result.error shouldBe Some(InvalidOpCode(0x5e.toByte))
-      }
-    }
-
-    "opcode list configuration" should {
-
-      "include MCOPY in Olympia opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        configOlympia.byteToOpCode.get(0x5e.toByte) shouldBe Some(MCOPY)
-      }
-
-      "not include MCOPY in Spiral opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        configPreOlympia.byteToOpCode.get(0x5e.toByte) shouldBe None
-      }
-    }
+  it should "not include MCOPY in Spiral opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    configPreOlympia.byteToOpCode.get(0x5e.toByte) shouldBe None
   }

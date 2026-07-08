@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
@@ -22,7 +22,7 @@ import Fixtures.blockchainConfig
   *
   * BASEFEE pushes the current block's baseFee onto the stack. Returns 0 if baseFee is not set (pre-Olympia blocks).
   */
-class OlympiaBaseFeeOpcodeSpec extends AnyWordSpec with Matchers:
+class OlympiaBaseFeeOpcodeSpec extends AnyFlatSpec with Matchers:
 
   val configPreOlympia: EvmConfig = EvmConfig.SpiralConfigBuilder(blockchainConfig)
   val configOlympia: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
@@ -101,84 +101,84 @@ class OlympiaBaseFeeOpcodeSpec extends AnyWordSpec with Matchers:
 
   import fxt.*
 
-  "BASEFEE opcode" when {
+  "BASEFEE opcode when Olympia fork is active" should "push baseFee value onto the stack" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    val context = createContext(codeBaseFee.code, headerWithBaseFee, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-    "Olympia fork is active" should {
+    result.error shouldBe None
+    result.returnData shouldBe empty
+  }
 
-      "push baseFee value onto the stack" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeBaseFee.code, headerWithBaseFee, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "return correct baseFee value (7 wei)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeBaseFeeToMemory.code, headerWithBaseFee, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-        result.returnData shouldBe empty
-      }
+    result.error shouldBe None
+  }
 
-      "return correct baseFee value (7 wei)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeBaseFeeToMemory.code, headerWithBaseFee, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "return zero when baseFee is zero" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeBaseFeeToMemory.code, headerWithZeroBaseFee, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    result.error shouldBe None
+  }
 
-      "return zero when baseFee is zero" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeBaseFeeToMemory.code, headerWithZeroBaseFee, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "handle large baseFee values (1 Gwei)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeBaseFee.code, headerWithLargeBaseFee, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    result.error shouldBe None
+  }
 
-      "handle large baseFee values (1 Gwei)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeBaseFee.code, headerWithLargeBaseFee, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "be usable in arithmetic operations" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeBaseFeeDouble.code, headerWithBaseFee, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    result.error shouldBe None
+  }
 
-      "be usable in arithmetic operations" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeBaseFeeDouble.code, headerWithBaseFee, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+  it should "cost G_base gas (2)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(codeBaseFee.code, headerWithBaseFee, configOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        result.error shouldBe None
-      }
+    val expectedGas = configOlympia.feeSchedule.G_base // BASEFEE = G_base
+    val gasUsed = context.startGas - result.gasRemaining
 
-      "cost G_base gas (2)" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(codeBaseFee.code, headerWithBaseFee, configOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    gasUsed shouldEqual expectedGas
+  }
 
-        val expectedGas = configOlympia.feeSchedule.G_base // BASEFEE = G_base
-        val gasUsed = context.startGas - result.gasRemaining
+  "BASEFEE opcode when pre-Olympia (baseFee not in header)" should "not be recognized as valid opcode" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    // Pre-Olympia config does NOT include BASEFEE in the opcode list
+    val context = createContext(codeBaseFee.code, headerPreOlympia, configPreOlympia)
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        gasUsed shouldEqual expectedGas
-      }
-    }
+    // BASEFEE (0x48) should be treated as invalid opcode pre-Olympia
+    result.error shouldBe Some(InvalidOpCode(0x48.toByte))
+  }
 
-    "pre-Olympia (baseFee not in header)" should {
+  "BASEFEE opcode when opcode list configuration" should "include BASEFEE in Olympia opcode list" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    configOlympia.byteToOpCode.get(0x48.toByte) shouldBe Some(BASEFEE)
+  }
 
-      "not be recognized as valid opcode" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        // Pre-Olympia config does NOT include BASEFEE in the opcode list
-        val context = createContext(codeBaseFee.code, headerPreOlympia, configPreOlympia)
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
-
-        // BASEFEE (0x48) should be treated as invalid opcode pre-Olympia
-        result.error shouldBe Some(InvalidOpCode(0x48.toByte))
-      }
-    }
-
-    "opcode list configuration" should {
-
-      "include BASEFEE in Olympia opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        configOlympia.byteToOpCode.get(0x48.toByte) shouldBe Some(BASEFEE)
-      }
-
-      "not include BASEFEE in Spiral opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        configPreOlympia.byteToOpCode.get(0x48.toByte) shouldBe None
-      }
-    }
+  it should "not include BASEFEE in Spiral opcode list" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    configPreOlympia.byteToOpCode.get(0x48.toByte) shouldBe None
   }

@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
@@ -21,7 +21,7 @@ import Fixtures.blockchainConfig
   * Post-Olympia: SELFDESTRUCT only deletes the contract if it was created in the same transaction. Pre-existing
   * contracts only have their balance transferred to the beneficiary.
   */
-class OlympiaSelfDestructSpec extends AnyWordSpec with Matchers:
+class OlympiaSelfDestructSpec extends AnyFlatSpec with Matchers:
 
   val configPreOlympia: EvmConfig = EvmConfig.SpiralConfigBuilder(blockchainConfig)
   val configOlympia: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
@@ -93,141 +93,141 @@ class OlympiaSelfDestructSpec extends AnyWordSpec with Matchers:
 
   import fxt.*
 
-  "EIP-6780 SELFDESTRUCT restrictions" when {
+  "EIP-6780 SELFDESTRUCT restrictions when Olympia fork (eip6780Enabled = true)" should "have eip6780Enabled flag set" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    configOlympia.eip6780Enabled shouldBe true
+  }
 
-    "Olympia fork (eip6780Enabled = true)" should {
+  it should "not have eip6780Enabled pre-Olympia" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    configPreOlympia.eip6780Enabled shouldBe false
+  }
 
-      "have eip6780Enabled flag set" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        configOlympia.eip6780Enabled shouldBe true
-      }
+  it should "transfer balance but NOT delete pre-existing contract" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    // Owner exists in original world → pre-existing contract
+    val context = createContext(
+      codeSelfDestruct.code,
+      headerOlympia,
+      configOlympia,
+      world = worldPreExisting,
+      originalWorld = worldPreExisting // owner exists in original
+    )
 
-      "not have eip6780Enabled pre-Olympia" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        configPreOlympia.eip6780Enabled shouldBe false
-      }
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "transfer balance but NOT delete pre-existing contract" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        // Owner exists in original world → pre-existing contract
-        val context = createContext(
-          codeSelfDestruct.code,
-          headerOlympia,
-          configOlympia,
-          world = worldPreExisting,
-          originalWorld = worldPreExisting // owner exists in original
-        )
+    result.error shouldBe None
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    // Balance should be transferred
+    result.world.getBalance(beneficiaryAddr) shouldEqual UInt256(
+      beneficiaryBalance.toBigInt + ownerBalance.toBigInt
+    )
 
-        result.error shouldBe None
+    // But contract should NOT be marked for deletion
+    result.addressesToDelete should not contain ownerAddr
+  }
 
-        // Balance should be transferred
-        result.world.getBalance(beneficiaryAddr) shouldEqual UInt256(
-          beneficiaryBalance.toBigInt + ownerBalance.toBigInt
-        )
+  it should "transfer balance AND delete contract created in same transaction" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    // Owner does NOT exist in original world → created in this tx
+    val context = createContext(
+      codeSelfDestruct.code,
+      headerOlympia,
+      configOlympia,
+      world = worldNewContract,
+      originalWorld = originalWorldWithoutOwner // owner does NOT exist in original
+    )
 
-        // But contract should NOT be marked for deletion
-        result.addressesToDelete should not contain ownerAddr
-      }
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "transfer balance AND delete contract created in same transaction" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        // Owner does NOT exist in original world → created in this tx
-        val context = createContext(
-          codeSelfDestruct.code,
-          headerOlympia,
-          configOlympia,
-          world = worldNewContract,
-          originalWorld = originalWorldWithoutOwner // owner does NOT exist in original
-        )
+    result.error shouldBe None
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    // Balance should be transferred
+    result.world.getBalance(beneficiaryAddr) shouldEqual UInt256(
+      beneficiaryBalance.toBigInt + ownerBalance.toBigInt
+    )
 
-        result.error shouldBe None
+    // Contract SHOULD be marked for deletion (created in same tx)
+    result.addressesToDelete should contain(ownerAddr)
+  }
 
-        // Balance should be transferred
-        result.world.getBalance(beneficiaryAddr) shouldEqual UInt256(
-          beneficiaryBalance.toBigInt + ownerBalance.toBigInt
-        )
+  "EIP-6780 SELFDESTRUCT restrictions when pre-Olympia (eip6780Enabled = false)" should "always delete contract regardless of creation time" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    // Pre-existing contract — should still be deleted pre-Olympia
+    val context = createContext(
+      codeSelfDestruct.code,
+      headerPreOlympia,
+      configPreOlympia,
+      world = worldPreExisting,
+      originalWorld = worldPreExisting
+    )
 
-        // Contract SHOULD be marked for deletion (created in same tx)
-        result.addressesToDelete should contain(ownerAddr)
-      }
-    }
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-    "pre-Olympia (eip6780Enabled = false)" should {
+    result.error shouldBe None
+    result.addressesToDelete should contain(ownerAddr)
+    result.world.getBalance(beneficiaryAddr) shouldEqual UInt256(
+      beneficiaryBalance.toBigInt + ownerBalance.toBigInt
+    )
+  }
 
-      "always delete contract regardless of creation time" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        // Pre-existing contract — should still be deleted pre-Olympia
-        val context = createContext(
-          codeSelfDestruct.code,
-          headerPreOlympia,
-          configPreOlympia,
-          world = worldPreExisting,
-          originalWorld = worldPreExisting
-        )
+  "EIP-6780 SELFDESTRUCT restrictions when edge cases" should "preserve balance on self-destruct to self for pre-existing contract (EIP-6780)" taggedAs (
+    UnitTest,
+    VMTest,
+    OlympiaTest
+  ) in {
+    // SELFDESTRUCT to own address. Per EIP-6780, a pre-existing contract is NOT deleted
+    // and "transfer self → self" is a no-op — balance must be preserved. The hive
+    // bcValidBlockTest/reentrencySuicide_Cancun fixture relies on this; the previous
+    // unconditional `removeAllEther` here burned 3 wei in call #2 of the reentrancy
+    // chain and produced a divergent state root.
+    val codeSelfDestructToSelf: Assembly = Assembly(
+      PUSH20,
+      ownerAddr.bytes,
+      SELFDESTRUCT
+    )
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
+    val world = MockWorldState()
+      .saveAccount(ownerAddr, Account(balance = ownerBalance, nonce = 1))
+      .saveCode(ownerAddr, codeSelfDestructToSelf.code)
 
-        result.error shouldBe None
-        result.addressesToDelete should contain(ownerAddr)
-        result.world.getBalance(beneficiaryAddr) shouldEqual UInt256(
-          beneficiaryBalance.toBigInt + ownerBalance.toBigInt
-        )
-      }
-    }
+    val context = createContext(
+      codeSelfDestructToSelf.code,
+      headerOlympia,
+      configOlympia,
+      world = world,
+      originalWorld = world // pre-existing
+    )
 
-    "edge cases" should {
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-      "preserve balance on self-destruct to self for pre-existing contract (EIP-6780)" taggedAs (
-        UnitTest,
-        VMTest,
-        OlympiaTest
-      ) in {
-        // SELFDESTRUCT to own address. Per EIP-6780, a pre-existing contract is NOT deleted
-        // and "transfer self → self" is a no-op — balance must be preserved. The hive
-        // bcValidBlockTest/reentrencySuicide_Cancun fixture relies on this; the previous
-        // unconditional `removeAllEther` here burned 3 wei in call #2 of the reentrancy
-        // chain and produced a divergent state root.
-        val codeSelfDestructToSelf: Assembly = Assembly(
-          PUSH20,
-          ownerAddr.bytes,
-          SELFDESTRUCT
-        )
+    result.error shouldBe None
+    result.world.getBalance(ownerAddr) shouldEqual ownerBalance
+    result.addressesToDelete should not contain ownerAddr
+  }
 
-        val world = MockWorldState()
-          .saveAccount(ownerAddr, Account(balance = ownerBalance, nonce = 1))
-          .saveCode(ownerAddr, codeSelfDestructToSelf.code)
+  it should "not be available in static context" taggedAs (UnitTest, VMTest, OlympiaTest) in {
+    val context = createContext(
+      codeSelfDestruct.code,
+      headerOlympia,
+      configOlympia,
+      world = worldPreExisting,
+      originalWorld = worldPreExisting
+    ).copy(staticCtx = true)
 
-        val context = createContext(
-          codeSelfDestructToSelf.code,
-          headerOlympia,
-          configOlympia,
-          world = world,
-          originalWorld = world // pre-existing
-        )
+    val vm = new VM[MockWorldState, MockStorage]
+    val result = vm.run(context)
 
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
-
-        result.error shouldBe None
-        result.world.getBalance(ownerAddr) shouldEqual ownerBalance
-        result.addressesToDelete should not contain ownerAddr
-      }
-
-      "not be available in static context" taggedAs (UnitTest, VMTest, OlympiaTest) in {
-        val context = createContext(
-          codeSelfDestruct.code,
-          headerOlympia,
-          configOlympia,
-          world = worldPreExisting,
-          originalWorld = worldPreExisting
-        ).copy(staticCtx = true)
-
-        val vm = new VM[MockWorldState, MockStorage]
-        val result = vm.run(context)
-
-        result.error shouldBe Some(OpCodeNotAvailableInStaticContext(0xff.toByte))
-      }
-    }
+    result.error shouldBe Some(OpCodeNotAvailableInStaticContext(0xff.toByte))
   }
