@@ -1,6 +1,5 @@
 package com.chipprbots.ethereum.blockchain.sync.regular
 import org.apache.pekko.actor.ActorRef
-import org.apache.pekko.actor.testkit.typed.scaladsl.FishingOutcomes
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
@@ -64,6 +63,7 @@ import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NewBlock
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NewBlockHashes.BlockHash
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NewBlockHashes.NewBlockHashes
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NodeData
+import com.chipprbots.ethereum.testing.ActorsTesting.fishForSpecificMessage
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config.SyncConfig
@@ -344,12 +344,7 @@ class RegularSyncSpec
             importer ! BlockImporter.ImportDone(BlockImporter.ResolvingBranch(lca), BlockImporter.DefaultBlockImport)
 
             val msg = importerFetcher
-              .fishForMessage(5.seconds) {
-                case m: BlockFetcher.StrictPickBlocks if m.from == lca => FishingOutcomes.complete
-                case _                                                 => FishingOutcomes.continueAndIgnore
-              }
-              .head
-              .asInstanceOf[BlockFetcher.StrictPickBlocks]
+              .fishForSpecificMessage(5.seconds) { case m: BlockFetcher.StrictPickBlocks if m.from == lca => m }
             assert(msg.from == lca, s"StrictPickBlocks.from mismatch for depth=$depth")
 
             testKit.stop(importer)
@@ -438,12 +433,7 @@ class RegularSyncSpec
 
           // The importer must invalidate the fetcher's blocks from lca + 1 (resolver-driven rollback).
           val invalidate = importerFetcher
-            .fishForMessage(5.seconds) {
-              case _: BlockFetcher.InvalidateBlocksFrom => FishingOutcomes.complete
-              case _                                    => FishingOutcomes.continueAndIgnore
-            }
-            .head
-            .asInstanceOf[BlockFetcher.InvalidateBlocksFrom]
+            .fishForSpecificMessage(5.seconds) { case m: BlockFetcher.InvalidateBlocksFrom => m }
           assert(
             invalidate.fromBlock == lca + 1,
             s"expected InvalidateBlocksFrom(${lca + 1}), got ${invalidate.fromBlock}"

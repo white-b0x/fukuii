@@ -1,8 +1,6 @@
 package com.chipprbots.ethereum.blockchain.sync
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -28,8 +26,6 @@ import com.chipprbots.ethereum.testing.Tags.*
   * underlying scanner computes them — so the controller can drive the downloads.
   */
 class CombinedRecoveryScanActorSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike with Matchers:
-
-  implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
 
   private def fixtures()
       : (StateStorage, EvmCodeStorage, AppStateStorage, ByteString, Set[ByteString], Set[ByteString]) =
@@ -77,7 +73,7 @@ class CombinedRecoveryScanActorSpec extends ScalaTestWithActorTestKit() with Any
 
   "CombinedRecoveryScanActor" should "scan once and emit both gap sets to its parent" taggedAs (UnitTest, SyncTest) in {
     val (stateStorage, evm, appState, root, expectedCode, expectedStorageRoots) = fixtures()
-    val parent = TestProbe("parent")
+    val parent = testKit.createTestProbe[CombinedRecoveryScanActor.CombinedScanComplete]()
 
     testKit.spawn(
       CombinedRecoveryScanActor(
@@ -85,14 +81,14 @@ class CombinedRecoveryScanActorSpec extends ScalaTestWithActorTestKit() with Any
         stateStorage = stateStorage,
         evmCodeStorage = evm,
         appStateStorage = appState,
-        syncController = parent.ref.toTyped[Any],
+        syncController = parent.ref,
         pivotBlockNumber = BigInt(0),
         snapSyncConfig = SNAPSyncConfig(recoveryScanConcurrency = 2, recoveryScanShardDepth = 1)
       ),
       "combined-recovery-scan-spec-t1"
     )
 
-    val msg = parent.expectMsgType[CombinedRecoveryScanActor.CombinedScanComplete](10.seconds)
+    val msg = parent.expectMessageType[CombinedRecoveryScanActor.CombinedScanComplete](10.seconds)
     msg.missingBytecodes.toSet shouldBe expectedCode
     msg.missingStorageTries.map(_._2).toSet shouldBe expectedStorageRoots
     msg.missingStorageTries.size shouldBe 1

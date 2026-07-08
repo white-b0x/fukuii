@@ -1,12 +1,10 @@
 package com.chipprbots.ethereum.blockchain.sync
 
-import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.actor.typed.Behavior
 import org.apache.pekko.actor.typed.SupervisorStrategy
 import org.apache.pekko.actor.typed.scaladsl.ActorContext
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
 
 import scala.collection.mutable
@@ -149,7 +147,7 @@ object StorageRecoveryActor:
       pivotBlockNumber: BigInt,
       snapSyncConfig: SNAPSyncConfig,
       preloaded: Option[Seq[(ByteString, ByteString)]] = None,
-      coordinatorForTesting: Option[ActorRef] = None
+      coordinatorForTesting: Option[TypedActorRef[actors.StorageRangeCoordinator.Command]] = None
   ): Behavior[Command] = scanning(
     stateRoot,
     stateStorage,
@@ -173,7 +171,7 @@ object StorageRecoveryActor:
       pivotBlockNumber: BigInt,
       snapSyncConfig: SNAPSyncConfig,
       preloaded: Option[Seq[(ByteString, ByteString)]],
-      coordinatorForTesting: Option[ActorRef]
+      coordinatorForTesting: Option[TypedActorRef[actors.StorageRangeCoordinator.Command]]
   ): Behavior[Command] =
     Behaviors.setup { ctx =>
       val asyncLog = LoggerFactory.getLogger(getClass)
@@ -216,7 +214,7 @@ object StorageRecoveryActor:
               }
             val coordinator: org.apache.pekko.actor.typed.ActorRef[actors.StorageRangeCoordinator.Command] =
               coordinatorForTesting match
-                case Some(testRef) => testRef.toTyped[actors.StorageRangeCoordinator.Command]
+                case Some(testRef) => testRef
                 case None =>
                   val requestTracker = new snap.SNAPRequestTracker()(ctx.system.classicSystem.scheduler)
                   val mptStorage = stateStorage.getBackingStorage(pivotBlockNumber)

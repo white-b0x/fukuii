@@ -5,10 +5,13 @@ import java.net.URI
 import java.util.concurrent.TimeUnit
 
 import org.apache.pekko.actor.*
+import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.FishingOutcomes
+import org.apache.pekko.actor.testkit.typed.scaladsl.ManualTime
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.ExplicitlyTriggeredScheduler
 import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
@@ -17,7 +20,6 @@ import scala.concurrent.duration.*
 import com.github.blemale.scaffeine.Cache
 import com.github.blemale.scaffeine.Scaffeine
 import com.google.common.testing.FakeTicker
-import com.typesafe.config.ConfigFactory
 import org.bouncycastle.util.encoders.Hex
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
@@ -54,6 +56,7 @@ import com.chipprbots.ethereum.network.discovery.PeerDiscoveryManager
 import com.chipprbots.ethereum.network.p2p.messages.Capability
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NewBlock
 import com.chipprbots.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import com.chipprbots.ethereum.testing.ActorsTesting.fishForSpecificMessage
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
 
@@ -61,13 +64,18 @@ import Arbitrary.arbitrary
 
 // scalastyle:off magic.number
 class PeerManagerSpec
-    extends ScalaTestWithActorTestKit(ConfigFactory.load("explicit-scheduler"))
+// `SyncController`-family children pin to `sync-dispatcher`, declared in `application-test.conf` — the
+// config `ActorTestKit.ApplicationTestConfig` normally loads (bare-ctor `ScalaTestWithActorTestKit()`).
+// Passing an explicit `customConfig` (required for `ManualTime.config`) bypasses that default, so it
+// must be re-added as a fallback here.
+    extends ScalaTestWithActorTestKit(ManualTime.config.withFallback(ActorTestKit.ApplicationTestConfig))
     with AnyFlatSpecLike
     with Matchers
     with Eventually
     with ScalaCheckDrivenPropertyChecks:
 
   implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
+  val manualTime: ManualTime = ManualTime()
 
   behavior.of("PeerManagerActor")
 
@@ -132,10 +140,10 @@ class PeerManagerSpec
 
     probe.ref ! PoisonPill
 
-    testScheduler.timePasses(21000.millis) // wait for next scan
+    manualTime.timePasses(21000.millis) // wait for next scan
 
     val req = eventually {
-      peerDiscoveryManager.expectMsgClass(classOf[PeerDiscoveryManager.GetDiscoveredNodesInfoReq])
+      peerDiscoveryManager.expectMessageType[PeerDiscoveryManager.GetDiscoveredNodesInfoReq]
     }
     req.replyTo ! PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes)
 
@@ -150,11 +158,9 @@ class PeerManagerSpec
     probe.ref ! PoisonPill
 
     // Peer death triggers GetRandomNodeInfoReq, but a timer-fired GetDiscoveredNodesInfoReq may arrive first
-    val randomReq = peerDiscoveryManager.fishForMessage(3.seconds, "waiting for GetRandomNodeInfoReq") {
-      case _: PeerDiscoveryManager.GetRandomNodeInfoReq => true
-      case _                                            => false
-    }
-    randomReq.asInstanceOf[PeerDiscoveryManager.GetRandomNodeInfoReq].replyTo ! PeerDiscoveryManager.RandomNodeInfo(
+    val randomReq = peerDiscoveryManager
+      .fishForSpecificMessage(3.seconds) { case m: PeerDiscoveryManager.GetRandomNodeInfoReq => m }
+    randomReq.replyTo ! PeerDiscoveryManager.RandomNodeInfo(
       bootstrapNodes.head
     )
 
@@ -166,11 +172,11 @@ class PeerManagerSpec
 
     probe.ref ! PoisonPill
 
-    testScheduler.timePasses(21000.millis) // connect to 2 bootstrap peers
+    manualTime.timePasses(21000.millis) // connect to 2 bootstrap peers
 
     peerEventBus.fishForMessage(3.seconds, "waiting for PeerDisconnected publish") {
-      case PublishCmd(PeerDisconnected(id)) => id == PeerId(probe.ref.path.name)
-      case _                                => false
+      case PublishCmd(PeerDisconnected(id)) if id == PeerId(probe.ref.path.name) => FishingOutcomes.complete
+      case _                                                                     => FishingOutcomes.continueAndIgnore
     }
 
   it should "not handle the connection from a peer that's already connected" taggedAs (
@@ -196,10 +202,10 @@ class PeerManagerSpec
     createdPeers.head.probe.expectMsgClass(classOf[PeerActor.ConnectTo])
     createdPeers(1).probe.expectMsgClass(classOf[PeerActor.ConnectTo])
 
-    testScheduler.timePasses(21000.millis) // wait for next scan
+    manualTime.timePasses(21000.millis) // wait for next scan
 
     val req2 = eventually {
-      peerDiscoveryManager.expectMsgClass(classOf[PeerDiscoveryManager.GetDiscoveredNodesInfoReq])
+      peerDiscoveryManager.expectMessageType[PeerDiscoveryManager.GetDiscoveredNodesInfoReq]
     }
     req2.replyTo ! PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes)
 
@@ -247,8 +253,8 @@ class PeerManagerSpec
     probe3.ref ! PoisonPill
 
     peerEventBus.fishForMessage(3.seconds, "waiting for PeerDisconnected publish") {
-      case PublishCmd(PeerDisconnected(id)) => id == PeerId(probe3.ref.path.name)
-      case _                                => false
+      case PublishCmd(PeerDisconnected(id)) if id == PeerId(probe3.ref.path.name) => FishingOutcomes.complete
+      case _                                                                      => FishingOutcomes.continueAndIgnore
     }
 
     // TooManyPeers should also trigger a pruning cycle. The Typed GetStatsForAll carries a replyTo
@@ -400,13 +406,13 @@ class PeerManagerSpec
     createdPeers(0).probe.ref ! PoisonPill
 
     // PeerDisconnected is published inside the Terminated handler, so receiving it
-    // guarantees the 5s scheduleOnce has already been registered on testScheduler.
+    // guarantees the 5s scheduleOnce has already been registered on manualTime.
     peerEventBus.fishForMessage(3.seconds, "waiting for PeerDisconnected") {
-      case PublishCmd(PeerDisconnected(_)) => true
-      case _                               => false
+      case PublishCmd(PeerDisconnected(_)) => FishingOutcomes.complete
+      case _                               => FishingOutcomes.continueAndIgnore
     }
 
-    testScheduler.timePasses(5.seconds)
+    manualTime.timePasses(5.seconds)
 
     // connectWith should have created a second peer and sent ConnectTo(maintainedUri)
     createdPeers(1).probe.expectMsgType[ConnectTo](3.seconds).uri shouldBe maintainedUri
@@ -441,8 +447,8 @@ class PeerManagerSpec
     // Terminate outgoing → 5s reconnect timer is scheduled inside the Terminated handler
     createdPeers(0).probe.ref ! PoisonPill
     peerEventBus.fishForMessage(3.seconds, "waiting for PeerDisconnected") {
-      case PublishCmd(PeerDisconnected(_)) => true
-      case _                               => false
+      case PublishCmd(PeerDisconnected(_)) => FishingOutcomes.complete
+      case _                               => FishingOutcomes.continueAndIgnore
     }
 
     // Inbound from the same nodeId arrives before the 5s timer fires
@@ -462,7 +468,7 @@ class PeerManagerSpec
     )
 
     // Fire the 5s timer — connectWith sees hasHandshakedWith(nodeId)=true and aborts silently
-    testScheduler.timePasses(5.seconds)
+    manualTime.timePasses(5.seconds)
 
     // No third peer should have been created
     createdPeers.size shouldBe 2
@@ -525,12 +531,12 @@ class PeerManagerSpec
     // Kill the outgoing pre-handshake actor (TCP rejected or AlreadyConnected)
     createdPeers(0).probe.ref ! PoisonPill
     peerEventBus.fishForMessage(3.seconds, "waiting for PeerDisconnected after outbound kill") {
-      case PublishCmd(PeerDisconnected(_)) => true
-      case _                               => false
+      case PublishCmd(PeerDisconnected(_)) => FishingOutcomes.complete
+      case _                               => FishingOutcomes.continueAndIgnore
     }
 
     // Advance past the pre-handshake retry delay — no reconnect timer should have been scheduled
-    testScheduler.timePasses(peerConfiguration.connectRetryDelay + 1.second)
+    manualTime.timePasses(peerConfiguration.connectRetryDelay + 1.second)
     createdPeers.size shouldBe 2
 
   it should "block a ConnectToPeer for a maintained peer when an inbound from the same host is in incomingPendingPeers (RC3)" taggedAs (
@@ -551,8 +557,8 @@ class PeerManagerSpec
     // Terminate outbound pre-handshake (no inbound yet) → RC2 schedules a retry timer
     createdPeers(0).probe.ref ! PoisonPill
     peerEventBus.fishForMessage(3.seconds, "waiting for PeerDisconnected after outbound kill") {
-      case PublishCmd(PeerDisconnected(_)) => true
-      case _                               => false
+      case PublishCmd(PeerDisconnected(_)) => FishingOutcomes.complete
+      case _                               => FishingOutcomes.continueAndIgnore
     }
 
     // Inbound from the maintained peer host arrives (ephemeral port — different from 30303)
@@ -563,7 +569,7 @@ class PeerManagerSpec
     // Not yet handshaked — peer sits in incomingPendingPeers
 
     // Fire the retry timer → connectWith sees hasIncomingPendingFromHost(maintainedHost) = true → blocked
-    testScheduler.timePasses(peerConfiguration.connectRetryDelay + 1.second)
+    manualTime.timePasses(peerConfiguration.connectRetryDelay + 1.second)
     createdPeers.size shouldBe 2
 
   // ── Suite 7: Inbound-wins tiebreaker (Fix-A — run-17 issue A) ─────────────────────────────────
@@ -625,7 +631,7 @@ class PeerManagerSpec
     // After outbound Terminated fires, no new outbound should be scheduled
     // (maintained peer is now held by the stable inbound)
     createdPeers(0).probe.ref ! PoisonPill
-    testScheduler.timePasses(peerConfiguration.connectRetryDelay + 1.second)
+    manualTime.timePasses(peerConfiguration.connectRetryDelay + 1.second)
     createdPeers.size shouldBe 2
 
   // Regression for Issue 6: when a maintained peer's outbound actor terminates after
@@ -648,8 +654,8 @@ class PeerManagerSpec
     // the final expectNoMessage assertion does not see a stale message.
     peerManager ! PeerManagerActor.AddMaintainedPeerCmd(maintainedUri, discardReplyRef)
     peerEventBus.fishForMessage(3.seconds, "waiting for MaintainedPeersChanged") {
-      case PublishCmd(PeerEvent.MaintainedPeersChanged(_)) => true
-      case _                                               => false
+      case PublishCmd(PeerEvent.MaintainedPeersChanged(_)) => FishingOutcomes.complete
+      case _                                               => FishingOutcomes.continueAndIgnore
     }
     assert(createdPeerQueue.poll(3, TimeUnit.SECONDS) ne null, "peerFactory not called within 3s")
     createdPeers(0).probe.expectMsgType[ConnectTo](3.seconds)
@@ -694,7 +700,7 @@ class PeerManagerSpec
     peerEventBus.expectNoMessage(500.millis)
 
     // No reconnect is scheduled (winner still alive) — createdPeers stays at 2
-    testScheduler.timePasses(6000.millis)
+    manualTime.timePasses(6000.millis)
     createdPeers.size shouldBe 2
 
   behavior.of("outgoingConnectionDemand")
@@ -724,8 +730,8 @@ class PeerManagerSpec
 
     // DiscoveredNodesReceived triggers GetRandomNodeInfoReq, but eager startup messages may precede it
     peerDiscoveryManager.fishForMessage(3.seconds, "waiting for GetRandomNodeInfoReq") {
-      case _: PeerDiscoveryManager.GetRandomNodeInfoReq => true
-      case _                                            => false
+      case _: PeerDiscoveryManager.GetRandomNodeInfoReq => FishingOutcomes.complete
+      case _                                            => FishingOutcomes.continueAndIgnore
     }
 
     val probe: TestProbe = createdPeers(0).probe
@@ -957,9 +963,6 @@ class PeerManagerSpec
     }
 
   trait TestSetup:
-    def testScheduler: ExplicitlyTriggeredScheduler =
-      classicSystem.scheduler.asInstanceOf[ExplicitlyTriggeredScheduler]
-
     // In the pre-#1373 Classic API, AddMaintainedPeer was fire-and-forget: `sender()` returned deadLetters
     // (not null) when called with no sender. The #1373 typed rewrite introduced AddMaintainedPeerCmd with an
     // explicit `replyTo: typed.ActorRef[AddMaintainedPeerResponse]`. Tests that don't care about the response
@@ -975,8 +978,9 @@ class PeerManagerSpec
     val discoveryConfig: DiscoveryConfig =
       DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
 
-    val peerDiscoveryManager: TestProbe = TestProbe()
-    val peerEventBus: TestProbe = TestProbe()
+    val peerDiscoveryManager: TypedTestProbe[PeerDiscoveryManager.Command] =
+      testKit.createTestProbe[PeerDiscoveryManager.Command]()
+    val peerEventBus: TypedTestProbe[PeerEventBusActor.Command] = testKit.createTestProbe[PeerEventBusActor.Command]()
     val knownNodesManager = testKit.createTestProbe[KnownNodesManager.Command]()
     val peerStatistics = testKit.createTestProbe[PeerStatisticsActor.Command]()
 
@@ -1038,29 +1042,29 @@ class PeerManagerSpec
     val peerManager: typed.ActorRef[PeerManagerActor.Command] =
       testKit.spawn(
         PeerManagerActor.behavior(
-          peerEventBus.ref.toTyped[PeerEventBusActor.Command],
-          peerDiscoveryManager.ref.toTyped[PeerDiscoveryManager.Command],
+          peerEventBus.ref,
+          peerDiscoveryManager.ref,
           peerConfiguration,
           knownNodesManager.ref,
           peerStatistics.ref,
           peerFactory,
           discoveryConfig,
           blacklist,
-          Some(testScheduler)
+          Some(classicSystem.scheduler)
         ),
         s"pma-${java.util.UUID.randomUUID()}",
         typed.DispatcherSelector.fromConfig(org.apache.pekko.testkit.CallingThreadDispatcher.Id)
       )
 
     def start(): Unit =
-      peerEventBus.expectMsgType[SubscribeCmd].to shouldBe PeerHandshaked
+      peerEventBus.expectMessageType[SubscribeCmd].to shouldBe PeerHandshaked
 
       peerManager ! PeerManagerActor.StartConnectingCmd
 
     def handleInitialNodesDiscovery(): Unit =
-      testScheduler.timePasses(6000.millis) // wait for bootstrap nodes scan
+      manualTime.timePasses(6000.millis) // wait for bootstrap nodes scan
 
-      val req = peerDiscoveryManager.expectMsgClass(classOf[PeerDiscoveryManager.GetDiscoveredNodesInfoReq])
+      val req = peerDiscoveryManager.expectMessageType[PeerDiscoveryManager.GetDiscoveredNodesInfoReq]
       req.replyTo ! PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes)
       val knownReq = knownNodesManager.expectMessageType[KnownNodesManager.GetKnownNodesReq]
       knownReq.replyTo ! KnownNodesManager.KnownNodes(knownNodes)

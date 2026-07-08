@@ -1,12 +1,10 @@
 package com.chipprbots.ethereum.blockchain.sync
 
-import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.actor.typed.Behavior
 import org.apache.pekko.actor.typed.SupervisorStrategy
 import org.apache.pekko.actor.typed.scaladsl.ActorContext
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
 
 import scala.collection.mutable
@@ -125,7 +123,7 @@ object BytecodeRecoveryActor:
       pivotBlockNumber: BigInt,
       snapSyncConfig: SNAPSyncConfig,
       preloaded: Option[Seq[ByteString]] = None,
-      coordinatorForTesting: Option[ActorRef] = None
+      coordinatorForTesting: Option[TypedActorRef[snap.actors.ByteCodeCoordinator.Command]] = None
   ): Behavior[Command] = scanning(
     stateRoot,
     stateStorage,
@@ -149,7 +147,7 @@ object BytecodeRecoveryActor:
       pivotBlockNumber: BigInt,
       snapSyncConfig: SNAPSyncConfig,
       preloaded: Option[Seq[ByteString]],
-      coordinatorForTesting: Option[ActorRef]
+      coordinatorForTesting: Option[TypedActorRef[snap.actors.ByteCodeCoordinator.Command]]
   ): Behavior[Command] =
     Behaviors.setup { ctx =>
       val asyncLog = LoggerFactory.getLogger(getClass)
@@ -192,7 +190,7 @@ object BytecodeRecoveryActor:
               }
             val coordinator: org.apache.pekko.actor.typed.ActorRef[snap.actors.ByteCodeCoordinator.Command] =
               coordinatorForTesting match
-                case Some(testRef) => testRef.toTyped[snap.actors.ByteCodeCoordinator.Command]
+                case Some(testRef) => testRef
                 case None =>
                   val requestTracker = new snap.SNAPRequestTracker()(ctx.system.classicSystem.scheduler)
                   ctx.spawn(

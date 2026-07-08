@@ -1,8 +1,7 @@
 package com.chipprbots.ethereum.blockchain.sync
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -24,6 +23,7 @@ import com.chipprbots.ethereum.db.storage.NodeStorage.NodeHash
 import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.db.storage.pruning.ArchivePruning
 import com.chipprbots.ethereum.domain.TrieRoot
+import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
 
@@ -36,8 +36,6 @@ import com.chipprbots.ethereum.utils.Config
   *     of abandoning — so the resync can't get permanently wedged on a stale pivot. Bounded + falls back to abandon.
   */
 class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike with Matchers with Eventually:
-
-  implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
 
   private val fakeStateRoot: ByteString = ByteString(Array.fill[Byte](32)(0x11))
   private val fakeAccountHash: ByteString = ByteString(Array.fill[Byte](32)(0x22))
@@ -70,12 +68,12 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
     */
   private def downloadingActor(
       testLabel: String,
-      syncController: TestProbe,
-      coordinator: TestProbe,
+      syncController: TypedTestProbe[StorageRecoveryActor.SyncControllerMsg],
+      coordinator: TypedTestProbe[actors.StorageRangeCoordinator.Command],
       abandonAfter: FiniteDuration,
       maxRolls: Int = 8
   ): (org.apache.pekko.actor.typed.ActorRef[StorageRecoveryActor.Command], AppStateStorage) =
-    val networkPeerManager = TestProbe(s"npm_$testLabel")
+    val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
     val (stateStorage, appStateStorage, flatSlots) = newStorages()
     val actor = testKit
       .spawn(
@@ -85,7 +83,7 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
           appStateStorage = appStateStorage,
           flatSlotStorage = flatSlots,
           networkPeerManager = networkPeerManager.ref,
-          syncController = syncController.ref.toTyped[Any],
+          syncController = syncController.ref,
           pivotBlockNumber = BigInt(100),
           snapSyncConfig = newConfig(abandonAfter, maxRolls),
           preloaded = Some(missingOne),
@@ -94,7 +92,7 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
         s"storage-recovery-spec-$testLabel"
       )
     // The actor enters `downloading` and immediately hands the missing list to the coordinator.
-    coordinator.expectMsgType[actors.StorageRangeCoordinator.AddStorageTasks](2.seconds)
+    coordinator.expectMessageType[actors.StorageRangeCoordinator.AddStorageTasks](2.seconds)
     (actor, appStateStorage)
 
   "StorageRecoveryActor" should
@@ -102,17 +100,17 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
       UnitTest,
       SyncTest
     ) in {
-      val syncController = TestProbe("syncController_abandon")
-      val coordinator = TestProbe("coordinator_abandon")
+      val syncController = testKit.createTestProbe[StorageRecoveryActor.SyncControllerMsg]()
+      val coordinator = testKit.createTestProbe[actors.StorageRangeCoordinator.Command]()
       val (actor, appStateStorage) =
         downloadingActor("abandon", syncController, coordinator, abandonAfter = 600.millis)
 
       (1 to 5).foreach(_ => actor ! pivotUnservable())
       // The actor tries to roll off the aged pivot first; decline (no recent root) → abandon path.
-      syncController.expectMsgType[StorageRecoveryActor.RequestRecentRoot](2.seconds)
+      syncController.expectMessageType[StorageRecoveryActor.RequestRecentRoot](2.seconds)
       actor ! StorageRecoveryActor.RecentRoot(BigInt(0), None)
 
-      syncController.expectMsg(3.seconds, StorageRecoveryActor.RecoveryComplete)
+      syncController.expectMessage(3.seconds, StorageRecoveryActor.RecoveryComplete)
       appStateStorage.isStorageRecoveryDone() shouldBe true
       testKit.stop(actor)
     }
@@ -121,19 +119,19 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
     UnitTest,
     SyncTest
   ) in {
-    val syncController = TestProbe("syncController_roll")
-    val coordinator = TestProbe("coordinator_roll")
+    val syncController = testKit.createTestProbe[StorageRecoveryActor.SyncControllerMsg]()
+    val coordinator = testKit.createTestProbe[actors.StorageRangeCoordinator.Command]()
     // Long abandon window so the test asserts the roll (not a race with abandon).
     val (actor, appStateStorage) = downloadingActor("roll", syncController, coordinator, abandonAfter = 5.seconds)
 
     actor ! pivotUnservable()
-    syncController.expectMsgType[StorageRecoveryActor.RequestRecentRoot](2.seconds)
+    syncController.expectMessageType[StorageRecoveryActor.RequestRecentRoot](2.seconds)
 
     val recentRoot = ByteString(Array.fill[Byte](32)(0x44))
     actor ! StorageRecoveryActor.RecentRoot(BigInt(200), Some(TrieRoot(recentRoot)))
 
     // The coordinator is re-armed against the recent root instead of the actor abandoning.
-    coordinator.expectMsg(2.seconds, actors.StorageRangeCoordinator.StoragePivotRefreshed(TrieRoot(recentRoot)))
+    coordinator.expectMessage(2.seconds, actors.StorageRangeCoordinator.StoragePivotRefreshed(TrieRoot(recentRoot)))
     // The roll cancelled the abandon timer → no RecoveryComplete follows.
     syncController.expectNoMessage(1.second)
     appStateStorage.isStorageRecoveryDone() shouldBe false
@@ -144,19 +142,19 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
     UnitTest,
     SyncTest
   ) in {
-    val syncController = TestProbe("syncController_sameroot")
-    val coordinator = TestProbe("coordinator_sameroot")
+    val syncController = testKit.createTestProbe[StorageRecoveryActor.SyncControllerMsg]()
+    val coordinator = testKit.createTestProbe[actors.StorageRangeCoordinator.Command]()
     val (actor, appStateStorage) =
       downloadingActor("sameroot", syncController, coordinator, abandonAfter = 600.millis)
 
     actor ! pivotUnservable()
-    syncController.expectMsgType[StorageRecoveryActor.RequestRecentRoot](2.seconds)
+    syncController.expectMessageType[StorageRecoveryActor.RequestRecentRoot](2.seconds)
     actor ! StorageRecoveryActor.RecentRoot(BigInt(0), Some(TrieRoot(fakeStateRoot))) // == current root → no-op roll
 
     // No StoragePivotRefreshed sent (the initial AddStorageTasks was already consumed).
     coordinator.expectNoMessage(300.millis)
     // Abandon timer (armed on the unservable) still fires.
-    syncController.expectMsg(2.seconds, StorageRecoveryActor.RecoveryComplete)
+    syncController.expectMessage(2.seconds, StorageRecoveryActor.RecoveryComplete)
     appStateStorage.isStorageRecoveryDone() shouldBe true
     testKit.stop(actor)
   }
@@ -165,21 +163,21 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
     UnitTest,
     SyncTest
   ) in {
-    val syncController = TestProbe("syncController_bound")
-    val coordinator = TestProbe("coordinator_bound")
+    val syncController = testKit.createTestProbe[StorageRecoveryActor.SyncControllerMsg]()
+    val coordinator = testKit.createTestProbe[actors.StorageRangeCoordinator.Command]()
     val (actor, _) = downloadingActor("bound", syncController, coordinator, abandonAfter = 700.millis, maxRolls = 1)
 
     actor ! pivotUnservable()
-    syncController.expectMsgType[StorageRecoveryActor.RequestRecentRoot](2.seconds) // roll 1 requested
+    syncController.expectMessageType[StorageRecoveryActor.RequestRecentRoot](2.seconds) // roll 1 requested
     val root1 = ByteString(Array.fill[Byte](32)(0x55))
     actor ! StorageRecoveryActor.RecentRoot(BigInt(10), Some(TrieRoot(root1)))
-    coordinator.expectMsg(
+    coordinator.expectMessage(
       2.seconds,
       actors.StorageRangeCoordinator.StoragePivotRefreshed(TrieRoot(root1))
     ) // roll 1 applied
 
     actor ! pivotUnservable() // still unservable, but the single roll is spent → no new request
-    syncController.expectMsg(3.seconds, StorageRecoveryActor.RecoveryComplete) // abandons the residue
+    syncController.expectMessage(3.seconds, StorageRecoveryActor.RecoveryComplete) // abandons the residue
     testKit.stop(actor)
   }
 
@@ -187,18 +185,18 @@ class StorageRecoveryActorSpec extends ScalaTestWithActorTestKit() with AnyFlatS
     UnitTest,
     SyncTest
   ) in {
-    val syncController = TestProbe("syncController_noAbandon")
-    val coordinator = TestProbe("coordinator_noAbandon")
+    val syncController = testKit.createTestProbe[StorageRecoveryActor.SyncControllerMsg]()
+    val coordinator = testKit.createTestProbe[actors.StorageRangeCoordinator.Command]()
     val abandonAfter = 500.millis
     val (actor, appStateStorage) =
       downloadingActor("noAbandon", syncController, coordinator, abandonAfter)
 
     actor ! pivotUnservable()
-    syncController.expectMsgType[StorageRecoveryActor.RequestRecentRoot](2.seconds) // consume the roll request
+    syncController.expectMessageType[StorageRecoveryActor.RequestRecentRoot](2.seconds) // consume the roll request
     // Progress resets the counter + cancels the pending abandon.
     actor ! StorageRecoveryActor.StorageSlotProgress(10)
     actor ! pivotUnservable()
-    syncController.expectMsgType[StorageRecoveryActor.RequestRecentRoot](
+    syncController.expectMessageType[StorageRecoveryActor.RequestRecentRoot](
       2.seconds
     ) // progress reset the budget → re-asks
 
