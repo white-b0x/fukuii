@@ -91,6 +91,45 @@ class ServerActorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike wit
       case other                           => fail(s"Expected Listening, got $other")
   }
 
+  it should "reach Listening via the real IO(Tcp) bind path (ServerActor.apply, not testApply)" taggedAs (
+    UnitTest,
+    NetworkTest
+  ) in {
+    // Regression test for the W2 Classic->Typed migration bug where `tcpManager ! Bind(tcpBridge, address)`
+    // (no explicit sender) let the Tcp manager's `Bound` reply — which Pekko always sends to the *sender*
+    // of `Bind`, not the `handler` — fall to `Actor.noSender`/deadLetters instead of reaching `tcpBridge`.
+    // ServerActorSpec's other cases all use `testApply` with a TestProbe standing in for the Tcp manager,
+    // which never exercised this real send-with-implicit-sender path — this is the only test in the suite
+    // that spawns the production `ServerActor.apply` and drives it through a real IO(Tcp) round trip.
+    val holder = freshHolder()
+    val pm = testKit.createTestProbe[PeerManagerActor.Command]()
+    val actor = testKit.spawn(ServerActor(holder, pm.ref, blacklist), "server-real-bind")
+
+    val bindAddress = new InetSocketAddress(InetAddress.getLoopbackAddress, 0)
+    actor ! ServerActor.StartServer(bindAddress)
+
+    eventually(timeout(5.seconds), interval(100.millis)) {
+      assert(
+        holder.get().serverStatus.isInstanceOf[ServerStatus.Listening],
+        "ServerStatus should reach Listening via the real Tcp manager Bind/Bound round trip"
+      )
+    }
+
+    val boundAddress = holder.get().serverStatus match
+      case ServerStatus.Listening(address) => address
+      case other                           => fail(s"Expected Listening, got $other")
+
+    boundAddress.getPort should not be 0
+
+    // Confirm the same tcpBridge also correctly routes the `Connected` half of the real path
+    // (handler-addressed, unaffected by this bug, but worth covering end-to-end in the one real-bind test).
+    val socket = new java.net.Socket()
+    try
+      socket.connect(new InetSocketAddress(InetAddress.getLoopbackAddress, boundAddress.getPort), 2000)
+      pm.expectMessageType[PeerManagerActor.HandlePeerConnectionCmd](3.seconds)
+    finally socket.close()
+  }
+
   it should "fall back to loopback when DetectedIP carries None" taggedAs (UnitTest, NetworkTest) in {
     val holder = freshHolder()
     val pm = testKit.createTestProbe[PeerManagerActor.Command]()

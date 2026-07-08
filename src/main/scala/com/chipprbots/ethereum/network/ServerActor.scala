@@ -88,7 +88,15 @@ object ServerActor:
       tcpBridge: ActorRef
   ): Behavior[Command] =
     Behaviors.receiveMessagePartial { case StartServer(address, advertisedAddress) =>
-      tcpManager ! Bind(tcpBridge, address)
+      // Pekko's Tcp protocol replies with `Bound`/`CommandFailed` to the *sender* of `Bind`,
+      // while `Connected` events go to the `handler` argument (see Tcp.scala's Bind/Bound
+      // doc comments). Sending `tcpManager ! Bind(...)` from a Typed Behavior carries no
+      // implicit classic sender, so it defaults to `Actor.noSender` — the TCP manager's
+      // `Bound`/`CommandFailed` reply is then delivered to deadLetters, never to `tcpBridge`,
+      // and the actor hangs forever in `waitingForBindingResult`. Use `tell` with an explicit
+      // sender so `tcpBridge` receives both roles, matching the pre-migration Classic actor's
+      // `tcpManager ! Bind(self, address)` (where `self` doubled as both sender and handler).
+      tcpManager.tell(Bind(tcpBridge, address), tcpBridge)
       waitingForBindingResult(ctx, nodeStatusHolder, peerManager, blacklist, advertisedAddress)
     }
 
