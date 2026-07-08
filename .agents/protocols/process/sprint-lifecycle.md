@@ -63,14 +63,67 @@ says — see that script's own header comment for the incident (2026-07-05) that
 
 ---
 
+## The `QUEUE.md` ↔ `.claude/sprints/queue/` split (as of the 2026-07-08 reorg)
+
+A Persistent Section's full Item table plus any already-drafted kickoff prompts (the
+`CONTEXT`/`KNOWN FILE LIST`/`INSTRUCTIONS`/`CONSTRAINTS` scaffold a Thread pastes into a fresh
+session), the Findings Resolution Log, and the Chase & Deferred Items table all grow large over
+a sprint's lifetime — large enough that leaving them inline makes `QUEUE.md` itself hard to
+open/diff/scan. `.claude/sprints/queue/` is the staging/reference directory that holds this
+detail; `QUEUE.md` keeps only what's ready-to-run or actively load-bearing right now:
+
+- `queue/finding-resolution-log.md` — the full Findings Resolution Log.
+- `queue/chase-deferred.md` — the full Chase & Deferred Items table.
+- `queue/persistent/{repo-hygiene,security,parity,modernization,performance}.md` — one file per
+  Persistent Section, each holding that Section's full Item table and any drafted Thread
+  content for its Items.
+- `queue/systemic-review.md` — the Systemic Review Persistent Section's full per-item drafted
+  Threads (`SR-00` through `SR-EXT-02`). The section's header, GATE note, and `SR-00`-derived
+  Dispatch-order run-sequence table stay inline in `QUEUE.md` itself (operator-referenced live,
+  not archival detail), with a pointer down to this file for the rest.
+
+`QUEUE.md` itself keeps: the intro, `## Critical & Security Fast-Track`, the `## Persistent
+Sections` header plus one-line pointers into each `queue/persistent/*.md` file (and into
+`queue/finding-resolution-log.md`), the Systemic Review gate note + run-sequence table
+described above, the full `## Batches` content, and a pointer into `queue/chase-deferred.md`.
+`.claude/sprints/queue/` carries the same gitignore status as `QUEUE.md` — this split has zero
+commit/push impact.
+
+**Staging → active promotion flow (the operator's key intent for this split):** newly-found or
+not-yet-drafted work is written directly into its `queue/` home — a new Persistent-Section Item
+into the matching `queue/persistent/*.md` file, a new `SR-NN`/`SR-EXT-NN` item into
+`queue/systemic-review.md` — not into `QUEUE.md`. Two different promotion shapes follow,
+matching the two container types in "Document hierarchy" above:
+
+- **Persistent-Section Items** are executed in place — a Thread is read directly out of its
+  `queue/persistent/*.md` (or `queue/systemic-review.md`) file when picked up; there is no
+  separate copy-back step, since a Persistent Section never closes as a whole and its Items
+  don't move file the way a Batch does. Only the Section's one-line pointer and the Systemic
+  Review run-sequence table (both in `QUEUE.md`) need to change as an Item's status changes.
+- **Batches** are the one container that is never staged in `queue/` — a new `### Batch N` is
+  written directly under `## Batches` in `QUEUE.md` itself, since Batches are by definition the
+  currently-active, ready-to-run work and `sprint-clear.sh`/`sprint-archive.sh` operate
+  structurally on that header (see above).
+
+This split does not weaken Rule 1 below: every `queue/` file is referenced from exactly one
+pointer in `QUEUE.md`, so there is still exactly one place to look up an Item's current status
+(the `queue/` file itself, reached via that pointer) — not two files silently able to disagree.
+`QUEUE.md` remains the single entry point; `queue/` is where its own bulk lives, not a
+parallel/competing tracker.
+
+---
+
 ## Rule 1: Single source of truth
 
-One active file: `.claude/sprints/QUEUE.md`. No parallel tracker, no per-batch follow-up file,
-no separate CHASE-QUEUE/DEFERRED-BACKLOG file. Incidental cross-file finds (per
-`inline-cleanup.md`) and genuinely-deferred items (per `finding-resolution.md` disposition 3)
-are sections *within* QUEUE.md — see its "Chase & Deferred Items" section — not separate
-documents. This is the direct fix for the failure mode that motivated this protocol: multiple
-tracking files silently disagreeing with each other about whether something was done.
+One active queue, `.claude/sprints/QUEUE.md` plus its own `.claude/sprints/queue/` staging
+directory (see "The `QUEUE.md` ↔ `.claude/sprints/queue/` split" above) — never a second,
+independent tracker. No per-batch follow-up file, no separate CHASE-QUEUE/DEFERRED-BACKLOG
+file living outside this pair. Incidental cross-file finds (per `inline-cleanup.md`) and
+genuinely-deferred items (per `finding-resolution.md` disposition 3) go in `QUEUE.md`'s "Chase
+& Deferred Items" pointer, backed by the single `queue/chase-deferred.md` file it links to —
+not a bespoke document. This is the direct fix for the failure mode that motivated this
+protocol: multiple tracking files silently disagreeing with each other about whether something
+was done.
 
 A new finding — whether from a dedicated audit pass or cascaded out of an implementation
 session — is placed at its correct logical/batch position in QUEUE.md, not appended to the
