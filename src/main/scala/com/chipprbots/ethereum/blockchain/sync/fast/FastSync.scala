@@ -1785,6 +1785,13 @@ object FastSync:
     */
   final private[sync] case class WrappedSyncProtocol(msg: SyncProtocol.SyncProtocolMsg) extends Command
 
+  /** Public entry point that wraps an external `SyncProtocol` message into the FastSync `Command` domain, mirroring the
+    * production `SyncController` path (`fastSync ! WrappedSyncProtocol(SyncProtocol.Start)`). `WrappedSyncProtocol` is
+    * `private[sync]` (only the `blockchain.sync` shell may construct it), so test harnesses in sibling packages such as
+    * `sync.util` must drive FastSync through this factory instead of building the wrapper directly.
+    */
+  def externalCommand(msg: SyncProtocol.SyncProtocolMsg): Command = WrappedSyncProtocol(msg)
+
   /** `NetworkPeerManagerActor.HandshakedPeers` poll reply (routed to PeerListHelper). */
   final private[fast] case class WrappedHandshakedPeers(peers: NetworkPeerManagerActor.HandshakedPeers) extends Command
 

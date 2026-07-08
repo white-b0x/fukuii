@@ -55,7 +55,7 @@ object FastSyncItSpecUtils:
       .toClassic
 
     def startFastSync(): IO[Unit] = IO {
-      fastSync ! SyncProtocol.Start
+      fastSync ! FastSync.externalCommand(SyncProtocol.Start)
     }
 
     def waitForFastSyncFinish(): IO[Boolean] =
