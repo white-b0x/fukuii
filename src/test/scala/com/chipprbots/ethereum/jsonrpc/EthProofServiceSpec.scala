@@ -5,7 +5,7 @@ import org.apache.pekko.util.ByteString
 
 import cats.effect.unsafe.IORuntime
 
-import com.softwaremill.diffx.scalatest.DiffMatcher
+import com.softwaremill.diffx.scalatest.DiffShouldMatcher
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
@@ -41,7 +41,7 @@ class EthProofServiceSpec
     with MockFactory
     with NormalPatience
     with TypeCheckedTripleEquals
-    with DiffMatcher:
+    with DiffShouldMatcher:
 
   implicit val runtime: IORuntime = IORuntime.global
 
