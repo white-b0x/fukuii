@@ -470,13 +470,14 @@ sbt scalafmtAll    # formatting check only — no tests needed, no logic changed
 sbt "testOnly *<ActorName>Spec*"
 sbt "testOnly *SNAPSuite*"    # if SSC or SNAP callers were touched
 
-# END OF THREAD ONLY — once, after all phases complete (~24 min):
+# END OF THREAD ONLY — once, after all phases complete (long-running, pre-push only):
 scripts/agent-tooling/sbt-run.sh <log-name> testEssential   # full testEssential baseline
 # invoke with run_in_background: true — see background-script-execution.md
 ```
 
-Do not run `testEssential` between phases — 24 minutes of stall per run compounds across
-a multi-phase thread.
+Do not run `testEssential` between phases — a long stall per run compounds across
+a multi-phase thread (current wall-clock figure: `.local/docs/test-quality-log.md`'s
+`Tier baselines` table).
 
 **E003 vs E165:** Track `E003` (Classic actor deprecation — `extends Actor`) to measure
 migration progress. `E165` is "unmatchable type in pattern match on Any" — it rises

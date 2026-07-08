@@ -10,14 +10,14 @@ assumptions so every loop recipe starts from verified facts rather than guesses.
 | Command | What it does | Approx time |
 |---------|--------------|-------------|
 | `sbt compile-all` | All 6 modules + test sources, all configs | ~30s |
-| `sbt testEssential` | Unit tests; excludes SlowTest, IntegrationTest, SyncTest, DisabledTest, FlakyTest | ~24 min (3,595-3,601 tests) |
+| `sbt testEssential` | Unit tests; excludes SlowTest, IntegrationTest, SyncTest, DisabledTest, FlakyTest | Long — see `.local/docs/test-quality-log.md`'s `Tier baselines` table for the current test count/runtime |
 | `sbt testStandard` | Unit + integration; excludes BenchmarkTest, EthereumTest, SyncTest, DisabledTest, FlakyTest | ~30 min |
 | `sbt testComprehensive` | Full ethereum/tests compliance vectors | ~3 hr |
 | `sbt scalafmtAll` | Format all modules in place | ~20s |
 | `sbt scalafmtCheck` | Verify format without writing | ~20s |
 | `sbt scalafixAll` | Run all scalafix rules | ~30s |
 | `sbt formatAll` | scalafixAll + scalafmtAll (pre-PR only; aborts on pre-existing violations) | ~50s |
-| `scripts/agent-tooling/sbt-run.sh <log> testEssential` (background) | Tier 1, log-to-file, no live-streamed output | ~24 min |
+| `scripts/agent-tooling/sbt-run.sh <log> testEssential` (background) | Tier 1, log-to-file, no live-streamed output | Long — see `.local/docs/test-quality-log.md` |
 | `scripts/agent-tooling/sbt-run.sh <log> testStandard` (background) | Tier 2, log-to-file | ~30 min |
 | `sbt "testOnly *Spec*"` | Targeted single-spec run — fast enough to run directly, no wrapper needed | ~10-60s |
 | `sbt "crypto / test"` | crypto submodule only | ~20s |

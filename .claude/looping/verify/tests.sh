@@ -1,7 +1,7 @@
 #!/bin/sh
 # tests.sh — gate: run test tier or targeted suite; fail on any failure or count regression
 # Controlled by LOOP_TEST_TARGET env var:
-#   essential          -> sbt-run.sh <log> testEssential (Tier 1, ~24 min)
+#   essential          -> sbt-run.sh <log> testEssential (Tier 1, long-running)
 #   standard           -> sbt-run.sh <log> testStandard (Tier 2, ~30 min)
 #   only <Spec>...     -> sbt-run.sh <log> "testOnly <Spec> ..."
 # Defaults to essential if not set.
@@ -68,7 +68,7 @@ esac
 # Test count regression check for essential tier
 if [ "$TARGET" = "essential" ]; then
     COUNT=$(grep -oE '[0-9]+ test' "$LOG_FILE" | tail -1 | awk '{print $1}' || printf '0')
-    BASELINE=3595
+    BASELINE=3837
     if [ -n "$COUNT" ] && [ "$COUNT" -lt "$BASELINE" ]; then
         printf 'GATE:tests RESULT:FAIL detail=test-count-regression:expected>=%d:got=%s\n' "$BASELINE" "$COUNT"
         exit 1

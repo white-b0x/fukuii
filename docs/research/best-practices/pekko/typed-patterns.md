@@ -312,8 +312,9 @@ use `ManualTime`. Other timer-bearing actors (e.g., `SNAPSyncController`,
 `BlockchainHostActor`) are not tested with time advancement.
 
 Tests that exercise timeout behavior using real wall-clock time are inherently
-flaky on loaded machines (NUC under `testEssential` load = 24 min, high
-contention). `ManualTime` gives deterministic control: timers only fire when
+flaky on loaded machines (NUC under `testEssential` load — a long, pre-push-only
+run; see `.local/docs/test-quality-log.md` for the current wall-clock figure —
+high contention). `ManualTime` gives deterministic control: timers only fire when
 the test explicitly advances the virtual clock.
 
 **Pattern:**

@@ -1,7 +1,8 @@
 # Testing Protocol
 
 Test cadence for all agent sessions on the fukuii codebase. The full test suite
-takes 24 minutes — running it between phases compounds into hours of stall time.
+is a long-running, pre-push-only pass — running it between phases compounds into
+significant stall time across a multi-phase thread.
 This protocol keeps feedback fast without sacrificing coverage.
 
 Used by: ALL agents
@@ -13,7 +14,7 @@ Referenced by: `fukuii/CLAUDE.md`, loom.md, mithril.md, wraith.md, flow.md
 
 | Command | What runs | Time | Baseline |
 |---------|-----------|------|---------|
-| `sbt testEssential` | Unit tests | ~24 min | 0 failures — see `.local/docs/test-quality-log.md`'s `Tier baselines` table for the current test count; do not hardcode a number here, it drifts |
+| `sbt testEssential` | Unit tests | Long — see `.local/docs/test-quality-log.md`'s `Tier baselines` table for the current wall-clock figure; do not hardcode a number here, it drifts | 0 failures — see `.local/docs/test-quality-log.md`'s `Tier baselines` table for the current test count; do not hardcode a number here, it drifts |
 | `sbt testStandard` | Unit + integration | ~30 min | — |
 | `sbt testComprehensive` | Full ethereum/tests compliance | <3 h | — |
 
@@ -47,11 +48,12 @@ small output — run directly, no wrapper needed.
 
 ### Pre-push gate — before `git push origin`
 ```bash
-scripts/agent-tooling/sbt-run.sh <log-name> testEssential  # full testEssential (~24 min)
+scripts/agent-tooling/sbt-run.sh <log-name> testEssential  # full testEssential — see test-quality-log.md
 ```
 Invoke with `run_in_background: true` — see `background-script-execution.md`. Run exactly
 once before pushing to origin. This is the regression gate for a batch or PR.
-Do not run it mid-thread or between phases — it is a 24-minute blocker.
+Do not run it mid-thread or between phases — it is a long blocker (current wall-clock
+figure: `.local/docs/test-quality-log.md`'s `Tier baselines` table).
 Do not run it as a sanity check during a sprint; use targeted tests (`sbt "testOnly *Spec*"`) instead.
 
 ---

@@ -648,7 +648,7 @@ grep -rn "org\.slf4j\.MDC\|MDC\.put\|MDC\.clear" src/main/ --include="*.scala"
 
 **Status:** Partially enforced — `PeerRequestHandlerSpec`, `FilterManagerSpec` use it. `SNAPSyncController`, `BlockchainHostActor` tests do not.
 
-Tests using real wall-clock time for timer assertions are flaky on the NUC under `testEssential` load (24 min, high CPU contention). `ManualTime` provides deterministic timer control.
+Tests using real wall-clock time for timer assertions are flaky on the NUC under `testEssential` load (long-running, high CPU contention — see `.local/docs/test-quality-log.md` for the current wall-clock figure). `ManualTime` provides deterministic timer control.
 
 ```bash
 grep -rn "withTimers\|startTimerWithFixedDelay\|startSingleTimer" src/test/ --include="*.scala" -l \
