@@ -117,6 +117,7 @@ subagent for source-code analysis/modification; use a `.claude/skills/fukuii-*` 
 | `flow`    | Pekko Streams: Source/Sink/Flow graphs, materialization, backpressure, `preMaterialize` anti-patterns, stream test synchronization | On streaming graph bugs / silent element drops |
 | `warden`  | fukuii's own Claude Code tooling: `scripts/agent-tooling/`, agent-protocols, the looping subsystem, worktree lifecycle, Workflow-based sprint automation, permission/settings guidance | On-demand, for `.claude/` tooling work (not domain code) |
 | `scout`   | Pre-implementation research for `QUEUE.md` batches: multi-tree sweep, precedent/cross-batch-overlap lookup, pre-flight health check, drafts the kickoff prompt — read-only, no edits/implementation | **Before** trusting a batch's kickoff prompt (`batch-research-protocol.md`) |
+| `sentinel`| **Supply-chain & code-security** specialist: owns ALL dependency changes (`build.sbt`, `project/Dependencies.scala`, plugins, resolvers — the sole gated path; other agents STOP and route here), CVE/security-advisory review, LTS-currency audits, supply-chain risk, code-level security (secrets/injection/key handling). Enforces the supply-chain rules; dependency changes are operator-gated (evidence-based proposal, no unilateral bumps) | **Before** any dependency change; on CVE/security-advisory response; on-demand for LTS-currency/security audits |
 
 ### Consensus-Critical Change Protocol (mandatory)
 
