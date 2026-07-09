@@ -7,7 +7,6 @@ import org.apache.pekko.actor.typed.pubsub.Topic
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.util.ByteString
 
-import scala.concurrent.duration.*
 import scala.jdk.CollectionConverters.*
 
 import com.google.common.cache.Cache
@@ -139,7 +138,7 @@ object PendingTransactionsManager:
     /** stores all pending transactions */
     val pendingTransactions: Cache[ByteString, PendingTransaction] = CacheBuilder
       .newBuilder()
-      .expireAfterWrite(txPoolConfig.transactionTimeout._1, txPoolConfig.transactionTimeout._2)
+      .expireAfterWrite(java.time.Duration.ofNanos(txPoolConfig.transactionTimeout.toNanos))
       .maximumSize(txPoolConfig.txPoolSize)
       .removalListener(
         new com.google.common.cache.RemovalListener[ByteString, PendingTransaction]:

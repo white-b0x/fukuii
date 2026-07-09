@@ -2257,7 +2257,7 @@ private[actors] class TrieNodeHealingCoordinatorImpl(
               }
               .filterNot { case (_, h) => pendingHashSet.contains(h) }
             if toCheck.nonEmpty then
-              val storageResults = mptStorage.multiGetNodes(toCheck.map(_._2.toArray))
+              val storageResults = mptStorage.multiGetNodes(toCheck.map(_._2.toArray).toIndexedSeq)
               toCheck.zip(storageResults).foreach { case ((i, childHash), nodeOpt) =>
                 if nodeOpt.isEmpty then
                   val childNibbles = parentNibbles :+ i.toByte

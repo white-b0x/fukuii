@@ -418,7 +418,7 @@ class RocksDbDataSource(
       import rocksDbConfig.*
       val tableCfg = new BlockBasedTableConfig()
         .setBlockSize(blockSize)
-        .setBlockCache(new ClockCache(blockCacheSize))
+        .setBlockCache(new HyperClockCache(blockCacheSize, 0, -1, false))
         .setCacheIndexAndFilterBlocks(true)
         .setPinL0FilterAndIndexBlocksInCache(true)
         .setFilterPolicy(new BloomFilter(10, false))
@@ -533,7 +533,7 @@ object RocksDbDataSource extends Logger:
 
       val tableCfg = new BlockBasedTableConfig()
         .setBlockSize(blockSize)
-        .setBlockCache(new ClockCache(blockCacheSize))
+        .setBlockCache(new HyperClockCache(blockCacheSize, 0, -1, false))
         .setCacheIndexAndFilterBlocks(true)
         .setPinL0FilterAndIndexBlocksInCache(true)
         .setFilterPolicy(new BloomFilter(10, false))

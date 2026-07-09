@@ -79,9 +79,10 @@ object ExternalIPDetector:
                     protected def success(ip: String): Unit =
                       ipFuture.complete(ip)
 
-                    // jupnp 3.0.4's ActionCallback.failure is declared with a raw ActionInvocation
-                    // parameter (no generic signature in the compiled class) — no typed alternative
-                    // exists to override against in this pinned version.
+                    // jupnp's ActionCallback.failure is declared with a raw ActionInvocation
+                    // parameter (no generic signature), so there is no typed alternative to override
+                    // against. This is a permanent upstream API shape — raw across all jupnp releases
+                    // (verified 2.6.0 → 3.0.4, the current latest), not a 3.0.4-specific limitation.
                     @SuppressWarnings(Array("rawtypes"))
                     def failure(inv: ActionInvocation[?], resp: UpnpResponse, msg: String): Unit = ()
                     // Don't completeExceptionally here — on multi-IGD networks a later device may
