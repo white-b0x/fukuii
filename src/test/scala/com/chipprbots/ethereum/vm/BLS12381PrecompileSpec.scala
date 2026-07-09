@@ -143,4 +143,33 @@ class BLS12381PrecompileSpec extends AnyFlatSpec with Matchers:
     BlsMapG1.gas(in, etc, eth) shouldBe BigInt(5500)
     BlsMapG2.gas(in, etc, eth) shouldBe BigInt(23800)
   }
+
+  // ── EIP-2537 MSM discount tables (F-5) ─────────────────────────────────────
+  // The gas() methods derive k from input length (G1 pairSize=160, G2 pairSize=288) and apply
+  // gas = base * k * discount(k) / 1000. These assert the discount at indices where the table
+  // was previously wrong; small-k tests would not have caught the divergence at k=6 / k=12 / etc.
+  // Reference: go-ethereum params.Bls12381G{1,2}MultiExpDiscountTable (== besu G{1,2}_DISCOUNT_TABLE).
+
+  private val etc = EtcForks.Olympia
+  private val eth = EthForks.Berlin
+  private def g1Input(k: Int): ByteString = ByteString(new Array[Byte](k * 160))
+  private def g2Input(k: Int): ByteString = ByteString(new Array[Byte](k * 288))
+
+  "BLS12-381 G1 MSM gas" should "apply the EIP-2537 discount at diverging indices" taggedAs (OlympiaTest, VMTest) in {
+    // k=6 (table idx 5): discount 750 (was 740). gas = 12000 * 6 * 750 / 1000
+    BlsG1MultiExp.gas(g1Input(6), etc, eth) shouldBe BigInt(54000)
+    // k=20 (table idx 19): discount 661 (was 637). gas = 12000 * 20 * 661 / 1000
+    BlsG1MultiExp.gas(g1Input(20), etc, eth) shouldBe BigInt(158640)
+    // k=128 tail: discount 519 (unchanged endpoint). gas = 12000 * 128 * 519 / 1000
+    BlsG1MultiExp.gas(g1Input(128), etc, eth) shouldBe BigInt(797184)
+  }
+
+  "BLS12-381 G2 MSM gas" should "apply the EIP-2537 discount at diverging indices" taggedAs (OlympiaTest, VMTest) in {
+    // k=12 (table idx 11): discount 749 (was 750). gas = 22500 * 12 * 749 / 1000
+    BlsG2MultiExp.gas(g2Input(12), etc, eth) shouldBe BigInt(202230)
+    // k=64 (table idx 63): discount 582 (was 587). gas = 22500 * 64 * 582 / 1000
+    BlsG2MultiExp.gas(g2Input(64), etc, eth) shouldBe BigInt(838080)
+    // k=128 tail: discount 524 (unchanged endpoint). gas = 22500 * 128 * 524 / 1000
+    BlsG2MultiExp.gas(g2Input(128), etc, eth) shouldBe BigInt(1509120)
+  }
 // scalastyle:on line.size.limit

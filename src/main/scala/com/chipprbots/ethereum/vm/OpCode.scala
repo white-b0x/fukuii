@@ -1150,14 +1150,17 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
     val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
 
-    // EIP-7702: If the target has delegation code, charge cold access for the delegation target
+    // EIP-7702: If the target has delegation code, charge for resolving the delegation target —
+    // cold (G_cold_account_access) if not yet accessed, otherwise warm (G_warm_storage_read)
     val delegationCost: BigInt =
       val addr = Address(to)
       val code = state.world.getCode(addr)
       SetCodeTransaction.parseDelegation(code) match
         case Some(target) if !state.accessedAddresses.contains(target) =>
           state.config.feeSchedule.G_cold_account_access
-        case _ => BigInt(0)
+        case Some(_) =>
+          state.config.feeSchedule.G_warm_storage_read
+        case None => BigInt(0)
 
     val gExtra: BigInt = gasExtra(state, endowment, Address(to))
     val gCap: BigInt = gasCap(state, gas, gExtra + memCost + delegationCost)
