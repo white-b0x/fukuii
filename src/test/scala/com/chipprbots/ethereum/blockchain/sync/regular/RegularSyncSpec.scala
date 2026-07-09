@@ -1,9 +1,6 @@
 package com.chipprbots.ethereum.blockchain.sync.regular
-import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestActor.AutoPilot
 import org.apache.pekko.util.ByteString
 
 import cats.data.NonEmptyList
@@ -121,7 +118,7 @@ class RegularSyncSpec
 
       "subscribe to handshaked peers list" taggedAs (UnitTest, SyncTest) in sync(new Fixture:
         regularSync // unlazy
-        networkPeerManager.expectMsgType[NetworkPeerManagerActor.GetHandshakedPeersCmd]
+        networkPeerManager.expectMessageType[NetworkPeerManagerActor.GetHandshakedPeersCmd]
       )
     }
 
@@ -151,11 +148,11 @@ class RegularSyncSpec
       "blacklist peer which caused failed request" taggedAs (UnitTest, SyncTest) in sync(new Fixture:
         regularSync ! SyncProtocol.Start
 
-        peersClient.expectMsgType[PeersClient.Request[ETHGetBlockHeaders]].replyTo ! PeersClient.RequestFailed(
+        peersClient.expectMessageType[PeersClient.Request[ETHGetBlockHeaders]].replyTo ! PeersClient.RequestFailed(
           defaultPeer,
           BlacklistReason.RegularSyncRequestFailed("a random reason")
         )
-        peersClient.expectMsg(
+        peersClient.expectMessage(
           PeersClient.BlacklistPeer(defaultPeer.id, BlacklistReason.RegularSyncRequestFailed("a random reason"))
         )
       )
@@ -322,14 +319,13 @@ class RegularSyncSpec
                   evmCodeStorage,
                   branchResolution,
                   syncConfig,
-                  ommersPool.ref.toTyped[com.chipprbots.ethereum.ommers.OmmersPool.Command],
+                  ommersPool,
                   importerBroadcaster.ref,
-                  pendingTransactionsManager.ref
-                    .toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+                  pendingTransactionsManager,
                   blockTopic,
                   importerSupervisor.ref,
                   peerEventBus.ref,
-                  networkPeerManager.ref,
+                  networkPeerManagerRef,
                   blockchain,
                   blacklist,
                   this
@@ -404,14 +400,13 @@ class RegularSyncSpec
                 evmCodeStorage,
                 branchResolution,
                 syncConfig,
-                ommersPool.ref.toTyped[com.chipprbots.ethereum.ommers.OmmersPool.Command],
+                ommersPool,
                 importerBroadcaster.ref,
-                pendingTransactionsManager.ref
-                  .toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+                pendingTransactionsManager,
                 forkBlockTopic,
                 importerSupervisor.ref,
                 peerEventBus.ref,
-                networkPeerManager.ref,
+                networkPeerManagerRef,
                 blockchain,
                 blacklist,
                 this
@@ -480,7 +475,7 @@ class RegularSyncSpec
 
           class BranchResolutionAutoPilot(didResponseWithNewBranch: Boolean, blocks: List[Block])
               extends PeersClientAutoPilot(blocks):
-            override def overrides(sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] = {
+            override def overrides: PartialFunction[PeersClient.Command, Option[PeersClientAutoPilot]] = {
               // Handle ETH68/69 GetBlockHeaders
               case PeersClient.Request(ETHGetBlockHeaders(_, Left(nr), maxHeaders, _, _), _, _, replyTo)
                   if nr >= alternativeBranch.numberAtUnsafe(syncConfig.blocksBatchSize) && !didResponseWithNewBranch =>
@@ -496,7 +491,7 @@ class RegularSyncSpec
                 None
             }
 
-          peersClient.setAutoPilot(new BranchResolutionAutoPilot(didResponseWithNewBranch = false, testBlocks))
+          setPeersClientAutoPilot(new BranchResolutionAutoPilot(didResponseWithNewBranch = false, testBlocks))
 
           Await.result(consensusAdapter.evaluateBranchBlock(BlockHelpers.genesis).unsafeToFuture(), remainingOrDefault)
 
@@ -547,18 +542,18 @@ class RegularSyncSpec
 
         class ForkingAutoPilot(blocksToRespond: List[Block], forkedBlocks: Option[List[Block]])
             extends PeersClientAutoPilot(blocksToRespond):
-          override def overrides(sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] = {
+          override def overrides: PartialFunction[PeersClient.Command, Option[PeersClientAutoPilot]] = {
             case req @ PeersClient.Request(ETHGetBlockBodies(_, hashes), _, _, _) =>
-              handleForkLogic(hashes, req, sender)
+              handleForkLogic(hashes, req)
           }
 
-          private def handleForkLogic(hashes: Seq[ByteString], req: Any, sender: ActorRef): Option[AutoPilot] =
-            val defaultResult = defaultHandlers(sender)(req)
+          private def handleForkLogic(hashes: Seq[ByteString], req: PeersClient.Command): Option[PeersClientAutoPilot] =
+            val defaultResult = defaultHandlers.applyOrElse(req, (_: PeersClient.Command) => None)
             if forkedBlocks.nonEmpty && hashes.contains(blocksToRespond.last.hash) then
               Some(new ForkingAutoPilot(forkedBlocks.get, None))
             else defaultResult
 
-        peersClient.setAutoPilot(new ForkingAutoPilot(originalBranch, Some(betterBranch)))
+        setPeersClientAutoPilot(new ForkingAutoPilot(originalBranch, Some(betterBranch)))
 
         Await.result(consensusAdapter.evaluateBranchBlock(BlockHelpers.genesis).unsafeToFuture(), remainingOrDefault)
 
@@ -598,9 +593,9 @@ class RegularSyncSpec
       "blacklist peer which returns empty response" in sync(new MissingStateNodeFixture:
         val failingPeer: Peer = peerByNumber(1)
 
-        peersClient.setAutoPilot(
+        setPeersClientAutoPilot(
           new PeersClientAutoPilot:
-            override def overrides(sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] = {
+            override def overrides: PartialFunction[PeersClient.Command, Option[PeersClientAutoPilot]] = {
               case PeersClient.Request(GetNodeData(_), _, _, replyTo) =>
                 replyTo ! PeersClient.Response(failingPeer, NodeData(Nil))
                 None
@@ -614,9 +609,9 @@ class RegularSyncSpec
 
       "blacklist peer which returns invalid node" in sync(new MissingStateNodeFixture:
         val failingPeer: Peer = peerByNumber(1)
-        peersClient.setAutoPilot(
+        setPeersClientAutoPilot(
           new PeersClientAutoPilot:
-            override def overrides(sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] = {
+            override def overrides: PartialFunction[PeersClient.Command, Option[PeersClientAutoPilot]] = {
               case PeersClient.Request(GetNodeData(_), _, _, replyTo) =>
                 replyTo ! PeersClient.Response(failingPeer, NodeData(List(ByteString("foo"))))
                 None
@@ -635,7 +630,7 @@ class RegularSyncSpec
           }
 
           class WrongNodeDataPeersClientAutoPilot(var handledRequests: Int = 0) extends PeersClientAutoPilot:
-            override def overrides(sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] = {
+            override def overrides: PartialFunction[PeersClient.Command, Option[PeersClientAutoPilot]] = {
               case PeersClient.Request(GetNodeData(_), _, _, replyTo) =>
                 val response = handledRequests match
                   case 0 => Some(PeersClient.Response(peerByNumber(1), NodeData(Nil)))
@@ -646,7 +641,7 @@ class RegularSyncSpec
                 Some(new WrongNodeDataPeersClientAutoPilot(handledRequests + 1))
             }
 
-          peersClient.setAutoPilot(new WrongNodeDataPeersClientAutoPilot())
+          setPeersClientAutoPilot(new WrongNodeDataPeersClientAutoPilot())
 
           regularSync ! SyncProtocol.Start
 
@@ -692,7 +687,7 @@ class RegularSyncSpec
           override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
             NewBetterBranch(Nil)
 
-        peersClient.setAutoPilot(new PeersClientAutoPilot)
+        setPeersClientAutoPilot(new PeersClientAutoPilot)
 
         var saveNodeWasCalled: Boolean = false
         val nodeData: List[ByteString] = List(ByteString(failingBlock.header.toBytes: Array[Byte]))
@@ -745,7 +740,7 @@ class RegularSyncSpec
         testBlocksChunked.head.foreach(setImportResult(_, IO.pure(BlockImportedToTop(Nil))))
         setImportResult(failingBlock, IO.pure(BlockImportFailed("test error")))
 
-        peersClient.setAutoPilot(new PeersClientAutoPilot())
+        setPeersClientAutoPilot(new PeersClientAutoPilot())
 
         regularSync ! SyncProtocol.Start
 
@@ -774,14 +769,10 @@ class RegularSyncSpec
       )
 
       "broadcast imported block" in sync(new OnTopFixture:
-        networkPeerManager.setAutoPilot(
-          new AutoPilot:
-            def run(sender: ActorRef, msg: Any): AutoPilot = msg match
-              case cmd: GetHandshakedPeersCmd =>
-                cmd.replyTo ! HandshakedPeers(handshakedPeers)
-                this
-              case _ => this
-        )
+        setNetworkPeerManagerAutoPilot {
+          case cmd: GetHandshakedPeersCmd => cmd.replyTo ! HandshakedPeers(handshakedPeers)
+          case _                          => ()
+        }
 
         goToTop()
 
@@ -814,7 +805,7 @@ class RegularSyncSpec
         val headPromise: Promise[BlockImportResult] = Promise()
         setImportResult(testBlocks.head, IO.fromFuture(IO.pure(headPromise.future)))
         val minedBlock: Block = BlockHelpers.generateBlock(BlockHelpers.genesis)
-        peersClient.setAutoPilot(new PeersClientAutoPilot())
+        setPeersClientAutoPilot(new PeersClientAutoPilot())
 
         regularSync ! SyncProtocol.Start
 
@@ -861,7 +852,7 @@ class RegularSyncSpec
       "broadcast after successful import" in sync(new OnTopFixture:
         goToTop()
 
-        val peersCmd724 = networkPeerManager.expectMsgType[GetHandshakedPeersCmd]
+        val peersCmd724 = networkPeerManager.expectMessageType[GetHandshakedPeersCmd]
         peersCmd724.replyTo ! HandshakedPeers(handshakedPeers)
 
         regularSync ! SyncProtocol.MinedBlock(newBlock)
@@ -885,14 +876,10 @@ class RegularSyncSpec
             val peerInfo = getPeerInfo(peer, Capability.ETH63)
             (peer, peerInfo)
 
-          networkPeerManager.setAutoPilot(
-            new AutoPilot:
-              def run(sender: ActorRef, msg: Any): AutoPilot = msg match
-                case cmd: GetHandshakedPeersCmd =>
-                  cmd.replyTo ! HandshakedPeers(Map(peerWithETH63._1 -> peerWithETH63._2))
-                  this
-                case _ => this
-          )
+          setNetworkPeerManagerAutoPilot {
+            case cmd: GetHandshakedPeersCmd => cmd.replyTo ! HandshakedPeers(Map(peerWithETH63._1 -> peerWithETH63._2))
+            case _                          => ()
+          }
 
           goToTop()
 
@@ -1001,7 +988,7 @@ class RegularSyncSpec
           _ <- IO {
             testBlocks.take(5).foreach(setImportResult(_, IO(BlockImportedToTop(Nil))))
 
-            peersClient.setAutoPilot(new PeersClientAutoPilot(testBlocks.take(5)))
+            setPeersClientAutoPilot(new PeersClientAutoPilot(testBlocks.take(5)))
 
             regularSync ! SyncProtocol.Start
 

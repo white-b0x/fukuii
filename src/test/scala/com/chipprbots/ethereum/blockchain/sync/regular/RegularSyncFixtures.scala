@@ -7,10 +7,9 @@ import org.apache.pekko.actor.PoisonPill
 import org.apache.pekko.actor.testkit.typed.scaladsl.FishingOutcomes
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestActor.AutoPilot
 import org.apache.pekko.testkit.TestKitBase
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.Eq
@@ -39,6 +38,7 @@ import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.BlockHeaderImplicits.*
 import com.chipprbots.ethereum.ledger.*
+import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerInfo
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.RemoteStatus
 import com.chipprbots.ethereum.network.Peer
@@ -60,6 +60,7 @@ import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.GetNodeData
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NodeData
 import com.chipprbots.ethereum.ommers.OmmersPool
 import com.chipprbots.ethereum.security.SecureRandomBuilder
+import com.chipprbots.ethereum.testing.ActorsTesting.fishForSpecificMessage
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config.SyncConfig
@@ -91,21 +92,78 @@ trait RegularSyncFixtures:
       (0 to 5).toList.map(peerId.andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
     val defaultPeer: Peer = peerByNumber(0)
 
-    // NOT converted to a typed TestProbe: NetworkPeerManagerActor.Command AutoPilots
-    // (GetHandshakedPeersCmd / SendMessageCmd matching) are installed on this probe in
-    // RegularSyncSpec.scala, and Typed TestProbe has no AutoPilot hook.
-    val networkPeerManager: TestProbe = TestProbe()
+    // networkPeerManager: a Typed observation probe plus a spawned mock actor. The mock forwards
+    // every message to `networkPeerManager` (observation) and applies the swappable reply function
+    // installed by `setNetworkPeerManagerAutoPilot` — the Typed analogue of Classic setAutoPilot.
+    // Only GetHandshakedPeersCmd is ever replied to (via its own `replyTo`); SendMessageCmd is
+    // fire-and-forget and merely observed, so this is a genuine Typed migration, NOT a sender()-reply
+    // boundary like NetworkPeerManagerFake (MOD-09).
+    val networkPeerManager: TypedTestProbe[NetworkPeerManagerActor.Command] =
+      testKit.createTestProbe[NetworkPeerManagerActor.Command]()
+    @volatile private var networkPeerManagerAutoPilot: NetworkPeerManagerActor.Command => Unit = _ => ()
+    def setNetworkPeerManagerAutoPilot(f: NetworkPeerManagerActor.Command => Unit): Unit =
+      networkPeerManagerAutoPilot = f
+    val networkPeerManagerRef: TypedActorRef[NetworkPeerManagerActor.Command] =
+      testKit.spawn(
+        Behaviors.monitor[NetworkPeerManagerActor.Command](
+          networkPeerManager.ref,
+          Behaviors.receiveMessage[NetworkPeerManagerActor.Command] { msg =>
+            networkPeerManagerAutoPilot(msg)
+            Behaviors.same
+          }
+        )
+      )
+
     val peerEventBus: TypedTestProbe[PeerEventBusCommand] = testKit.createTestProbe[PeerEventBusCommand]()
-    // NOT converted to a typed TestProbe: an AutoPilot answering GetOmmers is installed on this
-    // probe in OnTopFixture, and Typed TestProbe has no AutoPilot hook.
-    val ommersPool: TestProbe = TestProbe()
-    // NOT converted to a typed TestProbe: an AutoPilot answering GetPendingTransactionsReq is
-    // installed on this probe in OnTopFixture, and Typed TestProbe has no AutoPilot hook.
-    val pendingTransactionsManager: TestProbe = TestProbe()
-    // NOT converted to a typed TestProbe: RegularSyncSpec.scala installs several AutoPilots
-    // (PeersClientAutoPilot and its subclasses) on this probe, and Typed TestProbe has no
-    // AutoPilot hook.
-    val peersClient: TestProbe = TestProbe()
+
+    // ommersPool: a Typed mock actor replying GetOmmers -> empty. Formerly an OnTopFixture-only
+    // AutoPilot; now a permanent default (harmless when unused — these tests only ever want an empty
+    // ommers list). Never observed, so no probe is needed.
+    val ommersPool: TypedActorRef[OmmersPool.Command] =
+      testKit.spawn(
+        Behaviors.receiveMessage[OmmersPool.Command] {
+          case OmmersPool.GetOmmers(_, replyTo) =>
+            replyTo ! OmmersPool.Ommers(Seq.empty)
+            Behaviors.same
+          case _ => Behaviors.same
+        }
+      )
+
+    // pendingTransactionsManager: a Typed mock actor replying GetPendingTransactionsReq -> empty.
+    // Formerly an OnTopFixture-only AutoPilot; now a permanent default. RegularSync/BlockImporter only
+    // send fire-and-forget Add/Remove commands here; the empty reply is defensive. Never observed.
+    val pendingTransactionsManager: TypedActorRef[PendingTransactionsManager.Command] =
+      testKit.spawn(
+        Behaviors.receiveMessage[PendingTransactionsManager.Command] {
+          case PendingTransactionsManager.GetPendingTransactionsReq(replyTo) =>
+            replyTo ! PendingTransactionsManager.PendingTransactionsResponse(Seq.empty)
+            Behaviors.same
+          case _ => Behaviors.same
+        }
+      )
+
+    // peersClient: a Typed observation probe plus a spawned mock actor. The mock forwards every
+    // message to `peersClient` (observation) and applies the installed PeersClientAutoPilot, which
+    // replies via the request's own `replyTo` (Typed AskPattern) and may advance to a next mock (the
+    // Typed analogue of Classic setAutoPilot's stateful chaining). Default: no auto-reply — tests
+    // drive replies manually via `.replyTo`.
+    val peersClient: TypedTestProbe[PeersClient.Command] = testKit.createTestProbe[PeersClient.Command]()
+    @volatile private var peersClientAutoPilot: Option[PeersClientAutoPilot] = None
+    def setPeersClientAutoPilot(mock: PeersClientAutoPilot): Unit = peersClientAutoPilot = Some(mock)
+    val peersClientRef: TypedActorRef[PeersClient.Command] =
+      testKit.spawn(
+        Behaviors.monitor[PeersClient.Command](
+          peersClient.ref,
+          Behaviors.receiveMessage[PeersClient.Command] { msg =>
+            peersClientAutoPilot = peersClientAutoPilot.map(_.run(msg))
+            Behaviors.same
+          }
+        )
+      )
+
+    // Placeholder reply address for building EXPECTED PeersClient.Request values (ignored by Eq).
+    val responsePlaceholder: TypedActorRef[PeersClient.ResponseMessage] =
+      testKit.createTestProbe[PeersClient.ResponseMessage]().ref
     // Stands in for the SyncController parent: RegularSync relays RegularSyncStuck here (8k-F).
     val supervisor: TypedTestProbe[SyncController.Command] = testKit.createTestProbe[SyncController.Command]()
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
@@ -134,8 +192,8 @@ trait RegularSyncFixtures:
     lazy val regularSync: ActorRef = testKit
       .spawn(
         RegularSync.apply(
-          peersClient.ref.toTyped[PeersClient.Command],
-          networkPeerManager.ref,
+          peersClientRef,
+          networkPeerManagerRef,
           peerEventBus.ref,
           consensusAdapter,
           blockchain,
@@ -147,9 +205,8 @@ trait RegularSyncFixtures:
           validators.blockValidator,
           blacklist,
           syncConfig,
-          ommersPool.ref.toTyped[com.chipprbots.ethereum.ommers.OmmersPool.Command],
-          pendingTransactionsManager.ref
-            .toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+          ommersPool,
+          pendingTransactionsManager,
           blockTopic,
           this,
           supervisor.ref
@@ -266,13 +323,13 @@ trait RegularSyncFixtures:
         ),
         PeersClient.BestPeer
       )
-      .apply(peersClient.ref.toTyped[PeersClient.ResponseMessage])
+      .apply(responsePlaceholder)
       .asInstanceOf[PeersClient.Request[ETHGetBlockHeaders]]
 
     // Builds an EXPECTED bodies request for comparison via `expectMsgEq` (replyTo is a placeholder; ignored by Eq).
     def blockBodiesRequest(hashes: Seq[ByteString]): PeersClient.Request[ETHGetBlockBodies] = PeersClient.Request
       .create(ETHGetBlockBodies(BigInt(0), hashes), PeersClient.BestPeer)
-      .apply(peersClient.ref.toTyped[PeersClient.ResponseMessage])
+      .apply(responsePlaceholder)
       .asInstanceOf[PeersClient.Request[ETHGetBlockBodies]]
 
     def fishForBlacklistPeer(peer: Peer): PeersClient.BlacklistPeer =
@@ -324,16 +381,17 @@ trait RegularSyncFixtures:
     def setImportResult(block: Block, result: IO[BlockImportResult]): Unit =
       results(block.header.hash.value) = result
 
-    class PeersClientAutoPilot(blocks: List[Block] = testBlocks) extends AutoPilot:
+    // Typed reply handler (formerly a Classic AutoPilot). `run` matches a typed PeersClient.Command
+    // — not `Any` — so there is no E165 Matchable warning. Each handler replies via the request's own
+    // `replyTo` and returns the next handler (`None` = keep this one), reproducing the Classic
+    // stateful AutoPilot chaining. Installed via `setPeersClientAutoPilot`.
+    class PeersClientAutoPilot(blocks: List[Block] = testBlocks):
 
-      def run(sender: ActorRef, msg: Any): AutoPilot =
-        overrides(sender).orElse(defaultHandlers(sender)).apply(msg).getOrElse(defaultAutoPilot)
-
-      def overrides(@scala.annotation.unused sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] =
+      def overrides: PartialFunction[PeersClient.Command, Option[PeersClientAutoPilot]] =
         PartialFunction.empty
 
-      def defaultHandlers(@scala.annotation.unused sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] = {
-        // Typed AskPattern carries its own reply address in `replyTo` (4th field) — reply there, not to `sender`.
+      def defaultHandlers: PartialFunction[PeersClient.Command, Option[PeersClientAutoPilot]] = {
+        // Typed AskPattern carries its own reply address in `replyTo` (4th field).
         // Handle ETH68/69 GetBlockHeaders (with requestId)
         case PeersClient.Request(ETHGetBlockHeaders(_, Left(minBlock), amount, _, _), _, _, replyTo) =>
           val maxBlock = minBlock + amount
@@ -361,7 +419,8 @@ trait RegularSyncFixtures:
         case _ => None
       }
 
-      def defaultAutoPilot: AutoPilot = this
+      final def run(msg: PeersClient.Command): PeersClientAutoPilot =
+        overrides.orElse(defaultHandlers).applyOrElse(msg, (_: PeersClient.Command) => None).getOrElse(this)
 
     implicit class ListOps[T](list: List[T]):
 
@@ -381,32 +440,62 @@ trait RegularSyncFixtures:
       def byHash(hash: ByteString): Option[Block] = blocks.find(_.hash.value == hash)
       def byHashUnsafe(hash: ByteString): Block = byHash(hash).get
 
-    implicit class TestProbeOps(probe: TestProbe):
+    // Typed-probe ports of the Classic TestProbe helpers. Every `case` in the caller now matches a
+    // typed message (the probe's element type), not `Any`, so there is no E165 Matchable warning.
+    // (`fishForSpecificMessage` / `expectMessagePF` come from ActorsTesting's Typed extensions.)
+    implicit class TypedProbeOps[U](probe: TypedTestProbe[U]):
 
-      def expectMsgEq[T: Eq](msg: T): T = expectMsgEq(remainingOrDefault, msg)
+      // One-shot: take the next message and apply `pf` (mirrors Classic expectMsgPF).
+      def expectMsgPF[T](max: FiniteDuration = probe.remainingOrDefault)(pf: PartialFunction[U, T]): T =
+        val msg = probe.receiveMessage(max)
+        if pf.isDefinedAt(msg) then pf(msg)
+        else throw new AssertionError(s"unexpected message: $msg")
 
-      def expectMsgEq[T: Eq](max: FiniteDuration, msg: T): T =
-        val received = probe.expectMsgClass(max, msg.getClass)
+      // Fish for the first message satisfying `predicate` and return it.
+      def fishForSpecificMessageMatching(max: FiniteDuration = probe.remainingOrDefault)(predicate: U => Boolean): U =
+        probe
+          .fishForMessage(max) {
+            case m if predicate(m) => FishingOutcomes.complete
+            case _                 => FishingOutcomes.continueAndIgnore
+          }
+          .last
+
+    // PeersClient-specific Eq-based helpers (their Eq instances are only defined for PeersClient.Request).
+    implicit class PeersClientProbeOps(probe: TypedTestProbe[PeersClient.Command]):
+
+      def expectMsgEq[T <: PeersClient.Command: Eq: ClassTag](msg: T): T =
+        expectMsgEq(probe.remainingOrDefault, msg)
+
+      def expectMsgEq[T <: PeersClient.Command: Eq: ClassTag](max: FiniteDuration, msg: T): T =
+        val received = probe.expectMessageType[T](max)
         assert(Eq[T].eqv(received, msg), s"Expected ${msg}, got ${received}")
         received
 
-      def fishForSpecificMessageMatching[T](
+      def fishForMsgEq[T <: PeersClient.Command: Eq: ClassTag](
+          msg: T,
           max: FiniteDuration = probe.remainingOrDefault
-      )(predicate: Any => Boolean): T =
-        probe.fishForSpecificMessage(max) {
-          case msg if predicate(msg) => msg.asInstanceOf[T]
-        }
+      ): T =
+        val ct = implicitly[ClassTag[T]]
+        probe
+          .fishForMessage(max) {
+            case m if ct.runtimeClass.isInstance(m) && Eq[T].eqv(msg, m.asInstanceOf[T]) => FishingOutcomes.complete
+            case _ => FishingOutcomes.continueAndIgnore
+          }
+          .last
+          .asInstanceOf[T]
 
-      def fishForMsgEq[T: Eq: ClassTag](msg: T, max: FiniteDuration = probe.remainingOrDefault): T =
-        probe.fishForSpecificMessageMatching[T](max)(x =>
-          implicitly[ClassTag[T]].runtimeClass.isInstance(x) && Eq[T].eqv(msg, x.asInstanceOf[T])
-        )
+      def expectMsgAllOfEq[T1 <: PeersClient.Command: Eq, T2 <: PeersClient.Command: Eq](
+          msg1: T1,
+          msg2: T2
+      ): (T1, T2) =
+        expectMsgAllOfEq(probe.remainingOrDefault, msg1, msg2)
 
-      def expectMsgAllOfEq[T1: Eq, T2: Eq](msg1: T1, msg2: T2): (T1, T2) =
-        expectMsgAllOfEq(remainingOrDefault, msg1, msg2)
-
-      def expectMsgAllOfEq[T1: Eq, T2: Eq](max: FiniteDuration, msg1: T1, msg2: T2): (T1, T2) =
-        val received = probe.receiveN(2, max)
+      def expectMsgAllOfEq[T1 <: PeersClient.Command: Eq, T2 <: PeersClient.Command: Eq](
+          max: FiniteDuration,
+          msg1: T1,
+          msg2: T2
+      ): (T1, T2) =
+        val received = probe.receiveMessages(2, max)
         val found1 = received.find(m => Eq[T1].eqv(msg1, m.asInstanceOf[T1]))
         val found2 = received.find(m => Eq[T2].eqv(msg2, m.asInstanceOf[T2]))
 
@@ -528,29 +617,10 @@ trait RegularSyncFixtures:
         IO.pure(BlockImportedToTop(blockData))
       }
 
-    peersClient.setAutoPilot(new PeersClientAutoPilot(testBlocks))
-
-    // Set up AutoPilot for ommersPool to respond to GetOmmers messages
-    ommersPool.setAutoPilot(
-      new AutoPilot:
-        def run(sender: ActorRef, msg: Any): AutoPilot = msg match
-          case OmmersPool.GetOmmers(_, replyTo) =>
-            replyTo ! OmmersPool.Ommers(Seq.empty)
-            this
-          case _ => this
-    )
-
-    // Set up AutoPilot for pendingTransactionsManager to respond to pending transaction asks.
-    // RegularSync/BlockImporter only send fire-and-forget commands (AddUncheckedTransactions,
-    // RemoveTransactions); this autopilot handles both Classic and Typed ask variants defensively.
-    pendingTransactionsManager.setAutoPilot(
-      new AutoPilot:
-        def run(sender: ActorRef, msg: Any): AutoPilot = msg match
-          case PendingTransactionsManager.GetPendingTransactionsReq(replyTo) =>
-            replyTo ! PendingTransactionsManager.PendingTransactionsResponse(Seq.empty)
-            this
-          case _ => this
-    )
+    setPeersClientAutoPilot(new PeersClientAutoPilot(testBlocks))
+    // ommersPool and pendingTransactionsManager auto-reply is now a permanent default baked into the
+    // base fixture's Typed mock actors (empty ommers / empty pending transactions), so no per-fixture
+    // install is needed here.
 
     def waitForSubscription(): Unit =
       blockFetcher = peerEventBus
