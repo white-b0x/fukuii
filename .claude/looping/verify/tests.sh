@@ -65,9 +65,13 @@ case "$TARGET" in
         ;;
 esac
 
-# Test count regression check for essential tier
+# Test count regression check for essential tier.
+# sbt prints one "Total number of tests run: N" line per test-group/module (main run
+# plus tail runs) -- anchor on that exact phrase and SUM every occurrence, rather than
+# loose digit-matching (which can grab a test's own description substring, e.g.
+# "...execute 17 test case..." yielding a false COUNT=17). See LOOPGATE-COUNT-EXTRACT-01.
 if [ "$TARGET" = "essential" ]; then
-    COUNT=$(grep -oE '[0-9]+ test' "$LOG_FILE" | tail -1 | awk '{print $1}' || printf '0')
+    COUNT=$(grep -oE 'Total number of tests run: [0-9]+' "$LOG_FILE" | grep -oE '[0-9]+' | awk '{sum+=$1} END {print sum+0}')
     BASELINE=3837
     if [ -n "$COUNT" ] && [ "$COUNT" -lt "$BASELINE" ]; then
         printf 'GATE:tests RESULT:FAIL detail=test-count-regression:expected>=%d:got=%s\n' "$BASELINE" "$COUNT"
