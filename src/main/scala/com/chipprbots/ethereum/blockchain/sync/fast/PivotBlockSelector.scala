@@ -34,7 +34,6 @@ import com.chipprbots.ethereum.network.PeerEventBusActor.UnsubscribeAllCmd
 import com.chipprbots.ethereum.network.PeerEventBusActor.UnsubscribeCmd
 import com.chipprbots.ethereum.network.PeerId
 import com.chipprbots.ethereum.network.p2p.MessageSerializable
-import com.chipprbots.ethereum.network.p2p.messages.Capability
 import com.chipprbots.ethereum.network.p2p.messages.Codes
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets
 import com.chipprbots.ethereum.utils.Config.SyncConfig
@@ -560,11 +559,13 @@ object PivotBlockSelector:
         MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer)),
         blockHeadersAdapter
       )
-      val getBlockHeadersMsg: MessageSerializable = peerListHelper.handshakedPeers.get(peer) match
-        case Some(peerWithInfo) if Capability.usesRequestId(peerWithInfo.peerInfo.remoteStatus.capability) =>
-          ETHPackets.GetBlockHeaders(ETHPackets.nextRequestId, Left(blockNumber), 1, 0, reverse = false)
-        case _ =>
-          ETHPackets.GetBlockHeaders(ETHPackets.nextRequestId, Left(blockNumber), 1, 0, reverse = false)
+      // fukuii's supported capability floor is ETH68+ (InstanceConfig.supportedCapabilities never
+      // advertises ETH63-67), and Capability.negotiate only ever returns a capability from our own
+      // advertised set — so every handshaked peer's negotiated capability satisfies
+      // Capability.usesRequestId. GetBlockHeaders' encoder is also single-shaped (always
+      // requestId-wrapped); there is no bare-form alternative to select between.
+      val getBlockHeadersMsg: MessageSerializable =
+        ETHPackets.GetBlockHeaders(ETHPackets.nextRequestId, Left(blockNumber), 1, 0, reverse = false)
       networkPeerManager ! NetworkPeerManagerActor.SendMessageCmd(getBlockHeadersMsg, peer)
 
     private def collectVoters(

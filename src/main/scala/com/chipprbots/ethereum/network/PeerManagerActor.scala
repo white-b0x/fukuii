@@ -777,7 +777,7 @@ object PeerManagerActor:
         case info: NetworkPeerManagerActor.PeerInfo if info.remoteStatus.supportsSnap =>
           snapCapableHosts += host
           snapLenientBlacklists.remove(host)
-        case _ =>
+        case _ => // non-snap-capable peer (or a non-PeerInfo HandshakeResult) — nothing to track
       val isMaintained =
         handshakedPeer.nodeId.exists(nid => maintainedPeersByNodeId.contains(Hex.toHexString(nid.toArray)))
       if handshakedPeer.incomingConnection && connectedPeers.incomingHandshakedPeersCount >= peerConfiguration.maxIncomingPeers && !isMaintained

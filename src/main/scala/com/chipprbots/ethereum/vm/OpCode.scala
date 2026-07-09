@@ -334,7 +334,7 @@ sealed abstract class TernaryOp(code: Int, baseGasFn: FeeSchedule => BigInt)(
     state.withStack(stack2).step()
 
 sealed abstract class ConstOp(code: Int)(
-    val f: ProgramState[? <: WorldStateProxy[_, ? <: Storage[_]], ? <: Storage[_]] => UInt256
+    val f: ProgramState[? <: WorldStateProxy[?, ? <: Storage[?]], ? <: Storage[?]] => UInt256
 ) extends OpCode(code, 0, 1, _.G_base)
     with ConstGas:
 
@@ -357,13 +357,13 @@ case object MUL extends BinaryOp(0x02, _.G_low)(_ * _) with ConstGas
 
 case object SUB extends BinaryOp(0x03, _.G_verylow)(_ - _) with ConstGas
 
-case object DIV extends BinaryOp(0x04, _.G_low)(_ div _) with ConstGas
+case object DIV extends BinaryOp(0x04, _.G_low)(_.div(_)) with ConstGas
 
-case object SDIV extends BinaryOp(0x05, _.G_low)(_ sdiv _) with ConstGas
+case object SDIV extends BinaryOp(0x05, _.G_low)(_.sdiv(_)) with ConstGas
 
-case object MOD extends BinaryOp(0x06, _.G_low)(_ mod _) with ConstGas
+case object MOD extends BinaryOp(0x06, _.G_low)(_.mod(_)) with ConstGas
 
-case object SMOD extends BinaryOp(0x07, _.G_low)(_ smod _) with ConstGas
+case object SMOD extends BinaryOp(0x07, _.G_low)(_.smod(_)) with ConstGas
 
 case object ADDMOD extends TernaryOp(0x08, _.G_mid)(_.addmod(_, _)) with ConstGas
 
@@ -380,9 +380,9 @@ case object LT extends BinaryOp(0x10, _.G_verylow)(_ < _) with ConstGas
 
 case object GT extends BinaryOp(0x11, _.G_verylow)(_ > _) with ConstGas
 
-case object SLT extends BinaryOp(0x12, _.G_verylow)(_ slt _) with ConstGas
+case object SLT extends BinaryOp(0x12, _.G_verylow)(_.slt(_)) with ConstGas
 
-case object SGT extends BinaryOp(0x13, _.G_verylow)(_ sgt _) with ConstGas
+case object SGT extends BinaryOp(0x13, _.G_verylow)(_.sgt(_)) with ConstGas
 
 case object EQ extends BinaryOp(0x14, _.G_verylow)(_ == _) with ConstGas
 
@@ -872,6 +872,7 @@ sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code, i + 2, 0
 
   protected def exec[S <: Storage[S], W <: WorldStateProxy[W, S]](state: ProgramState[W, S]): ProgramState[W, S] =
     val (stack1Items, stack1) = state.stack.pop(delta: Int)
+    // Irrefutable: LogOp.delta = i + 2 >= 2 (i >= 0 for LOG0..LOG4), so pop(delta) yields >= 2 items
     val (offset +: size +: topics) = stack1Items: @unchecked
     val (data, memory) = state.memory.load(offset, size)
     val logEntry = TxLogEntry(state.env.ownerAddr, topics.map(_.bytes), data)
@@ -880,6 +881,7 @@ sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code, i + 2, 0
 
   protected def varGas[S <: Storage[S], W <: WorldStateProxy[W, S]](state: ProgramState[W, S]): BigInt =
     val (stack1Items, _) = state.stack.pop(delta: Int)
+    // Irrefutable: LogOp.delta = i + 2 >= 2 (i >= 0 for LOG0..LOG4), so pop(delta) yields >= 2 items
     val (offset +: size +: _) = stack1Items: @unchecked
     val memCost = state.config.calcMemCost(state.memory.size, offset, size)
     val logCost = state.config.feeSchedule.G_logdata * size + i * state.config.feeSchedule.G_logtopic
