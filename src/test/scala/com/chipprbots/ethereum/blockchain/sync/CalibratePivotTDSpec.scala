@@ -405,6 +405,7 @@ class CalibratePivotTDSpec
       networkPeerManager.fishForMessage(3.seconds) {
         case CalibrateChainWeightNowCmd => FishingOutcomes.complete
         case GetHandshakedPeersCmd(_)   => FishingOutcomes.continueAndIgnore
+        case _                          => FishingOutcomes.continueAndIgnore
       }
 
     /** Store a best block with a specific stored chain weight (simulate pre-Fix-A state). */

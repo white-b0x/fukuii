@@ -572,6 +572,7 @@ class ChainWeightCalibrationSpec
       networkPeerManager.fishForMessage(3.seconds) {
         case CalibrateChainWeightNowCmd => FishingOutcomes.complete // consumed; done
         case _: GetHandshakedPeersCmd   => FishingOutcomes.continueAndIgnore // skip — periodic peer-list poll
+        case _                          => FishingOutcomes.continueAndIgnore // skip — any other Command
       }
 
     /** Store a best block with a given block number so getBestBlock/getBestBlockHeader succeed. */

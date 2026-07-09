@@ -19,13 +19,17 @@ import com.chipprbots.ethereum.vm.MockWorldState.*
 
 import Fixtures.blockchainConfig
 
-class CallOpcodesPostBerlin(val config: EvmConfig = EvmConfig.BerlinConfigBuilder(blockchainConfig))
-    extends CallOpcodesPostEip2929Spec(config):
-  override val fxt = new Eip2929CallOpFixture(config, Fixtures.BerlinBlockNumber)
+object CallOpcodesPostBerlin:
+  val config: EvmConfig = EvmConfig.BerlinConfigBuilder(blockchainConfig)
 
-class CallOpcodesPostMagneto(val config: EvmConfig = EvmConfig.MagnetoConfigBuilder(blockchainConfig))
-    extends CallOpcodesPostEip2929Spec(config):
-  override val fxt = new Eip2929CallOpFixture(config, Fixtures.MagnetoBlockNumber)
+class CallOpcodesPostBerlin extends CallOpcodesPostEip2929Spec(CallOpcodesPostBerlin.config):
+  override lazy val fxt = new Eip2929CallOpFixture(CallOpcodesPostBerlin.config, Fixtures.BerlinBlockNumber)
+
+object CallOpcodesPostMagneto:
+  val config: EvmConfig = EvmConfig.MagnetoConfigBuilder(blockchainConfig)
+
+class CallOpcodesPostMagneto extends CallOpcodesPostEip2929Spec(CallOpcodesPostMagneto.config):
+  override lazy val fxt = new Eip2929CallOpFixture(CallOpcodesPostMagneto.config, Fixtures.MagnetoBlockNumber)
 
 abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     extends AnyFlatSpec
@@ -35,7 +39,7 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
 
   import config.feeSchedule.*
 
-  protected val fxt: CallOpFixture
+  protected def fxt: CallOpFixture
 
   behavior of "CALL when external contract terminates normally"
 
@@ -68,8 +72,8 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     it should "consume correct gas (refund call gas) (cold access)" taggedAs (UnitTest, VMTest) in {
       val expectedGas = G_cold_account_access + G_callvalue - G_callstipend + config.calcMemCost(32, 32, 16)
       call.stateOut.gasUsed shouldEqual expectedGas
-      // if a scope reverts, the access lists should be in the state they were in before that scope was entered
-      call.stateOut.accessedAddresses shouldNot contain(fxt.extAddr)
+      // EIP-2929: target warmed in caller gas-calc before depth/balance/entry checks -> stays warm after a failed sub-call (go-ethereum makeCallVariantGasCallEIP2929; EIP-2929 clarification L67). Prior shouldNot was wrong-from-day-one, never executed pre-VM-DEADTEST.
+      call.stateOut.accessedAddresses should contain(fxt.extAddr)
     }
 
     it should "consume correct gas (refund call gas) (warm access)" taggedAs (UnitTest, VMTest) in {
@@ -95,7 +99,8 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     it should "consume correct gas (refund call gas) (cold access)" taggedAs (UnitTest, VMTest) in {
       val expectedGas = G_cold_account_access + G_callvalue - G_callstipend + config.calcMemCost(32, 32, 16)
       call.stateOut.gasUsed shouldEqual expectedGas
-      call.stateOut.accessedAddresses shouldNot contain(fxt.extAddr)
+      // EIP-2929: target warmed in caller gas-calc before depth/balance/entry checks -> stays warm after a failed sub-call (go-ethereum makeCallVariantGasCallEIP2929; EIP-2929 clarification L67). Prior shouldNot was wrong-from-day-one, never executed pre-VM-DEADTEST.
+      call.stateOut.accessedAddresses should contain(fxt.extAddr)
     }
 
     it should "consume correct gas (refund call gas) (warm access)" taggedAs (UnitTest, VMTest) in {
@@ -136,7 +141,8 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     it should "consume all call gas (cold access)" taggedAs (UnitTest, VMTest) in {
       val expectedGas = fxt.requiredGas + fxt.gasMargin + G_cold_account_access + G_callvalue + fxt.expectedMemCost
       call.stateOut.gasUsed shouldEqual expectedGas
-      call.stateOut.accessedAddresses shouldNot contain(fxt.extAddr)
+      // EIP-2929: target warmed in caller gas-calc before depth/balance/entry checks -> stays warm after a failed sub-call (go-ethereum makeCallVariantGasCallEIP2929; EIP-2929 clarification L67). Prior shouldNot was wrong-from-day-one, never executed pre-VM-DEADTEST.
+      call.stateOut.accessedAddresses should contain(fxt.extAddr)
     }
 
     it should "consume all call gas (warm access)" taggedAs (UnitTest, VMTest) in {
@@ -216,8 +222,9 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     val call = fxt.ExecuteCall(op = CALL, context)
 
     it should "refund the correct amount of gas" taggedAs (UnitTest, VMTest) in {
+      // EIP-2200 fresh-slot 0→X→0 refund = SSTORE_SET − SLOAD (19900); prior R_sclear+G_sreset−G_sload was wrong-from-day-one, never executed pre-VM-DEADTEST
       call.stateOut.gasRefund shouldBe GasAmount(
-        config.feeSchedule.R_sclear + config.feeSchedule.G_sreset - config.feeSchedule.G_sload
+        config.feeSchedule.G_sset - config.feeSchedule.G_sload
       )
       call.stateOut.accessedAddresses should contain(fxt.extAddr)
     }
@@ -258,7 +265,8 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     it should "consume correct gas (refund call gas)" in {
       val expectedGas = G_cold_account_access + G_callvalue - G_callstipend + fxt.expectedMemCost
       call.stateOut.gasUsed shouldEqual expectedGas
-      call.stateOut.accessedAddresses shouldNot contain(fxt.extAddr)
+      // EIP-2929: target warmed in caller gas-calc before depth/balance/entry checks -> stays warm after a failed sub-call (go-ethereum makeCallVariantGasCallEIP2929; EIP-2929 clarification L67). Prior shouldNot was wrong-from-day-one, never executed pre-VM-DEADTEST.
+      call.stateOut.accessedAddresses should contain(fxt.extAddr)
     }
 
     it should "consume correct gas (refund call gas) (warm access)" in {
@@ -280,7 +288,8 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     it should "consume correct gas (refund call gas) (cold)" in {
       val expectedGas = G_cold_account_access + G_callvalue - G_callstipend + fxt.expectedMemCost
       call.stateOut.gasUsed shouldEqual expectedGas
-      call.stateOut.accessedAddresses shouldNot contain(fxt.extAddr)
+      // EIP-2929: target warmed in caller gas-calc before depth/balance/entry checks -> stays warm after a failed sub-call (go-ethereum makeCallVariantGasCallEIP2929; EIP-2929 clarification L67). Prior shouldNot was wrong-from-day-one, never executed pre-VM-DEADTEST.
+      call.stateOut.accessedAddresses should contain(fxt.extAddr)
     }
 
     it should "consume correct gas (refund call gas) (warm)" in {
@@ -321,7 +330,8 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     it should "consume all call gas (cold)" in {
       val expectedGas = fxt.requiredGas + fxt.gasMargin + G_cold_account_access + G_callvalue + fxt.expectedMemCost
       call.stateOut.gasUsed shouldEqual expectedGas
-      call.stateOut.accessedAddresses shouldNot contain(fxt.extAddr)
+      // EIP-2929: target warmed in caller gas-calc before depth/balance/entry checks -> stays warm after a failed sub-call (go-ethereum makeCallVariantGasCallEIP2929; EIP-2929 clarification L67). Prior shouldNot was wrong-from-day-one, never executed pre-VM-DEADTEST.
+      call.stateOut.accessedAddresses should contain(fxt.extAddr)
     }
 
     it should "consume all call gas (warm)" in {
@@ -403,8 +413,9 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     val call = fxt.ExecuteCall(op = CALLCODE, context)
 
     it should "refund the correct amount of gas" in {
+      // EIP-2200 fresh-slot 0→X→0 refund = SSTORE_SET − SLOAD (19900); prior R_sclear+G_sreset−G_sload was wrong-from-day-one, never executed pre-VM-DEADTEST
       call.stateOut.gasRefund shouldBe GasAmount(
-        config.feeSchedule.R_sclear + config.feeSchedule.G_sreset - config.feeSchedule.G_sload
+        config.feeSchedule.G_sset - config.feeSchedule.G_sload
       )
     }
   }
@@ -444,7 +455,8 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     it should "consume correct gas (refund call gas) (cold)" in {
       val expectedGas = G_cold_account_access + fxt.expectedMemCost
       call.stateOut.gasUsed shouldEqual expectedGas
-      call.stateOut.accessedAddresses shouldNot contain(fxt.extAddr)
+      // EIP-2929: target warmed in caller gas-calc before depth/balance/entry checks -> stays warm after a failed sub-call (go-ethereum makeCallVariantGasCallEIP2929; EIP-2929 clarification L67). Prior shouldNot was wrong-from-day-one, never executed pre-VM-DEADTEST.
+      call.stateOut.accessedAddresses should contain(fxt.extAddr)
     }
 
     it should "consume correct gas (refund call gas) (warm)" in {
@@ -466,7 +478,8 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     it should "consume all call gas (cold)" in {
       val expectedGas = fxt.requiredGas + fxt.gasMargin + G_cold_account_access + fxt.expectedMemCost
       call.stateOut.gasUsed shouldEqual expectedGas
-      call.stateOut.accessedAddresses shouldNot contain(fxt.extAddr)
+      // EIP-2929: target warmed in caller gas-calc before depth/balance/entry checks -> stays warm after a failed sub-call (go-ethereum makeCallVariantGasCallEIP2929; EIP-2929 clarification L67). Prior shouldNot was wrong-from-day-one, never executed pre-VM-DEADTEST.
+      call.stateOut.accessedAddresses should contain(fxt.extAddr)
     }
 
     it should "consume all call gas (warm)" in {
@@ -547,8 +560,9 @@ abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     val call = fxt.ExecuteCall(op = DELEGATECALL, context)
 
     it should "refund the correct amount of gas" in {
+      // EIP-2200 fresh-slot 0→X→0 refund = SSTORE_SET − SLOAD (19900); prior R_sclear+G_sreset−G_sload was wrong-from-day-one, never executed pre-VM-DEADTEST
       call.stateOut.gasRefund shouldBe GasAmount(
-        config.feeSchedule.R_sclear + config.feeSchedule.G_sreset - config.feeSchedule.G_sload
+        config.feeSchedule.G_sset - config.feeSchedule.G_sload
       )
     }
   }
