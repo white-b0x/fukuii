@@ -1,5 +1,7 @@
 package com.chipprbots.ethereum.vm
 
+import scala.compiletime.asMatchable
+
 import com.chipprbots.ethereum.domain.UInt256
 
 object Stack:
@@ -75,7 +77,7 @@ class Stack private (private val underlying: Vector[UInt256], val maxSize: Int):
   def toSeq: Seq[UInt256] = underlying.reverse
 
   override def equals(that: Any): Boolean =
-    that match // §3h: FORGE-confirmed — java.lang.Object.equals signature is fixed by JVM
+    that.asMatchable match // §3h: FORGE-confirmed — java.lang.Object.equals signature is fixed by JVM
       case that: Stack => this.underlying == that.underlying
       case _           => false
 

@@ -2,6 +2,8 @@ package com.chipprbots.ethereum.domain
 
 import org.apache.pekko.util.ByteString
 
+import scala.compiletime.asMatchable
+
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 
@@ -45,7 +47,7 @@ class Address private (val bytes: ByteString):
   def toUInt256: UInt256 = UInt256(bytes)
 
   override def equals(that: Any): Boolean =
-    that match // §3h: FORGE-confirmed — java.lang.Object.equals signature is fixed by JVM
+    that.asMatchable match // §3h: FORGE-confirmed — java.lang.Object.equals signature is fixed by JVM
       case addr: Address => addr.bytes == bytes
       case _             => false
 

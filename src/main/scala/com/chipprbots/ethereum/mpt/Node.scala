@@ -4,6 +4,8 @@ import java.util
 
 import org.apache.pekko.util.ByteString
 
+import scala.compiletime.asMatchable
+
 import com.chipprbots.ethereum.crypto
 import com.chipprbots.ethereum.rlp.RLPEncodeable
 import com.chipprbots.ethereum.rlp.RLPValue
@@ -30,7 +32,7 @@ sealed abstract class MptNode:
 
   // Overriding equals is necessary to avoid array comparisons.
   override def equals(obj: Any): Boolean = // Any: java.lang.Object.equals — no typed alternative
-    obj match
+    obj.asMatchable match
       case other: MptNode => hash.sameElements(other.hash)
       case _              => false
 

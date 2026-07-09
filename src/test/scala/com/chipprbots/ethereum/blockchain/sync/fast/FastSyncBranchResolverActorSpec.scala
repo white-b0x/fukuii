@@ -99,7 +99,8 @@ class FastSyncBranchResolverActorSpec
         val fastSyncBranchResolver: TypedActorRef[FastSyncBranchResolverActor.Command] =
           creatFastSyncBranchResolver(sender.ref, networkPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
 
-        val expectation: PartialFunction[Any, BranchResolvedSuccessful] = {
+        val expectation
+            : PartialFunction[FastSyncBranchResolverActor.BranchResolverResponse, BranchResolvedSuccessful] = {
           case r @ BranchResolvedSuccessful(num, _) if num == BigInt(5) => r
         }
 
@@ -138,7 +139,8 @@ class FastSyncBranchResolverActorSpec
           val fastSyncBranchResolver: TypedActorRef[FastSyncBranchResolverActor.Command] =
             creatFastSyncBranchResolver(sender.ref, networkPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
 
-          val expectation: PartialFunction[Any, BranchResolvedSuccessful] = {
+          val expectation
+              : PartialFunction[FastSyncBranchResolverActor.BranchResolverResponse, BranchResolvedSuccessful] = {
             case r @ BranchResolvedSuccessful(num, _) if num == BigInt(5) => r
           }
 
@@ -176,7 +178,8 @@ class FastSyncBranchResolverActorSpec
           val fastSyncBranchResolver: TypedActorRef[FastSyncBranchResolverActor.Command] =
             creatFastSyncBranchResolver(sender.ref, networkPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
 
-          val expectation: PartialFunction[Any, BranchResolvedSuccessful] = {
+          val expectation
+              : PartialFunction[FastSyncBranchResolverActor.BranchResolverResponse, BranchResolvedSuccessful] = {
             case r @ BranchResolvedSuccessful(num, _) if num == BigInt(3) => r
           }
 
@@ -214,7 +217,8 @@ class FastSyncBranchResolverActorSpec
           val fastSyncBranchResolver: TypedActorRef[FastSyncBranchResolverActor.Command] =
             creatFastSyncBranchResolver(sender.ref, networkPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
 
-          val expectation: PartialFunction[Any, BranchResolvedSuccessful] = {
+          val expectation
+              : PartialFunction[FastSyncBranchResolverActor.BranchResolverResponse, BranchResolvedSuccessful] = {
             case r @ BranchResolvedSuccessful(num, _) if num == BigInt(6) => r
           }
 

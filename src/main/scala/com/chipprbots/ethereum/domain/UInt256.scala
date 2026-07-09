@@ -2,6 +2,7 @@ package com.chipprbots.ethereum.domain
 
 import org.apache.pekko.util.ByteString
 
+import scala.compiletime.asMatchable
 import scala.language.implicitConversions
 
 import com.chipprbots.ethereum.utils.ByteUtils
@@ -162,7 +163,7 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256]:
 
   // standard methods
   override def equals(that: Any): Boolean = // §3h: FORGE-confirmed — java.lang.Object.equals signature is fixed by JVM
-    that match
+    that.asMatchable match
       case that: UInt256 => this.n.equals(that.n)
       case other         => other == n
 

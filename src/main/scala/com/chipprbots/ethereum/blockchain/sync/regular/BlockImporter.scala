@@ -580,8 +580,8 @@ final private class BlockImporterLogic(
       blocks: List[Block],
       importedBlocks: List[Block] = Nil
   ): IO[
-    (List[Block], Option[Any])
-  ] = // Any: union of MissingNodeException subtypes | BlockImportFailed | UnknownParent — no shared supertype
+    (List[Block], Option[MissingNodeException | BlockImportFailed | UnknownParent.type])
+  ] = // Real Scala 3 union: MissingNodeException (shared supertype of its subclasses) | BlockImportFailed | UnknownParent
     NonEmptyList.fromList(blocks) match
       case None =>
         importedBlocks.headOption.foreach(block =>

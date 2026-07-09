@@ -4,6 +4,7 @@ import org.apache.pekko.util.ByteString
 
 import cats.effect.unsafe.IORuntime
 
+import scala.compiletime.asMatchable
 import scala.concurrent.Future
 
 import sangria.schema.Argument
@@ -306,11 +307,10 @@ object GraphQLSchema:
     )
 
   // cast: dynamic GraphQL argument map returns Any; callers supply the expected type A
-  private def asOption[A](v: Any): Option[A] = v match
-    case null    => None
-    case None    => None
-    case Some(x) => Some(x.asInstanceOf[A])
-    case other   => Some(other.asInstanceOf[A])
+  private def asOption[A](v: Any): Option[A] = v.asMatchable match
+    case null         => None
+    case o: Option[?] => o.asInstanceOf[Option[A]]
+    case other        => Some(other.asInstanceOf[A])
 
   // ---------------------------------------------------------------------------
   // CallResult / AccessTuple / Withdrawal

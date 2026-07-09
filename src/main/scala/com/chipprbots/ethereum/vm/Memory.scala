@@ -2,6 +2,8 @@ package com.chipprbots.ethereum.vm
 
 import org.apache.pekko.util.ByteString
 
+import scala.compiletime.asMatchable
+
 import org.bouncycastle.util.encoders.Hex
 
 import com.chipprbots.ethereum.domain.UInt256
@@ -101,7 +103,7 @@ class Memory private (private val underlying: ByteString):
   def size: Int = underlying.size
 
   override def equals(that: Any): Boolean = // §3h: FORGE-confirmed — java.lang.Object.equals signature is fixed by JVM
-    that match
+    that.asMatchable match
       case that: Memory => this.underlying.equals(that.underlying)
       case _            => false
 
