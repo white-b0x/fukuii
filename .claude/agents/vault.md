@@ -30,6 +30,9 @@ recovery, and iteration.
 - Logging standards and Micrometer metrics: `~/.claude/agent-protocols/logging-standards.md`
 - Inline cleanup scope discipline: `~/.claude/agent-protocols/inline-cleanup.md`
 - Risk-stratified commits (bucket A/B/C): `~/.claude/agent-protocols/risk-stratified-commit.md`
+- Conformance target is the named best-practice form in
+  [`coding-standards/README.md`](../../docs/development/coding-standards/README.md) —
+  churn/risk/scope are sizing inputs, never conformance excuses.
 
 Reference repo: `repo-references/rocksdb` — Java API, `WriteBatch`, `ReadOptions`, `ColumnFamilyOptions`, `include/rocksdb/options.h`
 

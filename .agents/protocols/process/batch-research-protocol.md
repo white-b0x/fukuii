@@ -211,6 +211,53 @@ the read-only agent returns structured output, the orchestrator is the one durab
 applies to their verdicts when worth keeping past the transcript (not universal — see
 `finding-resolution.md`'s incidental-finds distinction).
 
+## Rule (i): The "can't-fix" disposition requires a verified-no-alternative check
+
+No agent may disposition a finding as can't-fix / unfixable / library-inherent /
+genuine-boundary / `@nowarn`-candidate / suppress without first verifying no current or
+typed alternative exists — check the dependency set (`project/Dependencies.scala`) AND the
+authority repo under `.claude/repo-references/`, and cite that evidence in the finding
+itself. Absent that check, the only valid disposition is "separate item, needs its own
+scoping," never "unfixable."
+
+**Incident (2026-07-08):** `scout` scoping B1 dispositioned ~165 test-side E165 sites as
+"unfixable — library API, not our code." They were Classic Pekko TestKit usages
+(`org.apache.pekko.testkit.*`, `TestActor.AutoPilot`, `TestProbe.ignoreMsg`) in 25 files,
+while 115 sibling files already used the Typed TestKit
+(`org.apache.pekko.actor.testkit.typed.*`) — already a project dependency
+(`project/Dependencies.scala`, `pekko-actor-testkit-typed`). The correct disposition was
+migration debt (a new scheduled IP per `finding-resolution.md` Rule 1), not "unfixable." No
+alternative-check was ever run before the claim was made. This is the identical
+accuracy-vs-authority failure `docs/development/coding-standards/README.md`'s VALIDATE gate
+exists to catch for standards content — this rule applies that same check to a finding's
+disposition, and that README's Governance section cross-references back here.
+
+**The check is two-dimensional — verify both, not just one (sharpened 2026-07-09 after a
+second incident of the same root cause):** before suppressing any warning at all
+(`@nowarn`/`@SuppressWarnings`/`@unchecked`/disabling a test), confirm (1) **no newer version
+of the same library types the call** — check `project/Dependencies.scala` for a current pin
+and the authority repo under `.claude/repo-references/` for what that version's signature
+actually is — AND (2) **no recommended, maintained typed alternative exists at the call site
+itself** — a successor library, or a typed-idiom rewrite of the call site that avoids needing
+the untyped signature at all. Checking only dimension (1) and stopping there is not
+sufficient: `queue/nowarn-candidates.md`'s `KeyStoreImplSpec.scala` `matchPattern` entry was
+first dispositioned "genuine-boundary CONFIRMED" on dimension (1) alone (ScalaTest 3.2.20's
+`matchPattern(right: PartialFunction[Any, _]): Matcher[Any]` signature is real and
+library-owned) without checking whether the call site could avoid that signature entirely —
+it could, via a plain typed `match { case ... => succeed; case other => fail(...) }`. If
+either dimension turns up an alternative, the disposition is a scheduled fix (a MOD or an
+existing IP), never a suppression, regardless of the migration's size or risk.
+
+**Outcome when this two-dimension gate is actually run end to end (Batch 4.5 Tier E,
+2026-07-09, commit `ef0ddce14` and the commits it built on):** 36 E165 sites previously
+dispositioned "library-forced, must suppress" were re-run through both dimensions. Every
+single one resolved to a fix, a typed rewrite, or a scheduled modernization item (Pekko
+Classic `Tcp`→Streams-`Tcp`, Sangria→Caliban, ScalaMock→typed test double,
+`productIterator`→`Tuple.fromProductTyped`, the `matchPattern` rewrite above, and others) —
+**zero** ended up genuinely unsuppressible. Treat that outcome as the expected result of
+running this gate honestly, not an unusual one: a "can't-fix" verdict should be the rare
+exception that survives both checks, not the default when a fix looks large or gated.
+
 ## Who runs this, and what it does not cover
 
 The `scout` subagent (`Read`, `Grep`, `Glob`, `Bash` — no `Edit`, no `Write` of any kind) runs

@@ -114,6 +114,25 @@ runner.
 
 ---
 
+## Subagents: background-then-poll
+
+The "don't poll — wait for the completion notification" rule above assumes the calling
+context is re-invoked when the backgrounded task finishes. That holds for the main
+orchestrator loop; it does **not** hold for a subagent, which is never re-invoked after
+it yields. A subagent that backgrounds a long `sbt` run and then ends its turn orphans
+the result — the run finishes into a log nobody reads (confirmed twice on `eye`'s B1
+validation pass, forcing the orchestrator to read the logs manually and re-invoke).
+
+A subagent whose report depends on a backgrounded task's outcome must poll that task to
+completion **within its own turn**, before reporting — never yield while the run is
+still in flight. Prefer the `Monitor` tool, when the agent holds that grant, to block on
+the wrapper's one-line `DONE log=... exit=N` completion marker; otherwise poll via
+repeated single-command Bash calls against the log file (plain `&&` chains, not a shell
+`while`/`until` construct — see `compound-command-scratch.md` for why a loop needs a
+`.local/scratch/` script, which is unavailable to any read-only, no-`Write` agent).
+
+---
+
 ## Cleanup — verify teardown, don't just trust it happened
 
 Starting a long-lived resource (a Docker container, a JVM node process, a Hive simulator run,

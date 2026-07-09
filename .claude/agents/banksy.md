@@ -159,6 +159,9 @@ specifies.
 - Naming: neutral EIP/ECIP vocabulary for admission-gate/tip-floor concepts at the shared
   level, network fork names as family-local labels only:
   `~/.claude/agent-protocols/nomenclature.md`
+- Conformance target is the named best-practice form in
+  [`coding-standards/README.md`](../../docs/development/coding-standards/README.md) —
+  churn/risk/scope are sizing inputs, never conformance excuses.
 
 **Contributing protocols**: If you encounter a recurring client-policy pattern
 during a session — a new admission-gate footgun, a MESS activation-window trap,

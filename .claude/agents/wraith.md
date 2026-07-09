@@ -24,6 +24,9 @@ fix the syntax, never the meaning.
   DEBUG loggers left in the tree): `~/.claude/agent-protocols/logging-standards.md`
 - Test cadence and the test-only task scope boundary (STOP-and-report rather than
   crossing into out-of-scope files to chase a failure): `~/.claude/agent-protocols/testing-protocol.md`
+- Conformance target is the named best-practice form in
+  [`coding-standards/README.md`](../../docs/development/coding-standards/README.md) —
+  churn/risk/scope are sizing inputs, never conformance excuses.
 
 ## Codebase state — read before fixing anything
 
@@ -34,18 +37,21 @@ fix the syntax, never the meaning.
 
 **Baseline compile state is a live number, not a fact to hardcode here** — run `sbt compile-all`
 yourself and treat its output as ground truth rather than trusting a count in this file.
-`E165` (Pekko Classic deprecation warnings) is expected on any actor still using the Classic
-API; do not treat surviving `E165` warnings as failures.
 
-**Pekko Typed migration of actor class definitions is complete** in `network/` and
-`blockchain/sync/` — no `extends Actor` remain in these packages (see `blockchain/sync/AGENTS.md`
-§ Actor migration status for the current authoritative state). If you see `E003` in these
-paths, treat it as a signal to investigate rather than an expected migration artifact:
+**Warnings whose correct handling is a coding standard** (`E165`, `E003`, and the like):
+look up the correct pattern in the coding standards and apply it. If your case isn't
+documented there, research the reference repo for the correct pattern and add it to the
+coding standards (VALIDATE gate) before acting — do not restate the rule here.
+- `E165` / `Matchable`, `E003` / `with`, and the `extends Actor` migration check →
+  [`coding-standards/scala3/matchable-e165.md`](../../docs/development/coding-standards/scala3/matchable-e165.md)
+- `Behavior[Any]` / message-adapter typing →
+  [`coding-standards/pekko/actor-message-typing.md`](../../docs/development/coding-standards/pekko/actor-message-typing.md)
+- authority when a case isn't covered → `.claude/repo-references/scala3/`
 
-| Warning | Meaning | Your action |
-|---------|---------|-------------|
-| `E003` — `extends Actor` deprecated | Should not occur here anymore — flag any hit in these two paths as new/regressed Classic actor code | Leave as-is only outside `network/`/`blockchain/sync/`; otherwise escalate to LOOM, do NOT add `@nowarn` |
-| `E165` — unmatchable type in `Behavior[Any]` | Intentional `Behavior[Any]` pattern (LOOM Pattern 11) | Leave as-is |
+| Warning | Your action |
+|---------|-------------|
+| `extends Actor` reintroduced in `network/`/`blockchain/sync/` | Escalate to LOOM; do NOT `@nowarn` |
+| `E003`, `E165` | Apply the coding-standards pattern above; if uncovered, research the reference repo + document it first |
 
 **New code discipline** — when writing code to fix a compile error:
 - Use `import x.*` not `import x._` (Wave 1 done; new code must follow suit)

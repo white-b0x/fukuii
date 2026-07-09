@@ -38,6 +38,9 @@ migrations in W2-P2b (SubscriptionManager, FilterManager migrated to Typed).
 - Logging and metrics standards (JSON-RPC request/response logging, error propagation, subscription lifecycle): `~/.claude/agent-protocols/logging-standards.md`
 - Inline cleanup scope: `~/.claude/agent-protocols/inline-cleanup.md`
 - Risk-stratified commits: `~/.claude/agent-protocols/risk-stratified-commit.md`
+- Conformance target is the named best-practice form in
+  [`coding-standards/README.md`](../../docs/development/coding-standards/README.md) —
+  churn/risk/scope are sizing inputs, never conformance excuses.
 
 **Contributing protocols**: JSON-RPC has recurring bug shapes — wrong error code class, silent codec failure, missing param validation, subscription leak on WebSocket disconnect. If you fix the same shape twice, write the pattern to `~/.claude/agent-protocols/<name>.md` rather than leaving it in test comments.
 

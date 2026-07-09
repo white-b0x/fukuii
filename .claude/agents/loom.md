@@ -34,6 +34,9 @@ touch them, stop and invoke `forge` (PoW) or `beacon` (PoS) before proceeding.
 - Test cadence and the test-only task scope boundary (STOP-and-report — the
   "Delegation rules (hard stops)" table below is this same discipline applied to
   the consensus/eventStream/compile boundaries specifically): `~/.claude/agent-protocols/testing-protocol.md`
+- Conformance target is the named best-practice form in
+  [`coding-standards/README.md`](../../docs/development/coding-standards/README.md) —
+  churn/risk/scope are sizing inputs, never conformance excuses.
 
 ## Reference repos
 
@@ -268,23 +271,16 @@ spawning Typed children while remaining Classic themselves.
 
 ### 11. Behavior[Any] — when sender() cannot be replaced
 
-When a Classic actor hardcodes `context.parent` as a reply target with no way to inject
-`replyTo` (e.g. `PeerRequestHandler`), the enclosing Typed actor cannot receive a sealed
-`Command` — responses arrive as raw `Any`. Use `Behavior[Any]` and match directly:
+Standard (sealed `Command`, the sanctioned bridging mechanisms, and when `Behavior[Any]`
+is still correct): [`coding-standards/pekko/actor-message-typing.md`](../../docs/development/coding-standards/pekko/actor-message-typing.md).
+Apply it; if a case isn't covered, research `.claude/repo-references/pekko/` and document
+it there before acting.
 
-```scala
-// Established pattern: BytecodeRecoveryActor, StorageRecoveryActor,
-//                      FastSyncBranchResolverActor, ChainDownloader
-def downloading(): Behavior[Any] = Behaviors.receiveMessage {
-  case ResponseReceived(msg) => ...  // Classic actor sent this via context.parent
-  case RequestFailed(peer)   => ...
-  case WrappedPeerDisconnected(ev) => ...  // from messageAdapter
-  case _                     => Behaviors.same
-}
-```
-
-Messages from `messageAdapter` still arrive typed via the adapter; only the legacy
-Classic responses are matched as `Any`.
+**Operational:** a Classic actor that hardcodes `context.parent` with no `replyTo` to
+inject (e.g. `PeerRequestHandler`) forces the enclosing Typed actor to receive raw `Any` —
+the sanctioned-exception case. Established fukuii sites: `BytecodeRecoveryActor`,
+`StorageRecoveryActor`, `FastSyncBranchResolverActor`, `ChainDownloader`. Messages from
+`messageAdapter` still arrive typed; only the legacy Classic responses match as `Any`.
 
 ### 12. PeerListSupportNg → PeerListHelper
 
@@ -314,45 +310,20 @@ case WrappedPeerDisconnected(ev)   => peerListHelper.handlePeerDisconnected(ev);
 Do NOT delete `PeerListSupportNg` — other unmigrated actors still mix it.
 `peerEventBus` stays as Classic `ActorRef` — it updates to Typed when Group NET migrates.
 
-### 13. Scala 3 union types for mixed-message actors
+### 13. Behavior[Command | InternalAdapter] vs Behavior[Any] — decision and narrowing
 
-When an actor receives both a public `Command` and a fixed set of internal adapter-wrapped
-messages, prefer a Scala 3 union type over `Behavior[Any]`:
+Standard (when to prefer a Scala 3 union type; the two-step CAPSTONE narrowing path):
+[`coding-standards/pekko/actor-message-typing.md`](../../docs/development/coding-standards/pekko/actor-message-typing.md).
+Apply it; if a case isn't covered, research `.claude/repo-references/pekko/` and document it there.
 
-```scala
-// ❌ Behavior[Any] — underspecifies; any message passes type check
-def behavior(): Behavior[Any] = Behaviors.receiveMessage {
-  case cmd: Command => ...
-  case internal: InternalAdapter => ...
-  case _ => Behaviors.same  // required to absorb Classic noise
-}
-
-// ✅ Behavior[Command | InternalAdapter] — documents exact expected message set
-//   Use only when ALL callers are Typed and there is no Classic noise to absorb
-sealed trait InternalAdapter
-private case class WrappedResponse(r: SomeTypedResponse) extends InternalAdapter
-
-def behavior(): Behavior[Command | InternalAdapter] = Behaviors.receiveMessage {
-  case cmd: Command => ...
-  case WrappedResponse(r) => ...
-  // No catch-all needed — compiler rejects unknown message types
-}
-```
-
-**When to use `Behavior[Command | InternalAdapter]`:**
-- All callers are Typed (no `.toClassic` adapter in use)
-- The internal set is closed and finite (messageAdapter wrappers only)
-- No Classic noise expected (no migrating callers still sending arbitrary messages)
-
-**When `Behavior[Any]` is still correct:**
-- Actor exposes `.toClassic` for unmigrated Classic callers
-- Actor uses the `GetStatus`-style self-forward pattern (`ctx.self ! InternalCmd(ctx.toClassic.sender())`)
-- Any `case _ => Behaviors.same` catch-all is load-bearing
-
-**Post-CAPSTONE migration path:** Once all callers of a `Behavior[Any]` actor are Typed,
-narrow in two steps:
-1. Replace `Behavior[Any]` with `Behavior[Command | InternalMsg]` (remove `case _ => Behaviors.same`)
-2. Then merge `InternalMsg` into `Command` (sealed) if all cases belong to the same ADT
+**Operational note for this migration:** once a `Behavior[Any]` actor's callers are
+confirmed all-Typed with a closed, finite internal message set, apply the standard's
+narrowing path: (1) `Behavior[Any]` → `Behavior[Command | InternalMsg]`, dropping the
+`case _ => Behaviors.same` catch-all; (2) fold `InternalMsg` into `Command` if all cases
+belong to the same ADT. `GetStatus`-style self-forward patterns
+(`ctx.self ! InternalCmd(ctx.toClassic.sender())`) and actors still exposing `.toClassic`
+for unmigrated Classic callers are not narrowing candidates yet — see the standard's
+sanctioned-exception list.
 
 ---
 
@@ -479,9 +450,9 @@ Do not run `testEssential` between phases — a long stall per run compounds acr
 a multi-phase thread (current wall-clock figure: `.local/docs/test-quality-log.md`'s
 `Tier baselines` table).
 
-**E003 vs E165:** Track `E003` (Classic actor deprecation — `extends Actor`) to measure
-migration progress. `E165` is "unmatchable type in pattern match on Any" — it rises
-when migrating to `Behavior[Any]` and is NOT a signal of Classic actor count.
+**Migration-progress metric:** `grep -rn "extends Actor"` — not `E003`/`E165` (see
+[`coding-standards/scala3/matchable-e165.md`](../../docs/development/coding-standards/scala3/matchable-e165.md)
+for what those codes are and the correct fix).
 
 **Test file migration — `TestKit` → `ScalaTestWithActorTestKit`:**
 

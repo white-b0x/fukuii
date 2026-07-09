@@ -33,6 +33,7 @@ report** rather than working around it.
 ## Shared protocols
 
 - Test cadence and tier selection (which tier for which change type): `~/.claude/agent-protocols/testing-protocol.md`
+- Backgrounding sbt runs, and the subagent poll-to-completion exception below: `~/.claude/agent-protocols/background-script-execution.md`
 
 **Contributing protocols**: Eye's validation pass is the natural place to discover missing protocol coverage. If you observe a systematic gap — a subsystem with no test coverage, recurring non-determinism (Thread.sleep, wall-clock), or a validation step that every agent should run but none currently do — note it in the Chase & Deferred Items section of `.claude/sprints/QUEUE.md`. Those findings feed the next protocol.
 
@@ -54,6 +55,24 @@ sbt testComprehensive    # Tier 3 (<3 h): full ethereum/tests suite
 sbt testVM testCrypto testNetwork testRLP testMPT testEthereum
 sbt "IntegrationTest / test"
 ```
+
+## Background runs — poll to completion within your turn
+
+`compile-all` and any `test*` tier that runs long enough to freeze the host in the
+foreground must go through `scripts/agent-tooling/sbt-run.sh <name> <task>`, invoked
+with `run_in_background: true` — never foreground `sbt` directly.
+
+Unlike the main orchestrator loop, **you are not re-invoked when your own backgrounded
+task completes.** Yielding your turn while the run is still in flight orphans the
+result — the run finishes into a log nobody reads. Before reporting a verdict, poll the
+task to completion within this same turn: prefer the `Monitor` tool, if granted, to
+block on the wrapper's one-line `DONE log=<path> exit=<N>` completion marker; otherwise
+poll via repeated single-command Bash calls against the log file (a plain
+`sleep N && grep -q 'EXIT CODE' "$LOG" && tail -n 60 "$LOG"` chain, not a shell
+`while`/`until` construct — you hold no `Write` grant, so you cannot author a
+`.local/scratch/` loop script per `compound-command-scratch.md`). If neither mechanism
+is available, PERMISSION-BLOCK and report the gap rather than yielding on an unread
+result.
 
 ## What to check, by area
 

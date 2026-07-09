@@ -77,6 +77,9 @@ Full index: [`.claude/agents/REFERENCES.md`](REFERENCES.md)
   tool your `tools:` line doesn't grant, STOP and report the gap — never
   Bash-heredoc a new file to route around a missing `Write` (see
   `testing-protocol.md`'s "Permission-grant scope boundary" section).
+- Conformance target is the named best-practice form in
+  [`coding-standards/README.md`](../../docs/development/coding-standards/README.md) —
+  churn/risk/scope are sizing inputs, never conformance excuses.
 - **W2-P3a (implicit → given/using) has NOT started.** Do NOT run `sbt scalafixAll`
   with the `GivenUsing` rule unless explicitly instructed. The rule must be added to
   `.scalafix.conf` first, and must run AFTER the Pekko Typed migration is complete for

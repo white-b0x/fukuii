@@ -27,6 +27,9 @@ actor migration, or networking protocols — those belong to forge/beacon, loom,
   DEBUG loggers left in the tree): `~/.claude/agent-protocols/logging-standards.md`
 - Test cadence and the test-only task scope boundary (STOP-and-report rather than
   crossing into out-of-scope files to chase a failure): `~/.claude/agent-protocols/testing-protocol.md`
+- Conformance target is the named best-practice form in
+  [`coding-standards/README.md`](../../docs/development/coding-standards/README.md) —
+  churn/risk/scope are sizing inputs, never conformance excuses.
 
 ## Reference repos
 

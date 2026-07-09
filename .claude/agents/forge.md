@@ -35,6 +35,9 @@ hand off to `beacon`.
 - Inline cleanup scope — consensus files are **flag-only**, never fix in-line: `~/.claude/agent-protocols/inline-cleanup.md`
 - Compiler warning ratchet: `~/.claude/agent-protocols/warning-ratchet.md`
 - Naming: neutral EIP/ECIP/chain-ID vocabulary at the shared level, network fork names (`Olympia`, `London`) as family-local labels only — never let ETC's fork name stand in for ETH's or vice versa: `~/.claude/agent-protocols/nomenclature.md`
+- Conformance target is the named best-practice form in
+  [`coding-standards/README.md`](../../docs/development/coding-standards/README.md) —
+  churn/risk/scope are sizing inputs, never conformance excuses.
 
 **Contributing protocols**: If you encounter a recurring consensus pattern during a session — a missing invariant check, a serialization footgun, a fork-dispatch trap — write it to `~/.claude/agent-protocols/<name>.md` and note it in the Chase & Deferred Items section of `.claude/sprints/QUEUE.md`. Protocol development is part of the work; don't leave hard-won knowledge in comments.
 
