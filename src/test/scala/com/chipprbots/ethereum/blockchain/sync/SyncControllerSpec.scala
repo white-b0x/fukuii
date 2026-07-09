@@ -872,6 +872,16 @@ class SyncControllerSpec
             receipts = state.receipts + (header.hash.value -> Seq.empty)
           )
         }
+    // MOD-09 (deferred, E165 visible, no @nowarn): the `msg: Any` scrutinee below emits 11 E165 warnings.
+    // Unlike MOD-08/MOD-09's sender()-deadLetter mocks, this AutoPilot ALREADY uses the event-bus + PublishCmd
+    // delivery (3b8b07f67), so responses are not the blocker. A TESTKIT-TYPED-MIGRATION-01 Wave D attempt to
+    // convert this to a Typed `Behaviors.receiveMessage[NetworkPeerManagerActor.Command | AutoPilotUpdateData]`
+    // mock (faithful state-threading + replyTo barrier, matching StateSyncSpec's clean migration) compiled and
+    // passed 92/93 but DETERMINISTICALLY stalled "should not change best block after receiving faraway block"
+    // (pivot selection never persists a sync state → 25s eventually timeout; passes in 2s at HEAD). The
+    // mechanism was not identified within the Wave D no-blind-iteration bound, so the migration was reverted and
+    // these E165 stay visible here until MOD-09 revisits SyncControllerSpec with the faraway-pivot interaction
+    // understood. The `TestActorRef`/`.children` inspection (file-header note) remains a separate ratified KEEP.
     // scalastyle:off method.length
     case class SyncStateAutoPilot(
         handshakedPeers: HandshakedPeers,

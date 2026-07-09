@@ -3,14 +3,11 @@ package com.chipprbots.ethereum.blockchain.sync
 import java.net.InetSocketAddress
 import java.util.concurrent.ThreadLocalRandom
 
-import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestActor.AutoPilot
-import org.apache.pekko.testkit.TestProbe
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -38,6 +35,7 @@ import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.TrieRoot
+import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.*
 import com.chipprbots.ethereum.network.Peer
 import com.chipprbots.ethereum.network.PeerActor
@@ -189,17 +187,29 @@ class StateSyncSpec
       else peer.id -> NoResponse
     }
 
-    // NOT converted to a typed TestProbe: this AutoPilot needs an `AutoPilot` hook, which
-    // Typed `TestProbe` does not have. Created fresh per scheduler fixture (see newSchedulerFixture)
-    // so a stale request from a previous forAll iteration cannot reach the current iteration's AutoPilot.
-    //
-    // Responses are delivered by PUBLISHING MessageFromPeer to a real PeerEventBusActor, not by
-    // `sender ! MessageFromPeer`. The Typed PeerRequestHandler receives peer responses only through a
-    // PeerEventBus subscription (SubscribeCmd + MessageClassifier); a Typed actor sending SendMessageCmd
-    // to this classic probe leaves `sender` = deadLetters, so a direct reply is silently dropped and the
-    // scheduler stalls (StateSyncFinished never arrives). Mirrors PeerRequestHandlerSpec's PublishCmd path.
+    // Typed analogue of the Classic AutoPilot: a mock NetworkPeerManagerActor whose per-message side
+    // effect is a swappable handler (installed by setAutoPilotWithProvider). The scrutinee is a sealed
+    // NetworkPeerManagerActor.Command (not Any), so no E165 unchecked-match warning. The spec never
+    // inspects messages sent here, so no observation probe is needed. Created fresh per scheduler fixture
+    // (see newSchedulerFixture) so a stale request from a previous forAll iteration cannot reach the
+    // current iteration's handler.
+    final class NetworkPeerManagerMock:
+      private val handlerRef =
+        new java.util.concurrent.atomic.AtomicReference[NetworkPeerManagerActor.Command => Unit](_ => ())
+      def setHandler(f: NetworkPeerManagerActor.Command => Unit): Unit = handlerRef.set(f)
+      val ref: TypedActorRef[NetworkPeerManagerActor.Command] =
+        testKit.spawn(Behaviors.receiveMessage[NetworkPeerManagerActor.Command] { msg =>
+          handlerRef.get()(msg)
+          Behaviors.same
+        })
+
+    // Responses are delivered by PUBLISHING MessageFromPeer to a real PeerEventBusActor, not by a direct
+    // reply to the request sender. The Typed PeerRequestHandler receives peer responses only through a
+    // PeerEventBus subscription (SubscribeCmd + MessageClassifier); a direct reply would be invisible to
+    // the handler and the scheduler stalls (StateSyncFinished never arrives). Mirrors PeerRequestHandlerSpec's
+    // PublishCmd path.
     def setAutoPilotWithProvider(
-        networkPeerManager: TestProbe,
+        networkPeerManager: NetworkPeerManagerMock,
         peerEventBus: TypedActorRef[PeerEventBusActor.Command],
         trieProvider: TrieProvider,
         peerConfig: PeerConfig = defaultPeerConfig
@@ -213,31 +223,26 @@ class StateSyncSpec
         classicSystem.scheduler.scheduleOnce(20.milliseconds)(
           peerEventBus ! PeerEventBusActor.PublishCmd(MessageFromPeer(responseMsg, peer))
         )
-      networkPeerManager.setAutoPilot(
-        new AutoPilot:
-          override def run(sender: ActorRef, msg: Any): AutoPilot =
-            msg match
-              case SendMessageCmd(msg: GetNodeDataEnc, peer) =>
-                peerConfig(peer) match
-                  case FullResponse =>
-                    val responseMsg =
-                      NodeData(trieProvider.getNodes(msg.underlyingMsg.mptElementsHashes.toList).map(_.data))
-                    publishResponse(responseMsg, peer)
-                    this
-                  case PartialResponse =>
-                    val random: ThreadLocalRandom = ThreadLocalRandom.current()
-                    val elementsToServe = random.nextInt(minMptNodeRequest, maxMptNodeRequest + 1)
-                    val toGet = msg.underlyingMsg.mptElementsHashes.toList.take(elementsToServe)
-                    val responseMsg = NodeData(trieProvider.getNodes(toGet).map(_.data))
-                    publishResponse(responseMsg, peer)
-                    this
-                  case NoResponse =>
-                    this
+      networkPeerManager.setHandler {
+        case SendMessageCmd(msg: GetNodeDataEnc, peer) =>
+          peerConfig(peer) match
+            case FullResponse =>
+              val responseMsg =
+                NodeData(trieProvider.getNodes(msg.underlyingMsg.mptElementsHashes.toList).map(_.data))
+              publishResponse(responseMsg, peer)
+            case PartialResponse =>
+              val random: ThreadLocalRandom = ThreadLocalRandom.current()
+              val elementsToServe = random.nextInt(minMptNodeRequest, maxMptNodeRequest + 1)
+              val toGet = msg.underlyingMsg.mptElementsHashes.toList.take(elementsToServe)
+              val responseMsg = NodeData(trieProvider.getNodes(toGet).map(_.data))
+              publishResponse(responseMsg, peer)
+            case NoResponse => ()
 
-              case GetHandshakedPeersCmd(replyTo) =>
-                replyTo ! HandshakedPeers(peersMap)
-                this
-      )
+        case GetHandshakedPeersCmd(replyTo) =>
+          replyTo ! HandshakedPeers(peersMap)
+
+        case _ => ()
+      }
 
     override lazy val syncConfig: Config.SyncConfig = defaultSyncConfig.copy(
       peersScanInterval = 0.5.second,
@@ -265,19 +270,19 @@ class StateSyncSpec
     // A fully isolated scheduler + its collaborator probes. The scheduler actor is a stateful,
     // long-lived actor with a ScanPeers timer and PeerRequestHandler children; reusing one instance
     // across ScalaCheck forAll iterations lets an in-flight (or timer-scheduled) GetNodeData request
-    // for iteration N-1's random trie reach iteration N's rebound AutoPilot, whose single-trie
+    // for iteration N-1's random trie reach iteration N's rebound mock handler, whose single-trie
     // TrieProvider lacks those hashes -> "Missing expected data in storage" / a stalled StateSyncFinished.
     // Spawning a fresh fixture per iteration (and stopping it afterwards) removes the cross-talk.
     final case class SchedulerFixture(
         actor: TypedActorRef[SyncStateSchedulerActor.Command],
-        networkPeerManager: TestProbe,
+        networkPeerManager: NetworkPeerManagerMock,
         peerEventBus: TypedActorRef[PeerEventBusActor.Command],
         syncInitResponse: TypedTestProbe[SyncStateSchedulerActor.SyncStateSchedulerActorResponse],
         syncInitStats: TypedTestProbe[SyncStateSchedulerActor.StateSyncStats]
     )
 
     def newSchedulerFixture(): SchedulerFixture =
-      val networkPeerManager: TestProbe = TestProbe()
+      val networkPeerManager = new NetworkPeerManagerMock
       val syncInitResponse = testKit.createTestProbe[SyncStateSchedulerActor.SyncStateSchedulerActorResponse]()
       val syncInitStats = testKit.createTestProbe[SyncStateSchedulerActor.StateSyncStats]()
       // A real PeerEventBusActor: the Typed PeerRequestHandler children the scheduler spawns receive peer
