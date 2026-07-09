@@ -87,10 +87,20 @@ See `herald` for wire-protocol (ETH68/ETH69) detail.
 always preferred over public URLs.
 
 - **EIPs** — local: `.claude/repo-references/EIPs/EIPS/eip-NNNN.md`
-  - Osaka fork (Sepolia active): EIP-7939 (CLZ opcode), EIP-7702 (set code
-    txs), EIP-7623 (calldata cost), EIP-7594 (PeerDAS), EIP-7685 (execution
-    requests), EIP-7251 (max effective balance), EIP-6110 (deposit processing),
-    EIP-2537 (BLS12-381 precompiles)
+  - **Prague (Pectra) EIPs** — EL, active mainnet + Sepolia: EIP-7702 (set-code
+    txs), EIP-2537 (BLS12-381 precompiles 0x0b–0x11), EIP-7623 (calldata floor
+    gas), EIP-7691 (blob throughput 6/9), EIP-7685 (execution requests),
+    EIP-6110 (deposit processing), EIP-7251 (max effective balance), EIP-7002
+    (EL-triggered validator exits). Prague adds **no new opcode** — only the
+    EIP-7702 set-code transaction type.
+  - **Osaka (Fusaka) EIPs** — EL, active mainnet + Sepolia: EIP-7939 (CLZ opcode
+    0x1e — the only new opcode; Osaka = Prague + CLZ), EIP-7823 + EIP-7883
+    (MODEXP input bounds / gas), EIP-7951 (P256VERIFY precompile 0x100), EIP-7918
+    (blob base-fee reserve pricing), EIP-7892 (BPO blob-parameter-only forks).
+    **EIP-7594 (PeerDAS)** is a consensus-/data-availability change and is NOT
+    gated as an Osaka EVM fork in go-ethereum (`params/config.go`,
+    `core/vm/jump_table.go`, `core/vm/eips.go` — no reference) — do not treat it
+    as an execution-layer opcode/precompile EIP.
   - Fallback: https://eips.ethereum.org
 - **Consensus specs** — local: `.claude/repo-references/ethereum/consensus-specs/`
   - Key paths: `specs/phase0/` · `specs/bellatrix/` (merge) · `specs/capella/` (withdrawals) · `specs/deneb/` (blobs)
@@ -119,7 +129,7 @@ expected to follow the same timestamp-dispatch model.
 | Fork dispatch | Timestamp (`forTimestamp()`, `OsakaOpCodes`) |
 | EIP-1559 | Basefee **burned** — NOT sent to any contract |
 | Block rewards | None (PoS validators earn attestation rewards) |
-| Blob txs | Yes (EIP-4844 / EIP-7594) |
+| Blob txs | Yes (EIP-4844, Cancun) — blob schedule scaled by EIP-7691 (Prague) then EIP-7892 BPO forks; EIP-7594 PeerDAS is a DA-layer change, not a blob-tx EVM EIP |
 | Withdrawals | Yes (EIP-4895) — `withdrawalsRoot` mandatory post-Shapella |
 | Post-Cancun headers | `withdrawalsRoot`, `excessBlobGas`, `blobGasUsed`, `parentBeaconBlockRoot` |
 
