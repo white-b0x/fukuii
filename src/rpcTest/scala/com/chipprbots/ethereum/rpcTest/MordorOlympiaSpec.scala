@@ -2,6 +2,7 @@ package com.chipprbots.ethereum.rpcTest
 
 import java.math.BigInteger
 
+import com.typesafe.config.ConfigFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.web3j.protocol.Web3j
@@ -9,6 +10,7 @@ import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.protocol.http.HttpService
 
 import com.chipprbots.ethereum.rpcTest.Tags.MainNet
+import com.chipprbots.ethereum.utils.BlockchainConfig
 
 // scalastyle:off magic.number
 /** Live Olympia hard fork verification tests for Mordor testnet.
@@ -17,7 +19,9 @@ import com.chipprbots.ethereum.rpcTest.Tags.MainNet
   * Tests Olympia EIP activation, baseFee behavior, and pre/post-fork chain state.
   *
   * Mordor Olympia activation: block 15,800,850
-  * Treasury: 0xd6165F3aF4281037bce810621F62B43077Fb0e37
+  * Treasury address is read from the fukuii Mordor config (single source of truth:
+  * fukuii.olympia.treasury-address in blockchains.conf, ECIP-1112) so a demo-version
+  * promotion (v0.3 -> v0.4) needs no edit here — this behavioral balance check follows.
   *
   * Run with: sbt "rpcTest:testOnly *MordorOlympiaSpec"
   */
@@ -29,7 +33,10 @@ class MordorOlympiaSpec extends AnyFlatSpec with Matchers {
   // Mordor constants
   val MordorChainId: BigInteger = BigInteger.valueOf(63)
   val OlympiaForkBlock: Long = 15800850L
-  val TreasuryAddress: String = "0xcfe1e0ecbff745e6c800ff980178a8ddef94bee2"
+  // Sourced from config, not hardcoded — follows blockchains.conf on any treasury update.
+  private val mordorConfig: BlockchainConfig =
+    BlockchainConfig.fromRawConfig(ConfigFactory.load().getConfig("fukuii.blockchains.mordor"))
+  val TreasuryAddress: String = mordorConfig.treasuryAddress.toString
   val Eip2935ContractAddress: String = "0x0000f90827f1c53a10cb7a02335b175320002935"
 
   private def skipIfNotMordor(): Unit = {
