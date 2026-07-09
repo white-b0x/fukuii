@@ -31,10 +31,16 @@ import com.chipprbots.ethereum.consensus.pow
 import com.chipprbots.ethereum.consensus.pow.EthashConfig
 import com.chipprbots.ethereum.consensus.pow.PoWMining
 import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
+import com.chipprbots.ethereum.db.dataSource.EphemDataSource
+import com.chipprbots.ethereum.db.storage.StateStorage
 import com.chipprbots.ethereum.domain.*
+import com.chipprbots.ethereum.domain.BloomFilter
 import com.chipprbots.ethereum.ledger.*
+import com.chipprbots.ethereum.mpt.ByteArraySerializable
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie
 import com.chipprbots.ethereum.nodebuilder.VmSetup
+import com.chipprbots.ethereum.vm.EvmConfig
 import com.chipprbots.ethereum.ommers.OmmersPool
 import com.chipprbots.ethereum.sync.util.SyncCommonItSpecUtils.*
 import com.chipprbots.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.defaultConfig
@@ -300,6 +306,97 @@ object RegularSyncItSpecUtils:
       )
       val newWeight = parentWeight.increase(newBlock.header)
       (newBlock, newWeight, parentWorld)
+
+    // === E2ESTATETEST-FIXTURE-REDESIGN-01 ===
+    // Real, re-executable block builder for E2EStateTestSpec.
+    //
+    // CommonFakePeer.importBlocksUntil fabricates each header's stateRoot by injecting accounts
+    // straight into the trie (no tx execution, no block reward), producing headers whose stateRoot
+    // no peer can re-derive; a peer that full-syncs and re-executes such a chain fails with
+    // MissingAccountNodeException. This builder instead drives every block through
+    // BlockExecution.executeBlockNoValidation (real txs + ECIP-1017 payBlockReward), so the
+    // persisted stateRootHash is genuinely derived from the block. A syncing peer re-executes the
+    // same block and derives the identical root. See
+    // .local/docs/research-july/e2estatetest-fixture-redesign-01.md.
+
+    private val executedBlockGasLimit: GasAmount = GasAmount(BigInt(8000000))
+
+    /** World state at `block`'s stateRoot, for reading account nonces/balances while crafting txs. */
+    private def worldAtStateRoot(block: Block): InMemoryWorldStateProxy =
+      InMemoryWorldStateProxy(
+        storagesInstance.storages.evmCodeStorage,
+        bl.getBackingMptStorage(BlockNumber(block.number.value)),
+        (number: BlockNumber) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+        blockchainConfig.accountStartNonce,
+        block.header.stateRoot.value,
+        noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,
+        ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+      )
+
+    private def buildFixtureMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString =
+      val storage = StateStorage.getReadOnlyStorage(EphemDataSource())
+      val mpt = MerklePatriciaTrie[Int, K](storage)(intByteArraySerializable, vSerializable)
+      ByteString(entities.zipWithIndex.foldLeft(mpt) { case (trie, (value, key)) => trie.put(key, value) }.getRootHash)
+
+    private def executeChildBlock(
+        parent: Block,
+        parentWeight: ChainWeight,
+        beneficiary: Address,
+        txs: Seq[SignedTransaction]
+    ): (Block, ChainWeight, Seq[Receipt]) =
+      // executeBlockNoValidation derives the world from the PARENT's stateRoot, so the child's own
+      // stateRoot is irrelevant during execution and is patched afterwards from the real result.
+      val draftHeader = parent.header.copy(
+        parentHash = parent.header.hash,
+        number = parent.header.number + 1,
+        beneficiary = beneficiary.bytes,
+        gasLimit = executedBlockGasLimit,
+        unixTimestamp = parent.header.unixTimestamp + 1
+      )
+      val draftBlock = Block(draftHeader, BlockBody(txs, Nil))
+      blockExecution.executeBlockNoValidation(draftBlock) match
+        case Left(error) =>
+          throw new RuntimeException(
+            s"Fixture block ${draftHeader.number.value} failed real execution: ${error.toString}"
+          )
+        case Right((receipts, gasUsed, stateRoot)) =>
+          val receiptsLogs: Seq[Array[Byte]] =
+            BloomFilter.Empty.toArray +: receipts.map(_.logsBloomFilter.toArray)
+          val header = draftHeader.copy(
+            stateRoot = TrieRoot(stateRoot),
+            transactionsRoot = TrieRoot(buildFixtureMpt(txs, SignedTransaction.byteArraySerializable)),
+            receiptsRoot = TrieRoot(buildFixtureMpt(receipts, Receipt.byteArraySerializable)),
+            logsBloom = BloomFilter(ByteString(ByteUtils.or(receiptsLogs*))),
+            gasUsed = gasUsed
+          )
+          val block = Block(header, BlockBody(txs, Nil))
+          (block, parentWeight.increase(block.header), receipts)
+
+    /** Build and directly persist a chain of real, re-executable blocks up to number `n`.
+      *
+      * @param beneficiary
+      *   block-reward recipient for every block (the E2E state tests use a fixed faucet address so their signed
+      *   value-transfer / contract-creation txs have a funded sender).
+      * @param txsForBlock
+      *   given the new block number and the parent world state (for nonce/balance lookups), returns the signed
+      *   transactions to include in that block.
+      */
+    def importExecutedBlocksUntil(n: BigInt, beneficiary: Address)(
+        txsForBlock: (BigInt, InMemoryWorldStateProxy) => Seq[SignedTransaction]
+    ): IO[Unit] =
+      IO(blockchainReader.getBestBlock.get).flatMap { parent =>
+        if parent.number.value >= n then IO.unit
+        else
+          IO {
+            val parentWeight = blockchainReader
+              .getChainWeightByHash(parent.hash)
+              .getOrElse(throw new RuntimeException(s"ChainWeight by hash: ${parent.hash} doesn't exist"))
+            val parentWorld = worldAtStateRoot(parent)
+            val txs = txsForBlock(parent.header.number.value + 1, parentWorld)
+            val (block, weight, receipts) = executeChildBlock(parent, parentWeight, beneficiary, txs)
+            blockchainWriter.save(block, receipts, weight, saveAsBestBlock = true)
+          }.flatMap(_ => importExecutedBlocksUntil(n, beneficiary)(txsForBlock))
+      }
 
   object FakePeer:
 

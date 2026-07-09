@@ -1,15 +1,19 @@
 package com.chipprbots.ethereum.sync
 
+import org.apache.pekko.util.ByteString
+
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 
 import scala.concurrent.duration.*
 
 import com.typesafe.config.ConfigValueFactory
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.FreeSpecBase
+import com.chipprbots.ethereum.crypto.keyPairFromPrvKey
 import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
 import com.chipprbots.ethereum.metrics.Metrics
@@ -18,6 +22,7 @@ import com.chipprbots.ethereum.sync.util.RegularSyncItSpecUtils.FakePeer
 import com.chipprbots.ethereum.sync.util.SyncCommonItSpec.*
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
+import com.chipprbots.ethereum.utils.Hex
 
 /** End-to-End test suite for blockchain state synchronization and validation.
   *
@@ -40,6 +45,14 @@ import com.chipprbots.ethereum.utils.Config
   * The tests complement the GeneralStateTests from ethereum/tests by focusing on peer-to-peer state synchronization
   * scenarios rather than single-node state transition validation.
   *
+  * State construction (E2ESTATETEST-FIXTURE-REDESIGN-01): peer1's chain is built with
+  * `FakePeer.importExecutedBlocksUntil`, which drives every block through real execution (transactions + ECIP-1017
+  * block reward) so each header's stateRoot is genuinely re-derivable. A full-syncing peer2 re-executes the same blocks
+  * and derives the identical roots. State at a target address can therefore only be created via a causally-connected
+  * transaction, so the helpers below emit real signed value-transfer / contract-creation txs from a deterministic
+  * faucet rather than injecting accounts straight into the trie. Each test's intent (peer1-vs-peer2 root/hash equality
+  * at specific blocks) is preserved; only the state-construction mechanism changed.
+  *
   * @see
   *   Issue: Run end-to-end state test to troubleshoot blockchain peer modules
   * @see
@@ -61,57 +74,74 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
     // No need to shutdown IORuntime.global
   }
 
-  /** Helper to create state updates at specific blocks */
+  // Deterministic faucet shared across peers: the same private key means peer1 and peer2 build
+  // byte-identical blocks for the same helper, so reorg/extension tests connect cleanly. The faucet
+  // is funded purely by ECIP-1017 block rewards — every fixture block sets beneficiary =
+  // faucetAddress, so from block 1 the faucet accrues 5 ETC per block and can fund real signed
+  // value-transfer / contract-creation txs from block 2 onward. (The CommonFakePeer genesis is
+  // empty and off-limits, so a genesis alloc is not available; block-reward funding replaces it.)
+  private val faucetKeyPair: AsymmetricCipherKeyPair = keyPairFromPrvKey(Array.fill(32)(1.toByte))
+  private val faucetAddress: Address = Address(faucetKeyPair)
+
+  /** Faucet's current nonce, read from the parent world (account-start-nonce is 0 on this config). */
+  private def faucetNonce(world: InMemoryWorldStateProxy): Nonce =
+    Nonce(world.getAccount(faucetAddress).map(_.nonce.toBigInt).getOrElse(BigInt(0)))
+
+  /** A real signed value transfer faucet -> `to`, creating persistent balance state at `to`. */
+  private def valueTransfer(world: InMemoryWorldStateProxy, to: Address, amount: BigInt): SignedTransaction =
+    val tx = LegacyTransaction(
+      nonce = faucetNonce(world),
+      gasPrice = GasPrice(1),
+      gasLimit = GasAmount(21000),
+      receivingAddress = to,
+      value = Wei(amount),
+      payload = ByteString.empty
+    )
+    SignedTransaction.sign(tx, faucetKeyPair, None)
+
+  // Minimal contract whose constructor SSTOREs slots 0..2 then returns empty runtime code:
+  //   PUSH1 01 PUSH1 00 SSTORE  PUSH1 02 PUSH1 01 SSTORE  PUSH1 03 PUSH1 02 SSTORE
+  //   PUSH1 00 PUSH1 00 RETURN
+  private val storageContractInitCode: ByteString =
+    ByteString(Hex.decode("60016000556002600155600360025560006000f3"))
+
+  /** A real contract-creation tx that deploys `storageContractInitCode`, producing a contract account with a non-empty
+    * storage trie (value=1 guarantees the account persists).
+    */
+  private def deployStorageContract(world: InMemoryWorldStateProxy): SignedTransaction =
+    val tx = LegacyTransaction(
+      nonce = faucetNonce(world),
+      gasPrice = GasPrice(1),
+      gasLimit = GasAmount(500000),
+      receivingAddress = None, // contract creation
+      value = Wei(1),
+      payload = storageContractInitCode
+    )
+    SignedTransaction.sign(tx, faucetKeyPair, None)
+
+  /** Helper to create state updates at a specific block via a real value transfer to a per-block address. */
   def updateStateAtBlock(
       blockNumber: Int
-  )(currentBlockNumber: BigInt, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+  )(currentBlockNumber: BigInt, world: InMemoryWorldStateProxy): Seq[SignedTransaction] =
     if currentBlockNumber == blockNumber then
-      val accountAddress = Address(currentBlockNumber.toByteArray)
-      val account = Account(
-        nonce = 1,
-        balance = UInt256(currentBlockNumber * BigInt(1000000000))
-      )
-      InMemoryWorldStateProxy.persistState(world.saveAccount(accountAddress, account))
-    else world
+      Seq(valueTransfer(world, Address(currentBlockNumber.toByteArray), currentBlockNumber * BigInt(1000000000)))
+    else Seq.empty
 
-  /** Helper to create state updates at multiple blocks */
+  /** Helper to create state updates at multiple blocks via real value transfers. */
   def updateStateAtMultipleBlocks(
       blockNumbers: Set[Int]
-  )(currentBlockNumber: BigInt, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+  )(currentBlockNumber: BigInt, world: InMemoryWorldStateProxy): Seq[SignedTransaction] =
     if blockNumbers.contains(currentBlockNumber.toInt) then
-      val accountAddress = Address(currentBlockNumber.toByteArray)
-      val account = Account(
-        nonce = UInt256(currentBlockNumber),
-        balance = UInt256(currentBlockNumber * BigInt(1000000000))
-      )
-      InMemoryWorldStateProxy.persistState(world.saveAccount(accountAddress, account))
-    else world
+      Seq(valueTransfer(world, Address(currentBlockNumber.toByteArray), currentBlockNumber * BigInt(1000000000)))
+    else Seq.empty
 
-  /** Helper to create complex state with storage */
+  /** Helper to create complex state with storage by deploying a real storage-writing contract every 50 blocks. */
   def createComplexStateWithStorage(
       currentBlockNumber: BigInt,
       world: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy =
-    if currentBlockNumber % 50 == 0 && currentBlockNumber > 0 then
-      val accountAddress = Address(currentBlockNumber.toByteArray)
-      val account = Account(
-        nonce = UInt256(currentBlockNumber),
-        balance = UInt256(currentBlockNumber * BigInt(1000000000)),
-        storageRoot = Account.EmptyStorageRootHash,
-        codeHash = Account.EmptyCodeHash
-      )
-
-      var updatedWorld = world.saveAccount(accountAddress, account)
-
-      // Add some storage entries
-      val storage = updatedWorld.getStorage(accountAddress)
-      val updatedStorage = (1 to 5).foldLeft(storage) { (s, i) =>
-        s.store(StorageKey(BigInt(i)), BigInt(currentBlockNumber.toLong * i))
-      }
-      updatedWorld = updatedWorld.saveStorage(accountAddress, updatedStorage)
-
-      InMemoryWorldStateProxy.persistState(updatedWorld)
-    else world
+  ): Seq[SignedTransaction] =
+    if currentBlockNumber % 50 == 0 && currentBlockNumber > 0 then Seq(deployStorageContract(world))
+    else Seq.empty
 
   "E2E State Test" - {
 
@@ -130,7 +160,7 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
 
         for
           // Peer1 creates blockchain with state at specific block
-          _ <- peer1.importBlocksUntil(blockNumber)(updateStateAtBlock(stateBlockNumber))
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(updateStateAtBlock(stateBlockNumber))
 
           // Peer2 syncs from peer1
           _ <- peer1.startRegularSync()
@@ -174,7 +204,7 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
 
         for
           // Create blockchain with multiple state snapshots
-          _ <- peer1.importBlocksUntil(blockNumber)(updateStateAtMultipleBlocks(stateBlocks))
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(updateStateAtMultipleBlocks(stateBlocks))
 
           // Peer2 syncs from peer1
           _ <- peer1.startRegularSync()
@@ -206,7 +236,7 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
 
         for
           // Create blockchain with frequent state updates
-          _ <- peer1.importBlocksUntil(blockNumber)(createComplexStateWithStorage)
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(createComplexStateWithStorage)
 
           // Peer2 syncs from peer1
           _ <- peer1.startRegularSync()
@@ -234,7 +264,7 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
         val stateBlockNumber = 75
 
         for
-          _ <- peer1.importBlocksUntil(blockNumber)(updateStateAtBlock(stateBlockNumber))
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(updateStateAtBlock(stateBlockNumber))
           _ <- peer1.startRegularSync()
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
@@ -289,11 +319,11 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
 
         for
           // Both peers sync to a common point with state updates
-          _ <- peer1.importBlocksUntil(commonBlocks)(updateStateAtBlock(50))
-          _ <- peer2.importBlocksUntil(commonBlocks)(updateStateAtBlock(50))
+          _ <- peer1.importExecutedBlocksUntil(commonBlocks, faucetAddress)(updateStateAtBlock(50))
+          _ <- peer2.importExecutedBlocksUntil(commonBlocks, faucetAddress)(updateStateAtBlock(50))
 
-          // Peer1 mines additional blocks with more state updates
-          _ <- peer1.mineNewBlocks(100.milliseconds, peer1ExtraBlocks)(updateStateAtBlock(110))
+          // Peer1 extends its chain with more state updates
+          _ <- peer1.importExecutedBlocksUntil(commonBlocks + peer1ExtraBlocks, faucetAddress)(updateStateAtBlock(110))
 
           // Start sync
           _ <- peer1.startRegularSync()
@@ -326,7 +356,9 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
 
         for
           // Create blockchain with account state changes
-          _ <- peer1.importBlocksUntil(blockNumber)(updateStateAtMultipleBlocks(Set(50, 100, 150)))
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(
+            updateStateAtMultipleBlocks(Set(50, 100, 150))
+          )
 
           // Peer2 syncs from peer1
           _ <- peer1.startRegularSync()
@@ -351,18 +383,15 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
       ) { case (peer1, peer2) =>
         val blockNumber = 300
 
-        def rapidStateUpdates(currentBlockNumber: BigInt, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-          if currentBlockNumber > 0 then
-            val accountAddress = Address(currentBlockNumber.toByteArray)
-            val account = Account(
-              nonce = UInt256(currentBlockNumber),
-              balance = UInt256(currentBlockNumber * BigInt(1000000000))
-            )
-            InMemoryWorldStateProxy.persistState(world.saveAccount(accountAddress, account))
-          else world
+        // Rapid updates: a real value transfer on every block after block 1 (block 1 only funds the
+        // faucet via its block reward, so the faucet has balance to spend from block 2 onward).
+        def rapidStateUpdates(currentBlockNumber: BigInt, world: InMemoryWorldStateProxy): Seq[SignedTransaction] =
+          if currentBlockNumber > 1 then
+            Seq(valueTransfer(world, Address(currentBlockNumber.toByteArray), currentBlockNumber * BigInt(1000000000)))
+          else Seq.empty
 
         for
-          _ <- peer1.importBlocksUntil(blockNumber)(rapidStateUpdates)
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(rapidStateUpdates)
           _ <- peer1.startRegularSync()
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
@@ -389,7 +418,7 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
 
         for
           // Create blockchain with contract storage
-          _ <- peer1.importBlocksUntil(blockNumber)(createComplexStateWithStorage)
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(createComplexStateWithStorage)
 
           // Peer2 syncs from peer1
           _ <- peer1.startRegularSync()
@@ -414,7 +443,7 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
         val blockNumber = 400
 
         for
-          _ <- peer1.importBlocksUntil(blockNumber)(createComplexStateWithStorage)
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(createComplexStateWithStorage)
           _ <- peer1.startRegularSync()
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
@@ -448,7 +477,7 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
         val blockNumber = 200
 
         for
-          _ <- peer1.importBlocksUntil(blockNumber)(updateStateAtBlock(100))
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(updateStateAtBlock(100))
           _ <- peer1.startRegularSync()
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
@@ -473,7 +502,7 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
         val blockNumber = 150
 
         for
-          _ <- peer1.importBlocksUntil(blockNumber)(updateStateAtBlock(75))
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(updateStateAtBlock(75))
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
           // Wait a moment for connection
@@ -501,14 +530,14 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
 
         for
           // Partial sync with state
-          _ <- peer1.importBlocksUntil(initialBlocks)(updateStateAtBlock(50))
+          _ <- peer1.importExecutedBlocksUntil(initialBlocks, faucetAddress)(updateStateAtBlock(50))
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
           _ <- peer1.startRegularSync()
           _ <- peer2.waitForRegularSyncLoadLastBlock(initialBlocks)
 
           // Add more blocks with state while still connected
-          _ <- peer1.importBlocksUntil(finalBlocks)(updateStateAtBlock(150))
+          _ <- peer1.importExecutedBlocksUntil(finalBlocks, faucetAddress)(updateStateAtBlock(150))
 
           // Continue sync
           _ <- peer2.waitForRegularSyncLoadLastBlock(finalBlocks)
@@ -535,7 +564,7 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
         val blockNumber = 300
 
         for
-          _ <- peer1.importBlocksUntil(blockNumber)(createComplexStateWithStorage)
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(createComplexStateWithStorage)
           _ <- peer1.startRegularSync()
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
@@ -568,11 +597,15 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
 
         for
           // Both peers sync to a common point with state
-          _ <- peer1.importBlocksUntil(commonBlocks)(updateStateAtMultipleBlocks(Set(25, 50, 75)))
-          _ <- peer2.importBlocksUntil(commonBlocks)(updateStateAtMultipleBlocks(Set(25, 50, 75)))
+          _ <- peer1.importExecutedBlocksUntil(commonBlocks, faucetAddress)(
+            updateStateAtMultipleBlocks(Set(25, 50, 75))
+          )
+          _ <- peer2.importExecutedBlocksUntil(commonBlocks, faucetAddress)(
+            updateStateAtMultipleBlocks(Set(25, 50, 75))
+          )
 
-          // Peer1 mines additional blocks with new state
-          _ <- peer1.mineNewBlocks(100.milliseconds, peer1ExtraBlocks)(updateStateAtBlock(105))
+          // Peer1 extends its chain with new state
+          _ <- peer1.importExecutedBlocksUntil(commonBlocks + peer1ExtraBlocks, faucetAddress)(updateStateAtBlock(105))
 
           // Sync
           _ <- peer1.startRegularSync()
@@ -608,7 +641,9 @@ class E2EStateTestSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll
         val blockNumber = 200
 
         for
-          _ <- peer1.importBlocksUntil(blockNumber)(updateStateAtMultipleBlocks(Set(50, 100, 150)))
+          _ <- peer1.importExecutedBlocksUntil(blockNumber, faucetAddress)(
+            updateStateAtMultipleBlocks(Set(50, 100, 150))
+          )
           _ <- peer1.startRegularSync()
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
