@@ -3,6 +3,7 @@ package com.chipprbots.ethereum.jsonrpc
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
 import org.apache.pekko.actor.typed
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.json4s.JsonAST.*
@@ -13,6 +14,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.ByteGenerators
 import com.chipprbots.ethereum.NormalPatience
+import com.chipprbots.ethereum.blockchain.sync.SyncController
 import com.chipprbots.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
 import com.chipprbots.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
 import com.chipprbots.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses
@@ -100,7 +102,8 @@ class QaJRCSpec
     val web3Service: Web3Service = mock[Web3Service]
     // MIGRATION: Scala 3 mock cannot infer AtomicReference type parameter - create real instance
     implicit val testSystem: org.apache.pekko.actor.ActorSystem = org.apache.pekko.actor.ActorSystem("QaJRCSpec-test")
-    implicit val scheduler: typed.Scheduler = testSystem.toTyped.scheduler
+    implicit val typedSystem: typed.ActorSystem[Nothing] = testSystem.toTyped
+    implicit val scheduler: typed.Scheduler = typedSystem.scheduler
     val netService: NetService = new NetService(
       new java.util.concurrent.atomic.AtomicReference(
         com.chipprbots.ethereum.utils.NodeStatus(
@@ -109,7 +112,7 @@ class QaJRCSpec
           com.chipprbots.ethereum.utils.ServerStatus.NotListening
         )
       ),
-      org.apache.pekko.testkit.TestProbe().ref.toTyped[PeerManagerActor.Command],
+      TestProbe[PeerManagerActor.Command]().ref,
       com.chipprbots.ethereum.blockchain.sync.CacheBasedBlacklist.empty(100),
       com.chipprbots.ethereum.jsonrpc.NetService.NetServiceConfig(scala.concurrent.duration.DurationInt(5).seconds)
     )
@@ -125,8 +128,8 @@ class QaJRCSpec
     val fukuiiService: FukuiiService = mock[FukuiiService]
     val mcpService: McpService =
       new McpService(
-        org.apache.pekko.testkit.TestProbe().ref.toTyped[PeerManagerActor.Command],
-        org.apache.pekko.testkit.TestProbe().ref,
+        TestProbe[PeerManagerActor.Command]().ref,
+        TestProbe[SyncController.Command]().ref,
         null,
         null,
         new java.util.concurrent.atomic.AtomicReference[com.chipprbots.ethereum.utils.NodeStatus](),

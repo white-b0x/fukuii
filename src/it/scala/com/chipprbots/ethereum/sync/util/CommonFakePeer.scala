@@ -8,9 +8,9 @@ import java.util.concurrent.atomic.AtomicReference
 
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 import org.apache.pekko.util.Timeout
 
@@ -94,7 +94,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   implicit val system: ActorSystem = ActorSystem(peerName)
 
-  val peerDiscoveryManager: ActorRef = TestProbe().ref
+  val peerDiscoveryManager: org.apache.pekko.actor.typed.ActorRef[PeerDiscoveryManager.Command] =
+    TypedTestProbe[PeerDiscoveryManager.Command]()(system.toTyped).ref
 
   val nodeKey: AsymmetricCipherKeyPair = com.chipprbots.ethereum.crypto.generateKeyPair(secureRandom)
 
@@ -231,7 +232,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   lazy val peerManager: org.apache.pekko.actor.typed.ActorRef[PeerManagerActor.Command] = system.spawn(
     PeerManagerActor.behavior(
       peerEventBus,
-      peerDiscoveryManager.toTyped[PeerDiscoveryManager.Command],
+      peerDiscoveryManager,
       Config.Network.peer,
       knownNodesManager,
       peerStatistics,
