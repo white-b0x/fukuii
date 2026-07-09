@@ -180,6 +180,8 @@ trait RegularSyncFixtures:
       (adapter
         .evaluateBranch(_: NonEmptyList[Block])(_: IORuntime, _: BlockchainConfig))
         .when(*, *, *)
+        // pinned by: the mocked method's own signature above, ConsensusAdapter.evaluateBranch(blocks: NonEmptyList[Block]) —
+        // ScalaMock's onCall only ever receives args matching the stubbed method's declared parameter types.
         .onCall { case (nel: (NonEmptyList[Block] @unchecked), _, _) =>
           def go(remaining: List[Block], acc: List[BlockData]): IO[BlockImportResult] =
             remaining match
@@ -516,6 +518,8 @@ trait RegularSyncFixtures:
     (consensusAdapter
       .evaluateBranch(_: NonEmptyList[Block])(_: IORuntime, _: BlockchainConfig))
       .when(*, *, *)
+      // pinned by: the mocked method's own signature above, ConsensusAdapter.evaluateBranch(blocks: NonEmptyList[Block]) —
+      // ScalaMock's onCall only ever receives args matching the stubbed method's declared parameter types.
       .onCall { case (nel: (NonEmptyList[Block] @unchecked), _, _) =>
         if nel.toList.contains(testBlocks.last) then importedLastTestBlock = true
         val blockData =

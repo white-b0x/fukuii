@@ -221,6 +221,8 @@ final private class BlockImporterLogic(
         selfRef ! PickBlocks
         Behaviors.same
 
+      // @unchecked: element type pinned by BlockFetcher's sealed FetchResponse — PickedBlocks.blocks
+      // is statically NonEmptyList[Block] (no type param), so only the erased type arg is unverifiable.
       case FetcherResponse(BlockFetcher.PickedBlocks(blocks: NonEmptyList[Block @unchecked])) =>
         SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
         importBlocks(blocks, DefaultBlockImport)(state)
@@ -278,7 +280,17 @@ final private class BlockImporterLogic(
         stateStorage.saveNode(hash, node.toArray, blockchainReader.getBestBlockNumber)
         // Also save as contract code in case this was a bytecode fetch
         try evmCodeStorage.put(hash, node).commit()
-        catch case _: Exception => ()
+        catch
+          case ex: Exception =>
+            // Best-effort secondary persist: the state node itself is already saved above. If this was
+            // a bytecode fetch and the put failed, the next import re-detects the missing code and
+            // re-fetches, so surface loudly and let the recovery loop recover instead of crashing.
+            log.error(
+              ex,
+              "Failed to persist late-arriving fetched node {} as contract code: {}",
+              ByteStringUtils.hash2string(hash),
+              ex.getMessage
+            )
         Behaviors.same
 
       case StartForkRecovery(failedBlockNumber: BigInt) =>
@@ -345,9 +357,19 @@ final private class BlockImporterLogic(
         // and the data is the bytecode. EvmCodeStorage is keyed by codeHash, same as the fetch.
         try evmCodeStorage.put(hash, node).commit()
         catch
-          case _: Exception => ()
-          // Successful state-node delivery — reset stuck-counter so a later transient failure on a
-          // different block doesn't escalate to SNAP re-sync prematurely.
+          case ex: Exception =>
+            // Best-effort secondary persist: the state node itself is already saved above. A failed
+            // bytecode put re-surfaces as a gas mismatch on the retried import below, re-entering
+            // recovery, so surface loudly rather than crash the resolving-missing-node phase.
+            log.error(
+              ex,
+              "Failed to persist recovered node {} as contract code for block {}: {}",
+              ByteStringUtils.hash2string(hash),
+              blocksToRetry.head.number,
+              ex.getMessage
+            )
+        // Successful state-node delivery — reset stuck-counter so a later transient failure on a
+        // different block doesn't escalate to SNAP re-sync prematurely.
         BlockImporter.survivedExhausts = 0
         pendingStateNodeHash = None
         importBlocks(blocksToRetry, blockImportType)(state)

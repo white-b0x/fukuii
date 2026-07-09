@@ -365,6 +365,7 @@ object PivotBlockSelector:
       else if !isPossibleToReachConsensus(peersToAsk.size, maybeBlockHeaderWithVotes.map(_.votes).getOrElse(0)) then
         timers.cancel(ElectionTimeoutKey)
         if waitingPeers.nonEmpty then
+          // @unchecked: guarded by waitingPeers.nonEmpty above, so the head/tail (::) destructuring cannot fail
           val additionalPeer :: newWaitingPeers = waitingPeers: @unchecked
           obtainBlockHeaderFromPeer(additionalPeer, pivotBlockNumber)
           timers.startSingleTimer(ElectionTimeoutKey, ElectionPivotBlockTimeout, peerResponseTimeout)

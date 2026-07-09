@@ -333,6 +333,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
             // The leaf should be put inside one of new branch nibbles
             val newLeafNode = LeafNode(existingKey.tail, storedValue)
             BranchNode.withSingleChild(existingKey(0), newLeafNode, None) -> Some(newLeafNode)
+        // @unchecked: temporalBranchNode is a BranchNode (built above); put into a BranchNode always returns a BranchNode
         val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage) =
           put(temporalBranchNode, searchKey, value): @unchecked
         NodeInsertResult(
@@ -345,6 +346,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
         val temporalNode =
           if ml == existingKey.length then BranchNode.withValueOnly(storedValue.toArray[Byte])
           else LeafNode(existingKey.drop(ml), storedValue)
+        // @unchecked: temporalNode is either a BranchNode, or a LeafNode whose key diverges from searchKeySuffix at nibble 0 (case 0) — both return a BranchNode
         val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage) =
           put(temporalNode, searchKeySuffix, value): @unchecked
         val newExtNode = ExtensionNode(ByteString(searchKeyPrefix), newBranchNode)
@@ -370,6 +372,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
             // The new branch node will have an extension that replaces current one
             val newExtNode = ExtensionNode(sharedKey.tail, next)
             BranchNode.withSingleChild(sharedKeyHead, newExtNode, None) -> Some(newExtNode)
+        // @unchecked: temporalBranchNode is a BranchNode (built above); put into a BranchNode always returns a BranchNode
         val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage) =
           put(temporalBranchNode, searchKey, value): @unchecked
         NodeInsertResult(
@@ -378,6 +381,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
         )
       case ml if ml == sharedKey.length =>
         // Current extension node's key is a prefix of the one being inserted, so we insert recursively on the extension's child
+        // @unchecked: an ExtensionNode's next is invariantly a BranchNode in a well-formed trie; put into a BranchNode returns a BranchNode
         val NodeInsertResult(newChild: BranchNode, toDeleteFromStorage) =
           put(extensionNode.next, searchKey.drop(ml), value): @unchecked
         val newExtNode = ExtensionNode(sharedKey, newChild)
@@ -389,6 +393,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
         // Partially shared prefix, we have to replace the node with an extension with the shared prefix
         val (sharedKeyPrefix, sharedKeySuffix) = sharedKey.splitAt(ml)
         val temporalExtensionNode = ExtensionNode(sharedKeySuffix, next)
+        // @unchecked: ml < sharedKey.length, so the recursive put on the suffix diverges at nibble 0 (case 0), which returns a BranchNode
         val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage) =
           put(temporalExtensionNode, searchKey.drop(ml), value): @unchecked
         val newExtNode = ExtensionNode(sharedKeyPrefix, newBranchNode)

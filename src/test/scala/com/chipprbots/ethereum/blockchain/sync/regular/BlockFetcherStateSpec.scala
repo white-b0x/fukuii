@@ -101,6 +101,8 @@ class BlockFetcherStateSpec extends ScalaTestWithActorTestKit with AnyWordSpecLi
           .recordHeaderRejection()
         stale.consecutiveHeaderRejections shouldBe 2
 
+        // Right: `validators` is MockValidatorsAlwaysSucceed (line 20), so appendHeaders' validatedHeaders call
+        // never returns Left here.
         val Right(recovered) = stale.appendHeaders(blocks.map(_.header)): @unchecked
         recovered.consecutiveHeaderRejections shouldBe 0
       }

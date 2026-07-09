@@ -92,15 +92,12 @@ class EngineApiService(
   /** If the timestamp map is at cap, find the oldest entry and remove it from all four maps. */
   private def evictOldestIfAtCapacity(): Unit = evictionLock.synchronized {
     if pendingPayloadTimestamps.size() >= PayloadCap then
-      var oldestKey: ByteString = null
-      var oldestTs: Long = Long.MaxValue
-      val iter = pendingPayloadTimestamps.entrySet().iterator()
-      while iter.hasNext do
-        val e = iter.next()
-        if e.getValue < oldestTs then
-          oldestTs = e.getValue
-          oldestKey = e.getKey
-      if oldestKey ne null then removePayloadEntry(oldestKey)
+      import scala.jdk.CollectionConverters.*
+      pendingPayloadTimestamps
+        .entrySet()
+        .asScala
+        .minByOption(_.getValue)
+        .foreach(e => removePayloadEntry(e.getKey))
   }
 
   /** Blocks that returned INVALID via newPayload. Maps blockHash → latestValidHash. forkchoiceUpdated should not accept

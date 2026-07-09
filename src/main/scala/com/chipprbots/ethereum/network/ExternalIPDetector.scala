@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.*
 import scala.util.Try
 import scala.util.Using
+import scala.util.control.NonFatal
 
 import org.jupnp.UpnpServiceImpl
 import org.jupnp.model.action.ActionInvocation
@@ -31,7 +32,7 @@ import org.jupnp.support.igd.callback.GetExternalIP
   * Mirrors the strategy used by core-geth (--nat=any: UPnP → STUN → HTTP) and Besu. Called once at startup when no
   * explicit advertised-address is configured.
   */
-object ExternalIPDetector:
+object ExternalIPDetector extends com.chipprbots.ethereum.utils.Logger:
 
   private val UpnpTimeoutMs = 3000
 
@@ -104,7 +105,12 @@ object ExternalIPDetector:
       Try(ipFuture.get(UpnpTimeoutMs, TimeUnit.MILLISECONDS)).toOption
     finally
       try upnpSvc.shutdown()
-      catch case _: Throwable => ()
+      catch
+        case NonFatal(e) =>
+          log.debug(
+            s"UPnP service shutdown failed (non-fatal, IP detection already complete): reason=${e.getMessage}",
+            e
+          )
   }.toOption.flatten.flatMap(ip => Try(InetAddress.getByName(ip)).toOption)
 
   // Step 2: RFC 5389 STUN Binding Request — fast UDP, typically <100ms on internet-connected hosts.

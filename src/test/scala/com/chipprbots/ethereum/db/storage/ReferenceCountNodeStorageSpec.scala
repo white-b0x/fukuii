@@ -43,6 +43,7 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers:
     val storage = new ReferenceCountNodeStorage(nodeStorage, bn = BlockNumber(1))
 
     val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(1, storage)
+    // Nil: insertRangeKeys(1, ...) above returns exactly 1 element (this file's TestSetup.insertRangeKeys, `(1 to n).map`).
     val (key1, val1) :: Nil = inserted.toList: @unchecked
 
     val storage2 = new ReferenceCountNodeStorage(nodeStorage, bn = BlockNumber(2))
@@ -76,6 +77,7 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers:
     val storage = new ReferenceCountNodeStorage(nodeStorage, bn = BlockNumber(1))
 
     val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(1, storage)
+    // Nil: insertRangeKeys(1, ...) above returns exactly 1 element (this file's TestSetup.insertRangeKeys, `(1 to n).map`).
     val (key1, val1) :: Nil = inserted.toList: @unchecked
 
     val storage2 = new ReferenceCountNodeStorage(nodeStorage, bn = BlockNumber(2))
@@ -102,6 +104,7 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers:
 
     val storage = new ReferenceCountNodeStorage(nodeStorage, bn = BlockNumber(1))
     val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage)
+    // Nil: insertRangeKeys(4, ...) above returns exactly 4 elements (this file's TestSetup.insertRangeKeys, `(1 to n).map`).
     val (key1, val1) :: (key2, val2) :: (key3, val3) :: (key4, _) :: Nil = inserted.toList: @unchecked
 
     storage.remove(key1) // remove key1 at block 1
@@ -140,6 +143,8 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers:
     val storage = new ReferenceCountNodeStorage(nodeStorage, bn = BlockNumber(1))
 
     val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage)
+    // ::: insertRangeKeys(4, ...) above returns exactly 4 elements (this file's TestSetup.insertRangeKeys, `(1 to n).map`) —
+    // at least the 2 bound here plus a tail.
     val (key1, val1) :: (key2, val2) :: _ = inserted.toList: @unchecked
 
     storage.remove(key1).remove(key2)
@@ -162,6 +167,8 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers:
     val storage = new ReferenceCountNodeStorage(nodeStorage, bn = BlockNumber(1))
 
     val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage)
+    // ::: insertRangeKeys(4, ...) above returns exactly 4 elements (this file's TestSetup.insertRangeKeys, `(1 to n).map`) —
+    // at least the 2 bound here plus a tail.
     val (key1, _) :: (key2, _) :: _ = inserted.toList: @unchecked
 
     storage.remove(key1).remove(key2)
@@ -196,6 +203,8 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers:
     val storage = new ReferenceCountNodeStorage(cachedNodeStorage, bn = BlockNumber(1))
 
     val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage)
+    // ::: insertRangeKeys(4, ...) above returns exactly 4 elements (this file's TestSetup.insertRangeKeys, `(1 to n).map`) —
+    // at least the 2 bound here plus a tail.
     val (key1, _) :: (key2, _) :: _ = inserted.toList: @unchecked
 
     storage.remove(key1).remove(key2)
@@ -262,6 +271,8 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers:
     val storage = new ReferenceCountNodeStorage(cachedNodeStorage, bn = BlockNumber(1))
 
     val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage)
+    // ::: insertRangeKeys(4, ...) above returns exactly 4 elements (this file's TestSetup.insertRangeKeys, `(1 to n).map`) —
+    // at least the 2 bound here plus a tail.
     val (key1, _) :: (key2, _) :: _ = inserted.toList: @unchecked
 
     storage.remove(key1).remove(key2)

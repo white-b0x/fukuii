@@ -88,10 +88,17 @@ class BlockFetcher(
       case Start(importer, fromBlock) =>
         log.debug("BlockFetcher starting from block {} with importer {}", fromBlock, importer)
         // messageAdapter typed at PeerEvent so the ref satisfies SubscribeCmd's TypedActorRef[PeerEvent] parameter.
-        // Only MessageFromPeer arrives here because the classifier filters to message codes only.
+        // Only MessageFromPeer arrives here because `sa` is subscribed exclusively via a
+        // MessageClassifier below — PeerEventBusActor.publish() routes other PeerEvent subtypes
+        // (PeerDisconnected, PeerHandshakeSuccessful, MaintainedPeersChanged) through a disjoint
+        // connectionSubscriptions registry that `sa` is never added to, so this can't fire in
+        // normal operation. Explicit catch-all (fail loudly, per PeersClient.scala/
+        // PeerRequestHandler.scala precedent) instead of relying on the implicit MatchError from
+        // a non-exhaustive partial function, and to keep this match total for the compiler.
         val sa: ActorRef[PeerEventBusActor.PeerEvent] =
-          context.messageAdapter[PeerEventBusActor.PeerEvent] { case MessageFromPeer(m, p) =>
-            AdaptedMessageFromEventBus(m, p)
+          context.messageAdapter[PeerEventBusActor.PeerEvent] {
+            case MessageFromPeer(m, p) => AdaptedMessageFromEventBus(m, p)
+            case e                     => throw new MatchError(s"unexpected PeerEvent from bus: $e")
           }
         peerEventBus ! SubscribeCmd(
           MessageClassifier(

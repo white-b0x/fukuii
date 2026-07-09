@@ -403,12 +403,6 @@ private class ByteCodeCoordinatorImpl(
               s"completed=$completedTaskCount workers=${workers.size}"
           )
         Behaviors.same
-
-      // Defensive: `Command` is non-sealed (cross-file constraint), so the compiler cannot prove
-      // exhaustiveness. No production sender emits an un-handled Command; treat any as unhandled.
-      case other =>
-        log.debug(s"ByteCodeCoordinator received unhandled command: $other")
-        Behaviors.unhandled
     }
     .receiveSignal { case (_, org.apache.pekko.actor.typed.PostStop) =>
       // Formerly `postStop`: the recurring status timer auto-cancels with the behavior.

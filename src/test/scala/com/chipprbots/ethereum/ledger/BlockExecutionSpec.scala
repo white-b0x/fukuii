@@ -228,6 +228,8 @@ class BlockExecutionSpec
 
         // Check valid receipts
         resultingReceipts.size shouldBe 1
+        // LegacyReceipt: validStxSignedByOrigin.tx is a LegacyTransaction fixture (LedgerTestSetup.validTx) —
+        // BlockPreparator.scala:578 routes `case _: LegacyTransaction => legacyReceipt` (unwrapped), never a typed receipt.
         val LegacyReceipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt) =
           resultingReceipts.head: @unchecked
         rootHashReceipt shouldBe HashOutcome(expectedStateRoot)
@@ -306,6 +308,9 @@ class BlockExecutionSpec
 
             // Check valid receipts
             resultingReceipts.size shouldBe 1
+            // LegacyReceipt: tx = validTx.copy(...) — validTx is a LegacyTransaction fixture (LedgerTestSetup.validTx),
+            // and .copy preserves the case-class type — BlockPreparator.scala:578 routes `case _: LegacyTransaction =>
+            // legacyReceipt` (unwrapped), never a typed receipt.
             val LegacyReceipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt) =
               resultingReceipts.head: @unchecked
             rootHashReceipt shouldBe HashOutcome(expectedStateRoot)
@@ -571,6 +576,9 @@ class BlockExecutionSpec
         )
         val expectedStateRootTx1 = applyChanges(validBlockParentHeader.stateRoot.value, changesTx1)
 
+        // LegacyReceipt: tx1 = validTx.copy(...) — validTx is a LegacyTransaction fixture (LedgerTestSetup.validTx),
+        // and .copy preserves the case-class type — BlockPreparator.scala:578 routes `case _: LegacyTransaction =>
+        // legacyReceipt` (unwrapped), never a typed receipt.
         val LegacyReceipt(rootHashReceipt1, gasUsedReceipt1, logsBloomFilterReceipt1, logsReceipt1) =
           receipt1: @unchecked
         rootHashReceipt1 shouldBe HashOutcome(expectedStateRootTx1)
@@ -587,6 +595,9 @@ class BlockExecutionSpec
         )
         val expectedStateRootTx2 = applyChanges(expectedStateRootTx1, changesTx2)
 
+        // LegacyReceipt: tx2 = validTx.copy(...) — validTx is a LegacyTransaction fixture (LedgerTestSetup.validTx),
+        // and .copy preserves the case-class type — BlockPreparator.scala:578 routes `case _: LegacyTransaction =>
+        // legacyReceipt` (unwrapped), never a typed receipt.
         val LegacyReceipt(rootHashReceipt2, gasUsedReceipt2, logsBloomFilterReceipt2, logsReceipt2) =
           receipt2: @unchecked
         rootHashReceipt2 shouldBe HashOutcome(expectedStateRootTx2)

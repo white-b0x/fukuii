@@ -39,6 +39,7 @@ class StructLogTracerSpec extends AnyFlatSpec with Matchers:
 
     result should not be JNothing
 
+    // JObject: StructLogTracer.getResult always builds a top-level JObject via `~` (StructLogTracer.scala:119-123).
     val JObject(fields) = result: @unchecked
     val fieldMap = fields.toMap
 
@@ -46,14 +47,18 @@ class StructLogTracerSpec extends AnyFlatSpec with Matchers:
     fieldMap("failed") shouldBe JBool(false)
     fieldMap("returnValue") shouldBe JString("0x2a")
 
+    // JArray: getResult's "structLogs" field is always JArray(...) (StructLogTracer.scala:123).
     val JArray(structLogs) = fieldMap("structLogs"): @unchecked
     structLogs should have size 1
 
+    // JObject: each structLogs element comes from encodeStructLog, which always returns a JObject via `~`
+    // (StructLogTracer.scala:125-139).
     val JObject(stepFields) = structLogs.head: @unchecked
     val stepMap = stepFields.toMap
     stepMap("op") shouldBe JString("ADD")
     stepMap("pc") shouldBe JInt(0)
     stepMap("depth") shouldBe JInt(1)
+    // JArray: encodeStructLog's "stack" field is always JArray(...) (StructLogTracer.scala:131).
     val JArray(stack) = stepMap("stack"): @unchecked
     // Stack.push(Seq(1, 2)) makes 2 the top-most element; toSeq (and thus the structLog) lists top-of-stack first.
     stack shouldBe List(JString("0x2"), JString("0x1"))
@@ -63,6 +68,7 @@ class StructLogTracerSpec extends AnyFlatSpec with Matchers:
 
     tracer.onTxEnd(gasUsed = GasAmount(50000), output = ByteString.empty, error = Some("execution reverted"))
 
+    // JObject: StructLogTracer.getResult always builds a top-level JObject via `~` (StructLogTracer.scala:119-123).
     val JObject(fields) = tracer.getResult: @unchecked
     val fieldMap = fields.toMap
 

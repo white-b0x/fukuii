@@ -504,6 +504,8 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
     forAll(stateGen) { stateIn =>
       val stateOut = op.execute(stateIn)
 
+      // Seq(offset, size, _*): Stack.pop(n) always returns a Seq of exactly n elements (Stack.scala:31-34), and
+      // LogOp.delta = i + 2 >= 2 (OpCode.scala:870), so pop(op.delta) always has at least 2 elements here.
       val (Seq(offset, size, _*), _) = stateIn.stack.pop(op.delta): @unchecked
       val memCost = config.calcMemCost(stateIn.memory.size, offset, size)
       val logCost = G_logdata * size + op.i * G_logtopic

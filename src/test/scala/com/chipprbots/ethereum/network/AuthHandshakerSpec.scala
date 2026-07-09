@@ -105,6 +105,9 @@ class AuthHandshakerSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
       encodedResponse.toArray
     )
 
+    // AuthHandshakeSuccess: encryptedResponse is encrypted with nodeKey's own public key and decrypted by
+    // authHandshaker (holder of nodeKey) — a self-consistent handshake, so handleResponseMessage
+    // (AuthHandshakeResult: sealed trait { AuthHandshakeError, AuthHandshakeSuccess }) never returns AuthHandshakeError here.
     val AuthHandshakeSuccess(secrets: Secrets, _) =
       authHandshaker.handleResponseMessage(ByteString(encryptedResponse)): @unchecked
 
@@ -122,6 +125,9 @@ class AuthHandshakerSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey, secureRandom)
 
     val (initPacket, thisHandshakerInitiated) = thisHandshaker.initiate(remoteUri)
+    // AuthHandshakeSuccess: initPacket is produced by thisHandshaker.initiate(remoteUri) against a matching
+    // remoteHandshaker key pair — a self-consistent handshake, so handleInitialMessageV4/handleResponseMessageV4
+    // (AuthHandshakeResult: sealed trait { AuthHandshakeError, AuthHandshakeSuccess }) never return AuthHandshakeError here.
     val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets, _)) =
       remoteHandshaker.handleInitialMessageV4(initPacket): @unchecked
     val AuthHandshakeSuccess(thisSecrets: Secrets, _) =

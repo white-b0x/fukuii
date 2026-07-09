@@ -116,10 +116,9 @@ class EngineApiController(
               )
             )
           case Right(decodedPayload) =>
-            var payload = decodedPayload
-            val hasWithdrawals = payload.withdrawals.isDefined
+            val hasWithdrawals = decodedPayload.withdrawals.isDefined
             val blockchainConfig = com.chipprbots.ethereum.utils.Config.blockchains.blockchainConfig
-            val payloadTimestamp = payload.timestamp
+            val payloadTimestamp = decodedPayload.timestamp
             val isShanghaiPayload = blockchainConfig.isShanghaiTimestamp(payloadTimestamp)
             val isCancunPayload = blockchainConfig.isCancunTimestamp(payloadTimestamp)
             val isPraguePayload = blockchainConfig.isPragueTimestamp(payloadTimestamp)
@@ -142,7 +141,7 @@ class EngineApiController(
             //     (the CL sent a valid Cancun-shape payload to the wrong fork)
             //   - at least one Cancun field is nil → -32602 (params shape wrong for method)
             val hasAllCancunFields =
-              payload.blobGasUsed.isDefined && payload.excessBlobGas.isDefined
+              decodedPayload.blobGasUsed.isDefined && decodedPayload.excessBlobGas.isDefined
             val versionError: Option[(Int, String)] = version match
               // V4 is valid only for Prague and Osaka payloads (go-ethereum: checkFork(Prague,
               // Osaka, BPO1-5)).  When Amsterdam is later defined, add a prior guard:
@@ -190,22 +189,32 @@ class EngineApiController(
               // Previously we skipped params[1] entirely, which silently dropped the EIP-4844
               // versioned-hash check the CL relies on — every "NewPayloadV3 Versioned Hashes"
               // hive test passed the payload regardless of what the CL claimed to have seen.
-              if version >= 3 then
-                val expectedBlobVersionedHashes = params.lift(1).collect { case JArray(items) =>
-                  items.collect { case JString(hex) => hexToByteString(hex) }
-                }
-                val parentBeaconBlockRoot = params.lift(2).collect { case JString(hex) => hexToByteString(hex) }
-                payload = payload.copy(
-                  expectedBlobVersionedHashes = expectedBlobVersionedHashes,
-                  parentBeaconBlockRoot = parentBeaconBlockRoot
-                )
+              //
+              // The V3 layer (EIP-4844 versioned hashes + EIP-4788 parent beacon block root) is
+              // applied first, then the V4 layer (EIP-7685 execution requests) on top of the
+              // result. version >= 4 implies version >= 3, so the V4 copy always builds on the
+              // already-V3-layered payload. Ordering is consensus-critical: dropping or
+              // reordering a layer silently omits EIP-4844/4788/7685 fields for Prague/Osaka.
+              val withBlobParams =
+                if version >= 3 then
+                  val expectedBlobVersionedHashes = params.lift(1).collect { case JArray(items) =>
+                    items.collect { case JString(hex) => hexToByteString(hex) }
+                  }
+                  val parentBeaconBlockRoot = params.lift(2).collect { case JString(hex) => hexToByteString(hex) }
+                  decodedPayload.copy(
+                    expectedBlobVersionedHashes = expectedBlobVersionedHashes,
+                    parentBeaconBlockRoot = parentBeaconBlockRoot
+                  )
+                else decodedPayload
 
               // V4: fourth param is executionRequests (EIP-7685)
-              if version >= 4 then
-                val executionRequests = params.lift(3).collect { case JArray(items) =>
-                  items.collect { case JString(hex) => hexToByteString(hex) }
-                }
-                payload = payload.copy(executionRequests = executionRequests)
+              val payload =
+                if version >= 4 then
+                  val executionRequests = params.lift(3).collect { case JArray(items) =>
+                    items.collect { case JString(hex) => hexToByteString(hex) }
+                  }
+                  withBlobParams.copy(executionRequests = executionRequests)
+                else withBlobParams
 
               // validateRequests: reject entries with no type prefix or non-strictly-ascending
               // type bytes. Matches go-ethereum catalyst/api.go:1257. Only applicable Prague+.

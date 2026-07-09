@@ -112,6 +112,8 @@ class DebugTracingServiceSpec
       // Regression guard for STRUCTLOG-01: the default (structLogger) tracer used to always return JNothing.
       val response: JValue = result.getOrElse(fail("expected Right")).result
       response should not be JNothing
+      // JObject: response is tracer.getResult from the default StructLogTracer (no tracer name in the request),
+      // whose getResult always builds a top-level JObject via `~` (StructLogTracer.scala:119-123).
       val JObject(fields) = response: @unchecked
       val fieldMap = fields.toMap
       fieldMap("gas") shouldBe JInt(21123)

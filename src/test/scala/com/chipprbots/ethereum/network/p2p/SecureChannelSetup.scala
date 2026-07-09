@@ -32,6 +32,9 @@ trait SecureChannelSetup extends SecureRandomBuilder:
   val remoteHandshaker: AuthHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey, secureRandom)
 
   val (initPacket, handshakerInitiated) = handshaker.initiate(remoteUri)
+  // AuthHandshakeSuccess: initPacket is produced by handshaker.initiate(remoteUri) against a matching
+  // remoteHandshaker key pair — a self-consistent handshake, so handleInitialMessageV4/handleResponseMessageV4
+  // (AuthHandshakeResult: sealed trait { AuthHandshakeError, AuthHandshakeSuccess }) never return AuthHandshakeError here.
   val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets, _)) =
     remoteHandshaker.handleInitialMessageV4(initPacket): @unchecked
   val AuthHandshakeSuccess(secrets: Secrets, _) =

@@ -685,6 +685,8 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
       val stateOut = executeOp(op, stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
+        // Seq(offset, size, topics*): Stack.pop(n) always returns a Seq of exactly n elements (Stack.scala:31-34),
+        // and LogOp.delta = i + 2 >= 2 (OpCode.scala:870), so pop(op.delta) always has at least 2 elements here.
         val (Seq(offset, size, topics*), stack1) = stateIn.stack.pop(op.delta): @unchecked
         val (data, mem1) = stateIn.memory.load(offset, size)
         val logEntry = TxLogEntry(stateIn.env.ownerAddr, topics.map(_.bytes), data)

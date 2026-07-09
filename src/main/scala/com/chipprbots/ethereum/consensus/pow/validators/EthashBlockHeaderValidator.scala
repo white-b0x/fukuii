@@ -38,19 +38,17 @@ object EthashBlockHeaderValidator:
     import EthashUtils.*
 
     def getPowCacheData(epoch: Long, seed: ByteString): PowCacheData =
-      var result: PowCacheData = null
-      powCaches.updateAndGet { cache =>
+      val updatedCaches = powCaches.updateAndGet { cache =>
         cache.find(_.epoch == epoch) match
-          case Some(pcd) =>
-            result = pcd
-            cache
+          case Some(_) => cache
           case None =>
             val data =
               PowCacheData(epoch, cache = EthashUtils.makeCache(epoch, seed), dagSize = EthashUtils.dagSize(epoch))
-            result = data
             (data :: cache).take(MaxPowCaches)
       }
-      result
+      // The winning CAS either found `epoch` already present or prepended it (head survives
+      // `take(MaxPowCaches)` since MaxPowCaches >= 1), so this lookup is total by construction.
+      updatedCaches.find(_.epoch == epoch).get
 
     val epoch =
       EthashUtils.epoch(blockHeader.number.toLong, blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)

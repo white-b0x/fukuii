@@ -207,7 +207,9 @@ class EngineApiHttpServer(
   /** Synchronous shutdown convenience for shutdown hooks that don't have an ec available. */
   def stopSync(timeout: FiniteDuration = 10.seconds): Unit =
     try Await.result(stop(), timeout)
-    catch case _: Exception => ()
+    catch
+      case e: Exception =>
+        log.warn(s"Engine API server stopSync failed: reason=${e.getMessage} timeout=${timeout}", e)
 
 object EngineApiHttpServer:
   case class Config(
