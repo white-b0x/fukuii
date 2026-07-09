@@ -1,7 +1,5 @@
 package com.chipprbots.ethereum.consensus.pow.miners
 
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-
 import cats.effect.IO
 
 import scala.concurrent.duration.*
@@ -33,7 +31,6 @@ import com.chipprbots.ethereum.jsonrpc.EthMiningService
 import com.chipprbots.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
 import com.chipprbots.ethereum.testing.Tags.*
-import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
 // SCALA 3 MIGRATION: Fixed by refactoring MinerSpecSetup to use abstract mock members pattern.
@@ -101,10 +98,10 @@ class EthashMinerSpec extends AnyFlatSpec with Matchers with org.scalamock.scala
     val coinbaseProvider = new CoinbaseProvider(miningConfig.coinbase)
 
     override lazy val blockCreator = new PoWBlockCreator(
-      pendingTransactionsManager = pendingTransactionsManager.ref.toTyped[PendingTransactionsManager.Command],
+      pendingTransactionsManager = pendingTransactionsManager,
       getTransactionFromPoolTimeout = getTransactionFromPoolTimeout,
       mining = mining,
-      ommersPool = ommersPool.ref.toTyped[com.chipprbots.ethereum.ommers.OmmersPool.Command],
+      ommersPool = ommersPool,
       coinbaseProvider = coinbaseProvider,
       system = classicSystem
     )

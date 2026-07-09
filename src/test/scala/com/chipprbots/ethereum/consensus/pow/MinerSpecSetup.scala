@@ -1,11 +1,11 @@
 package com.chipprbots.ethereum.consensus.pow
 
-import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem as ClassicSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
+import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
+import org.apache.pekko.actor.typed.Behavior
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestActor
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import cats.effect.IO
@@ -80,10 +80,36 @@ trait MinerSpecSetup
   implicit val runtime: IORuntime = IORuntime.global
   lazy val parentActor: TypedTestProbe[MockedMiner.MockedMinerResponse] = TypedTestProbe()
   lazy val sync: TypedTestProbe[SyncController.Command] = TypedTestProbe()
-  // NOT converted to a typed TestProbe: prepareMocks() installs AutoPilots answering GetOmmers /
-  // GetPendingTransactionsReq on these two probes, and Typed TestProbe has no AutoPilot hook.
-  lazy val ommersPool: TestProbe = TestProbe()(classicSystem)
-  lazy val pendingTransactionsManager: TestProbe = TestProbe()(classicSystem)
+
+  // Spawn a Typed mock actor. The default spawns a top-level actor via the Classic adapter,
+  // which is correct for a plain (non-testkit) ActorSystem. Testkit-backed subclasses MUST
+  // override this to route through testKit.spawn, since a testkit ActorSystem rejects
+  // top-level spawns from outside its guardian.
+  protected def spawnMock[T](behavior: Behavior[T], name: String): TypedActorRef[T] =
+    classicSystem.spawn(behavior, name)
+
+  // Typed mock actors that auto-reply to GetOmmers / GetPendingTransactionsReq via the
+  // message's replyTo field (replaces the former Classic TestProbe + AutoPilot).
+  lazy val ommersPool: TypedActorRef[OmmersPool.Command] =
+    spawnMock(
+      Behaviors.receiveMessage[OmmersPool.Command] {
+        case OmmersPool.GetOmmers(_, replyTo) =>
+          replyTo ! OmmersPool.Ommers(Nil)
+          Behaviors.same
+        case _ => Behaviors.same
+      },
+      s"ommersPool-mock-${java.util.UUID.randomUUID()}"
+    )
+  lazy val pendingTransactionsManager: TypedActorRef[PendingTransactionsManager.Command] =
+    spawnMock(
+      Behaviors.receiveMessage[PendingTransactionsManager.Command] {
+        case PendingTransactionsManager.GetPendingTransactionsReq(replyTo) =>
+          replyTo ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
+          Behaviors.same
+        case _ => Behaviors.same
+      },
+      s"pendingTxManager-mock-${java.util.UUID.randomUUID()}"
+    )
 
   val origin: Block = Block(Fixtures.Blocks.Genesis.header, Fixtures.Blocks.Genesis.body)
 
@@ -247,21 +273,10 @@ trait MinerSpecSetup
 
   protected def prepareMocks(): Unit =
     setupMiningServiceExpectation()
-
-    ommersPool.setAutoPilot { (_: ActorRef, msg: Any) =>
-      msg match
-        case OmmersPool.GetOmmers(_, replyTo) => replyTo ! OmmersPool.Ommers(Nil)
-        case _                                => ()
-      TestActor.KeepRunning
-    }
-
-    pendingTransactionsManager.setAutoPilot { (_: ActorRef, msg: Any) =>
-      msg match
-        case PendingTransactionsManager.GetPendingTransactionsReq(replyTo) =>
-          replyTo ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
-        case _ => ()
-      TestActor.KeepRunning
-    }
+    // ommersPool / pendingTransactionsManager are auto-replying Typed mock actors (see above);
+    // forcing them here ensures they are spawned before the miner starts requesting from them.
+    val _ = ommersPool
+    val _ = pendingTransactionsManager
 
   protected def waitForMinedBlock(implicit timeout: Duration): Block =
     // ROOT-c: miners now wrap mined-block sends in SyncController.WrappedSyncProtocol so they survive SyncController's

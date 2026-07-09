@@ -43,9 +43,7 @@ import com.chipprbots.ethereum.jsonrpc.ProofService.StorageValueProof
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
-import com.chipprbots.ethereum.ommers.OmmersPool
 import com.chipprbots.ethereum.ommers.OmmersPool.Ommers
-import com.chipprbots.ethereum.testing.ActorsTesting.syncStatusAutoPilot
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 
@@ -89,9 +87,7 @@ class JsonRpcControllerEthSpec
     response should haveStringResult(s"0xa")
 
   it should "eth_syncing" taggedAs (UnitTest, RPCTest) in new JsonRpcControllerFixture:
-    syncingController.setAutoPilot(
-      syncStatusAutoPilot(SyncProtocol.Status.Syncing(999, Progress(200, 10000), Some(Progress(100, 144))))
-    )
+    setSyncStatus(SyncProtocol.Status.Syncing(999, Progress(200, 10000), Some(Progress(100, 144))))
 
     val rpcRequest: JsonRpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
 
@@ -259,20 +255,9 @@ class JsonRpcControllerEthSpec
       PendingBlockAndState(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil), fakeWorld)
     )
 
-    // Set up AutoPilot to respond immediately when messages are received
-    pendingTransactionsManager.setAutoPilot(
-      com.chipprbots.ethereum.testing.ActorsTesting
-        .ptmAutoPilot(PendingTransactionsManager.PendingTransactionsResponse(Nil))
-    )
-
-    ommersPool.setAutoPilot(
-      new org.apache.pekko.testkit.TestActor.AutoPilot:
-        def run(sender: org.apache.pekko.actor.ActorRef, msg: Any): org.apache.pekko.testkit.TestActor.AutoPilot =
-          msg match
-            case OmmersPool.GetOmmers(_, replyTo) => replyTo ! Ommers(Nil)
-            case _                                => ()
-          org.apache.pekko.testkit.TestActor.KeepRunning
-    )
+    // Configure the fixture's Typed mocks to respond immediately.
+    setPendingTxResponse(PendingTransactionsManager.PendingTransactionsResponse(Nil))
+    setOmmers(Ommers(Nil))
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_getWork")
 
@@ -306,7 +291,7 @@ class JsonRpcControllerEthSpec
       PendingBlockAndState(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil), fakeWorld)
     )
 
-    // Don't set up AutoPilot - let the actors timeout and verify error handling returns empty lists
+    // Don't configure the fixture mocks - let the actors timeout and verify error handling returns empty lists
     val request: JsonRpcRequest = newJsonRpcRequest("eth_getWork")
 
     val response: JsonRpcResponse = jsonRpcController.handleRequest(request).unsafeRunSync()

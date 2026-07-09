@@ -7,8 +7,6 @@ import org.apache.pekko.actor.testkit.typed.scaladsl.LoggingTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe as TypedTestProbe
 import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
-import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -37,6 +35,7 @@ import com.chipprbots.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.Wait
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.TrieRoot
 import com.chipprbots.ethereum.mpt.MerklePatriciaTrie
+import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.Peer
 import com.chipprbots.ethereum.network.PeerActor
 import com.chipprbots.ethereum.network.PeerEventBusActor
@@ -117,7 +116,8 @@ class SyncStateSchedulerActorSpec extends ScalaTestWithActorTestKit() with AnyFl
       syncRetryInterval = 30.seconds
     )
 
-    val networkPeerManager: TestProbe = TestProbe()
+    val networkPeerManager: TypedTestProbe[NetworkPeerManagerActor.Command] =
+      testKit.createTestProbe[NetworkPeerManagerActor.Command]()
     val syncInitResponse: TypedTestProbe[SyncStateSchedulerActorResponse] =
       testKit.createTestProbe[SyncStateSchedulerActorResponse]()
     val syncInitStats: TypedTestProbe[StateSyncStats] = testKit.createTestProbe[StateSyncStats]()

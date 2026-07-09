@@ -42,6 +42,14 @@ class NetworkPeerManagerFake(
   private val requestsTopic: Topic[IO, SendMessageCmd] = requestsTopicIO.unsafeRunSync()
   private val peersConnectedDeferred = Deferred.unsafe[IO, Unit]
 
+  // FIXABLE via event-bus delivery (fa16aeaf9/3b8b07f67 precedent) — deferred to MOD-09, NOT a
+  // permanent boundary; E165 stays visible, do not suppress. The AutoPilot below replies to
+  // SendMessageCmd via Classic sender(), but production never returns a reply on SendMessageCmd
+  // (it is fire-and-forget); the peer response arrives via the PeerEventBus (PeerRequestHandler
+  // subscribes and receives MessageFromPeer). The faithful fix spawns a real PeerEventBusActor and
+  // delivers via PublishCmd — the same mechanism IP-STATESYNC-01/SYNCCONTROLLERSPEC-REDO-01 used.
+  // (The GetHandshakedPeersCmd branch already uses a real replyTo and needs no change; it shares
+  // this single probe/AutoPilot, so the fixture is migrated as a whole under MOD-09.)
   val probe: TestProbe = TestProbe("network_peer_manager")
   val autoPilot =
     new NetworkPeerManagerFake.NetworkPeerManagerAutoPilot(

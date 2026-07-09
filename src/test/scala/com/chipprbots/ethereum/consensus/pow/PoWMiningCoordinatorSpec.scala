@@ -1,12 +1,10 @@
 package com.chipprbots.ethereum.consensus.pow
 
-import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem as ClassicSystem
 import org.apache.pekko.actor.testkit.typed.scaladsl.LoggingTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.typed
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestActor
 import org.apache.pekko.util.ByteString
 
 import cats.effect.IO
@@ -39,9 +37,7 @@ import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.jsonrpc.EthMiningService
 import com.chipprbots.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
-import com.chipprbots.ethereum.ommers.OmmersPool
 import com.chipprbots.ethereum.testing.Tags.*
-import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
 // SCALA 3 MIGRATION: Fixed by refactoring MinerSpecSetup to use abstract mock members pattern.
@@ -216,6 +212,14 @@ class PoWMiningCoordinatorSpec
     // This prevents actor system conflicts between the test kit and MinerSpecSetup.
     implicit override def classicSystem: ClassicSystem = PoWMiningCoordinatorSpec.this.system.toClassic
 
+    // A testkit ActorSystem rejects top-level spawns from outside its guardian, so route the
+    // fixture's mock actors through testKit.spawn.
+    override protected def spawnMock[T](
+        behavior: org.apache.pekko.actor.typed.Behavior[T],
+        name: String
+    ): org.apache.pekko.actor.typed.ActorRef[T] =
+      testKit.spawn(behavior, name)
+
     // Implement abstract mock members - created in test class with MockFactory context
     override lazy val mockBlockchainReader: BlockchainReader = mock[BlockchainReader]
     override lazy val mockBlockchain: BlockchainImpl = mock[BlockchainImpl]
@@ -245,10 +249,10 @@ class PoWMiningCoordinatorSpec
     val coinbaseProvider = new CoinbaseProvider(miningConfig.coinbase)
 
     override lazy val blockCreator = new PoWBlockCreator(
-      pendingTransactionsManager = pendingTransactionsManager.ref.toTyped[PendingTransactionsManager.Command],
+      pendingTransactionsManager = pendingTransactionsManager,
       getTransactionFromPoolTimeout = getTransactionFromPoolTimeout,
       mining = mining,
-      ommersPool = ommersPool.ref.toTyped[com.chipprbots.ethereum.ommers.OmmersPool.Command],
+      ommersPool = ommersPool,
       coinbaseProvider = coinbaseProvider,
       system = classicSystem
     )
@@ -321,14 +325,7 @@ class PoWMiningCoordinatorSpec
       .returns(IO.pure(Right(SubmitHashRateResponse(true))))
       .anyNumberOfTimes()
 
-    ommersPool.setAutoPilot { (_: ActorRef, msg: Any) =>
-      msg match
-        case OmmersPool.GetOmmers(_, replyTo) => replyTo ! OmmersPool.Ommers(Nil)
-        case _                                => ()
-      TestActor.KeepRunning
-    }
-
-    pendingTransactionsManager.setAutoPilot { (sender: ActorRef, _: Any) =>
-      sender ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
-      TestActor.KeepRunning
-    }
+    // ommersPool / pendingTransactionsManager are auto-replying Typed mock actors (defined in
+    // MinerSpecSetup); forcing them here spawns them before the coordinator starts mining.
+    val _ = ommersPool
+    val _ = pendingTransactionsManager

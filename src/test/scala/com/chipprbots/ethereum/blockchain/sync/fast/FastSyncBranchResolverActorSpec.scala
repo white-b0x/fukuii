@@ -298,8 +298,14 @@ class FastSyncBranchResolverActorSpec
         blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(TotalDifficulty(1)), saveAsBestBlock = true)
       )
 
-    // NOT converted to a typed TestProbe: NetworkPeerManagerAutoPilot is installed on this probe
-    // below, and Typed TestProbe has no AutoPilot hook.
+    // FIXABLE via event-bus delivery (fa16aeaf9/3b8b07f67 precedent) — deferred to MOD-09, NOT a
+    // permanent boundary; E165 stays visible, do not suppress. The NetworkPeerManagerAutoPilot below
+    // replies to SendMessageCmd via Classic sender(), but production never returns a reply on
+    // SendMessageCmd (it is fire-and-forget): FastSyncBranchResolverActor spawns the production
+    // PeerRequestHandler, which reads peer responses only from the PeerEventBus (SubscribeCmd →
+    // MessageFromPeer). The faithful fix spawns a real PeerEventBusActor and delivers via PublishCmd,
+    // the same mechanism IP-STATESYNC-01/SYNCCONTROLLERSPEC-REDO-01 used. (Typed TestProbe has no
+    // AutoPilot hook, so the fixture keeps a Classic probe only until MOD-09 lands.)
     def createNetworkPeerManager(peers: Map[Peer, PeerInfo], blocks: Map[Int, List[Block]])(implicit
         ioRuntime: IORuntime
     ): ActorRef =

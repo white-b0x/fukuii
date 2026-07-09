@@ -5,7 +5,6 @@ import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.apache.pekko.actor.typed
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
-import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
 
 import scala.concurrent.duration.*
@@ -21,6 +20,7 @@ import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.Timeouts
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import com.chipprbots.ethereum.blockchain.sync.SyncController
+import com.chipprbots.ethereum.blockchain.sync.SyncProtocol
 import com.chipprbots.ethereum.consensus.blocks.BlockTimestampProvider
 import com.chipprbots.ethereum.consensus.blocks.DefaultBlockTimestampProvider
 import com.chipprbots.ethereum.consensus.blocks.PendingBlock
@@ -51,6 +51,7 @@ import com.chipprbots.ethereum.network.PeerManagerActor
 import com.chipprbots.ethereum.network.p2p.messages.Capability
 import com.chipprbots.ethereum.nodebuilder.ApisBuilder
 import com.chipprbots.ethereum.ommers.OmmersPool
+import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.utils.FilterConfig
@@ -143,9 +144,20 @@ class JsonRpcControllerFixture(implicit
 
   val blockGenerator: StubPoWBlockGenerator = new StubPoWBlockGenerator
 
-  // NOT converted to a typed TestProbe: JsonRpcControllerEthSpec.scala installs an AutoPilot
-  // (syncStatusAutoPilot) on this probe, and Typed TestProbe has no AutoPilot hook.
-  val syncingController: TestProbe = TestProbe()
+  // Configurable Typed mock for the SyncController stub. Replies to GetStatus with the status set
+  // via `setSyncStatus`; when none is set it stays silent, so actor-timeout-path tests still work.
+  private val syncStatusResponse =
+    new java.util.concurrent.atomic.AtomicReference[Option[SyncProtocol.Status]](None)
+  val syncingController: typed.ActorRef[SyncController.Command] =
+    actorTestKit.spawn(
+      Behaviors.receiveMessage[SyncController.Command] {
+        case SyncController.WrappedSyncProtocol(gs: SyncProtocol.GetStatus) =>
+          syncStatusResponse.get.foreach(gs.replyTo ! _)
+          Behaviors.same
+        case _ => Behaviors.same
+      }
+    )
+  def setSyncStatus(status: SyncProtocol.Status): Unit = syncStatusResponse.set(Some(status))
 
   override lazy val stxLedger: StxLedger = mock[StxLedger]
   override lazy val validators: ValidatorsExecutor =
@@ -162,11 +174,36 @@ class JsonRpcControllerFixture(implicit
 
   val keyStore: KeyStore = mock[KeyStore]
 
-  // NOT converted to typed TestProbes: JsonRpcControllerEthSpec.scala installs AutoPilots
-  // (ptmAutoPilot / a GetOmmers AutoPilot) on these two probes, and Typed TestProbe has no
-  // AutoPilot hook.
-  val pendingTransactionsManager: TestProbe = TestProbe()
-  val ommersPool: TestProbe = TestProbe()
+  // Configurable Typed mocks. Each replies only when a response is set via its setter below, so
+  // tests exercising the actor-timeout path can simply leave them unset.
+  private val pendingTxResponse =
+    new java.util.concurrent.atomic.AtomicReference[Option[PendingTransactionsManager.PendingTransactionsResponse]](
+      None
+    )
+  val pendingTransactionsManager: typed.ActorRef[PendingTransactionsManager.Command] =
+    actorTestKit.spawn(
+      Behaviors.receiveMessage[PendingTransactionsManager.Command] {
+        case PendingTransactionsManager.GetPendingTransactionsReq(replyTo) =>
+          pendingTxResponse.get.foreach(replyTo ! _)
+          Behaviors.same
+        case _ => Behaviors.same
+      }
+    )
+  def setPendingTxResponse(response: PendingTransactionsManager.PendingTransactionsResponse): Unit =
+    pendingTxResponse.set(Some(response))
+
+  private val ommersResponse =
+    new java.util.concurrent.atomic.AtomicReference[Option[OmmersPool.Ommers]](None)
+  val ommersPool: typed.ActorRef[OmmersPool.Command] =
+    actorTestKit.spawn(
+      Behaviors.receiveMessage[OmmersPool.Command] {
+        case OmmersPool.GetOmmers(_, replyTo) =>
+          ommersResponse.get.foreach(replyTo ! _)
+          Behaviors.same
+        case _ => Behaviors.same
+      }
+    )
+  def setOmmers(ommers: OmmersPool.Ommers): Unit = ommersResponse.set(Some(ommers))
   val filterManager: org.apache.pekko.actor.typed.ActorRef[FilterManager.Command] =
     actorTestKit.spawn(Behaviors.ignore[FilterManager.Command])
 
@@ -191,7 +228,7 @@ class JsonRpcControllerFixture(implicit
     mining,
     stxLedger,
     keyStore,
-    syncingController.ref.toTyped[SyncController.Command],
+    syncingController,
     Capability.ETH63,
     Timeouts.shortTimeout,
     system.toTyped.scheduler
@@ -203,10 +240,9 @@ class JsonRpcControllerFixture(implicit
     blockchainReader,
     mining,
     config,
-    ommersPool.ref.toTyped[OmmersPool.Command],
-    syncingController.ref.toTyped[SyncController.Command],
-    pendingTransactionsManager.ref
-      .toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+    ommersPool,
+    syncingController,
+    pendingTransactionsManager,
     getTransactionFromPoolTimeout,
     this,
     coinbaseProvider,
@@ -219,8 +255,7 @@ class JsonRpcControllerFixture(implicit
     blockchain,
     blockchainReader,
     mining,
-    pendingTransactionsManager.ref
-      .toTyped[com.chipprbots.ethereum.transactions.PendingTransactionsManager.Command],
+    pendingTransactionsManager,
     getTransactionFromPoolTimeout,
     storagesInstance.storages.transactionMappingStorage,
     system.toTyped.scheduler

@@ -921,9 +921,12 @@ class PivotBlockSelectorSpec
       unsubCmds.toSet shouldEqual unsubClassifiers.toSet
       subCmds.toSet shouldEqual Set(nextSub)
 
-    // NOT converted to typed TestProbes: both rely on Classic TestProbe's `.ignoreMsg` filter
-    // (silently drop matching messages before they ever reach the mailbox), which Typed TestProbe
-    // has no equivalent for.
+    // NOT converted to typed TestProbes: both rely on Classic TestProbe's probe-level `.ignoreMsg`
+    // filter (silently drop matching messages before they reach the mailbox), which Typed TestProbe
+    // has no equivalent for. A Typed migration is possible but non-trivial — the ignore filter is
+    // woven through ~35 receive/expectNoMessage sites on these two probes, each of which would need
+    // a fishForMessage-skip-ignored wrapper plus a non-throwing "expect no non-ignored message"
+    // primitive. Deferred to a dedicated follow-up (TESTKIT-TYPED-MIGRATION-01, Wave B report).
     val networkPeerManager: TestProbe = TestProbe()
     networkPeerManager.ignoreMsg {
       case NetworkPeerManagerActor.SendMessageCmd(msg, _) if isNewBlock(msg.underlyingMsg) => true
