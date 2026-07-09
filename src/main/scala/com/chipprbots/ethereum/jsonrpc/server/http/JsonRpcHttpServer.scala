@@ -41,6 +41,7 @@ trait JsonRpcHttpServer extends Json4sSupport with Logger:
   val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
   val config: JsonRpcHttpServerConfig
+  def actorSystem: ActorSystem
 
   /** Optional GraphQL endpoint, mounted at `POST /graphql` when defined. */
   val graphQLService: Option[GraphQLService] = None
@@ -55,7 +56,8 @@ trait JsonRpcHttpServer extends Json4sSupport with Logger:
   lazy val jsonRpcErrorCodes: List[Int] =
     List(JsonRpcError.InvalidRequest.code, JsonRpcError.ParseError.code, JsonRpcError.InvalidParams().code)
 
-  val corsSettings: CorsSettings = (CorsSettings.defaultSettings: @annotation.nowarn("cat=deprecation"))
+  val corsSettings: CorsSettings = CorsSettings
+    .default(actorSystem)
     .withAllowGenericHttpRequests(true)
     .withAllowedOrigins(corsAllowedOrigins)
 

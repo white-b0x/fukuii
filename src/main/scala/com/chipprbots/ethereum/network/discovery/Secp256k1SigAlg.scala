@@ -177,7 +177,7 @@ class Secp256k1SigAlg extends SigAlg with SecureRandomBuilder:
       case SignatureWithoutRecoveryBytesSize =>
         val signatureBytes = signature.value.toByteArray
         // Try all allowed points signs.
-        (ECDSASignature.allowedPointSigns.toIterable: @annotation.nowarn("cat=deprecation")).map { v =>
+        ECDSASignature.allowedPointSigns.map { v =>
           toECDSASignature(signatureBytes :+ v)
         }
 

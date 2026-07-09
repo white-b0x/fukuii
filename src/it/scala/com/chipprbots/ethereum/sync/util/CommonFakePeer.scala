@@ -151,6 +151,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     system.actorOf(
       org.apache.pekko.actor.Props(
         new org.apache.pekko.actor.Actor:
+          // Classic Actor.receive is PartialFunction[Any, Unit]; matching Command off Any has no
+          // Typed equivalent at this Classic->Typed forwarding shim. Permanent Classic boundary (test infra).
           @annotation.nowarn("msg=Matchable")
           def receive: Receive = { case cmd: KnownNodesManager.Command =>
             knownNodesManagerTyped ! cmd

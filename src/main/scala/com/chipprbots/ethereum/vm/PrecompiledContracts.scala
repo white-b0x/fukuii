@@ -253,10 +253,10 @@ object PrecompiledContracts:
         val expLength = getLength(context.inputData, 1)
         val modLength = getLength(context.inputData, 2)
         if baseLength > maxOperandLength || expLength > maxOperandLength || modLength > maxOperandLength then
-          // DEFER: nested guard inside the EIP-7823 (Unit-typed) validation block; the method
-          // value (ProgramResult / MODEXP output) is produced below. An expression rewrite would
-          // require restructuring the validation into a separate boolean and is byte-level risky
-          // for a precompile result that feeds state. Keep the short-circuit.
+          // EIP-7823 bounds check: any operand length above maxOperandLength (1024 bytes) makes the
+          // MODEXP input invalid, so the precompile must fail here and produce no output. This
+          // short-circuit returns the failing ProgramResult directly rather than falling through to
+          // the gas/output computation below, which assumes in-bounds operands.
           return ProgramResult( // scalafix:ok DisableSyntax.return
             ByteString.empty,
             GasAmount.Zero,
@@ -589,8 +589,9 @@ object PrecompiledContracts:
     */
   private def blsNativeOp(opByte: Byte, inputData: ByteString): Option[ByteString] =
     import org.hyperledger.besu.nativelib.bls12_381.LibEthPairings
-    // DEFER: guard in the BLS12-381 native precompile path (crypto primitive). Keep the
-    // short-circuit; an expression rewrite is byte-level risky for consensus crypto.
+    // The Besu BLS12-381 native library is unavailable on some platforms; when it is not loaded,
+    // ENABLED is false and no BLS operation can be performed. Fail closed by returning None (precompile
+    // error) rather than calling into the unloaded library.
     if !LibEthPairings.ENABLED then return None // scalafix:ok DisableSyntax.return
     try
       val resultBuf = new Array[Byte](LibEthPairings.EIP2537_PREALLOCATE_FOR_RESULT_BYTES)

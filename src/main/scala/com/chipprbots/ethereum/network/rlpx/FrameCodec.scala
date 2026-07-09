@@ -7,6 +7,7 @@ import org.apache.pekko.util.ByteString
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 
+import org.bouncycastle.crypto.BlockCipher
 import org.bouncycastle.crypto.StreamCipher
 import org.bouncycastle.crypto.digests.KeccakDigest
 import org.bouncycastle.crypto.engines.AESEngine
@@ -32,13 +33,13 @@ class FrameCodec(private val secrets: Secrets) extends Logger:
 
   // needs to be lazy to enable mocking
   private lazy val enc: StreamCipher =
-    val cipher = new SICBlockCipher(new AESEngine): @annotation.nowarn("cat=deprecation")
+    val cipher = SICBlockCipher.newInstance(AESEngine.newInstance())
     cipher.init(true, new ParametersWithIV(new KeyParameter(secrets.aes), allZerosIV))
     cipher
 
   // needs to be lazy to enable mocking
   private lazy val dec: StreamCipher =
-    val cipher = new SICBlockCipher(new AESEngine): @annotation.nowarn("cat=deprecation")
+    val cipher = SICBlockCipher.newInstance(AESEngine.newInstance())
     cipher.init(false, new ParametersWithIV(new KeyParameter(secrets.aes), allZerosIV))
     cipher
 
@@ -248,8 +249,8 @@ class FrameCodec(private val secrets: Secrets) extends Logger:
     updateMac(secrets.egressMac, macBuffer, 0, macBuffer, 0, egress = true)
     ByteString(macBuffer.take(16))
 
-  private def makeMacCipher: AESEngine =
-    val macc = new AESEngine: @annotation.nowarn("cat=deprecation")
+  private def makeMacCipher: BlockCipher =
+    val macc = AESEngine.newInstance()
     macc.init(true, new KeyParameter(secrets.mac))
     macc
 
