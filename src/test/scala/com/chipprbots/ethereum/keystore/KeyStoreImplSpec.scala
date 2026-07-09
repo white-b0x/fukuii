@@ -113,13 +113,19 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
 
     val key: ByteString = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
     val res1: Either[KeyStoreError, Address] = keyStore.importPrivateKey(key, "aaaaaaaa")
-    res1 should matchPattern { case Left(IOError(_)) => }
+    res1 match
+      case Left(IOError(_)) => succeed
+      case other            => fail(s"expected Left(IOError), got $other")
 
     val res2: Either[KeyStoreError, Address] = keyStore.newAccount("aaaaaaaa")
-    res2 should matchPattern { case Left(IOError(_)) => }
+    res2 match
+      case Left(IOError(_)) => succeed
+      case other            => fail(s"expected Left(IOError), got $other")
 
     val res3: Either[KeyStoreError, List[Address]] = keyStore.listAccounts
-    res3 should matchPattern { case Left(IOError(_)) => }
+    res3 match
+      case Left(IOError(_)) => succeed
+      case other            => fail(s"expected Left(IOError), got $other")
 
   it should "unlock an account provided a correct passphrase" taggedAs (UnitTest) in new TestSetup:
     val passphrase = "aaaaaaaa"

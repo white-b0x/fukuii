@@ -18,7 +18,6 @@ import com.chipprbots.scalanet.discovery.ethereum.v4.Payload.Neighbors
 import com.chipprbots.scalanet.discovery.ethereum.v4.Payload.Ping
 import com.chipprbots.scalanet.discovery.ethereum.v4.Payload.Pong
 import com.chipprbots.scalanet.discovery.hash.Hash
-import org.scalactic.Equality
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -127,24 +126,23 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers:
     // Structrual equality checker for RLPEncodeable.
     // It has different wrappers for items based on whether it was hand crafted or generated
     // by codecs, and the RLPValue has mutable arrays inside.
-    implicit val eqRLPList: Equality[RLPEncodeable] = new Equality[RLPEncodeable]:
-      override def areEqual(a: RLPEncodeable, b: Any): Boolean =
-        (a, b) match
-          case (a: RLPList, b: RLPList) =>
-            a.items.size == b.items.size && a.items.zip(b.items).forall { case (a, b) =>
-              areEqual(a, b)
-            }
-          case (a: RLPValue, b: RLPValue) =>
-            a.bytes.sameElements(b.bytes)
-          case _ =>
-            false
+    def rlpEquals(a: RLPEncodeable, b: RLPEncodeable): Boolean =
+      (a, b) match
+        case (a: RLPList, b: RLPList) =>
+          a.items.size == b.items.size && a.items.zip(b.items).forall { case (a, b) =>
+            rlpEquals(a, b)
+          }
+        case (a: RLPValue, b: RLPValue) =>
+          a.bytes.sameElements(b.bytes)
+        case _ =>
+          false
 
     def name: String = implicitly[ClassTag[T]].runtimeClass.getSimpleName
 
     def p: T
     def e: RLPEncodeable
 
-    def testEncode: Assertion = RLPEncoder.encode(p) should equal(e)
+    def testEncode: Assertion = rlpEquals(RLPEncoder.encode(p), e) shouldBe true
     def testDecode: Assertion = RLPDecoder.decode[T](e) should equal(p)
 
   val examples: List[RLPFixture[? <: Payload]] = List(

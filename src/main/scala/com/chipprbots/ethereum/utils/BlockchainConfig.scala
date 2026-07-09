@@ -140,6 +140,9 @@ case class ForkBlockNumbers(
   // sync by hand on every fork addition, which is its own fragility. Feeds ForkId.scala's
   // fork-id hash (network handshake compat) — do not change this method without `herald`/`forge`
   // review.
+  // E165 (productIterator -> Iterator[Any]) is left VISIBLE: a safe typed fix exists
+  // (Tuple.fromProductTyped -> List[BlockNumber | Option[BigInt]], compiler-exhaustive) but it
+  // touches the fork-id hash, so it is scheduled as a MOD with a golden-test guard, not suppressed.
   def all: List[BigInt] = this.productIterator.toList.collect { case i: BigInt =>
     i
   }
