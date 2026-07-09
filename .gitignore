@@ -127,7 +127,10 @@ service-account.json
 secrets/
 
 # Blockchain & crypto
-keystore/
+# Wallet keystore dir — root-anchored so it only ignores a node's datadir keystore at the
+# repo root, NOT the legitimate `src/**/keystore/` Scala source dirs (KeyStore.scala,
+# Wallet.scala, EncryptedKey*, and their specs), which are tracked source.
+/keystore/
 *.keystore
 wallet.json
 mnemonic.txt
