@@ -120,6 +120,11 @@ case class ForkBlockNumbers(
     mystiqueBlockNumber: BlockNumber,
     spiralBlockNumber: BlockNumber,
     olympiaBlockNumber: BlockNumber,
+    // EIP-4345 / EIP-5133 bomb-delay blocks: no EVM effect, but go-ethereum's params/config.go
+    // (mainnet only) treats them as EIP-2124 fork-id checksum points. Default Long.MaxValue is
+    // the sentinel ForkId.gatherBlockForks filters out — only eth-chain.conf sets real values.
+    arrowGlacierBlockNumber: BlockNumber = BlockNumber(Long.MaxValue),
+    grayGlacierBlockNumber: BlockNumber = BlockNumber(Long.MaxValue),
     // EIP-3675 / Sepolia post-Merge net-split block (1735371). Block-based fork that
     // must be in the EIP-2124 fork-id checksum chain — go-ethereum's params/config.go
     // lists this for Sepolia. Without it, our forkId hashes for Shanghai+ are off by
@@ -256,6 +261,10 @@ object BlockchainConfig:
     val spiralBlockNumber: BigInt = BigInt(blockchainConfig.getString("spiral-block-number"))
     val olympiaBlockNumber: BigInt =
       Try(BigInt(blockchainConfig.getString("olympia-block-number"))).getOrElse(BigInt(Long.MaxValue))
+    val arrowGlacierBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("arrow-glacier-block-number"))).getOrElse(BigInt(Long.MaxValue))
+    val grayGlacierBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("gray-glacier-block-number"))).getOrElse(BigInt(Long.MaxValue))
     val mergeNetsplitBlockNumber: BigInt =
       Try(BigInt(blockchainConfig.getString("merge-netsplit-block-number"))).getOrElse(BigInt(Long.MaxValue))
     val spiralGasTarget: Option[BigInt] =
@@ -332,6 +341,8 @@ object BlockchainConfig:
         mystiqueBlockNumber = BlockNumber(mystiqueBlockNumber),
         spiralBlockNumber = BlockNumber(spiralBlockNumber),
         olympiaBlockNumber = BlockNumber(olympiaBlockNumber),
+        arrowGlacierBlockNumber = BlockNumber(arrowGlacierBlockNumber),
+        grayGlacierBlockNumber = BlockNumber(grayGlacierBlockNumber),
         mergeNetsplitBlockNumber = BlockNumber(mergeNetsplitBlockNumber),
         spiralGasTarget = spiralGasTarget,
         olympiaGasTarget = olympiaGasTarget
