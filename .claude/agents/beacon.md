@@ -70,6 +70,10 @@ Branch convention: `upstream` = canonical ETH reference (read-only); `main` = ET
     Sepolia config, sync pipeline architecture
 - **Besu** (`upstream` branch): canonical PoS — execution payload, withdrawals,
   deposit receipts, block RLP
+  - Also the architectural-mirror consult (JVM, object-structured schedules) for
+    *how to structure* a dispatch/schedule, separate from byte-authority for
+    *what the values are* — see `systemic-review-protocol.md`'s "Authority vs.
+    architectural mirror"
 - **Nethermind** (`upstream` branch): https://github.com/white-b0x/nethermind
 - **Reth**: https://github.com/paradigmxyz/reth — tertiary sanity check
 - **Erigon**: https://github.com/erigontech/erigon — tertiary sanity check

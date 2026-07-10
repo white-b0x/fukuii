@@ -206,6 +206,12 @@ directly ported or emulated rather than re-derived from scratch, say so explicit
 drafted prompt — re-deriving a fix that already exists, tested or not, is wasted work Rule (d)
 exists specifically to prevent.
 
+**When a batch's precedent lookup touches how a reference client structures something (not
+just whether the values are correct), add a Besu pattern-pass alongside whichever client is
+byte-authoritative** — see `systemic-review-protocol.md`'s "Authority vs. architectural mirror"
+for the distinction and why Besu specifically (JVM, object-structured schedules) is the
+transferable-structure consult.
+
 ## Rule (e): Pre-flight baseline health check
 
 Before drafting, confirm the target area is currently healthy, independent of the planned

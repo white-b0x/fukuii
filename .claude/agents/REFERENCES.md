@@ -471,7 +471,7 @@ find "$REFS" -maxdepth 3 -name .git -exec dirname {} \; \
 | **Used by** | `forge`, `beacon` |
 | **Key paths** | `evm/src/main/java/org/hyperledger/besu/evm/` — opcodes, gas, precompiles · `consensus/` — PoW/PoS engine modules |
 | **Branch convention** | `upstream` (checked out) = mirror of `hyperledger/besu`, kept in sync by push · `main` = ETC overlay, written and syncing — check out on demand to read it |
-| **Why** | Secondary EIP reference (cross-check confirms go-ethereum is not silently wrong) per this project's reference-client authority model. Has a full ETC overlay (Olympia complete, per `besu-etc.md`). |
+| **Why** | Secondary EIP reference (cross-check confirms go-ethereum is not silently wrong) per this project's reference-client authority model. Has a full ETC overlay (Olympia complete, per `besu-etc.md`). Also the **architectural-mirror** consult — closest codebase kinship of the 6 vendored clients (JVM, object-structured protocol schedules/validator factories) — for *how to structure* Scala, orthogonal to the byte-authority consult for *what the values are*; see `systemic-review-protocol.md`'s "Authority vs. architectural mirror." |
 
 ### Reference EVM Clients — core-geth
 

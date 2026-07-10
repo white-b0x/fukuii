@@ -68,12 +68,21 @@ canonical upstream.
 
 - **Besu** (primary for block encoding + wire-level): https://github.com/white-b0x/besu
   - Use first for block RLP encoding, state root structure, receipt format
+  - Also the architectural-mirror consult (JVM, object-structured schedules) for
+    *how to structure* a dispatch/schedule, separate from byte-authority for
+    *what the values are* — see `systemic-review-protocol.md`'s "Authority vs.
+    architectural mirror"
 - **Nethermind** (secondary): https://github.com/white-b0x/nethermind
   - Secondary check for consensus-affecting RLP details
-- **core-geth** (**DEPRECATED** — being sunsetted): https://github.com/white-b0x/core-geth
-  - Still authoritative for: EtcHash/PoW, ECIP-1017 emission, ECIP-1099 DAG
-    limit, ECIP-1100 MESS, fork schedule (ECIP-1066), Mordor config
-  - Use only for ETC-specific rule lookup; fukuii is replacing it
+- **core-geth** (deprecated as a *live ETC node*, NOT as a *reference*): https://github.com/white-b0x/core-geth
+  - core-geth is being sunset as a network client — fukuii aims to replace it as
+    an ETC node — but it remains the **sole, unchallenged reference authority** for
+    ECIP/PoW rules. There is no other ETC/PoW authority, so never discount it as a
+    reference because of that node-level deprecation (matches
+    `systemic-review-protocol.md`'s authority table: core-geth = ECIP/ETC-ONLY authority).
+  - Authoritative for: EtcHash/PoW, ECIP-1017 emission, ECIP-1099 DAG limit,
+    ECIP-1100 MESS, fork schedule (ECIP-1066), Mordor config. Use for all
+    ETC-specific rule lookup.
 
 ### PoS reference (currently ETH / Sepolia — beacon's domain, listed for hand-off)
 

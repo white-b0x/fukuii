@@ -111,7 +111,8 @@ removal-plus-compile check for any strong dead-code claim, or explicitly phrase 
 | Client | Authority role | Notes |
 |---|---|---|
 | **go-ethereum** | Primary ETH/EIP authority | Default tie-breaker when ETH-side clients disagree |
-| **Besu**, **Erigon**, **Reth** | Independent ETH cross-checks | Disagreement among these + geth is a signal to investigate, not a majority vote to auto-resolve |
+| **Besu** | Independent ETH cross-check **and** architectural mirror | See "Authority vs. architectural mirror" below — Besu's dual role is deliberate, not a table-grouping accident |
+| **Erigon**, **Reth** | Independent ETH cross-checks | Disagreement among these + geth is a signal to investigate, not a majority vote to auto-resolve |
 | **Nethermind** | Independent ETH cross-check (same tier as Besu/Erigon/Reth) | Carries its own ETC overlay on `main` in the vendored fork — check `main`, not just `upstream`, when a finding is ETC-relevant and Nethermind's ETC behavior specifically matters |
 | **core-geth** | ECIP/ETC-ONLY authority | **NEVER** cite as ETH-authoritative, even where its code visibly still contains ETH-mainline logic inherited from its multi-geth lineage — a concrete instance of this trap: core-geth's SNAP-sync code (`eth/protocols/snap/`, `eth/handler_snap.go`) is inherited verbatim from go-ethereum, not independently ECIP-derived, so it must never be cited as justifying an ETC-specific SNAP design choice |
 
@@ -119,6 +120,40 @@ removal-plus-compile check for any strong dead-code claim, or explicitly phrase 
 resting branch per `.claude/agents/REFERENCES.md`); go-ethereum/reth/erigon currently rest on
 `upstream` (no overlay written). Check which branch is actually checked out before trusting a
 citation's network context.
+
+### Authority vs. architectural mirror
+
+The table above answers one question — **which client is correct?** (the right bytes/values:
+EIP formula, ECIP emission schedule, gas cost, opcode behavior). It does not answer a second,
+orthogonal question that any structural-comparison lens also needs: **which client's code is
+structured closest to how fukuii's Scala should be structured?** These are different axes and
+neither substitutes for the other:
+
+- **Authority (correctness axis)** — go-ethereum for EIP behavior, core-geth for ECIP behavior.
+  Cite these for "is this the right value."
+- **Architectural mirror (structure axis)** — **Besu**. Both fukuii and Besu are JVM clients
+  with object-structured protocol schedules and validator/builder factories (fukuii's Scala
+  `object`-per-fork-schedule idiom has a direct structural analog in Besu's Java class-per-
+  schedule/builder idiom) — the closest codebase kinship among the 6 vendored clients. Cite
+  Besu for "how should this be shaped," independent of whether Besu's own values are the ones
+  fukuii should copy.
+
+A structural-comparison lens should run **both** consults, not just the authority one: confirm
+correctness against the byte-authority, then separately check Besu for a transferable
+dispatch/organization pattern. Neither consult is optional and neither is a replacement for the
+other — a change can be byte-correct per go-ethereum and still be structured worse than Besu's
+equivalent, or structured like Besu and still wrong per go-ethereum's values.
+
+**Illustrative case (method, not a status line):** deciding whether a header is PoW or PoS-era
+requires keying off `terminalTotalDifficulty` presence, then dispatching per-header on
+`difficulty == 0`. All three clients converge on this: go-ethereum's `consensus/beacon`
+`IsPoSHeader`, Besu's `TransitionProtocolSchedule` + `TransitionUtils.
+dispatchFunctionAccordingToMergeState` (`difficulty == 0`) selected via
+`TransitionBesuControllerBuilder` when `getTerminalTotalDifficulty().isPresent()`, and fukuii's
+`TransitionBlockHeaderValidator`. Besu's `TransitionBesuControllerBuilder ⇄ TTD-keyed
+ValidatorsExecutor` and `TransitionProtocolSchedule ⇄ TransitionBlockHeaderValidator` shape is
+what made the corresponding fukuii structure obvious — go-ethereum confirmed the dispatch key
+was correct, Besu confirmed how to organize the dispatch.
 
 ## Citation convention
 
