@@ -8,8 +8,8 @@ import com.chipprbots.ethereum.testing.Tags.*
 /** Byte-identity harness for the Batch 5 Row 5.1 de-alias.
   *
   * The de-alias split the old shared `OlympiaOpCodes`/`OsakaOpCodes`/`OlympiaFeeSchedule`/`PragueFeeSchedule`/
-  * `OsakaFeeSchedule` names into disjoint, network-prefixed classes (`Eth*` for ETH timestamp forks, `Etc*` for the
-  * ETC block-based Olympia fork). This is a pure rename: every renamed object must be FIELD-IDENTICAL to the content it
+  * `OsakaFeeSchedule` names into disjoint, network-prefixed classes (`Eth*` for ETH timestamp forks, `Etc*` for the ETC
+  * block-based Olympia fork). This is a pure rename: every renamed object must be FIELD-IDENTICAL to the content it
   * replaced, so no consensus value moves. These assertions prove that field-identity per fork, both networks.
   *
   * The pre-de-alias facts being pinned:
@@ -147,7 +147,14 @@ class EvmConfigDealiasByteIdentitySpec extends AnyFlatSpec with Matchers:
     UnitTest,
     ConsensusTest
   ) in {
-    OpCodes.EthCancunOpCodes.toSet shouldBe (Set(BASEFEE, BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY) ++ OpCodes.SpiralOpCodes.toSet)
+    OpCodes.EthCancunOpCodes.toSet shouldBe (Set(
+      BASEFEE,
+      BLOBHASH,
+      BLOBBASEFEE,
+      TLOAD,
+      TSTORE,
+      MCOPY
+    ) ++ OpCodes.SpiralOpCodes.toSet)
   }
 
   it should "not contain CLZ (EIP-7939 is Osaka-only, not Cancun)" taggedAs (UnitTest, ConsensusTest) in {
@@ -188,6 +195,6 @@ class EvmConfigDealiasByteIdentitySpec extends AnyFlatSpec with Matchers:
     ConsensusTest
   ) in {
     OpCodes.EthCancunOpCodes.toSet should not be OpCodes.EtcOlympiaOpCodes.toSet
-    (OpCodes.EthCancunOpCodes.toSet -- OpCodes.EtcOlympiaOpCodes.toSet) should contain allOf (BLOBHASH, BLOBBASEFEE)
+    ((OpCodes.EthCancunOpCodes.toSet -- OpCodes.EtcOlympiaOpCodes.toSet) should contain).allOf(BLOBHASH, BLOBBASEFEE)
     (OpCodes.EtcOlympiaOpCodes.toSet -- OpCodes.EthCancunOpCodes.toSet) should contain(CLZ)
   }

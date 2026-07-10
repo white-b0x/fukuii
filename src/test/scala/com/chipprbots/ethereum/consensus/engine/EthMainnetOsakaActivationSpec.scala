@@ -10,14 +10,13 @@ import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.vm.CLZ
 import com.chipprbots.ethereum.vm.EvmConfig
 
-/** ETH mainnet Osaka + EIP-7892 BPO1/BPO2 activation guard. Loads the real `blockchains("eth")`
-  * config and asserts the fork timestamps, Osaka opcode set, and BPO blob schedule against
-  * go-ethereum ground truth.
+/** ETH mainnet Osaka + EIP-7892 BPO1/BPO2 activation guard. Loads the real `blockchains("eth")` config and asserts the
+  * fork timestamps, Osaka opcode set, and BPO blob schedule against go-ethereum ground truth.
   *
   * Ground truth: go-ethereum `params/config.go` `MainnetChainConfig` (local clone
-  * `.claude/repo-references/clients/go-ethereum` @ 59e89e81e):
-  *   OsakaTime = 1764798551 (:64), BPO1Time = 1765290071 (:65), BPO2Time = 1767747671 (:66).
-  * Audit map: `.local/docs/research-july/eip-ecip-conformance/eth-sepolia-conformance.md` §3 F-1/F-2.
+  * `.claude/repo-references/clients/go-ethereum` @ 59e89e81e): OsakaTime = 1764798551 (:64), BPO1Time = 1765290071
+  * (:65), BPO2Time = 1767747671 (:66). Audit map:
+  * `.local/docs/research-july/eip-ecip-conformance/eth-sepolia-conformance.md` §3 F-1/F-2.
   */
 class EthMainnetOsakaActivationSpec extends AnyWordSpec with Matchers:
 
@@ -86,6 +85,9 @@ class EthMainnetOsakaActivationSpec extends AnyWordSpec with Matchers:
       // 14 target / 21 max blobs, byte-exact with go-ethereum DefaultBPO2BlobConfig.
       BlobGasUtils.targetBlobGasPerBlock(Timestamp(Bpo2Ts), ethConf) shouldBe (BigInt(14) * BlobGasUtils.GAS_PER_BLOB)
       BlobGasUtils.maxBlobGasPerBlock(Timestamp(Bpo2Ts), ethConf) shouldBe (BigInt(21) * BlobGasUtils.GAS_PER_BLOB)
-      BlobGasUtils.updateFractionFor(Timestamp(Bpo2Ts), ethConf) shouldBe BlobGasUtils.BPO2_BLOB_BASE_FEE_UPDATE_FRACTION
+      BlobGasUtils.updateFractionFor(
+        Timestamp(Bpo2Ts),
+        ethConf
+      ) shouldBe BlobGasUtils.BPO2_BLOB_BASE_FEE_UPDATE_FRACTION
     }
   }

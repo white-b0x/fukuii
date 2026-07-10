@@ -445,8 +445,8 @@ object FeeSchedule:
   class EthCancunFeeSchedule extends EthLondonFeeSchedule
 
   /** ETC Olympia fee schedule — ECIP-1121, block-based. Field-identical to MystiqueFeeSchedule (empty extension), which
-    * is the ETC-lineage shared base carrying the EIP-3529/3860 values ETC adopted. Distinct from EthCancunFeeSchedule so
-    * the ETC and ETH Olympia-era fee bundles are segregated (no shared class across networks). ETC-only.
+    * is the ETC-lineage shared base carrying the EIP-3529/3860 values ETC adopted. Distinct from EthCancunFeeSchedule
+    * so the ETC and ETH Olympia-era fee bundles are segregated (no shared class across networks). ETC-only.
     */
   class EtcOlympiaFeeSchedule extends MystiqueFeeSchedule
 

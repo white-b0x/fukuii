@@ -10,17 +10,16 @@ import com.chipprbots.ethereum.forkid.ForkId
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config.*
 
-/** ForkId CRC32 accumulation tests for ETH mainnet (block-number forks through Gray Glacier, then
-  * timestamp forks from Shanghai onward).
+/** ForkId CRC32 accumulation tests for ETH mainnet (block-number forks through Gray Glacier, then timestamp forks from
+  * Shanghai onward).
   *
-  * Ground truth: go-ethereum `core/forkid/forkid_test.go` TestCreation "Mainnet test cases" (upstream
-  * branch, verified 2026-07-09). Mainnet genesis hash: params/config.go MainnetGenesisHash.
+  * Ground truth: go-ethereum `core/forkid/forkid_test.go` TestCreation "Mainnet test cases" (upstream branch, verified
+  * 2026-07-09). Mainnet genesis hash: params/config.go MainnetGenesisHash.
   *
-  * Regression guard for ETH-F3: Arrow Glacier (13773000) and Gray Glacier (15050000) are EIP-4345/
-  * EIP-5133 bomb-delay blocks with no EVM effect, but go-ethereum still checksums them into the
-  * EIP-2124 fork-id chain. Omitting them shifts every checksum from London onward, so a fully-synced
-  * fukuii node would fail ForkIdValidator against a fully-synced real mainnet peer
-  * (ErrLocalIncompatibleOrStale) even though both are on the correct chain.
+  * Regression guard for ETH-F3: Arrow Glacier (13773000) and Gray Glacier (15050000) are EIP-4345/ EIP-5133 bomb-delay
+  * blocks with no EVM effect, but go-ethereum still checksums them into the EIP-2124 fork-id chain. Omitting them
+  * shifts every checksum from London onward, so a fully-synced fukuii node would fail ForkIdValidator against a
+  * fully-synced real mainnet peer (ErrLocalIncompatibleOrStale) even though both are on the correct chain.
   */
 class ForkIdEthMainnetSpec extends AnyWordSpec with Matchers:
 

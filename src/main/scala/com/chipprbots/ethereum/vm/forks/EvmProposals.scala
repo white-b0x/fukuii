@@ -9,34 +9,34 @@ import com.chipprbots.ethereum.vm.*
 /** L1a — the per-EIP/ECIP EVM feature registry (Batch 5 framework §1.2, Row 5.2).
   *
   * Mirrors core-geth's `core/vm/eips.go` `enableNNNN(jt)` activators: one entry per EVM-affecting proposal, each a
-  * small **additive delta** over the base (Frontier) opcode set / fee schedule, keyed by its ecosystem
-  * [[ProposalId]] and family-agnostic. A fork's opcode set and fee schedule are then *derived* by folding the active
-  * proposals (see [[deriveEvm]]) rather than hand-maintained as a monolithic per-fork bundle.
+  * small **additive delta** over the base (Frontier) opcode set / fee schedule, keyed by its ecosystem [[ProposalId]]
+  * and family-agnostic. A fork's opcode set and fee schedule are then *derived* by folding the active proposals (see
+  * [[deriveEvm]]) rather than hand-maintained as a monolithic per-fork bundle.
   *
   * ==What this row is (and is NOT)==
   * This row is **additive and provably-equivalent only**. It introduces the registry in *parallel* to the existing
   * `Eth*`/`Etc*` opcode/fee bundles and `EvmConfig.forBlock` dispatch — it does NOT switch `forBlock` onto the fold.
-  * `EvmProposalDerivationSpec` proves that folding the registry reproduces every current bundle byte-for-byte
-  * (opcode `.toSet` + fee field-tuple), for the full pre-London chain on both networks. Wiring the fold into
-  * production `forBlock` (and deleting the bundles) is Row 5.3.
+  * `EvmProposalDerivationSpec` proves that folding the registry reproduces every current bundle byte-for-byte (opcode
+  * `.toSet` + fee field-tuple), for the full pre-London chain on both networks. Wiring the fold into production
+  * `forBlock` (and deleting the bundles) is Row 5.3.
   *
   * ==Finding 3 — `configDelta` reconciliation (document, do not create a third mechanism)==
-  * `BlockchainConfigForEvm` already carries 13 `isEipNNNNEnabled` predicates, and `EvmConfig.forBlock` gates the
-  * EVM boolean flags (`eip3541Enabled`, `eip3651Enabled`, `eip3860Enabled`, `eip6780Enabled`,
-  * `eip6049DeprecationEnabled`, `noEmptyAccounts`, …) via hardcoded per-`*ConfigBuilder` `.copy` sets. To avoid
-  * standing up a THIRD parallel enablement path this row, `EvmProposal.configDelta` is present in the *shape* (so
-  * 5.3 can populate it) but is left `identity` for every proposal here and is NOT wired into `forBlock` and NOT
-  * asserted against production. The mechanism-unification decision — fold the config flags through the registry vs.
-  * keep the predicates — is deferred to Row 5.3 when the fold goes live. The derived==bundle proof this row covers
-  * the two state-visible EVM lineages only: the opcode set and the fee schedule.
+  * `BlockchainConfigForEvm` already carries 13 `isEipNNNNEnabled` predicates, and `EvmConfig.forBlock` gates the EVM
+  * boolean flags (`eip3541Enabled`, `eip3651Enabled`, `eip3860Enabled`, `eip6780Enabled`, `eip6049DeprecationEnabled`,
+  * `noEmptyAccounts`, …) via hardcoded per-`*ConfigBuilder` `.copy` sets. To avoid standing up a THIRD parallel
+  * enablement path this row, `EvmProposal.configDelta` is present in the *shape* (so 5.3 can populate it) but is left
+  * `identity` for every proposal here and is NOT wired into `forBlock` and NOT asserted against production. The
+  * mechanism-unification decision — fold the config flags through the registry vs. keep the predicates — is deferred to
+  * Row 5.3 when the fold goes live. The derived==bundle proof this row covers the two state-visible EVM lineages only:
+  * the opcode set and the fee schedule.
   */
 // scalastyle:off magic.number
 object EvmProposals:
 
   /** A concrete-value [[FeeSchedule]] the fee fold can `.copy` field-by-field. The existing `FeeSchedule` subclasses
     * express deltas by inheritance/override, which is not composable as a function; this case class is the
-    * function-friendly carrier the fold threads. [[from]] projects any existing `FeeSchedule` into it, so the fold
-    * base is `FrontierFeeSchedule` read through `from` (no re-declared magic numbers for the base).
+    * function-friendly carrier the fold threads. [[from]] projects any existing `FeeSchedule` into it, so the fold base
+    * is `FrontierFeeSchedule` read through `from` (no re-declared magic numbers for the base).
     *
     * Fields are in the exact declaration order of the `FeeSchedule` trait.
     */
@@ -224,7 +224,8 @@ object EvmProposals:
   val Eip2TxCreate: EvmProposal =
     EvmProposal(Eip(2), feeDelta = _.copy(G_txcreate = 32000))
 
-  /** EIP-150 — repricing state-access ops (G_sload 200, G_call 700, G_balance 400, G_selfdestruct 5000, G_extcode 700). */
+  /** EIP-150 — repricing state-access ops (G_sload 200, G_call 700, G_balance 400, G_selfdestruct 5000, G_extcode 700).
+    */
   val Eip150: EvmProposal =
     EvmProposal(
       Eip(150),
@@ -239,14 +240,16 @@ object EvmProposals:
   val Eip2028: EvmProposal =
     EvmProposal(Eip(2028), feeDelta = _.copy(G_txdatanonzero = 16))
 
-  /** EIP-2929 — gas cost increases for state access; warm/cold model (G_sload → warm 100, G_sreset → 2900) (Magneto/Berlin). */
+  /** EIP-2929 — gas cost increases for state access; warm/cold model (G_sload → warm 100, G_sreset → 2900)
+    * (Magneto/Berlin).
+    */
   val Eip2929: EvmProposal =
     EvmProposal(Eip(2929), feeDelta = _.copy(G_sload = 100, G_sreset = 2900))
 
-  /** EIP-2930 — optional access lists (Magneto/Berlin). The access-list gas constants
-    * (G_access_list_address=2400, G_access_list_storage=1900) are already present in `FrontierFeeSchedule` and are
-    * merely brought into USE here — so this proposal carries no fee-*field* delta. Registered for completeness (it is a
-    * fee-era proposal per scout Finding 2) with `identity` deltas.
+  /** EIP-2930 — optional access lists (Magneto/Berlin). The access-list gas constants (G_access_list_address=2400,
+    * G_access_list_storage=1900) are already present in `FrontierFeeSchedule` and are merely brought into USE here — so
+    * this proposal carries no fee-*field* delta. Registered for completeness (it is a fee-era proposal per scout
+    * Finding 2) with `identity` deltas.
     */
   val Eip2930: EvmProposal =
     EvmProposal(Eip(2930))
@@ -311,7 +314,8 @@ object EvmProposals:
     Ecip(1121)
   )
 
-  /** Every registered proposal, keyed by id. `keySet == evmApplicationOrder.toSet` (asserted in the derivation spec). */
+  /** Every registered proposal, keyed by id. `keySet == evmApplicationOrder.toSet` (asserted in the derivation spec).
+    */
   val byId: Map[ProposalId, EvmProposal] = List(
     Eip2TxCreate,
     Eip7DelegateCall,
@@ -340,15 +344,15 @@ object EvmProposals:
   ).map(p => p.id -> p).toMap
 
   /** Derive a fork's (opcode set, fee schedule) by folding the active proposals over the Frontier base, in
-    * `evmApplicationOrder`. This is the fold the design's `EvmConfig.forBlock` adopts in Row 5.3; here it is the
-    * engine of the derived==bundle proof only (not yet wired into production dispatch).
+    * `evmApplicationOrder`. This is the fold the design's `EvmConfig.forBlock` adopts in Row 5.3; here it is the engine
+    * of the derived==bundle proof only (not yet wired into production dispatch).
     *
     * The base is `FrontierOpCodes` + `FrontierFeeSchedule` (genesis), read through `FeeScheduleValues.from` so no base
     * value is re-declared.
     */
   def deriveEvm(active: Set[ProposalId]): (List[OpCode], FeeScheduleValues) =
     val baseOpCodes = OpCodes.FrontierOpCodes
-    val baseFee     = FeeScheduleValues.from(new FeeSchedule.FrontierFeeSchedule)
+    val baseFee = FeeScheduleValues.from(new FeeSchedule.FrontierFeeSchedule)
     evmApplicationOrder
       .filter(active.contains)
       .flatMap(byId.get)

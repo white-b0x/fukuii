@@ -75,17 +75,17 @@ class EvmProposalDerivationSpec extends AnyFlatSpec with Matchers:
   // Cumulative active-proposal sets. The pre-London opcode chain (EIP-7/140/211/1052/1014/145/1344/1884) is the
   // shared base ETH inherits transitively (Finding 1) — registered here, proven for both networks.
 
-  private val frontier       = Set.empty[ProposalId]
-  private val homestead      = frontier ++ Set(Eip(2), Eip(7))
-  private val postEip150      = homestead + Eip(150)
-  private val postEip160      = postEip150 + Eip(160)
-  private val byzantium      = postEip160 ++ Set(Eip(140), Eip(211))
+  private val frontier = Set.empty[ProposalId]
+  private val homestead = frontier ++ Set(Eip(2), Eip(7))
+  private val postEip150 = homestead + Eip(150)
+  private val postEip160 = postEip150 + Eip(160)
+  private val byzantium = postEip160 ++ Set(Eip(140), Eip(211))
   private val constantinople = byzantium ++ Set(Eip(1052), Eip(1014), Eip(145))
-  private val phoenix        = constantinople ++ Set(Eip(1344), Eip(1884), Eip(2028))
-  private val magneto        = phoenix ++ Set(Eip(2929), Eip(2930))
-  private val mystique       = magneto ++ Set(Eip(3529), Eip(3860))
-  private val spiral         = mystique + Eip(3855)
-  private val etcOlympia     = spiral ++ Set(Eip(3198), Eip(1153), Eip(5656), Eip(7939), Ecip(1121))
+  private val phoenix = constantinople ++ Set(Eip(1344), Eip(1884), Eip(2028))
+  private val magneto = phoenix ++ Set(Eip(2929), Eip(2930))
+  private val mystique = magneto ++ Set(Eip(3529), Eip(3860))
+  private val spiral = mystique + Eip(3855)
+  private val etcOlympia = spiral ++ Set(Eip(3198), Eip(1153), Eip(5656), Eip(7939), Ecip(1121))
 
   private val etcCases: List[ForkCase] = List(
     ForkCase("Frontier", frontier, OpCodes.FrontierOpCodes, new FrontierFeeSchedule),
@@ -106,13 +106,13 @@ class EvmProposalDerivationSpec extends AnyFlatSpec with Matchers:
 
   // ---- ETH London → Osaka lineage (shares the pre-London chain above) ----------------------------------------------
 
-  private val ethLondon   = magneto ++ Set(Eip(3198), Eip(3529), Eip(3860))
+  private val ethLondon = magneto ++ Set(Eip(3198), Eip(3529), Eip(3860))
   private val ethShanghai = ethLondon + Eip(3855)
-  private val ethCancun   = ethShanghai ++ Set(Eip(4844), Eip(7516), Eip(1153), Eip(5656))
+  private val ethCancun = ethShanghai ++ Set(Eip(4844), Eip(7516), Eip(1153), Eip(5656))
   // Prague adds no EVM opcode and no fee-schedule field (EIP-7623 floor is applied in BlockPreparator, not the fee
   // schedule), so its active set equals Cancun's; the distinct bundle is only the (identical-valued) EthPrague fee.
-  private val ethPrague   = ethCancun
-  private val ethOsaka    = ethCancun + Eip(7939)
+  private val ethPrague = ethCancun
+  private val ethOsaka = ethCancun + Eip(7939)
 
   private val ethCases: List[ForkCase] = List(
     ForkCase("EthLondon", ethLondon, OpCodes.EthLondonOpCodes, new EthLondonFeeSchedule),
