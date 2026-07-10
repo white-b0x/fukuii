@@ -95,6 +95,39 @@ pick one of the three.
 
 ---
 
+## Rule 1a: A designed deliverable is a floor, not a finding to soften
+
+This extends Rule 1 to a specific, recurring shape of the same failure mode: a research/review
+pass finds a batch's own **designed deliverable** risky or effortful, and reflexively recommends
+"optional," "may defer," or "may stay as-is" — none of which is one of Rule 1's three
+dispositions. **The design of record and the batch/row's stated deliverable are the scope floor,
+not a target for an agent's own risk caution.** Staging or sequencing a risky deliverable safely
+(additive-first, riskiest step last, each stage gated) is fine and often the right call; not
+doing it, or leaving a new abstraction wired up but never actually consumed by production code
+("scaffolding without occupancy"), is not staging — it is descoping, and a descope is a finding
+that needs Rule 1's same disposition discipline, not a bare adjective slipped into a prompt.
+
+Two situations look similar but are opposite dispositions — do not collapse them:
+
+- **Necessity, or a genuinely better way, found during research → propose the plan change WITH
+  its reasoning, as disposition 2 or 3 above, surfaced as an explicit operator-visible
+  decision.** This is legitimate research output, not a scope violation — say plainly why the
+  original design doesn't hold, not just that an alternative exists.
+- **Risk or effort alone, with no claim the deliverable is unnecessary or that a better path
+  exists → stage and gate it under disposition 1 or 2; it does not get a fourth, Rule-1-violating
+  disposition of "optional" or "quietly dropped."** The tell: the only justification offered for
+  softening a deliverable is that it's risky, large, or inconvenient — never that it's unneeded
+  or that research found something better.
+
+A real deferral of a designed deliverable is still disposition 3 — a concrete, scheduled future
+batch entry with a hard gate, decided by the operator — never a parenthetical inside another
+prompt's CONTEXT and never any agent's silent default. See `batch-research-protocol.md`'s "Scope
+floor" section for the incident that surfaced this rule (a scout research pass nearly descoped
+two hard multi-network requirements by marking them "optional"/deferring their cutover) and for
+`scout`'s specific staging/gating discipline built on top of this rule.
+
+---
+
 ## Rule 2: Findings Resolution Log
 
 Every sprint tracking doc with an active audit/cleanup batch keeps a **Findings
@@ -154,6 +187,7 @@ by this prompt's <field list>.`
 | Don't | Do instead |
 |-------|-----------|
 | "Flagged, not fixed, out of this round's scope" as the final word on a finding | Immediately schedule it (Rule 1) and log it (Rule 2) in the same pass that reads the finding |
+| "Optional" / "may defer" / "may stay as-is" on a batch's own designed deliverable, justified only by risk or effort | Stage and gate it under disposition 1 or 2 (Rule 1a); if genuinely unnecessary or superseded, propose that WITH reasoning as disposition 2 or 3, as an explicit operator decision |
 | Leaving a correction to a prior verdict as a paragraph buried in a new audit's prose | State it explicitly in the resolving IP's CONTEXT (Rule 4) and in the Findings Resolution Log |
 | Assuming "someone will pick this up later" | There is no implicit owner in this workflow — an unscheduled finding has no owner |
 | Treating audit-pass findings the same as incidental cleanup finds | Audit findings get scheduled immediately; Chase & Deferred Items/critical-mass batching is for incidental finds only (see the comparison table above) |

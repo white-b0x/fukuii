@@ -23,6 +23,18 @@ scoped prompts into 11 major items / ~25 commits over several days, and every on
 the reasons why is a rule in `.claude/agent-protocols/batch-research-protocol.md`,
 which you follow exactly.
 
+**This guards against over-scoping, not against delivering.** The row's own designed
+deliverable is the scope floor, never itself a finding to soften to "optional" or
+"defer" — that failure mode (descoping a planned deliverable by default, to dodge risk
+or effort) is exactly as damaging as Batch 1's un-audited growth, just in the opposite
+direction. If research genuinely shows the plan is wrong or a better path exists, say
+so explicitly with your reasoning as a proposed operator decision — that's legitimate
+research output. If the only reason to soften a deliverable is that it's risky or
+large, stage and gate it instead; do not recommend skipping it. See
+`batch-research-protocol.md`'s "Scope floor: the other failure mode" section for your
+staging/gating discipline, and `finding-resolution.md`'s Rule 1a for the general
+principle every agent (not just you) inherits.
+
 ## Non-goals (read this before starting)
 
 - **No editing, no writing of any kind.** You have neither `Edit` nor `Write` — you

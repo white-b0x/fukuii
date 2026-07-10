@@ -40,6 +40,64 @@ pass, never left as a bare "flagged, TBD."
 
 ---
 
+## Scope floor: the other failure mode (never descope planned work)
+
+Rules (a)-(i) below all guard against under-*researching* a batch — the failure that let Batch 1
+balloon un-audited into 25 commits. They do not license the opposite failure: treating a batch's
+own **designed deliverable** as if it were the kind of tempting adjacent scope this protocol
+exists to keep out. **The design of record and the row's stated deliverable are the scope floor,
+not a target for this protocol's caution.** Scout may recommend HOW to stage or sequence a
+designed deliverable safely — additive-first, each stage gated to the next, riskiest step last —
+but must never recommend NOT doing it, deferring its actual purpose, or marking designed work
+"optional." Risk is a reason to stage and gate a planned step; it is never a reason to skip it.
+
+**This is not a freeze on the plan — the plan itself is revisable with cause.** Two situations
+look superficially similar but are opposite dispositions, and scout must not collapse them:
+
+- **Necessity, or a genuinely better way, found during research → propose the plan change, WITH
+  its reasoning, as an explicit operator-visible decision.** If the design turns out to be wrong,
+  infeasible, or superseded by something better discovered mid-research, say so plainly and
+  propose the adjustment — this is legitimate research output, not scope violation, and it's
+  exactly the kind of finding scout exists to surface. State *why* the original plan doesn't hold,
+  not just that an alternative exists.
+- **Risk or effort alone, with no claim that the deliverable is unnecessary or that a better path
+  exists → stage and gate the planned work; do not skip, defer, or "optional" it.** This is the
+  banned default. The tell: a deliverable gets softened to "optional / may stay as-is / defer"
+  and the only justification offered is that it's risky, large, or inconvenient — never that it's
+  actually unneeded or that research found a superior alternative.
+
+If in doubt which case applies, the question to answer explicitly in the drafted prompt is: "is
+this deliverable being changed because it shouldn't be built as designed, or because building it
+as designed is hard?" The first is a proposal; the second is the descoping this section bans.
+
+**Incident (2026-07-10, Batch 5):** scout's Row 5.3 research flagged the ForkId→ForkSchedule
+migration as "optional, may stay reading the flat struct" — when 5.3's own design (Batch 5's `5.0
+Framework design`, `.local/docs/research-july/batch5-framework-design.md`) makes it a hard
+multi-network requirement: a novel-fork network cannot compute its EIP-2124 handshake fork-id
+from a fixed `ForkBlockNumbers` struct, only from the extensible schedule. Presenting the row's
+actual deliverable as optional nearly caused the orchestrator to skip a designed requirement. The
+same pass floated deferring Row 5.4's `MiningBuilder`→`ConsensusEngine` cutover — leaving the new
+engine abstraction wired up as a parallel seam but never actually resolved-and-consumed by the
+running node ("scaffolding without occupancy"): an abstraction nothing exercises is not a
+deferred step, it's an abandoned one.
+
+**Rules (a)-(i) (scope-discipline, guarding against a repeat of Batch 1's un-audited growth) only
+ever license preventing unplanned work from being ADDED above the floor. They must never be read
+as license to SUBTRACT planned work from below it.** Over-reach and under-delivery are different
+failure modes; until this incident only the first had a guard.
+
+A legitimate deferral (the necessity/better-way case above) is still possible, but it must be a
+**concrete scheduled entry with a hard gate** — a real batch/row in `QUEUE.md`, not a parenthetical
+"may stay as-is" or "optional" — and it is presented as an **explicit operator decision**, never
+scout's silent default. Route it through `finding-resolution.md`'s Rule 1a (the general form of
+this principle, shared by every agent, not just scout) like any other finding; "optional" and "may
+defer" are not one of Rule 1's three dispositions. **Staging that drops a planned deliverable's
+final (hard) step is descoping, not staging** — every stage of a planned deliverable needs a
+scheduled, gated path all the way to completion, not just an additive first stage that never gets
+finished.
+
+---
+
 ## Rule (a): Multi-tree sweep, never main-source only
 
 Every discovery pass uses `scripts/agent-tooling/lib/site-sweep.sh --scope all` (the default —
@@ -194,6 +252,14 @@ The research pass produces exactly two things:
 2. Any out-of-scope findings pre-filled into `QUEUE.md`'s Findings Resolution Log and/or Chase &
    Deferred Items, each with a disposition already chosen per `finding-resolution.md` — never a
    bare "flagged, not otherwise scheduled."
+
+**Scope-floor self-check, run before returning the report:** for every staging/deferral
+recommendation in the drafted prompt, ask — does it still deliver the row's designed purpose? If
+a step is staged later or deferred, is the reason necessity/a-better-way (state it explicitly) or
+risk/effort alone (then it must stay staged-and-gated, not deferred)? Is the deferral a concrete
+scheduled entry with a hard gate, or is planned work quietly being softened to "optional"? If the
+latter, STOP and surface it as an explicit operator descope decision instead of folding it into
+the drafted prompt as the default — see "Scope floor: the other failure mode" above.
 
 **`scout` holds no `Write` grant** — per-agent `Write` cannot be scoped to a subtree like
 `.local/**` in current Claude Code (`tools:` grants are tool-name-only; see
