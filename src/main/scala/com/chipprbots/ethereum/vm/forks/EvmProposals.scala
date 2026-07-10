@@ -1,5 +1,9 @@
 package com.chipprbots.ethereum.vm.forks
 
+import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.Timestamp
+import com.chipprbots.ethereum.domain.TotalDifficulty
+import com.chipprbots.ethereum.forks.ForkActivation
 import com.chipprbots.ethereum.forks.Proposal
 import com.chipprbots.ethereum.forks.ProposalId
 import com.chipprbots.ethereum.forks.ProposalId.*
@@ -20,15 +24,21 @@ import com.chipprbots.ethereum.vm.*
   * `.toSet` + fee field-tuple), for the full pre-London chain on both networks. Wiring the fold into production
   * `forBlock` (and deleting the bundles) is Row 5.3.
   *
-  * ==Finding 3 — `configDelta` reconciliation (document, do not create a third mechanism)==
-  * `BlockchainConfigForEvm` already carries 13 `isEipNNNNEnabled` predicates, and `EvmConfig.forBlock` gates the EVM
-  * boolean flags (`eip3541Enabled`, `eip3651Enabled`, `eip3860Enabled`, `eip6780Enabled`, `eip6049DeprecationEnabled`,
-  * `noEmptyAccounts`, …) via hardcoded per-`*ConfigBuilder` `.copy` sets. To avoid standing up a THIRD parallel
-  * enablement path this row, `EvmProposal.configDelta` is present in the *shape* (so 5.3 can populate it) but is left
-  * `identity` for every proposal here and is NOT wired into `forBlock` and NOT asserted against production. The
-  * mechanism-unification decision — fold the config flags through the registry vs. keep the predicates — is deferred to
-  * Row 5.3 when the fold goes live. The derived==bundle proof this row covers the two state-visible EVM lineages only:
-  * the opcode set and the fee schedule.
+  * ==Finding 3/4 — `configDelta` is the production flag mechanism (Row 5.3b)==
+  * As of Row 5.3b the `EvmConfig.forBlock` fold applies each active proposal's `configDelta` to set the per-`EvmConfig`
+  * boolean flags (`exceptionalFailedCodeDeposit`, `subGasCapDivisor`, `chargeSelfDestructForNewAccount`,
+  * `noEmptyAccounts`, `eip3541Enabled`, `eip3651Enabled`, `eip3860Enabled`, `eip6780Enabled`,
+  * `eip6049DeprecationEnabled`). The six config-only proposals that the old `*ConfigBuilder` `.copy` chain set with no
+  * opcode/fee delta (Finding 4 — the silent-regression risk) are registered here so the fold reproduces them:
+  * `Eip(161)`, `Eip(3541)`, `Eip(3651)`, `Custom("eip3860-metering", 0)` (the metering FLAG, distinct from the
+  * `Eip(3860)` fee value which sets `G_initcode_word` at Mystique/London — the two activate at different heights),
+  * `Eip(6780)`, `Eip(6049)`. Two already-registered proposals carry the pre-fork flags: `Eip(2)` (Homestead
+  * `exceptionalFailedCodeDeposit`, EIP-2 item 3) and `Eip(150)` (`subGasCapDivisor`/`chargeSelfDestructForNewAccount`).
+  * The 13 `isEipNNNNEnabled` predicates in `BlockchainConfigForEvm` are a SEPARATE read-path (only
+  * `isEip2929`/`isEip3529` are used in production, at `OpCode.scala`/`BlockPreparator.scala`) and are intentionally
+  * left as-is (out of scope); the per-`EvmConfig` FLAGS now come from this fold. `EvmProposalDerivationSpec` (opcode
+  * `.toSet` + fee field-tuple) and `ForBlockFoldIdentitySpec` (full `forBlock`, incl. every boolean flag) are the
+  * acceptance proofs.
   */
 // scalastyle:off magic.number
 object EvmProposals:
@@ -131,8 +141,9 @@ object EvmProposals:
 
   /** One EVM-affecting proposal — an additive delta over the running (opcode set, fee schedule, config).
     *
-    * `opcodeDelta`/`feeDelta` are proven equivalent to the bundles this row. `configDelta` is the deferred seam
-    * (Finding 3 above): present in the shape, `identity` for every entry here, not wired into `forBlock`.
+    * `opcodeDelta`/`feeDelta`/`configDelta` are each proven equivalent to the old per-fork bundles: `opcodeDelta` by
+    * opcode `.toSet`, `feeDelta` by fee field-tuple (`EvmProposalDerivationSpec`), and `configDelta` by full-`forBlock`
+    * boolean-flag equality (`ForBlockFoldIdentitySpec`). All three are folded into production `EvmConfig.forBlock`.
     */
   final case class EvmProposal(
       id: ProposalId,
@@ -220,17 +231,66 @@ object EvmProposals:
   // EIP-2929 (100), and G_balance by EIP-150 (400) → EIP-1884 (700). `evmApplicationOrder` MUST be fork-chronological
   // so the last write wins correctly. `EvmProposalDerivationSpec` proves this by field-tuple equality per fork.
 
-  /** EIP-2 (Homestead gas repricing) — raise contract-creation-by-tx gas (G_txcreate 0→32000). */
+  /** EIP-2 (Homestead) — raise contract-creation-by-tx gas (G_txcreate 0→32000) and, per EIP-2 item 3, make a failed
+    * code deposit exceptional (out-of-gas) rather than leaving an empty contract (`exceptionalFailedCodeDeposit`).
+    */
   val Eip2TxCreate: EvmProposal =
-    EvmProposal(Eip(2), feeDelta = _.copy(G_txcreate = 32000))
+    EvmProposal(
+      Eip(2),
+      feeDelta = _.copy(G_txcreate = 32000),
+      configDelta = _.copy(exceptionalFailedCodeDeposit = true)
+    )
 
-  /** EIP-150 — repricing state-access ops (G_sload 200, G_call 700, G_balance 400, G_selfdestruct 5000, G_extcode 700).
+  /** EIP-150 — repricing state-access ops (G_sload 200, G_call 700, G_balance 400, G_selfdestruct 5000, G_extcode 700),
+    * plus the 63/64 call-gas cap (`subGasCapDivisor = Some(64)`) and charging `G_newaccount` on SELFDESTRUCT to a new
+    * beneficiary (`chargeSelfDestructForNewAccount`).
     */
   val Eip150: EvmProposal =
     EvmProposal(
       Eip(150),
-      feeDelta = _.copy(G_sload = 200, G_call = 700, G_balance = 400, G_selfdestruct = 5000, G_extcode = 700)
+      feeDelta = _.copy(G_sload = 200, G_call = 700, G_balance = 400, G_selfdestruct = 5000, G_extcode = 700),
+      configDelta = _.copy(subGasCapDivisor = Some(64), chargeSelfDestructForNewAccount = true)
     )
+
+  // ---- Config-only proposals (no opcode/fee delta; set a single EvmConfig boolean flag) -----------------------------
+  // These reproduce the flags the old `*ConfigBuilder` `.copy` chain set with no opcode/fee change (Finding 4). Each is
+  // network-aware in its ACTIVATION (see `BlockchainConfig.deriveForkSchedule`), not here — here it is a pure flag delta.
+
+  /** EIP-161 — no empty accounts (`noEmptyAccounts`). Activates at `eip161BlockNumber` on ETH, at Atlantis on ETC
+    * (which is where `AtlantisConfigBuilder` set `noEmptyAccounts = true`; ETC leaves `eip161-block-number` at the
+    * sentinel).
+    */
+  val Eip161NoEmptyAccounts: EvmProposal =
+    EvmProposal(Eip(161), configDelta = _.copy(noEmptyAccounts = true))
+
+  /** EIP-3541 — reject new contract code starting with the 0xEF byte (`eip3541Enabled`). ETC Mystique / ETH London. */
+  val Eip3541RejectEF: EvmProposal =
+    EvmProposal(Eip(3541), configDelta = _.copy(eip3541Enabled = true))
+
+  /** EIP-3651 — warm COINBASE (`eip3651Enabled`). ETC Spiral (block) / ETH Shanghai (timestamp). */
+  val Eip3651WarmCoinbase: EvmProposal =
+    EvmProposal(Eip(3651), configDelta = _.copy(eip3651Enabled = true))
+
+  /** EIP-3860 metering FLAG (`eip3860Enabled`) — the initcode-word CHARGE. Distinct from the [[Eip3860InitCode]] fee
+    * value (`G_initcode_word = 2`, set at Mystique/London): the field value is carried earlier than the metering is
+    * switched on, so the two halves are separate proposals at different activation heights (the fee value cannot claim
+    * `Eip(3860)` and this flag both). Uses `Custom("eip3860-metering", 0)` as its distinct registry id. ETC Spiral
+    * (block) / ETH Shanghai (timestamp).
+    */
+  val Eip3860Metering: EvmProposal =
+    EvmProposal(Custom("eip3860-metering", 0), configDelta = _.copy(eip3860Enabled = true))
+
+  /** EIP-6780 — SELFDESTRUCT only in the same transaction it was created (`eip6780Enabled`). ETC Olympia (block) / ETH
+    * Cancun (timestamp).
+    */
+  val Eip6780SelfdestructSameTx: EvmProposal =
+    EvmProposal(Eip(6780), configDelta = _.copy(eip6780Enabled = true))
+
+  /** EIP-6049 — deprecate SELFDESTRUCT (warning-only; `eip6049DeprecationEnabled`). ETC Spiral only — ETH never set
+    * this flag in the old dispatch, so it derives to `Never` on ETH (byte-identity preserved).
+    */
+  val Eip6049Deprecation: EvmProposal =
+    EvmProposal(Eip(6049), configDelta = _.copy(eip6049DeprecationEnabled = true))
 
   /** EIP-160 — EXP repricing (G_expbyte 10→50). */
   val Eip160: EvmProposal =
@@ -287,11 +347,15 @@ object EvmProposals:
     * G_balance) resolve last-write-wins correctly. Opcode order is not consensus-visible (`byteToOpCode` is keyed by
     * `op.code`) but is pinned here so the regression diff stays clean.
     */
+  // Order among the config-only flag proposals is not consensus-visible and does not interact with the opcode/fee fold
+  // (each sets a distinct EvmConfig boolean via `.copy`); they are placed at their fork-chronological positions purely
+  // to keep the regression diff clean.
   val evmApplicationOrder: List[ProposalId] = List(
     Eip(2),
     Eip(7),
     Eip(150),
     Eip(160),
+    Eip(161),
     Eip(140),
     Eip(211),
     Eip(1052),
@@ -304,12 +368,17 @@ object EvmProposals:
     Eip(2930),
     Eip(3198),
     Eip(3529),
+    Eip(3541),
     Eip(3860),
     Eip(3855),
+    Eip(3651),
+    Custom("eip3860-metering", 0),
+    Eip(6049),
     Eip(4844),
     Eip(7516),
     Eip(1153),
     Eip(5656),
+    Eip(6780),
     Eip(7939),
     Ecip(1121)
   )
@@ -321,6 +390,7 @@ object EvmProposals:
     Eip7DelegateCall,
     Eip150,
     Eip160,
+    Eip161NoEmptyAccounts,
     Eip140Revert,
     Eip211ReturnData,
     Eip1052ExtCodeHash,
@@ -333,15 +403,110 @@ object EvmProposals:
     Eip2930,
     Eip3198BaseFee,
     Eip3529Refund,
+    Eip3541RejectEF,
     Eip3860InitCode,
     Eip3855Push0,
+    Eip3651WarmCoinbase,
+    Eip3860Metering,
+    Eip6049Deprecation,
     Eip4844BlobHash,
     Eip7516BlobBaseFee,
     Eip1153Transient,
     Eip5656Mcopy,
+    Eip6780SelfdestructSameTx,
     Eip7939Clz,
     Ecip1121Olympia
   ).map(p => p.id -> p).toMap
+
+  // The two "not scheduled" sentinels a fork-block field parks at (mirrors `BlockchainConfig`/`ForkId`): 10^18 is the
+  // genesis-JSON "pending" marker (ETC parks olympia-block-number here until Olympia is dated) and Long.MaxValue is the
+  // in-code missing-key fallback. A field at either derives to `ForkActivation.Never`.
+  private val OlympiaPendingSentinel: BigInt = BigInt("1000000000000000000")
+  private val MaxBlockSentinel: BigInt = BigInt(Long.MaxValue)
+
+  private def byBlockIfReal(bn: BlockNumber): ForkActivation =
+    if bn.value == OlympiaPendingSentinel || bn.value == MaxBlockSentinel then ForkActivation.Never
+    else ForkActivation.ByBlock(bn)
+
+  /** The BLOCK-based activation axis of every EVM proposal on the given chain, network-aware (Row 5.3b). This is the
+    * single source of truth for block dispatch, consumed BOTH by `EvmConfig.forBlock(block, BlockchainConfigForEvm)`
+    * (the block-only overload) and by `BlockchainConfig.deriveForkSchedule` (which overlays the ETH timestamp forks —
+    * Shanghai/Cancun/Osaka — on top; those are `Never` here).
+    *
+    * The SAME EIP gates on a DIFFERENT fork-named block field on ETC vs ETH (e.g. EIP-140 REVERT is Atlantis on ETC,
+    * Byzantium on ETH; the four London EIPs gate on the `olympia` field on ETH but at Mystique/Olympia on ETC), and the
+    * `olympia`/`spiral` fields mean different forks per network — so the mapping branches on `isEthereum` rather than
+    * relying on sentinels to disambiguate a shared field. On ETH the Shanghai+/Cancun/Osaka proposals are TIMESTAMP
+    * forks (supplied by `deriveForkSchedule`) and are absent here; on ETC they are block forks at spiral/olympia.
+    *
+    * NOTE (behaviour vs. the old builder chain): the old `*ConfigBuilder` chain was UNCONDITIONAL — the winning fork's
+    * builder always included every lower fork's delta regardless of whether the lower fork's block was reached. This
+    * per-proposal gate instead activates each proposal on its own block, so the two agree for any MONOTONIC (real)
+    * config but can differ for a degenerate synthetic config that dates a higher fork while parking a lower one at a
+    * sentinel. All production confs (etc/mordor/eth/sepolia) are monotonic; `ForBlockFoldIdentitySpec` proves identity
+    * on monotonic ladders.
+    */
+  def blockEvmActivations(c: BlockchainConfigForEvm): Map[ProposalId, ForkActivation] =
+    val shared: Map[ProposalId, ForkActivation] = Map(
+      Eip(2) -> byBlockIfReal(c.homesteadBlockNumber),
+      Eip(7) -> byBlockIfReal(c.homesteadBlockNumber),
+      Eip(150) -> byBlockIfReal(c.eip150BlockNumber),
+      Eip(160) -> byBlockIfReal(c.eip160BlockNumber)
+    )
+    if c.isEthereum then
+      shared ++ Map(
+        Eip(161) -> byBlockIfReal(c.eip161BlockNumber),
+        Eip(140) -> byBlockIfReal(c.byzantiumBlockNumber),
+        Eip(211) -> byBlockIfReal(c.byzantiumBlockNumber),
+        Eip(1052) -> byBlockIfReal(c.constantinopleBlockNumber),
+        Eip(1014) -> byBlockIfReal(c.constantinopleBlockNumber),
+        Eip(145) -> byBlockIfReal(c.constantinopleBlockNumber),
+        Eip(1344) -> byBlockIfReal(c.istanbulBlockNumber),
+        Eip(1884) -> byBlockIfReal(c.istanbulBlockNumber),
+        Eip(2028) -> byBlockIfReal(c.istanbulBlockNumber),
+        Eip(2929) -> byBlockIfReal(c.berlinBlockNumber),
+        Eip(2930) -> byBlockIfReal(c.berlinBlockNumber),
+        // London EIPs gate on the olympia block field on ETH (olympia-block-number == London height).
+        Eip(3198) -> byBlockIfReal(c.olympiaBlockNumber),
+        Eip(3529) -> byBlockIfReal(c.olympiaBlockNumber),
+        Eip(3541) -> byBlockIfReal(c.olympiaBlockNumber),
+        Eip(3860) -> byBlockIfReal(c.olympiaBlockNumber)
+      )
+    else
+      shared ++ Map(
+        Eip(161) -> byBlockIfReal(c.atlantisBlockNumber),
+        Eip(140) -> byBlockIfReal(c.atlantisBlockNumber),
+        Eip(211) -> byBlockIfReal(c.atlantisBlockNumber),
+        Eip(1052) -> byBlockIfReal(c.aghartaBlockNumber),
+        Eip(1014) -> byBlockIfReal(c.aghartaBlockNumber),
+        Eip(145) -> byBlockIfReal(c.aghartaBlockNumber),
+        Eip(1344) -> byBlockIfReal(c.phoenixBlockNumber),
+        Eip(1884) -> byBlockIfReal(c.phoenixBlockNumber),
+        Eip(2028) -> byBlockIfReal(c.phoenixBlockNumber),
+        Eip(2929) -> byBlockIfReal(c.magnetoBlockNumber),
+        Eip(2930) -> byBlockIfReal(c.magnetoBlockNumber),
+        Eip(3529) -> byBlockIfReal(c.mystiqueBlockNumber),
+        Eip(3541) -> byBlockIfReal(c.mystiqueBlockNumber),
+        Eip(3860) -> byBlockIfReal(c.mystiqueBlockNumber),
+        Eip(3855) -> byBlockIfReal(c.spiralBlockNumber),
+        Eip(3651) -> byBlockIfReal(c.spiralBlockNumber),
+        Custom("eip3860-metering", 0) -> byBlockIfReal(c.spiralBlockNumber),
+        Eip(6049) -> byBlockIfReal(c.spiralBlockNumber),
+        Eip(3198) -> byBlockIfReal(c.olympiaBlockNumber),
+        Eip(1153) -> byBlockIfReal(c.olympiaBlockNumber),
+        Eip(5656) -> byBlockIfReal(c.olympiaBlockNumber),
+        Eip(6780) -> byBlockIfReal(c.olympiaBlockNumber),
+        Eip(7939) -> byBlockIfReal(c.olympiaBlockNumber),
+        Ecip(1121) -> byBlockIfReal(c.olympiaBlockNumber)
+      )
+
+  /** The block-based active proposal set at `block` on the given chain (Row 5.3b) — the input to `deriveEvm` / the
+    * config fold for the block-only `forBlock` overload.
+    */
+  def activeBlockProposals(c: BlockchainConfigForEvm, block: BlockNumber): Set[ProposalId] =
+    val ts0 = Timestamp(0)
+    val td0 = TotalDifficulty(0)
+    blockEvmActivations(c).collect { case (id, act) if act.isActiveAt(block, ts0, td0) => id }.toSet
 
   /** Derive a fork's (opcode set, fee schedule) by folding the active proposals over the Frontier base, in
     * `evmApplicationOrder`. This is the fold the design's `EvmConfig.forBlock` adopts in Row 5.3; here it is the engine

@@ -7,9 +7,13 @@ import com.chipprbots.ethereum
 import com.chipprbots.ethereum.domain.AccessListItem
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.Timestamp
+import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.forks.ProposalId
+import com.chipprbots.ethereum.forks.ProposalId.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.vm
+import com.chipprbots.ethereum.vm.forks.EvmProposals
 
 import EvmConfig.*
 
@@ -24,77 +28,55 @@ object EvmConfig:
     Int.MaxValue
   ) /* used to artificially limit memory usage by incurring maximum gas cost */
 
-  /** returns the evm config that should be used for given block
+  /** The EVM config for a given block — block-number dispatch only (Row 5.3b: derived by folding the active proposals,
+    * no timestamp forks). Delegates to the [[BlockchainConfigForEvm]] overload, which computes the active proposal set
+    * from the chain's block-number fields.
     */
   def forBlock(blockNumber: BlockNumber, blockchainConfig: BlockchainConfig): EvmConfig =
     forBlock(blockNumber, BlockchainConfigForEvm(blockchainConfig))
 
-  /** returns the evm config for a given block, applying timestamp-based fork overrides for post-merge ETH chains.
+  /** The EVM config for a given block AND timestamp — the full fork axis (Row 5.3b). Computes the active proposal set
+    * from the chain's L3 [[com.chipprbots.ethereum.forks.ForkSchedule]] (`isActive` over block / timestamp / TTD), then
+    * derives the opcode set, fee schedule and boolean flags by folding those active proposals. Post-Merge ETH timestamp
+    * forks (Shanghai/Cancun/Prague/Osaka) enter via the schedule's `ByTimestamp` activations; ETC block forks via
+    * `ByBlock`. No EVM proposal activates on the TTD axis, so the Merge does not change the derived EVM config.
     */
   def forBlock(blockNumber: BlockNumber, timestamp: Timestamp, blockchainConfig: BlockchainConfig): EvmConfig =
-    var config = forBlock(blockNumber, blockchainConfig)
-    // Apply timestamp-based fork upgrades for ETH chains
-    if blockchainConfig.isShanghaiTimestamp(timestamp) then
-      config = config.copy(
-        opCodeList = EthShanghaiOpCodes, // Adds PUSH0 (EIP-3855); carries BASEFEE (EIP-3198) from London
-        eip3651Enabled = true, // Warm COINBASE
-        eip3860Enabled = true // Initcode metering
-      )
-    if blockchainConfig.isCancunTimestamp(timestamp) then
-      config = config.copy(
-        opCodeList = EthCancunOpCodes, // Adds TSTORE/TLOAD/MCOPY/BLOBHASH/BLOBBASEFEE
-        feeSchedule = new FeeSchedule.EthCancunFeeSchedule,
-        eip6780Enabled = true // SELFDESTRUCT restriction
-      )
-    if blockchainConfig.isPragueTimestamp(timestamp) then
-      config = config.copy(
-        feeSchedule = new FeeSchedule.EthPragueFeeSchedule // EIP-7623: increased calldata costs
-      )
-    if blockchainConfig.isOsakaTimestamp(timestamp) then
-      config = config.copy(
-        feeSchedule = new FeeSchedule.EthOsakaFeeSchedule,
-        opCodeList = EthOsakaOpCodes // EIP-7939: CLZ opcode
-      )
-    config
+    val schedule = blockchainConfig.forkSchedule
+    val td0 = TotalDifficulty(0)
+    val active: Set[ProposalId] =
+      EvmProposals.evmApplicationOrder.filter(id => schedule.isActive(id, blockNumber, timestamp, td0)).toSet
+    deriveEvmConfigAt(active, BlockchainConfigForEvm(blockchainConfig))
 
-  /** returns the evm config that should be used for given block
+  /** The EVM config for a given block — block-number dispatch (Row 5.3b). The active proposal set is computed from the
+    * chain's block-number fields via [[EvmProposals.activeBlockProposals]] (network-aware), then the opcode set, fee
+    * schedule and boolean flags are DERIVED by folding those proposals. This is the block-only path: ETH timestamp
+    * forks are absent (they require the 3-arg overload). Byte-identical to the former per-fork `*ConfigBuilder` bundle
+    * for every fork on both networks (`ForBlockFoldIdentitySpec`).
     */
   def forBlock(blockNumber: BlockNumber, blockchainConfig: BlockchainConfigForEvm): EvmConfig =
-    // When ETC-specific forks (Spiral, Mystique) activate AFTER Olympia, the chain follows
-    // standard Ethereum fork schedule where London only activates EIP-1559/3529/3541.
-    // On ETC, Spiral < Olympia in the fork sequence, so Olympia bundles all EIPs.
-    val etcForksDisabled = blockchainConfig.spiralBlockNumber > blockchainConfig.olympiaBlockNumber
-    val olympiaBuilder = if etcForksDisabled then LondonConfigBuilder else OlympiaConfigBuilder
+    deriveEvmConfigAt(EvmProposals.activeBlockProposals(blockchainConfig, blockNumber), blockchainConfig)
 
-    val transitionBlockToConfigWithPriorityMapping: List[(BlockNumber, Int, EvmConfigBuilder)] = List(
-      (blockchainConfig.frontierBlockNumber, 1, FrontierConfigBuilder),
-      (blockchainConfig.homesteadBlockNumber, 2, HomesteadConfigBuilder),
-      (blockchainConfig.eip150BlockNumber, 3, PostEIP150ConfigBuilder),
-      (blockchainConfig.eip160BlockNumber, 4, PostEIP160ConfigBuilder),
-      (blockchainConfig.eip161BlockNumber, 5, PostEIP161ConfigBuilder),
-      (blockchainConfig.byzantiumBlockNumber, 6, ByzantiumConfigBuilder),
-      // ETC forks may intentionally share the same activation height as their ETH counterparts.
-      // In that case we must prefer the ETC config, otherwise gas accounting/opcodes can diverge.
-      (blockchainConfig.atlantisBlockNumber, 7, AtlantisConfigBuilder),
-      (blockchainConfig.constantinopleBlockNumber, 8, ConstantinopleConfigBuilder),
-      (blockchainConfig.aghartaBlockNumber, 9, AghartaConfigBuilder),
-      (blockchainConfig.petersburgBlockNumber, 10, PetersburgConfigBuilder),
-      (blockchainConfig.istanbulBlockNumber, 11, IstanbulConfigBuilder),
-      (blockchainConfig.phoenixBlockNumber, 12, PhoenixConfigBuilder),
-      (blockchainConfig.magnetoBlockNumber, 13, MagnetoConfigBuilder),
-      (blockchainConfig.berlinBlockNumber, 14, BerlinConfigBuilder),
-      (blockchainConfig.mystiqueBlockNumber, 15, MystiqueConfigBuilder),
-      (blockchainConfig.spiralBlockNumber, 16, SpiralConfigBuilder),
-      (blockchainConfig.olympiaBlockNumber, 17, olympiaBuilder)
+  /** Derive a full [[EvmConfig]] from an active proposal set (Row 5.3b — the single fold both `forBlock` and the
+    * `*ConfigBuilder` test fixtures go through). Opcode set + fee schedule come from [[EvmProposals.deriveEvm]] over
+    * the Frontier base; the boolean flags come from folding each active proposal's `configDelta` in
+    * `evmApplicationOrder`.
+    */
+  def deriveEvmConfigAt(active: Set[ProposalId], config: BlockchainConfigForEvm): EvmConfig =
+    val (opcodes, feeValues) = EvmProposals.deriveEvm(active)
+    val base = EvmConfig(
+      blockchainConfig = config,
+      feeSchedule = feeValues,
+      opCodeList = OpCodeList(opcodes),
+      exceptionalFailedCodeDeposit = false,
+      subGasCapDivisor = None,
+      chargeSelfDestructForNewAccount = false,
+      traceInternalTransactions = false
     )
-
-    // highest transition block that is less/equal to `blockNumber`
-    val evmConfigBuilder = transitionBlockToConfigWithPriorityMapping
-      .filterNot { case (number, _, _) => number > blockNumber }
-      .maxBy { case (number, priority, _) => (number, priority) }
-      ._3
-
-    evmConfigBuilder(blockchainConfig)
+    EvmProposals.evmApplicationOrder.iterator
+      .filter(active.contains)
+      .flatMap(EvmProposals.byId.get)
+      .foldLeft(base)((cfg, p) => p.configDelta(cfg))
 
   val FrontierOpCodes: OpCodeList = OpCodeList(OpCodes.FrontierOpCodes)
   val HomesteadOpCodes: OpCodeList = OpCodeList(OpCodes.HomesteadOpCodes)
@@ -111,115 +93,58 @@ object EvmConfig:
   val EtcOlympiaOpCodes: OpCodeList = OpCodeList(OpCodes.EtcOlympiaOpCodes)
   val EthOsakaOpCodes: OpCodeList = OpCodeList(OpCodes.EthOsakaOpCodes)
 
-  val FrontierConfigBuilder: EvmConfigBuilder = config =>
-    EvmConfig(
-      blockchainConfig = config,
-      feeSchedule = new FeeSchedule.FrontierFeeSchedule,
-      opCodeList = FrontierOpCodes,
-      exceptionalFailedCodeDeposit = false,
-      subGasCapDivisor = None,
-      chargeSelfDestructForNewAccount = false,
-      traceInternalTransactions = false
-    )
+  // Cumulative active-proposal set per fork — the single place fork→proposal membership is declared for the fixture
+  // builders below. Each `*ConfigBuilder` is now a thin wrapper over `deriveEvmConfigAt` (Row 5.3b): the opcode set,
+  // fee schedule and boolean flags are DERIVED from the fold, not hand-copied. Config-only ids (Eip(161)/Eip(3541)/
+  // Eip(3651)/Custom("eip3860-metering",0)/Eip(6049)/Eip(6780)) carry no opcode/fee delta — they only add their flag —
+  // so `deriveEvm`'s opcode/fee output is unchanged by their presence (proven byte-identical in EvmProposalDerivationSpec
+  // + ForBlockFoldIdentitySpec). Where two ETC/ETH forks share the same EVM content (Atlantis≡Byzantium, Agharta≡
+  // Constantinople, Istanbul≡Phoenix, Berlin≡Magneto) the builders share a set — the network divergence is only in the
+  // block-number the proposal activates at (see EvmProposals.blockEvmActivations), never in the derived config.
+  private val frontierSet: Set[ProposalId] = Set.empty
+  private val homesteadSet: Set[ProposalId] = frontierSet ++ Set(Eip(2), Eip(7))
+  private val postEip150Set: Set[ProposalId] = homesteadSet + Eip(150)
+  private val postEip160Set: Set[ProposalId] = postEip150Set + Eip(160)
+  private val postEip161Set: Set[ProposalId] = postEip160Set + Eip(161)
+  private val byzantiumSet: Set[ProposalId] = postEip161Set ++ Set(Eip(140), Eip(211))
+  private val constantinopleSet: Set[ProposalId] = byzantiumSet ++ Set(Eip(1052), Eip(1014), Eip(145))
+  private val phoenixSet: Set[ProposalId] = constantinopleSet ++ Set(Eip(1344), Eip(1884), Eip(2028))
+  private val magnetoSet: Set[ProposalId] = phoenixSet ++ Set(Eip(2929), Eip(2930))
+  private val mystiqueSet: Set[ProposalId] = magnetoSet ++ Set(Eip(3529), Eip(3541), Eip(3860))
+  private val spiralSet: Set[ProposalId] =
+    mystiqueSet ++ Set(Eip(3855), Eip(3651), Custom("eip3860-metering", 0), Eip(6049))
+  private val etcOlympiaSet: Set[ProposalId] =
+    spiralSet ++ Set(Eip(3198), Eip(1153), Eip(5656), Eip(6780), Eip(7939), Ecip(1121))
+  // ETH London: EIP-3198 BASEFEE + EIP-3529 refund + EIP-3541 0xEF-reject + EIP-3860 initcode-word value, over Magneto.
+  // No Shanghai+ flags (eip3651/eip3860-metering/eip6780) — those enter via the 3-arg timestamp fold.
+  private val ethLondonSet: Set[ProposalId] = magnetoSet ++ Set(Eip(3198), Eip(3529), Eip(3541), Eip(3860))
 
-  val HomesteadConfigBuilder: EvmConfigBuilder = config =>
-    EvmConfig(
-      blockchainConfig = config,
-      feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
-      opCodeList = HomesteadOpCodes,
-      exceptionalFailedCodeDeposit = true,
-      subGasCapDivisor = None,
-      chargeSelfDestructForNewAccount = false,
-      traceInternalTransactions = false
-    )
+  val FrontierConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(frontierSet, config)
+  val HomesteadConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(homesteadSet, config)
+  val PostEIP150ConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(postEip150Set, config)
+  val PostEIP160ConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(postEip160Set, config)
+  val PostEIP161ConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(postEip161Set, config)
+  val ByzantiumConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(byzantiumSet, config)
+  val ConstantinopleConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(constantinopleSet, config)
+  val PetersburgConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(constantinopleSet, config)
+  val IstanbulConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(phoenixSet, config)
 
-  val PostEIP150ConfigBuilder: EvmConfigBuilder = config =>
-    HomesteadConfigBuilder(config).copy(
-      feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
-      subGasCapDivisor = Some(64),
-      chargeSelfDestructForNewAccount = true
-    )
+  // Ethereum classic forks only — same EVM content as their ETH counterparts (see set-sharing note above).
+  val AtlantisConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(byzantiumSet, config)
+  val AghartaConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(constantinopleSet, config)
+  val PhoenixConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(phoenixSet, config)
+  val MagnetoConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(magnetoSet, config)
+  val BerlinConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(magnetoSet, config)
+  val MystiqueConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(mystiqueSet, config)
+  val SpiralConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(spiralSet, config)
 
-  val PostEIP160ConfigBuilder: EvmConfigBuilder = config =>
-    PostEIP150ConfigBuilder(config).copy(feeSchedule = new FeeSchedule.PostEIP160FeeSchedule)
-
-  val PostEIP161ConfigBuilder: EvmConfigBuilder = config => PostEIP160ConfigBuilder(config).copy(noEmptyAccounts = true)
-
-  val ByzantiumConfigBuilder: EvmConfigBuilder = config =>
-    PostEIP161ConfigBuilder(config).copy(
-      feeSchedule = new FeeSchedule.ByzantiumFeeSchedule,
-      opCodeList = ByzantiumOpCodes
-    )
-
-  val ConstantinopleConfigBuilder: EvmConfigBuilder = config =>
-    ByzantiumConfigBuilder(config).copy(
-      feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
-      opCodeList = ConstantinopleOpCodes
-    )
-
-  val PetersburgConfigBuilder: EvmConfigBuilder = config => ConstantinopleConfigBuilder(config)
-
-  val IstanbulConfigBuilder: EvmConfigBuilder = config => PhoenixConfigBuilder(config)
-
-  // Ethereum classic forks only
-  val AtlantisConfigBuilder: EvmConfigBuilder = config =>
-    PostEIP160ConfigBuilder(config).copy(
-      feeSchedule = new FeeSchedule.AtlantisFeeSchedule,
-      opCodeList = AtlantisOpCodes,
-      noEmptyAccounts = true
-    )
-
-  val AghartaConfigBuilder: EvmConfigBuilder = config =>
-    AtlantisConfigBuilder(config).copy(
-      feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
-      opCodeList = AghartaOpCodes
-    )
-
-  val PhoenixConfigBuilder: EvmConfigBuilder = config =>
-    AghartaConfigBuilder(config).copy(
-      feeSchedule = new ethereum.vm.FeeSchedule.PhoenixFeeSchedule,
-      opCodeList = PhoenixOpCodes
-    )
-
-  val MagnetoConfigBuilder: EvmConfigBuilder = config =>
-    PhoenixConfigBuilder(config).copy(
-      feeSchedule = new ethereum.vm.FeeSchedule.MagnetoFeeSchedule,
-      opCodeList = MagnetoOpCodes
-    )
-
-  val BerlinConfigBuilder: EvmConfigBuilder = MagnetoConfigBuilder
-
-  val MystiqueConfigBuilder: EvmConfigBuilder = config =>
-    MagnetoConfigBuilder(config).copy(
-      feeSchedule = new ethereum.vm.FeeSchedule.MystiqueFeeSchedule,
-      eip3541Enabled = true
-    )
-
-  val SpiralConfigBuilder: EvmConfigBuilder = config =>
-    MystiqueConfigBuilder(config).copy(
-      opCodeList = SpiralOpCodes,
-      eip3651Enabled = true,
-      eip3860Enabled = true,
-      eip6049DeprecationEnabled = true
-    )
-
-  /** London-only config for ETH chains. Enables EIP-1559/3198/3529/3541 without Shanghai+ EIPs. Used when Olympia block
-    * number differs from Spiral/Mystique (i.e., ETH fork schedule). ETH-only: reached solely via the etcForksDisabled
-    * branch in forBlock, so the EthLondonOpCodes list (which adds BASEFEE) never affects the ETC path.
+  /** London-only config for ETH chains (EIP-1559/3198/3529/3541), without Shanghai+ EIPs. Reached on ETH where the
+    * `olympia` block field carries the London height; the Shanghai/Cancun/Osaka overlays enter via the 3-arg timestamp
+    * fold. ETH-only, so the BASEFEE-carrying opcode set never affects the ETC path.
     */
-  val LondonConfigBuilder: EvmConfigBuilder = config =>
-    MagnetoConfigBuilder(config).copy(
-      opCodeList = EthLondonOpCodes, // EIP-3198: BASEFEE (0x48) from London
-      feeSchedule = new ethereum.vm.FeeSchedule.EthLondonFeeSchedule, // EIP-3529 refund changes (ETH-named root)
-      eip3541Enabled = true // EIP-3541: reject 0xEF contracts
-    )
+  val LondonConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(ethLondonSet, config)
 
-  val OlympiaConfigBuilder: EvmConfigBuilder = config =>
-    SpiralConfigBuilder(config).copy(
-      opCodeList = EtcOlympiaOpCodes,
-      feeSchedule = new FeeSchedule.EtcOlympiaFeeSchedule,
-      eip6780Enabled = true
-    )
+  val OlympiaConfigBuilder: EvmConfigBuilder = config => deriveEvmConfigAt(etcOlympiaSet, config)
 
   case class OpCodeList(opCodes: List[OpCode]):
     val byteToOpCode: Map[Byte, OpCode] =

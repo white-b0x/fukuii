@@ -11,6 +11,7 @@ import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.utils.ForkTimestamps
 
 import Fixtures.blockchainConfig
+import FeeScheduleFields.fields
 
 /** Tests for EvmConfig.forBlock timestamp-based fork dispatch (ETH/Sepolia path).
   *
@@ -27,19 +28,21 @@ class EvmConfigTimestampForkSpec extends AnyFlatSpec with Matchers:
   private val PragueTs: Long = 3_000L
   private val OsakaTs: Long = 4_000L
 
-  // Default test config: ETC-specific forks at 1e18, byzantium at 4_370_000.
-  // At block 0 this resolves to FrontierConfigBuilder — eip3860Enabled=false, no PUSH0.
-  // The 3-arg forBlock then applies timestamp overrides on top.
-  private val baseEthConfig = Config.blockchains.blockchainConfig.copy(
-    forkTimestamps = ForkTimestamps(
-      shanghaiTimestamp = Some(ShanghaiTs),
-      cancunTimestamp = Some(CancunTs),
-      pragueTimestamp = Some(PragueTs),
-      osakaTimestamp = Some(OsakaTs)
+  // The base block must be POST-London: the ETH timestamp forks are scheduled on networkType = ETH and layer on the
+  // block-active London base (BASEFEE/EIP-3198 is block-gated from London, not carried by the ts overlays).
+  private val PostLondonBlock: BlockNumber = BlockNumber(20_000_000)
+  private val baseEthConfig = Config.blockchains
+    .blockchains("eth")
+    .copy(
+      forkTimestamps = ForkTimestamps(
+        shanghaiTimestamp = Some(ShanghaiTs),
+        cancunTimestamp = Some(CancunTs),
+        pragueTimestamp = Some(PragueTs),
+        osakaTimestamp = Some(OsakaTs)
+      )
     )
-  )
 
-  private def evmAt(ts: Long): EvmConfig = EvmConfig.forBlock(BlockNumber(0), Timestamp(ts), baseEthConfig)
+  private def evmAt(ts: Long): EvmConfig = EvmConfig.forBlock(PostLondonBlock, Timestamp(ts), baseEthConfig)
 
   private val configEtcOlympia: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
 
@@ -68,12 +71,14 @@ class EvmConfigTimestampForkSpec extends AnyFlatSpec with Matchers:
     mystiqueBlockNumber = BlockNumber(Long.MaxValue),
     spiralBlockNumber = BlockNumber(Long.MaxValue),
     olympiaBlockNumber = BlockNumber(0),
-    chainId = ChainId(0x01)
+    chainId = ChainId(0x01),
+    isEthereum = true
   )
 
   // ETH London base (block-number dispatch, no timestamp overlay applied).
   private val evmEthLondon: EvmConfig = EvmConfig.forBlock(BlockNumber(0), ethLondonBaseCfg)
 
+  // ts = 0 resolves to the ETH London base (block 20M, no timestamp fork): eip3860 metering off, no PUSH0.
   "EvmConfig.forBlock timestamp dispatch when pre-Shanghai (ts = 0)" should "have eip3860Enabled = false" taggedAs (
     UnitTest,
     ConsensusTest
@@ -126,7 +131,7 @@ class EvmConfigTimestampForkSpec extends AnyFlatSpec with Matchers:
     UnitTest,
     ConsensusTest
   ) in {
-    evmAt(PragueTs).feeSchedule shouldBe a[FeeSchedule.EthPragueFeeSchedule]
+    fields(evmAt(PragueTs).feeSchedule) shouldBe fields(new FeeSchedule.EthPragueFeeSchedule)
   }
   // BEACON-CLZ-01 regression guard: Prague adds EIP-7702 (a tx type, no EVM opcode) — opcode set == Cancun, no CLZ.
   it should "not include CLZ (0x1E) — Prague adds no new EVM opcode over Cancun" taggedAs (
@@ -149,7 +154,7 @@ class EvmConfigTimestampForkSpec extends AnyFlatSpec with Matchers:
     evmAt(OsakaTs).byteToOpCode.get(0x48.toByte) shouldBe Some(BASEFEE)
   }
   it should "use EthOsakaFeeSchedule" taggedAs (UnitTest, ConsensusTest) in {
-    evmAt(OsakaTs).feeSchedule shouldBe a[FeeSchedule.EthOsakaFeeSchedule]
+    fields(evmAt(OsakaTs).feeSchedule) shouldBe fields(new FeeSchedule.EthOsakaFeeSchedule)
   }
 
   // BEACON-BASEFEE-02: the ETH London base opcode list (EthLondonOpCodes) must carry BASEFEE. Uses an ETH-shaped
@@ -167,7 +172,7 @@ class EvmConfigTimestampForkSpec extends AnyFlatSpec with Matchers:
     evmEthLondon.byteToOpCode.get(0x1e.toByte) shouldBe None
   }
   it should "use EthLondonOpCodes (ETH London base list)" taggedAs (UnitTest, ConsensusTest) in {
-    evmEthLondon.opCodeList shouldBe EvmConfig.EthLondonOpCodes
+    evmEthLondon.opCodeList.opCodes.toSet shouldBe EvmConfig.EthLondonOpCodes.opCodes.toSet
   }
 
   // BEACON-CLZ-01: Osaka = Cancun + exactly {CLZ}. Guards against CLZ drifting into Cancun again.

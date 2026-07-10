@@ -33,13 +33,23 @@ class SignedTransactionStatelessFilterSpec extends AnyFlatSpec with Matchers:
   // Base ETC config from test resources; all ETC-specific forks sit at 1e18 by default.
   private val etcConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
-  // ETH-style fork schedule: Olympia = London block (6M, above etcMystique's 5M so Mystique fee
-  // schedule is active), Spiral = never. This makes etcForksDisabled = (1e18 > 6M) = true, so
-  // EvmConfig.forBlock(olympiaBlockNumber, config) uses LondonConfigBuilder (eip3860Enabled = false).
+  // A REAL ETH monotonic fork ladder (Row 5.3b: `forBlock` gates each proposal on its own block, so a networkType = ETH
+  // config must carry the ETH-lineage fork blocks — byzantium…berlin — not the ETC ones). Olympia = London block (6M);
+  // the pre-London ETH forks are dated below it so EIP-2028 (G_txdatanonzero 68→16) and G_txcreate (Homestead) are
+  // active, matching a real ETH London chain. Spiral = never; Shanghai = always, so the timestamp-aware `forBlock`
+  // enables EIP-3860 metering.
   private val ethConfig: BlockchainConfig = etcConfig
     .withUpdatedForkBlocks(
       _.copy(
-        mystiqueBlockNumber = BlockNumber(5_000_000),
+        homesteadBlockNumber = BlockNumber(1_150_000),
+        eip150BlockNumber = BlockNumber(2_500_000),
+        eip160BlockNumber = BlockNumber(3_000_000),
+        eip161BlockNumber = BlockNumber(3_000_000),
+        byzantiumBlockNumber = BlockNumber(4_000_000),
+        constantinopleBlockNumber = BlockNumber(4_500_000),
+        petersburgBlockNumber = BlockNumber(4_500_000),
+        istanbulBlockNumber = BlockNumber(5_000_000),
+        berlinBlockNumber = BlockNumber(5_500_000),
         olympiaBlockNumber = BlockNumber(6_000_000),
         spiralBlockNumber = BlockNumber(BigInt("1000000000000000000"))
       )

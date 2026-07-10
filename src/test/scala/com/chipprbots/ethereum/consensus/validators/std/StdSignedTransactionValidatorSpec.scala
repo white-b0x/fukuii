@@ -59,6 +59,27 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers:
     forkTimestamps = ForkTimestamps(shanghaiTimestamp = Some(ShanghaiTs))
   )
 
+  // Row 5.3b: `forBlock` gates each proposal on its own block, so a REAL ETC Mystique-era chain must date Phoenix
+  // (EIP-2028, G_txdatanonzero 68→16) at/below the evaluation block. Spiral/Olympia stay at the sentinel so EIP-3860
+  // metering is off — the intended pre-Spiral ETC state. (The old config dated only mystique and relied on the removed
+  // unconditional builder chain to pull Phoenix's repricing in.)
+  private val etcMystiqueEraConfig: BlockchainConfig = etcConfig
+    .withUpdatedForkBlocks(
+      _.copy(
+        homesteadBlockNumber = BlockNumber(1_150_000),
+        eip150BlockNumber = BlockNumber(2_500_000),
+        eip160BlockNumber = BlockNumber(3_000_000),
+        atlantisBlockNumber = BlockNumber(8_772_000),
+        aghartaBlockNumber = BlockNumber(9_573_000),
+        phoenixBlockNumber = BlockNumber(10_500_839),
+        magnetoBlockNumber = BlockNumber(13_189_133),
+        mystiqueBlockNumber = BlockNumber(14_525_000),
+        spiralBlockNumber = BlockNumber(BigInt("1000000000000000000")),
+        olympiaBlockNumber = BlockNumber(BigInt("1000000000000000000"))
+      )
+    )
+    .copy(networkType = NetworkType.ETC)
+
   // EIP-3860: max initcode = 2 * MAX_CODE_SIZE = 2 * 24576 = 49152 bytes.
   // One byte over the limit to trigger the rejection.
   private val overLimitPayload: ByteString = ByteString(Array.fill(49153)(0.toByte))
@@ -185,9 +206,9 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers:
     UnitTest,
     ConsensusTest
   ) in {
-    // etcMystiqueConfig has Mystique fee schedule active at block 0 but no shanghaiTimestamp,
-    // so eip3860Enabled stays false. Intrinsic = 21000+32000+200*16+0 = 56200 ≤ 56213 → accepted.
-    implicit val cfg: BlockchainConfig = etcMystiqueConfig
+    // etcMystiqueEraConfig: Phoenix active (G_txdatanonzero=16), Spiral/Olympia not reached and networkType = ETC, so
+    // eip3860Enabled stays false. Intrinsic = 21000+32000+200*16+0 = 56200 ≤ 56213 → accepted.
+    implicit val cfg: BlockchainConfig = etcMystiqueEraConfig
     val etcHeader = baseHeader.copy(number = BlockNumber(BigInt(21_000_000)), unixTimestamp = Timestamp(ShanghaiTs + 1))
     validate(signedWordCostTx, etcHeader) match
       case Left(_: TransactionNotEnoughGasForIntrinsicError) =>

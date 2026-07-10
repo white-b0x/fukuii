@@ -24,6 +24,8 @@ import com.chipprbots.ethereum.forks.ProposalId.*
 import com.chipprbots.ethereum.forks.ProposalParams
 import com.chipprbots.ethereum.forks.ScheduledProposal
 import com.chipprbots.ethereum.utils.NumericUtils.*
+import com.chipprbots.ethereum.vm.BlockchainConfigForEvm
+import com.chipprbots.ethereum.vm.forks.EvmProposals
 
 /** Identifies whether the chain follows ETC (PoW indefinitely) or ETH (post-Merge PoS via CL). */
 enum NetworkType:
@@ -259,7 +261,7 @@ object BlockchainConfig:
         ++ fb.olympiaGasTarget.map(t => ProposalParams.OlympiaGasTargetKey -> ParamValue.Number(t))
     )
 
-    val entries: Map[ProposalId, ScheduledProposal] = Map(
+    val rewardAndPolicyEntries: Map[ProposalId, ScheduledProposal] = Map(
       Ecip(1017) -> ScheduledProposal(
         ForkActivation.ByBlock(BlockNumber(0)),
         ProposalParams(Map(ProposalParams.MonetaryPolicyKey -> ParamValue.MonetaryPolicy(cfg.monetaryPolicyConfig)))
@@ -299,7 +301,34 @@ object BlockchainConfig:
       ),
       Custom("merge", 0) -> ScheduledProposal(ttdActivation)
     )
-    ForkSchedule(entries)
+
+    // EVM proposal activations (Row 5.3b) — the same source of truth `EvmConfig.forBlock(block, BlockchainConfigForEvm)`
+    // uses for block dispatch. `blockEvmActivations` supplies the BLOCK axis (network-aware; ETH's Shanghai+/Cancun/Osaka
+    // proposals are absent there); the ETH timestamp overlay below supplies those on the `ByTimestamp` axis, so a single
+    // `schedule.isActive` in the 3-arg `forBlock` resolves every EVM proposal on the correct axis.
+    val cfgEvm = BlockchainConfigForEvm(cfg)
+    val evmBlockEntries: Map[ProposalId, ScheduledProposal] =
+      EvmProposals.blockEvmActivations(cfgEvm).map { case (id, act) => id -> ScheduledProposal(act) }
+    val evmTimestampEntries: Map[ProposalId, ScheduledProposal] =
+      if cfg.networkType == NetworkType.ETH then
+        Map(
+          // Shanghai — PUSH0 (EIP-3855), warm COINBASE (EIP-3651), initcode metering FLAG (EIP-3860). EIP-6049 is NOT
+          // flagged on ETH (only ETC Spiral set it), so it stays absent -> Never here, preserving byte-identity.
+          Eip(3855) -> ScheduledProposal(tsActivation(ft.shanghaiTimestamp)),
+          Eip(3651) -> ScheduledProposal(tsActivation(ft.shanghaiTimestamp)),
+          Custom("eip3860-metering", 0) -> ScheduledProposal(tsActivation(ft.shanghaiTimestamp)),
+          // Cancun — BLOBBASEFEE (EIP-7516), transient storage (EIP-1153), MCOPY (EIP-5656), SELFDESTRUCT-same-tx
+          // (EIP-6780). BLOBHASH (EIP-4844) is already scheduled above at the same cancun timestamp.
+          Eip(7516) -> ScheduledProposal(tsActivation(ft.cancunTimestamp)),
+          Eip(1153) -> ScheduledProposal(tsActivation(ft.cancunTimestamp)),
+          Eip(5656) -> ScheduledProposal(tsActivation(ft.cancunTimestamp)),
+          Eip(6780) -> ScheduledProposal(tsActivation(ft.cancunTimestamp)),
+          // Osaka — CLZ (EIP-7939).
+          Eip(7939) -> ScheduledProposal(tsActivation(ft.osakaTimestamp))
+        )
+      else Map.empty
+
+    ForkSchedule(rewardAndPolicyEntries ++ evmBlockEntries ++ evmTimestampEntries)
 
   // scalastyle:off method.length
   def fromRawConfig(blockchainConfig: TypesafeConfig): BlockchainConfig =

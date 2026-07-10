@@ -22,7 +22,7 @@ class EvmProposalDerivationSpec extends AnyFlatSpec with Matchers:
 
   import FeeSchedule.*
 
-  /** The 42 declared FeeSchedule fields in declaration order — mirrors `EvmConfigDealiasByteIdentitySpec.fields` (the
+  /** The 41 declared FeeSchedule fields in declaration order — mirrors `EvmConfigDealiasByteIdentitySpec.fields` (the
     * Row 5.1 byte-identity helper). Two schedules are field-identical iff their `fields` sequences are equal.
     */
   private def fields(fs: FeeSchedule): Seq[BigInt] = Seq(

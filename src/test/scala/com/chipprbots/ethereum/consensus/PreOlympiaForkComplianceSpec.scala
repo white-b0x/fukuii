@@ -11,6 +11,7 @@ import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.vm.BlockchainConfigForEvm.EtcForks
 import com.chipprbots.ethereum.vm.EvmConfig
 import com.chipprbots.ethereum.vm.FeeSchedule
+import com.chipprbots.ethereum.vm.FeeScheduleFields.fields
 import com.chipprbots.ethereum.vm.PUSH0
 
 // scalastyle:off magic.number
@@ -61,26 +62,30 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
 
   // ===== Fork Dispatch Table =====
 
+  // Row 5.3b: `forBlock` DERIVES the config by folding active proposals, so assertions are on VALUES — the fee 41-field
+  // tuple (`fields`) and the opcode `.toSet` — rather than the old `isInstanceOf`/`OpCodeList ==` representation. The
+  // ladders are MONOTONIC (every pre-fork reached): the fold gates each proposal on its own block, so a lower fork left
+  // at a sentinel would (correctly) drop its opcodes/fees, unlike the old unconditional builder chain.
   private val forkCases: Seq[ForkCase] = Seq(
     ForkCase(
-      label = "select FrontierFeeSchedule for Frontier blocks",
+      label = "derive the Frontier fee/opcodes for Frontier blocks",
       blockNumber = BlockNumber(0),
       configFn = _.copy(frontierBlockNumber = BlockNumber(0)),
       assertFn = evm =>
-        evm.feeSchedule shouldBe a[FeeSchedule.FrontierFeeSchedule]
-        evm.opCodeList shouldBe EvmConfig.FrontierOpCodes
+        fields(evm.feeSchedule) shouldBe fields(new FeeSchedule.FrontierFeeSchedule)
+        evm.opCodeList.opCodes.toSet shouldBe EvmConfig.FrontierOpCodes.opCodes.toSet
     ),
     ForkCase(
-      label = "select HomesteadFeeSchedule for Homestead blocks",
+      label = "derive the Homestead fee/opcodes for Homestead blocks",
       blockNumber = BlockNumber(10),
       configFn = _.copy(frontierBlockNumber = BlockNumber(0), homesteadBlockNumber = BlockNumber(10)),
       assertFn = evm =>
-        evm.feeSchedule shouldBe a[FeeSchedule.HomesteadFeeSchedule]
-        evm.opCodeList shouldBe EvmConfig.HomesteadOpCodes
+        fields(evm.feeSchedule) shouldBe fields(new FeeSchedule.HomesteadFeeSchedule)
+        evm.opCodeList.opCodes.toSet shouldBe EvmConfig.HomesteadOpCodes.opCodes.toSet
         evm.exceptionalFailedCodeDeposit shouldBe true
     ),
     ForkCase(
-      label = "select AtlantisFeeSchedule for Atlantis blocks",
+      label = "derive the Atlantis fee/opcodes for Atlantis blocks",
       blockNumber = BlockNumber(100),
       configFn = _.copy(
         frontierBlockNumber = BlockNumber(0),
@@ -90,66 +95,81 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
         atlantisBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
-        evm.feeSchedule shouldBe a[FeeSchedule.AtlantisFeeSchedule]
-        evm.opCodeList shouldBe EvmConfig.AtlantisOpCodes
+        fields(evm.feeSchedule) shouldBe fields(new FeeSchedule.AtlantisFeeSchedule)
+        evm.opCodeList.opCodes.toSet shouldBe EvmConfig.AtlantisOpCodes.opCodes.toSet
         evm.noEmptyAccounts shouldBe true
     ),
     ForkCase(
-      label = "prefer Atlantis over Byzantium when both activated at same height",
+      label = "apply Atlantis (and ignore byzantium on the ETC path) at the same height",
       blockNumber = BlockNumber(0),
       configFn = _.copy(
         frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(0),
+        eip150BlockNumber = BlockNumber(0),
+        eip160BlockNumber = BlockNumber(0),
         byzantiumBlockNumber = BlockNumber(0),
         atlantisBlockNumber = BlockNumber(0)
       ),
       assertFn = evm =>
-        evm.feeSchedule shouldBe a[FeeSchedule.AtlantisFeeSchedule]
-        evm.opCodeList shouldBe EvmConfig.AtlantisOpCodes
+        fields(evm.feeSchedule) shouldBe fields(new FeeSchedule.AtlantisFeeSchedule)
+        evm.opCodeList.opCodes.toSet shouldBe EvmConfig.AtlantisOpCodes.opCodes.toSet
     ),
     ForkCase(
-      label = "select ConstantionopleFeeSchedule for Agharta blocks",
+      label = "derive the Agharta fee/opcodes for Agharta blocks",
       blockNumber = BlockNumber(100),
       configFn = _.copy(
         frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(1),
+        eip150BlockNumber = BlockNumber(2),
+        eip160BlockNumber = BlockNumber(3),
         atlantisBlockNumber = BlockNumber(10),
         aghartaBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
-        evm.feeSchedule shouldBe a[FeeSchedule.ConstantionopleFeeSchedule]
-        evm.opCodeList shouldBe EvmConfig.AghartaOpCodes
+        fields(evm.feeSchedule) shouldBe fields(new FeeSchedule.ConstantionopleFeeSchedule)
+        evm.opCodeList.opCodes.toSet shouldBe EvmConfig.AghartaOpCodes.opCodes.toSet
     ),
     ForkCase(
-      label = "select PhoenixFeeSchedule for Phoenix blocks",
+      label = "derive the Phoenix fee/opcodes for Phoenix blocks",
       blockNumber = BlockNumber(100),
       configFn = _.copy(
         frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(1),
+        eip150BlockNumber = BlockNumber(2),
+        eip160BlockNumber = BlockNumber(3),
         atlantisBlockNumber = BlockNumber(10),
         aghartaBlockNumber = BlockNumber(20),
         phoenixBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
-        evm.feeSchedule shouldBe a[FeeSchedule.PhoenixFeeSchedule]
-        evm.opCodeList shouldBe EvmConfig.PhoenixOpCodes
+        fields(evm.feeSchedule) shouldBe fields(new FeeSchedule.PhoenixFeeSchedule)
+        evm.opCodeList.opCodes.toSet shouldBe EvmConfig.PhoenixOpCodes.opCodes.toSet
     ),
     ForkCase(
-      label = "select MagnetoFeeSchedule for Magneto blocks",
+      label = "derive the Magneto fee/opcodes for Magneto blocks",
       blockNumber = BlockNumber(100),
       configFn = _.copy(
         frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(1),
+        eip150BlockNumber = BlockNumber(2),
+        eip160BlockNumber = BlockNumber(3),
         atlantisBlockNumber = BlockNumber(10),
         aghartaBlockNumber = BlockNumber(20),
         phoenixBlockNumber = BlockNumber(30),
         magnetoBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
-        evm.feeSchedule shouldBe a[FeeSchedule.MagnetoFeeSchedule]
-        evm.opCodeList shouldBe EvmConfig.MagnetoOpCodes
+        fields(evm.feeSchedule) shouldBe fields(new FeeSchedule.MagnetoFeeSchedule)
+        evm.opCodeList.opCodes.toSet shouldBe EvmConfig.MagnetoOpCodes.opCodes.toSet
     ),
     ForkCase(
-      label = "select MystiqueFeeSchedule for Mystique blocks",
+      label = "derive the Mystique fee/opcodes for Mystique blocks",
       blockNumber = BlockNumber(100),
       configFn = _.copy(
         frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(1),
+        eip150BlockNumber = BlockNumber(2),
+        eip160BlockNumber = BlockNumber(3),
         atlantisBlockNumber = BlockNumber(10),
         aghartaBlockNumber = BlockNumber(20),
         phoenixBlockNumber = BlockNumber(30),
@@ -157,14 +177,17 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
         mystiqueBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
-        evm.feeSchedule shouldBe a[FeeSchedule.MystiqueFeeSchedule]
+        fields(evm.feeSchedule) shouldBe fields(new FeeSchedule.MystiqueFeeSchedule)
         evm.eip3541Enabled shouldBe true
     ),
     ForkCase(
-      label = "select MystiqueFeeSchedule with Spiral opcodes for Spiral blocks",
+      label = "derive the Mystique fee with Spiral opcodes for Spiral blocks",
       blockNumber = BlockNumber(100),
       configFn = _.copy(
         frontierBlockNumber = BlockNumber(0),
+        homesteadBlockNumber = BlockNumber(1),
+        eip150BlockNumber = BlockNumber(2),
+        eip160BlockNumber = BlockNumber(3),
         atlantisBlockNumber = BlockNumber(10),
         aghartaBlockNumber = BlockNumber(20),
         phoenixBlockNumber = BlockNumber(30),
@@ -173,9 +196,9 @@ class PreOlympiaForkComplianceSpec extends AnyFlatSpec with Matchers with Parall
         spiralBlockNumber = BlockNumber(100)
       ),
       assertFn = evm =>
-        // Spiral uses MystiqueFeeSchedule (no new fee schedule class)
-        evm.feeSchedule shouldBe a[FeeSchedule.MystiqueFeeSchedule]
-        evm.opCodeList shouldBe EvmConfig.SpiralOpCodes
+        // Spiral keeps the Mystique fee schedule (no new fee fields)
+        fields(evm.feeSchedule) shouldBe fields(new FeeSchedule.MystiqueFeeSchedule)
+        evm.opCodeList.opCodes.toSet shouldBe EvmConfig.SpiralOpCodes.opCodes.toSet
         evm.eip3651Enabled shouldBe true
         evm.eip3860Enabled shouldBe true
         evm.eip6049DeprecationEnabled shouldBe true

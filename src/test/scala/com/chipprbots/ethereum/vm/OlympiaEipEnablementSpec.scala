@@ -10,6 +10,7 @@ import com.chipprbots.ethereum.testing.Tags.*
 
 import BlockchainConfigForEvm.EtcForks.EtcFork
 import Fixtures.blockchainConfig
+import FeeScheduleFields.fields
 
 /** Tests for Olympia EIP enablement flags and constants.
   *
@@ -177,8 +178,8 @@ class OlympiaEipEnablementSpec extends AnyFlatSpec with Matchers:
     }
   }
 
-  "Olympia fee schedule" should "use EtcOlympiaFeeSchedule" taggedAs (UnitTest, OlympiaTest) in {
-    configOlympia.feeSchedule shouldBe a[FeeSchedule.EtcOlympiaFeeSchedule]
+  "Olympia fee schedule" should "be field-identical to EtcOlympiaFeeSchedule" taggedAs (UnitTest, OlympiaTest) in {
+    fields(configOlympia.feeSchedule) shouldBe fields(new FeeSchedule.EtcOlympiaFeeSchedule)
   }
 
   it should "inherit Mystique fee schedule values" taggedAs (UnitTest, OlympiaTest) in {

@@ -9,6 +9,8 @@ import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.vm.CLZ
 import com.chipprbots.ethereum.vm.EvmConfig
+import com.chipprbots.ethereum.vm.FeeSchedule
+import com.chipprbots.ethereum.vm.FeeScheduleFields.fields
 
 /** ETH mainnet Osaka + EIP-7892 BPO1/BPO2 activation guard. Loads the real `blockchains("eth")` config and asserts the
   * fork timestamps, Osaka opcode set, and BPO blob schedule against go-ethereum ground truth.
@@ -57,13 +59,13 @@ class EthMainnetOsakaActivationSpec extends AnyWordSpec with Matchers:
     "yield the Osaka opcode set (CLZ 0x1E present, EIP-7939)" taggedAs (UnitTest, ConsensusTest) in {
       val evm = EvmConfig.forBlock(PostOsakaBlock, Timestamp(OsakaTs), ethConf)
       evm.byteToOpCode.get(0x1e.toByte) shouldBe Some(CLZ)
-      evm.opCodeList shouldBe EvmConfig.EthOsakaOpCodes
+      evm.opCodeList.opCodes.toSet shouldBe EvmConfig.EthOsakaOpCodes.opCodes.toSet
     }
 
     "use the Osaka fee schedule" taggedAs (UnitTest, ConsensusTest) in {
-      EvmConfig
-        .forBlock(PostOsakaBlock, Timestamp(OsakaTs), ethConf)
-        .feeSchedule shouldBe a[com.chipprbots.ethereum.vm.FeeSchedule.EthOsakaFeeSchedule]
+      fields(
+        EvmConfig.forBlock(PostOsakaBlock, Timestamp(OsakaTs), ethConf).feeSchedule
+      ) shouldBe fields(new FeeSchedule.EthOsakaFeeSchedule)
     }
   }
 

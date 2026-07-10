@@ -24,8 +24,23 @@ class EIP7702AuthGasSpec
 
   val olympiaBlock: BlockNumber = BlockNumber(10)
 
+  // Row 5.3b: `forBlock` gates each proposal on its own block, so the ladder must be MONOTONIC — dating olympia alone
+  // while leaving Phoenix (EIP-2028, G_txdatanonzero 68→16) at a higher default block would (correctly) not reach the
+  // Phoenix repricing at block 10. Co-activate every pre-Olympia fork at genesis so the Olympia fee schedule is complete.
   val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
-    _.copy(olympiaBlockNumber = olympiaBlock)
+    _.copy(
+      frontierBlockNumber = BlockNumber(0),
+      homesteadBlockNumber = BlockNumber(0),
+      eip150BlockNumber = BlockNumber(0),
+      eip160BlockNumber = BlockNumber(0),
+      atlantisBlockNumber = BlockNumber(0),
+      aghartaBlockNumber = BlockNumber(0),
+      phoenixBlockNumber = BlockNumber(0),
+      magnetoBlockNumber = BlockNumber(0),
+      mystiqueBlockNumber = BlockNumber(0),
+      spiralBlockNumber = BlockNumber(0),
+      olympiaBlockNumber = olympiaBlock
+    )
   )
 
   val evmConfig: EvmConfig = EvmConfig.forBlock(olympiaBlock, config)
