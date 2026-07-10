@@ -59,7 +59,7 @@ class EvmConfigEtcForkSelectionSpec extends AnyFunSuite:
 
     val evmConfig = EvmConfig.forBlock(olympiaBlock, cfg)
 
-    assert(evmConfig.feeSchedule.isInstanceOf[FeeSchedule.OlympiaFeeSchedule])
+    assert(evmConfig.feeSchedule.isInstanceOf[FeeSchedule.EtcOlympiaFeeSchedule])
     // spec-009: ETC Olympia uses EtcOlympiaOpCodes (no BLOBHASH/BLOBBASEFEE per ECIP-1121)
     assert(evmConfig.opCodeList == EvmConfig.EtcOlympiaOpCodes)
   }
@@ -84,8 +84,8 @@ class EvmConfigEtcForkSelectionSpec extends AnyFunSuite:
     val evmConfig = EvmConfig.forBlock(olympiaBlock - 1, cfg)
 
     assert(evmConfig.feeSchedule.isInstanceOf[FeeSchedule.MystiqueFeeSchedule])
-    // Should NOT be OlympiaFeeSchedule
-    assert(!evmConfig.feeSchedule.isInstanceOf[FeeSchedule.OlympiaFeeSchedule])
+    // Should NOT be EtcOlympiaFeeSchedule
+    assert(!evmConfig.feeSchedule.isInstanceOf[FeeSchedule.EtcOlympiaFeeSchedule])
   }
 
   test("EtcForks.Olympia is highest enum value", UnitTest, VMTest) {

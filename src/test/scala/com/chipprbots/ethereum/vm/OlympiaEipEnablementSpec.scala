@@ -177,12 +177,12 @@ class OlympiaEipEnablementSpec extends AnyFlatSpec with Matchers:
     }
   }
 
-  "Olympia fee schedule" should "use OlympiaFeeSchedule" taggedAs (UnitTest, OlympiaTest) in {
-    configOlympia.feeSchedule shouldBe a[FeeSchedule.OlympiaFeeSchedule]
+  "Olympia fee schedule" should "use EtcOlympiaFeeSchedule" taggedAs (UnitTest, OlympiaTest) in {
+    configOlympia.feeSchedule shouldBe a[FeeSchedule.EtcOlympiaFeeSchedule]
   }
 
   it should "inherit Mystique fee schedule values" taggedAs (UnitTest, OlympiaTest) in {
-    // OlympiaFeeSchedule extends MystiqueFeeSchedule — verify key inherited values
+    // EtcOlympiaFeeSchedule extends MystiqueFeeSchedule — verify key inherited values
     configOlympia.feeSchedule.R_selfdestruct shouldEqual 0 // EIP-3529
     configOlympia.feeSchedule.R_sclear shouldEqual 4800 // EIP-3529
     configOlympia.feeSchedule.G_warm_storage_read shouldEqual 100

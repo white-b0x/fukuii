@@ -36,12 +36,12 @@ class Eip4844BlobOpcodeSpec extends AnyFlatSpec with Matchers:
   // ETC Olympia config — now uses EtcOlympiaOpCodes (BLOBHASH/BLOBBASEFEE excluded)
   val etcOlympiaConfig: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
 
-  // ETH Cancun config — uses OlympiaOpCodes directly (BLOBHASH/BLOBBASEFEE included)
+  // ETH Cancun config — uses EthCancunOpCodes directly (BLOBHASH/BLOBBASEFEE included)
   val ethCancunConfig: EvmConfig = EvmConfig
     .SpiralConfigBuilder(blockchainConfig)
     .copy(
-      opCodeList = EvmConfig.OlympiaOpCodes,
-      feeSchedule = new FeeSchedule.OlympiaFeeSchedule,
+      opCodeList = EvmConfig.EthCancunOpCodes,
+      feeSchedule = new FeeSchedule.EthCancunFeeSchedule,
       eip6780Enabled = true
     )
 
@@ -53,8 +53,8 @@ class Eip4844BlobOpcodeSpec extends AnyFlatSpec with Matchers:
       )
     )
     .copy(
-      opCodeList = EvmConfig.OlympiaOpCodes,
-      feeSchedule = new FeeSchedule.OlympiaFeeSchedule,
+      opCodeList = EvmConfig.EthCancunOpCodes,
+      feeSchedule = new FeeSchedule.EthCancunFeeSchedule,
       eip6780Enabled = true
     )
 
@@ -67,8 +67,8 @@ class Eip4844BlobOpcodeSpec extends AnyFlatSpec with Matchers:
       )
     )
     .copy(
-      opCodeList = EvmConfig.OlympiaOpCodes,
-      feeSchedule = new FeeSchedule.OlympiaFeeSchedule,
+      opCodeList = EvmConfig.EthCancunOpCodes,
+      feeSchedule = new FeeSchedule.EthCancunFeeSchedule,
       eip6780Enabled = true
     )
 
@@ -82,8 +82,8 @@ class Eip4844BlobOpcodeSpec extends AnyFlatSpec with Matchers:
       )
     )
     .copy(
-      opCodeList = EvmConfig.OlympiaOpCodes,
-      feeSchedule = new FeeSchedule.OlympiaFeeSchedule,
+      opCodeList = EvmConfig.EthCancunOpCodes,
+      feeSchedule = new FeeSchedule.EthCancunFeeSchedule,
       eip6780Enabled = true
     )
 
@@ -209,15 +209,15 @@ class Eip4844BlobOpcodeSpec extends AnyFlatSpec with Matchers:
     OpCodes.EtcOlympiaOpCodes.contains(BASEFEE) shouldBe true
   }
 
-  "OlympiaOpCodes (ETH) list — regression guard" should "still contain BLOBHASH (0x49)" taggedAs (
+  "EthCancunOpCodes list — regression guard" should "still contain BLOBHASH (0x49)" taggedAs (
     UnitTest,
     VMTest
   ) in {
-    OpCodes.OlympiaOpCodes.contains(BLOBHASH) shouldBe true
+    OpCodes.EthCancunOpCodes.contains(BLOBHASH) shouldBe true
   }
 
   it should "still contain BLOBBASEFEE (0x4a)" taggedAs (UnitTest, VMTest) in {
-    OpCodes.OlympiaOpCodes.contains(BLOBBASEFEE) shouldBe true
+    OpCodes.EthCancunOpCodes.contains(BLOBBASEFEE) shouldBe true
   }
 
   "OlympiaConfigBuilder (ETC block-based fork)" should "not include BLOBHASH in jump table" taggedAs (

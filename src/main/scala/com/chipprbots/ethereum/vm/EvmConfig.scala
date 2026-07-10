@@ -42,18 +42,18 @@ object EvmConfig:
       )
     if blockchainConfig.isCancunTimestamp(timestamp) then
       config = config.copy(
-        opCodeList = OlympiaOpCodes, // Adds TSTORE/TLOAD/MCOPY/BLOBHASH/BLOBBASEFEE
-        feeSchedule = new FeeSchedule.OlympiaFeeSchedule,
+        opCodeList = EthCancunOpCodes, // Adds TSTORE/TLOAD/MCOPY/BLOBHASH/BLOBBASEFEE
+        feeSchedule = new FeeSchedule.EthCancunFeeSchedule,
         eip6780Enabled = true // SELFDESTRUCT restriction
       )
     if blockchainConfig.isPragueTimestamp(timestamp) then
       config = config.copy(
-        feeSchedule = new FeeSchedule.PragueFeeSchedule // EIP-7623: increased calldata costs
+        feeSchedule = new FeeSchedule.EthPragueFeeSchedule // EIP-7623: increased calldata costs
       )
     if blockchainConfig.isOsakaTimestamp(timestamp) then
       config = config.copy(
-        feeSchedule = new FeeSchedule.OsakaFeeSchedule,
-        opCodeList = OsakaOpCodes // EIP-7939: CLZ opcode
+        feeSchedule = new FeeSchedule.EthOsakaFeeSchedule,
+        opCodeList = EthOsakaOpCodes // EIP-7939: CLZ opcode
       )
     config
 
@@ -107,9 +107,9 @@ object EvmConfig:
   val SpiralOpCodes: OpCodeList = OpCodeList(OpCodes.SpiralOpCodes)
   val EthLondonOpCodes: OpCodeList = OpCodeList(OpCodes.EthLondonOpCodes)
   val EthShanghaiOpCodes: OpCodeList = OpCodeList(OpCodes.EthShanghaiOpCodes)
-  val OlympiaOpCodes: OpCodeList = OpCodeList(OpCodes.OlympiaOpCodes)
+  val EthCancunOpCodes: OpCodeList = OpCodeList(OpCodes.EthCancunOpCodes)
   val EtcOlympiaOpCodes: OpCodeList = OpCodeList(OpCodes.EtcOlympiaOpCodes)
-  val OsakaOpCodes: OpCodeList = OpCodeList(OpCodes.OsakaOpCodes)
+  val EthOsakaOpCodes: OpCodeList = OpCodeList(OpCodes.EthOsakaOpCodes)
 
   val FrontierConfigBuilder: EvmConfigBuilder = config =>
     EvmConfig(
@@ -210,14 +210,14 @@ object EvmConfig:
   val LondonConfigBuilder: EvmConfigBuilder = config =>
     MagnetoConfigBuilder(config).copy(
       opCodeList = EthLondonOpCodes, // EIP-3198: BASEFEE (0x48) from London
-      feeSchedule = new ethereum.vm.FeeSchedule.MystiqueFeeSchedule, // EIP-3529 refund changes
+      feeSchedule = new ethereum.vm.FeeSchedule.EthLondonFeeSchedule, // EIP-3529 refund changes (ETH-named root)
       eip3541Enabled = true // EIP-3541: reject 0xEF contracts
     )
 
   val OlympiaConfigBuilder: EvmConfigBuilder = config =>
     SpiralConfigBuilder(config).copy(
       opCodeList = EtcOlympiaOpCodes,
-      feeSchedule = new FeeSchedule.OlympiaFeeSchedule,
+      feeSchedule = new FeeSchedule.EtcOlympiaFeeSchedule,
       eip6780Enabled = true
     )
 
@@ -425,18 +425,41 @@ object FeeSchedule:
     // EIP-3860: Initcode metering (activated in Spiral fork)
     override val G_initcode_word: BigInt = 2
 
-  class OlympiaFeeSchedule extends MystiqueFeeSchedule
+  /** ETH London fee schedule — ETH-named root for the post-London ETH fee lineage (Cancun→Prague→Osaka). Carries the
+    * EIP-3529 refund changes (R_sclear=4800, R_selfdestruct=0) and EIP-3860 initcode metering (G_initcode_word=2)
+    * explicitly, so the ETH chain roots on an ETH-named class rather than the ETC-fork-named MystiqueFeeSchedule.
+    * Field-identical to MystiqueFeeSchedule (same MagnetoFeeSchedule base, same three overrides) — the de-alias splits
+    * the shared class along the network boundary without changing any value. See Batch 5 Row 5.1 (beacon Q5).
+    */
+  class EthLondonFeeSchedule extends MagnetoFeeSchedule:
+    // EIP-3529: Reduce refunds for SSTORE (R_sclear = 2900 + 1900 = 4800)
+    override val R_sclear: BigInt = 4800
+    // EIP-3529: Remove SELFDESTRUCT refund
+    override val R_selfdestruct: BigInt = 0
+    // EIP-3860: Initcode metering
+    override val G_initcode_word: BigInt = 2
 
-  /** Prague fee schedule — EIP-7623 does NOT modify G_txdatazero/G_txdatanonzero (still 4/16). Instead it adds a
+  /** ETH Cancun fee schedule — same fee fields as ETH London (Cancun's EIP-1153/4844/5656/7516 changes are opcode/blob
+    * mechanics, not per-op gas-schedule fields). ETH-only.
+    */
+  class EthCancunFeeSchedule extends EthLondonFeeSchedule
+
+  /** ETC Olympia fee schedule — ECIP-1121, block-based. Field-identical to MystiqueFeeSchedule (empty extension), which
+    * is the ETC-lineage shared base carrying the EIP-3529/3860 values ETC adopted. Distinct from EthCancunFeeSchedule so
+    * the ETC and ETH Olympia-era fee bundles are segregated (no shared class across networks). ETC-only.
+    */
+  class EtcOlympiaFeeSchedule extends MystiqueFeeSchedule
+
+  /** ETH Prague fee schedule — EIP-7623 does NOT modify G_txdatazero/G_txdatanonzero (still 4/16). Instead it adds a
     * calldata floor via `calcFloorDataGas` applied by BlockPreparator as `max(executionGasBase, 21000 + tokens * 10)`.
-    * See BlockPreparator.calcFloorDataGas.
+    * See BlockPreparator.calcFloorDataGas. ETH-only.
     */
-  class PragueFeeSchedule extends OlympiaFeeSchedule
+  class EthPragueFeeSchedule extends EthCancunFeeSchedule
 
-  /** Osaka fee schedule — same as Prague. MODEXP cost doubling (EIP-7883) and input bounds (EIP-7823) are enforced
-    * inside the MODEXP precompile itself, not the fee schedule.
+  /** ETH Osaka fee schedule — same as Prague. MODEXP cost doubling (EIP-7883) and input bounds (EIP-7823) are enforced
+    * inside the MODEXP precompile itself, not the fee schedule. ETH-only.
     */
-  class OsakaFeeSchedule extends PragueFeeSchedule
+  class EthOsakaFeeSchedule extends EthPragueFeeSchedule
 
 trait FeeSchedule:
   val G_zero: BigInt

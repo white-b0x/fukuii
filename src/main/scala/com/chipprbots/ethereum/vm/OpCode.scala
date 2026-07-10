@@ -179,7 +179,7 @@ object OpCodes:
     * go-ethereum, CLZ is added only at Osaka (newOsakaInstructionSet = Prague + enable7939), not Cancun/Prague. This
     * list is ETH-only; ETC's block-based Olympia uses EtcOlympiaOpCodes instead.
     */
-  val OlympiaOpCodes: List[OpCode] =
+  val EthCancunOpCodes: List[OpCode] =
     List(BASEFEE, BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY) ++ SpiralOpCodes
 
   /** ETC Olympia opcode list (ECIP-1121 via block-based fork). Includes CLZ (ECIP-1121). Excludes EIP-4844 (BLOBHASH)
@@ -192,7 +192,7 @@ object OpCodes:
   /** ETH Osaka opcode set = Cancun + CLZ (EIP-7939). Matches go-ethereum newOsakaInstructionSet = Prague + enable7939;
     * Prague adds no new EVM opcode over Cancun, so Osaka = Cancun + CLZ. ETH-only.
     */
-  val OsakaOpCodes: List[OpCode] = CLZ :: OlympiaOpCodes
+  val EthOsakaOpCodes: List[OpCode] = CLZ :: EthCancunOpCodes
 
 object OpCode:
   def sliceBytes(bytes: ByteString, offset: UInt256, size: UInt256): ByteString =

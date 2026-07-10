@@ -122,11 +122,11 @@ class EvmConfigTimestampForkSpec extends AnyFlatSpec with Matchers:
     evmAt(CancunTs).byteToOpCode.get(0x1e.toByte) shouldBe None
   }
 
-  "EvmConfig.forBlock timestamp dispatch when at Prague (ts = PragueTs)" should "use PragueFeeSchedule for EIP-7623 calldata floor" taggedAs (
+  "EvmConfig.forBlock timestamp dispatch when at Prague (ts = PragueTs)" should "use EthPragueFeeSchedule for EIP-7623 calldata floor" taggedAs (
     UnitTest,
     ConsensusTest
   ) in {
-    evmAt(PragueTs).feeSchedule shouldBe a[FeeSchedule.PragueFeeSchedule]
+    evmAt(PragueTs).feeSchedule shouldBe a[FeeSchedule.EthPragueFeeSchedule]
   }
   // BEACON-CLZ-01 regression guard: Prague adds EIP-7702 (a tx type, no EVM opcode) — opcode set == Cancun, no CLZ.
   it should "not include CLZ (0x1E) — Prague adds no new EVM opcode over Cancun" taggedAs (
@@ -148,8 +148,8 @@ class EvmConfigTimestampForkSpec extends AnyFlatSpec with Matchers:
   it should "still include BASEFEE (0x48)" taggedAs (UnitTest, ConsensusTest) in {
     evmAt(OsakaTs).byteToOpCode.get(0x48.toByte) shouldBe Some(BASEFEE)
   }
-  it should "use OsakaFeeSchedule" taggedAs (UnitTest, ConsensusTest) in {
-    evmAt(OsakaTs).feeSchedule shouldBe a[FeeSchedule.OsakaFeeSchedule]
+  it should "use EthOsakaFeeSchedule" taggedAs (UnitTest, ConsensusTest) in {
+    evmAt(OsakaTs).feeSchedule shouldBe a[FeeSchedule.EthOsakaFeeSchedule]
   }
 
   // BEACON-BASEFEE-02: the ETH London base opcode list (EthLondonOpCodes) must carry BASEFEE. Uses an ETH-shaped
@@ -175,13 +175,13 @@ class EvmConfigTimestampForkSpec extends AnyFlatSpec with Matchers:
     UnitTest,
     ConsensusTest
   ) in {
-    EvmConfig.OsakaOpCodes.opCodes.toSet shouldBe (EvmConfig.OlympiaOpCodes.opCodes.toSet + CLZ)
+    EvmConfig.EthOsakaOpCodes.opCodes.toSet shouldBe (EvmConfig.EthCancunOpCodes.opCodes.toSet + CLZ)
   }
   it should "have ETH Cancun contain the blob/transient/mcopy set and BASEFEE but not CLZ" taggedAs (
     UnitTest,
     ConsensusTest
   ) in {
-    val cancun = EvmConfig.OlympiaOpCodes.opCodes.toSet
+    val cancun = EvmConfig.EthCancunOpCodes.opCodes.toSet
     (cancun should contain).allOf(BASEFEE, BLOBHASH, BLOBBASEFEE, TLOAD, TSTORE, MCOPY, PUSH0)
     cancun should not contain CLZ
   }

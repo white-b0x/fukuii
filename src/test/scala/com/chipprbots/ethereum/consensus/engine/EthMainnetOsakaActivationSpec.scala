@@ -58,13 +58,13 @@ class EthMainnetOsakaActivationSpec extends AnyWordSpec with Matchers:
     "yield the Osaka opcode set (CLZ 0x1E present, EIP-7939)" taggedAs (UnitTest, ConsensusTest) in {
       val evm = EvmConfig.forBlock(PostOsakaBlock, Timestamp(OsakaTs), ethConf)
       evm.byteToOpCode.get(0x1e.toByte) shouldBe Some(CLZ)
-      evm.opCodeList shouldBe EvmConfig.OsakaOpCodes
+      evm.opCodeList shouldBe EvmConfig.EthOsakaOpCodes
     }
 
     "use the Osaka fee schedule" taggedAs (UnitTest, ConsensusTest) in {
       EvmConfig
         .forBlock(PostOsakaBlock, Timestamp(OsakaTs), ethConf)
-        .feeSchedule shouldBe a[com.chipprbots.ethereum.vm.FeeSchedule.OsakaFeeSchedule]
+        .feeSchedule shouldBe a[com.chipprbots.ethereum.vm.FeeSchedule.EthOsakaFeeSchedule]
     }
   }
 
