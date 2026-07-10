@@ -37,12 +37,13 @@ burned, validator withdrawals, blob transactions (EIP-4844), Osaka fork.
 overlay is the same method's overload, `EvmConfig.forBlock(blockNumber,
 timestamp, blockchainConfig)` — there is no separate `forTimestamp()` method.
 **Fork-named opcode/fee-schedule objects in `vm/OpCode.scala`/`vm/EvmConfig.scala`
-are not reliably named after the network that actually uses them** —
-`EtcOlympiaOpCodes` is ETC's real Olympia list, while the unprefixed
-`OlympiaOpCodes` is what ETH's Cancun/Osaka path actually uses (`OsakaOpCodes`
-is currently a bare alias to it, not an independent definition). Never assume a
-name's network from its label alone — see `PARITY-02`
-(`.claude/sprints/QUEUE.md`) before touching any of these objects.
+are network-prefixed** — `EthCancunOpCodes`/`EthOsakaOpCodes` and the
+`EthLondon…→EthCancun…→EthPrague…→EthOsakaFeeSchedule` chain are ETH's;
+`EtcOlympiaOpCodes`/`EtcOlympiaFeeSchedule` are ETC's Olympia (ECIP-1121) objects.
+Batch 5 Row 5.1 (commit `b46e21ea1`) removed the earlier trap where the unprefixed
+`OlympiaOpCodes` was actually ETH's Cancun list; those unprefixed names no longer
+exist. The `scala3-style.md` ratchet enforces that no `Eth*` references or extends an
+`Etc*` (and vice-versa) — never let a fork codename stand for the wrong network.
 
 ## Build & test commands
 
