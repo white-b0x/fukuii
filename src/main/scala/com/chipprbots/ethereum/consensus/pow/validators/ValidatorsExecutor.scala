@@ -53,12 +53,19 @@ trait ValidatorsExecutor extends Validators:
     )
 
 object ValidatorsExecutor:
-  def apply(protocol: Protocol): ValidatorsExecutor =
+  def apply(protocol: Protocol)(implicit blockchainConfig: BlockchainConfig): ValidatorsExecutor =
     val blockHeaderValidator: BlockHeaderValidator = protocol match
       case Protocol.MockedPow     => MockedPowBlockHeaderValidator
-      case Protocol.PoW           => PoWBlockHeaderValidator
       case Protocol.RestrictedPoW => RestrictedEthashBlockHeaderValidator
       case Protocol.EngineApi     => TransitionBlockHeaderValidator
+      case Protocol.PoW           =>
+        // The `protocol` string cannot tell ETC from ETH: both are `protocol=pow`. The merge signal is
+        // `terminalTotalDifficulty` (the Merge trigger, mirroring go-ethereum's `consensus/beacon` and Besu's
+        // `getTerminalTotalDifficulty().isPresent()` transition-schedule guard). A chain that defines a TTD spans
+        // PoW→PoS and needs per-header dispatch (Ethash for difficulty>0, PoS for difficulty==0); a chain without a
+        // TTD (ETC/Mordor/gorgoroth) keeps unconditional Ethash sealing.
+        if blockchainConfig.terminalTotalDifficulty.isDefined then TransitionBlockHeaderValidator
+        else PoWBlockHeaderValidator
 
     new StdValidatorsExecutor(
       StdBlockValidator,

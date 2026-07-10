@@ -95,7 +95,7 @@ class TestmodeMining(
           blockBody: BlockBody
       ): Either[StdBlockValidator.BlockError, StdBlockValidator.BlockValid] = Right(StdBlockValidator.BlockValid)
 
-  override def validators: Validators = ValidatorsExecutor.apply(Protocol.MockedPow)
+  override def validators: Validators = ValidatorsExecutor.apply(Protocol.MockedPow)(using node.blockchainConfig)
 
   override def blockPreparator: BlockPreparator = new BlockPreparator(
     vm = vm,
