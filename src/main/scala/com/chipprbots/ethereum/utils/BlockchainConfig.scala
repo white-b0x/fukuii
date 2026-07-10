@@ -8,6 +8,7 @@ import scala.util.Try
 import com.typesafe.config.Config as TypesafeConfig
 import com.typesafe.config.ConfigRenderOptions
 
+import com.chipprbots.ethereum.consensus.engine.BlobGasUtils
 import com.chipprbots.ethereum.consensus.mess.MESSConfig
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockNumber
@@ -15,6 +16,13 @@ import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.TotalDifficulty
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.forks.ForkActivation
+import com.chipprbots.ethereum.forks.ForkSchedule
+import com.chipprbots.ethereum.forks.ParamValue
+import com.chipprbots.ethereum.forks.ProposalId
+import com.chipprbots.ethereum.forks.ProposalId.*
+import com.chipprbots.ethereum.forks.ProposalParams
+import com.chipprbots.ethereum.forks.ScheduledProposal
 import com.chipprbots.ethereum.utils.NumericUtils.*
 
 /** Identifies whether the chain follows ETC (PoW indefinitely) or ETH (post-Merge PoS via CL). */
@@ -94,6 +102,15 @@ case class BlockchainConfig(
 
   def withUpdatedForkBlocks(update: (ForkBlockNumbers) => ForkBlockNumbers): BlockchainConfig =
     copy(forkBlockNumbers = update(forkBlockNumbers))
+
+  /** L3 fork schedule (Batch 5 framework §1.4) — a DERIVED VIEW over the existing L2 fields, computed on first access.
+    *
+    * ADDITIVE (Stage 5.3a): this is not a constructor parameter, so it changes no call site, `.copy`, equality or
+    * `hashCode`; every existing `BlockchainConfig` builder and fixture is unaffected. No production dispatch path reads
+    * it yet — the `EvmConfig.forBlock` switch is Stage 5.3b. The `ForkBlockNumbers`/`ForkTimestamps` structs remain the
+    * permanent L2 HOCON representation (F9); this is an additional L3 view over them, never a replacement.
+    */
+  lazy val forkSchedule: ForkSchedule = BlockchainConfig.deriveForkSchedule(this)
 
 case class ForkBlockNumbers(
     frontierBlockNumber: BlockNumber,
@@ -192,6 +209,97 @@ object ForkBlockNumbers:
   )
 
 object BlockchainConfig:
+
+  // The two "not scheduled" sentinels the fork fields park at (mirrors ForkId.scala): 10^18 is the genesis-JSON
+  // "pending" marker (ETC parks olympia-block-number here until Olympia is dated) and Long.MaxValue is the in-code
+  // missing-key fallback. Both derive to `ForkActivation.Never`.
+  private val OlympiaPendingSentinel: BigInt = BigInt("1000000000000000000")
+  private val MaxBlockSentinel: BigInt = BigInt(Long.MaxValue)
+
+  private def isPending(bn: BlockNumber): Boolean =
+    bn.value == OlympiaPendingSentinel || bn.value == MaxBlockSentinel
+
+  /** Derive the L3 [[ForkSchedule]] (framework §1.4) as a pure function of the existing L2 fields. ADDITIVE — no
+    * production code reads the result in Stage 5.3a. `ForkScheduleDerivationSpec` proves, for the 5 real conf files,
+    * that `isActive` reproduces the exact activation decision each underlying field already makes.
+    *
+    * Registered proposals (each exercises one activation axis so the derivation is provably faithful across all axes):
+    *   - `Ecip(1017)` — always `ByBlock(0)` (emission applies from genesis; the per-network schedule differs only by
+    *     the `MonetaryPolicy` param, not the activation height — F6).
+    *   - `Ecip(1111/1112/1122)` — the ETC-family Olympia bundle, co-activated at `olympiaBlockNumber`. On ETH/Sepolia
+    *     the `olympia-block-number` field carries London/EIP-1559 (base-fee BURN), NOT ECIP-1111 Treasury routing, so
+    *     the ECIP bundle is `Never` there (networkType gate); a pending/absent sentinel also derives to `Never`.
+    *   - `Eip(4844)` — ETH-only blob fork, `ByTimestamp(cancunTimestamp)` (no ETC block-fork collision).
+    *   - `Custom("bpo", 1/2)` — EIP-7892 Blob-Parameter-Only forks, `ByTimestamp(bpo{1,2}Timestamp)` (beacon F1). Their
+    *     blob target/max params reference the single-sourced `BlobGasUtils` constants — additive, and NOT rewired into
+    *     `BlobGasUtils` (which keeps reading `isBpo{1,2}Timestamp` directly; that rewire is out of 5.3a/b scope).
+    *   - `Custom("merge", 0)` — the PoS transition ("the Merge" is `EthFamily`'s label), `ByTotalDifficulty(ttd)`.
+    */
+  def deriveForkSchedule(cfg: BlockchainConfig): ForkSchedule =
+    val fb = cfg.forkBlockNumbers
+    val ft = cfg.forkTimestamps
+
+    val olympiaActivation: ForkActivation =
+      if cfg.networkType == NetworkType.ETC && !isPending(fb.olympiaBlockNumber) then
+        ForkActivation.ByBlock(fb.olympiaBlockNumber)
+      else ForkActivation.Never
+
+    def tsActivation(o: Option[Long]): ForkActivation =
+      o.map(t => ForkActivation.ByTimestamp(Timestamp(t))).getOrElse(ForkActivation.Never)
+
+    val ttdActivation: ForkActivation =
+      cfg.terminalTotalDifficulty
+        .map(td => ForkActivation.ByTotalDifficulty(TotalDifficulty(td)))
+        .getOrElse(ForkActivation.Never)
+
+    // ECIP-1122 ClientPolicy params (banksy-owned): MIN_MINER_TIP + the gas-target schedule (Spiral 8M / Olympia 60M).
+    val ecip1122Params: ProposalParams = ProposalParams(
+      Map(ProposalParams.MinTipKey -> ParamValue.Number(cfg.minTip))
+        ++ fb.spiralGasTarget.map(t => ProposalParams.SpiralGasTargetKey -> ParamValue.Number(t))
+        ++ fb.olympiaGasTarget.map(t => ProposalParams.OlympiaGasTargetKey -> ParamValue.Number(t))
+    )
+
+    val entries: Map[ProposalId, ScheduledProposal] = Map(
+      Ecip(1017) -> ScheduledProposal(
+        ForkActivation.ByBlock(BlockNumber(0)),
+        ProposalParams(Map(ProposalParams.MonetaryPolicyKey -> ParamValue.MonetaryPolicy(cfg.monetaryPolicyConfig)))
+      ),
+      Ecip(1111) -> ScheduledProposal(
+        olympiaActivation,
+        ProposalParams(
+          Map(
+            ProposalParams.TreasuryAddressKey -> ParamValue.Addr(cfg.treasuryAddress),
+            ProposalParams.BaseFeeFloorKey -> ParamValue.Number(cfg.baseFeeFloor)
+          )
+        )
+      ),
+      Ecip(1112) -> ScheduledProposal(
+        olympiaActivation,
+        ProposalParams(Map(ProposalParams.TreasuryAddressKey -> ParamValue.Addr(cfg.treasuryAddress)))
+      ),
+      Ecip(1122) -> ScheduledProposal(olympiaActivation, ecip1122Params),
+      Eip(4844) -> ScheduledProposal(tsActivation(ft.cancunTimestamp)),
+      Custom("bpo", 1) -> ScheduledProposal(
+        tsActivation(ft.bpo1Timestamp),
+        ProposalParams(
+          Map(
+            ProposalParams.BlobTargetKey -> ParamValue.Number(BlobGasUtils.BPO1_TARGET_BLOB_GAS),
+            ProposalParams.BlobMaxKey -> ParamValue.Number(BlobGasUtils.BPO1_MAX_BLOB_GAS)
+          )
+        )
+      ),
+      Custom("bpo", 2) -> ScheduledProposal(
+        tsActivation(ft.bpo2Timestamp),
+        ProposalParams(
+          Map(
+            ProposalParams.BlobTargetKey -> ParamValue.Number(BlobGasUtils.BPO2_TARGET_BLOB_GAS),
+            ProposalParams.BlobMaxKey -> ParamValue.Number(BlobGasUtils.BPO2_MAX_BLOB_GAS)
+          )
+        )
+      ),
+      Custom("merge", 0) -> ScheduledProposal(ttdActivation)
+    )
+    ForkSchedule(entries)
 
   // scalastyle:off method.length
   def fromRawConfig(blockchainConfig: TypesafeConfig): BlockchainConfig =
