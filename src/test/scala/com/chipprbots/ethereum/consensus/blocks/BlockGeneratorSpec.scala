@@ -14,6 +14,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.blockchain.data.GenesisDataLoader
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.consensus.mining.MiningConfig
 import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
 import com.chipprbots.ethereum.consensus.validators.*
@@ -255,6 +256,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         mining.blockPreparator,
+        ConsensusEngine.engineFor(mining, blockchainConfig),
         blockValidation
       )
 
@@ -334,6 +336,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         mining.blockPreparator,
+        ConsensusEngine.engineFor(mining, blockchainConfig),
         blockValidation
       )
 
@@ -653,6 +656,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with Logger:
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         mining.blockPreparator,
+        ConsensusEngine.engineFor(mining, blockchainConfig),
         blockValidation
       )
 

@@ -6,6 +6,7 @@ import cats.effect.unsafe.IORuntime
 
 import com.chipprbots.ethereum.consensus.ConsensusAdapter
 import com.chipprbots.ethereum.consensus.ConsensusImpl
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.consensus.mining.MiningConfig
 import com.chipprbots.ethereum.crypto
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
@@ -42,6 +43,7 @@ class TestModeComponentsProvider(
         blockchainWriter,
         evmCodeStorage,
         consensuz.blockPreparator,
+        ConsensusEngine.engineFor(consensuz, node.blockchainConfig),
         blockValidation,
         (key: UInt256) => preimageCache.put(crypto.kec256(key.bytes), key)
       )

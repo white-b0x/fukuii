@@ -10,6 +10,7 @@ import com.chipprbots.ethereum.domain.BlockchainStorages
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.Receipt
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.ledger.BlockExecution
 import com.chipprbots.ethereum.ledger.BlockQueue
 import com.chipprbots.ethereum.ledger.BlockValidation
@@ -70,6 +71,7 @@ class ForksTest extends AnyFlatSpec with Matchers:
           blockchainWriter,
           testBlockchainStorages.evmCodeStorage,
           mining.blockPreparator,
+          ConsensusEngine.engineFor(mining, blockchainConfig),
           blockValidation
         )
       blockExecution.executeAndValidateBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors

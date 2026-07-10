@@ -8,6 +8,7 @@ import org.scalatest.matchers.should.Matchers
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.Mocks
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostCancun
 import com.chipprbots.ethereum.ledger.BlockExecution.BeaconRootContractAddress
@@ -56,6 +57,7 @@ class BeaconRootsSpec extends AnyFlatSpec with Matchers:
       blockchainWriter,
       storagesInstance.storages.evmCodeStorage,
       mining.blockPreparator,
+      ConsensusEngine.engineFor(mining, blockchainConfig),
       blockValidation
     )
 

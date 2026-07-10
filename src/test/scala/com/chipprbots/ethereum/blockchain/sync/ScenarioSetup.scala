@@ -11,6 +11,7 @@ import com.chipprbots.ethereum.Mocks
 import com.chipprbots.ethereum.Mocks.MockVM
 import com.chipprbots.ethereum.consensus.ConsensusAdapter
 import com.chipprbots.ethereum.consensus.ConsensusImpl
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.consensus.mining.Mining
 import com.chipprbots.ethereum.consensus.mining.Protocol
 import com.chipprbots.ethereum.consensus.mining.StdTestMiningBuilder
@@ -86,6 +87,7 @@ trait ScenarioSetup
       blockchainWriter,
       storagesInstance.storages.evmCodeStorage,
       consensuz.blockPreparator,
+      ConsensusEngine.engineFor(consensuz, blockchainConfig),
       blockValidation
     )
 

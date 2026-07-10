@@ -15,6 +15,7 @@ import com.chipprbots.ethereum.Mocks
 import com.chipprbots.ethereum.Mocks.MockVM
 import com.chipprbots.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import com.chipprbots.ethereum.Mocks.MockValidatorsFailOnSpecificBlockNumber
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.consensus.mining.TestMining
 import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValidator
@@ -76,6 +77,7 @@ class BlockExecutionSpec
             blockchainWriter,
             blockchainStorages.evmCodeStorage,
             newMining.blockPreparator,
+            ConsensusEngine.engineFor(newMining, blockchainConfig),
             blockValidation
           )
 
@@ -117,6 +119,7 @@ class BlockExecutionSpec
             blockchainWriter,
             blockchainStorages.evmCodeStorage,
             newMining.blockPreparator,
+            ConsensusEngine.engineFor(newMining, blockchainConfig),
             blockValidation
           )
 
@@ -151,6 +154,7 @@ class BlockExecutionSpec
             blockchainWriter,
             blockchainStorages.evmCodeStorage,
             newMining.blockPreparator,
+            ConsensusEngine.engineFor(newMining, blockchainConfig),
             blockValidation
           )
 
@@ -203,6 +207,7 @@ class BlockExecutionSpec
             blockchainWriter,
             blockchainStorages.evmCodeStorage,
             newMining.blockPreparator,
+            ConsensusEngine.engineFor(newMining, blockchainConfig),
             blockValidation
           )
 
@@ -283,6 +288,7 @@ class BlockExecutionSpec
               blockchainWriter,
               blockchainStorages.evmCodeStorage,
               newConsensus.blockPreparator,
+              ConsensusEngine.engineFor(newConsensus, blockchainConfig),
               blockValidation
             )
 
@@ -732,5 +738,6 @@ class BlockExecutionSpec
         blockchainWriter,
         blockchainStorages.evmCodeStorage,
         mining.blockPreparator,
+        ConsensusEngine.engineFor(mining, blockchainConfig),
         blockValidation
       )

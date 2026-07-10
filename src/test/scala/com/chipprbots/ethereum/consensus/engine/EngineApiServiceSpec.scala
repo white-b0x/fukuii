@@ -150,6 +150,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         mining.blockPreparator,
+        ConsensusEngine.engineFor(mining, blockchainConfig),
         blockValidation
       )
       lazy val forkChoiceManager = new ForkChoiceManager(blockchainReader, blockchainWriter)

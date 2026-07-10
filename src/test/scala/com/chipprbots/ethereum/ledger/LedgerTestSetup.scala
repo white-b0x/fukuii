@@ -16,6 +16,7 @@ import com.chipprbots.ethereum.ObjectGenerators
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import com.chipprbots.ethereum.consensus.ConsensusAdapter
 import com.chipprbots.ethereum.consensus.ConsensusImpl
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.consensus.mining.GetBlockHeaderByHash
 import com.chipprbots.ethereum.consensus.mining.TestMining
 import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator
@@ -392,6 +393,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup:
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         testMining.blockPreparator,
+        ConsensusEngine.engineFor(testMining, blockchainConfig),
         blockValidation
       ):
         override def executeAndValidateBlock(

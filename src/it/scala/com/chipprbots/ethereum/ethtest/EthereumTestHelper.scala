@@ -10,6 +10,7 @@ import com.chipprbots.ethereum.db.storage.NodeStorage.NodeHash
 import com.chipprbots.ethereum.db.storage.pruning.ArchivePruning
 import com.chipprbots.ethereum.db.storage.pruning.PruningMode
 import com.chipprbots.ethereum.domain.*
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.ledger.BlockExecution
 import com.chipprbots.ethereum.ledger.BlockQueue
 import com.chipprbots.ethereum.ledger.BlockValidation
@@ -177,6 +178,7 @@ class EthereumTestHelper(using bc: BlockchainConfig) extends ScenarioSetup:
         blockchainWriter,
         testBlockchainStorages.evmCodeStorage,
         mining.blockPreparator,
+        ConsensusEngine.engineFor(mining, blockchainConfig),
         blockValidation
       )
 

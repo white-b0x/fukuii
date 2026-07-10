@@ -33,6 +33,7 @@ import com.chipprbots.ethereum.blockchain.sync.SyncController
 import com.chipprbots.ethereum.consensus.Consensus
 import com.chipprbots.ethereum.consensus.ConsensusAdapter
 import com.chipprbots.ethereum.consensus.ConsensusImpl
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.consensus.mess.MESSConfig
 import com.chipprbots.ethereum.consensus.mining.MiningBuilder
 import com.chipprbots.ethereum.consensus.mining.MiningConfigBuilder
@@ -260,7 +261,8 @@ trait BlockQueueBuilder:
   lazy val blockQueue: BlockQueue = BlockQueue(blockchainReader, syncConfig)
 
 trait ConsensusBuilder:
-  self: BlockchainBuilder & BlockQueueBuilder & MiningBuilder & ActorSystemBuilder & StorageBuilder =>
+  self: BlockchainBuilder & BlockQueueBuilder & MiningBuilder & ActorSystemBuilder & StorageBuilder &
+    BlockchainConfigBuilder =>
 
   lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
   lazy val blockExecution = new BlockExecution(
@@ -269,6 +271,7 @@ trait ConsensusBuilder:
     blockchainWriter,
     storagesInstance.storages.evmCodeStorage,
     mining.blockPreparator,
+    ConsensusEngine.engineFor(mining, blockchainConfig),
     blockValidation
   )
 

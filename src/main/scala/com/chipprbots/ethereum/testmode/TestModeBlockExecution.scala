@@ -8,6 +8,7 @@ import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.BlockchainWriter
 import com.chipprbots.ethereum.domain.UInt256
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.ledger.BlockExecution
 import com.chipprbots.ethereum.ledger.BlockPreparator
 import com.chipprbots.ethereum.ledger.BlockValidation
@@ -21,6 +22,7 @@ class TestModeBlockExecution(
     blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
     blockPreparator: BlockPreparator,
+    consensusEngine: ConsensusEngine,
     blockValidation: BlockValidation,
     saveStoragePreimage: (UInt256) => Unit
 ) extends BlockExecution(
@@ -29,6 +31,7 @@ class TestModeBlockExecution(
       blockchainWriter,
       evmCodeStorage,
       blockPreparator,
+      consensusEngine,
       blockValidation
     ):
 

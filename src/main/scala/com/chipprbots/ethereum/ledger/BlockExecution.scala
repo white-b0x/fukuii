@@ -6,6 +6,7 @@ import cats.implicits.*
 
 import scala.annotation.tailrec
 
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator.OmmersError
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError
 import com.chipprbots.ethereum.consensus.validators.std.StdBlockValidator.BlockError
@@ -26,6 +27,7 @@ class BlockExecution(
     blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
     blockPreparator: BlockPreparator,
+    consensusEngine: ConsensusEngine,
     blockValidation: BlockValidation
 ) extends Logger:
 
@@ -107,7 +109,7 @@ class BlockExecution(
         initialWorld = buildInitialWorld(block, parentHeader, isProposer)
         execResult <- executeBlockTransactions(block, initialWorld)
         worldAfterReward <- Either
-          .catchOnly[MPTException](blockPreparator.payBlockReward(block, execResult.worldState))
+          .catchOnly[MPTException](consensusEngine.finalizeBlock(block, execResult.worldState))
           .leftMap(BlockExecutionError.MPTError.apply)
         // EIP-4895: Process beacon chain withdrawals (Shanghai+)
         worldAfterWithdrawals = processWithdrawals(block, worldAfterReward)
