@@ -84,7 +84,13 @@ class FinalizeCutoverByteIdentitySpec extends AnyWordSpec with Matchers:
   trait CutoverSetup extends BlockchainSetup:
     private val cutoverBlockQueue: BlockQueue =
       BlockQueue(blockchainReader, SyncConfig(com.chipprbots.ethereum.utils.Config.config))
-    private val cutoverValidation: BlockValidation = new BlockValidation(mining, blockchainReader, cutoverBlockQueue)
+    private val cutoverValidation: BlockValidation =
+      new BlockValidation(
+        mining,
+        blockchainReader,
+        cutoverBlockQueue,
+        ConsensusEngine.engineFor(mining, blockchainConfig)
+      )
 
     /** Minimal engine whose finalize IS the pre-5.4 path — a direct `payBlockReward` call. */
     private val referenceEngine: ConsensusEngine = new ConsensusEngine:

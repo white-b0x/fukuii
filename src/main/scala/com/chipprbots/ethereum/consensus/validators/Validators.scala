@@ -18,10 +18,17 @@ trait Validators:
   def signedTransactionValidator: SignedTransactionValidator
 
   // Note BlockImport uses this in importBlock
+  //
+  // `headerValidator` is supplied by the caller rather than read from `this.blockHeaderValidator`, so the header (seal)
+  // validator is sourced through the resolved `ConsensusEngine` (Batch 5 Stage 5.4c-3). In production it is
+  // `consensusEngine.headerValidator`, which is the SAME instance as `this.blockHeaderValidator` for every conf
+  // (proven in EngineResolutionSpec) — a pure wiring redirect, byte-identical. Ommers validation keeps using the
+  // engine-agnostic `ommersValidator` (which wraps that same instance), so nothing else moves.
   def validateBlockBeforeExecution(
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
-      getNBlocksBack: GetNBlocksBack
+      getNBlocksBack: GetNBlocksBack,
+      headerValidator: BlockHeaderValidator
   )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess]
 
   /** This function validates that the various results from execution are consistent with the block. This includes:

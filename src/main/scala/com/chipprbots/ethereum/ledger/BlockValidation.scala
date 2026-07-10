@@ -2,6 +2,7 @@ package com.chipprbots.ethereum.ledger
 
 import org.apache.pekko.util.ByteString
 
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.consensus.mining.Mining
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHash
@@ -16,16 +17,23 @@ import com.chipprbots.ethereum.utils.BlockchainConfig
 class BlockValidation(
     mining: Mining,
     blockchainReader: BlockchainReader,
-    blockQueue: BlockQueue
+    blockQueue: BlockQueue,
+    consensusEngine: ConsensusEngine
 ):
 
   def validateBlockBeforeExecution(
       block: Block
   )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
+    // Source the header (seal) validator through the resolved ConsensusEngine (Stage 5.4c-3), NOT from
+    // `mining.validators.blockHeaderValidator`. `consensusEngine.headerValidator eq mining.validators.blockHeaderValidator`
+    // for every conf (EthashEngine returns exactly that field; EngineApiEngine and the TTD-aware validators both resolve
+    // the singleton TransitionBlockHeaderValidator), so this is a pure wiring redirect — byte-identical — that makes
+    // `engineFor` load-bearing for pre-execution header validation.
     mining.validators.validateBlockBeforeExecution(
       block = block,
       getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
-      getNBlocksBack = getNBlocksBackFromChainOrQueue
+      getNBlocksBack = getNBlocksBackFromChainOrQueue,
+      headerValidator = consensusEngine.headerValidator
     )
 
   private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] =

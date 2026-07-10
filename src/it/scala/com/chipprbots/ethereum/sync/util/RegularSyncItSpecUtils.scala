@@ -91,7 +91,8 @@ object RegularSyncItSpecUtils:
     lazy val mining: PoWMining = buildEthashMining()
 
     lazy val blockQueue: BlockQueue = BlockQueue(blockchainReader, syncConfig)
-    lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
+    lazy val blockValidation =
+      new BlockValidation(mining, blockchainReader, blockQueue, ConsensusEngine.engineFor(mining, blockchainConfig))
     lazy val blockExecution =
       new BlockExecution(
         bl,

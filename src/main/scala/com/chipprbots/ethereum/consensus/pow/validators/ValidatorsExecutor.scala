@@ -25,7 +25,8 @@ trait ValidatorsExecutor extends Validators:
   def validateBlockBeforeExecution(
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
-      getNBlocksBack: GetNBlocksBack
+      getNBlocksBack: GetNBlocksBack,
+      headerValidator: BlockHeaderValidator
   )(implicit
       blockchainConfig: BlockchainConfig
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] =
@@ -33,7 +34,8 @@ trait ValidatorsExecutor extends Validators:
       self = this,
       block = block,
       getBlockHeaderByHash = getBlockHeaderByHash,
-      getNBlocksBack = getNBlocksBack
+      getNBlocksBack = getNBlocksBack,
+      headerValidator = headerValidator
     )
 
   def validateBlockAfterExecution(
@@ -88,7 +90,8 @@ object ValidatorsExecutor:
       self: ValidatorsExecutor,
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
-      getNBlocksBack: GetNBlocksBack
+      getNBlocksBack: GetNBlocksBack,
+      headerValidator: BlockHeaderValidator
   )(implicit
       blockchainConfig: BlockchainConfig
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] =
@@ -96,8 +99,11 @@ object ValidatorsExecutor:
     val header = block.header
     val body = block.body
 
+    // `headerValidator` is the engine-sourced seal validator (Stage 5.4c-3); `eq self.blockHeaderValidator` for every
+    // conf, so the direct seal check is byte-identical. Ommers validation keeps using `self.ommersValidator`, which
+    // wraps that same instance — nothing else moves.
     val result = for
-      _ <- self.blockHeaderValidator.validate(header, getBlockHeaderByHash)
+      _ <- headerValidator.validate(header, getBlockHeaderByHash)
       _ <- self.blockValidator.validateHeaderAndBody(header, body)
       _ <- self.ommersValidator.validate(
         header.parentHash,

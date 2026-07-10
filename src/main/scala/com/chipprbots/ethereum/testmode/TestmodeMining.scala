@@ -73,7 +73,8 @@ class TestmodeMining(
     override def validateBlockBeforeExecution(
         block: Block,
         getBlockHeaderByHash: GetBlockHeaderByHash,
-        getNBlocksBack: GetNBlocksBack
+        getNBlocksBack: GetNBlocksBack,
+        headerValidator: BlockHeaderValidator
     )(implicit
         blockchainConfig: BlockchainConfig
     ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)

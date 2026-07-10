@@ -34,13 +34,15 @@ final class StdValidators(
   def validateBlockBeforeExecution(
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
-      getNBlocksBack: GetNBlocksBack
+      getNBlocksBack: GetNBlocksBack,
+      headerValidator: BlockHeaderValidator
   )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
     StdValidators.validateBlockBeforeExecution(
       self = this,
       block = block,
       getBlockHeaderByHash = getBlockHeaderByHash,
-      getNBlocksBack = getNBlocksBack
+      getNBlocksBack = getNBlocksBack,
+      headerValidator = headerValidator
     )
 
   def validateBlockAfterExecution(
@@ -62,14 +64,17 @@ object StdValidators:
       self: Validators,
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
-      @unused getNBlocksBack: GetNBlocksBack
+      @unused getNBlocksBack: GetNBlocksBack,
+      headerValidator: BlockHeaderValidator
   )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
 
     val header = block.header
     val body = block.body
 
+    // `headerValidator` is the engine-sourced seal validator (Stage 5.4c-3); `eq self.blockHeaderValidator` for every
+    // conf, so this is byte-identical to reading `self.blockHeaderValidator` directly.
     val result = for
-      _ <- self.blockHeaderValidator.validate(header, getBlockHeaderByHash)
+      _ <- headerValidator.validate(header, getBlockHeaderByHash)
       _ <- self.blockValidator.validateHeaderAndBody(header, body)
     yield BlockExecutionSuccess
 

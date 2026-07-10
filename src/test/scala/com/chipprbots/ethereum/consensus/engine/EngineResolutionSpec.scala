@@ -150,6 +150,23 @@ class EngineResolutionSpec extends AnyWordSpec with Matchers:
       val direct = mining.blockPreparator.payBlockReward(block, worldState)
       throughEngine.stateRootHash shouldEqual direct.stateRootHash
       throughEngine.stateRootHash shouldEqual worldState.stateRootHash // isPoS early return: world unchanged
+
+    // Stage 5.4c-3 header-cutover byte-identity guard. BlockValidation now sources the pre-execution header (seal)
+    // validator from `consensusEngine.headerValidator` instead of `mining.validators.blockHeaderValidator`. That
+    // redirect is byte-identical ONLY IF the two are the SAME instance for every conf the client ships. Prove it for
+    // all 5 real confs, pairing each engine with a mining whose validators were resolved the production way
+    // (`ValidatorsExecutor(Protocol.PoW)` — TTD-aware per 5.4c-1): ETC → EthashEngine returns exactly that field;
+    // ETH → EngineApiEngine returns the singleton TransitionBlockHeaderValidator, which is also what the TTD-aware
+    // validators resolve. If this ever fails, the header cutover has stopped being a no-op.
+    "source the header validator identically to the mining's own for all 5 real confs (byte-identical redirect)" in new TestSetup:
+      confNames.foreach { n =>
+        withClue(s"[$n] ") {
+          val cfg = confs(n)
+          val perConfMining = mining.withValidators(ValidatorsExecutor(Protocol.PoW)(using cfg))
+          val engine = ConsensusEngine.engineFor(perConfMining, cfg)
+          (engine.headerValidator should be).theSameInstanceAs(perConfMining.validators.blockHeaderValidator)
+        }
+      }
   }
 
   trait TestSetup extends EphemBlockchainTestSetup:

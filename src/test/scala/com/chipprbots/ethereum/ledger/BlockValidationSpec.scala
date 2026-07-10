@@ -9,6 +9,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Mocks
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
 import com.chipprbots.ethereum.consensus.validators.std.StdBlockValidator
 import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.testing.Tags.*
@@ -58,7 +59,8 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory:
       new BlockValidation(
         setup.mining,
         setup.blockchainReader,
-        BlockQueue(setup.blockchainReader, setup.syncConfig)
+        BlockQueue(setup.blockchainReader, setup.syncConfig),
+        ConsensusEngine.engineFor(setup.mining, blockchainConfig)
       )
 
     def hash2ByteString(hash: String): ByteString = ByteString(Hex.decode(hash))

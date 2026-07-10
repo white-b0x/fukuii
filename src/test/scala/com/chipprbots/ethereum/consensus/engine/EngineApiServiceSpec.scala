@@ -143,7 +143,8 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
       override lazy val vm: VMImpl = new VMImpl
 
       override lazy val blockQueue: BlockQueue = BlockQueue(blockchainReader, syncConfig)
-      override lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
+      override lazy val blockValidation =
+        new BlockValidation(mining, blockchainReader, blockQueue, ConsensusEngine.engineFor(mining, blockchainConfig))
       lazy val blockExec = new BlockExecution(
         blockchain,
         blockchainReader,

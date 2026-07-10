@@ -80,7 +80,13 @@ trait ScenarioSetup
 
   protected def mkBlockExecution(validators: Validators = validators): BlockExecution =
     val consensuz = mining.withValidators(validators).withVM(new Mocks.MockVM())
-    val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
+    val blockValidation =
+      new BlockValidation(
+        consensuz,
+        blockchainReader,
+        blockQueue,
+        ConsensusEngine.engineFor(consensuz, blockchainConfig)
+      )
     new BlockExecution(
       blockchain,
       blockchainReader,
@@ -96,7 +102,13 @@ trait ScenarioSetup
       blockExecutionOpt: Option[BlockExecution] = None
   ): ConsensusAdapter =
     val testMining = mining.withValidators(validators).withVM(new Mocks.MockVM())
-    val blockValidation = new BlockValidation(testMining, blockchainReader, blockQueue)
+    val blockValidation =
+      new BlockValidation(
+        testMining,
+        blockchainReader,
+        blockQueue,
+        ConsensusEngine.engineFor(testMining, blockchainConfig)
+      )
 
     new ConsensusAdapter(
       new ConsensusImpl(

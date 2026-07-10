@@ -171,7 +171,8 @@ class EthereumTestHelper(using bc: BlockchainConfig) extends ScenarioSetup:
       // Create BlockExecution using the test infrastructure
       val syncConfig = Config.SyncConfig(Config.config)
       val blockQueue = BlockQueue(blockchainReader, syncConfig)
-      val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
+      val blockValidation =
+        new BlockValidation(mining, blockchainReader, blockQueue, ConsensusEngine.engineFor(mining, blockchainConfig))
       val blockExecution = new BlockExecution(
         blockchain,
         blockchainReader,

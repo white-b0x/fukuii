@@ -264,14 +264,15 @@ trait ConsensusBuilder:
   self: BlockchainBuilder & BlockQueueBuilder & MiningBuilder & ActorSystemBuilder & StorageBuilder &
     BlockchainConfigBuilder =>
 
-  lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
+  lazy val consensusEngine: ConsensusEngine = ConsensusEngine.engineFor(mining, blockchainConfig)
+  lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue, consensusEngine)
   lazy val blockExecution = new BlockExecution(
     blockchain,
     blockchainReader,
     blockchainWriter,
     storagesInstance.storages.evmCodeStorage,
     mining.blockPreparator,
-    ConsensusEngine.engineFor(mining, blockchainConfig),
+    consensusEngine,
     blockValidation
   )
 

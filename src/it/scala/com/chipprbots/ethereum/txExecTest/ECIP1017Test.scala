@@ -75,7 +75,12 @@ class ECIP1017Test extends AnyFlatSpec with Matchers:
       val blockchainWriter = BlockchainWriter(storages)
       val blockchain = BlockchainImpl(storages, blockchainReader)
       val blockValidation =
-        new BlockValidation(mining, blockchainReader, BlockQueue(blockchainReader, syncConfig))
+        new BlockValidation(
+          mining,
+          blockchainReader,
+          BlockQueue(blockchainReader, syncConfig),
+          ConsensusEngine.engineFor(mining, blockchainConfig)
+        )
       val blockExecution =
         new BlockExecution(
           blockchain,

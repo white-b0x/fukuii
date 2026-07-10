@@ -44,11 +44,14 @@ class BlockHashHistorySpec extends AnyFlatSpec with Matchers:
 
     override lazy val blockQueue: BlockQueue = BlockQueue(blockchainReader, SyncConfig(Config.config))
 
-    override lazy val blockValidation = new BlockValidation(
-      mining.withValidators(Mocks.MockValidatorsAlwaysSucceed),
-      blockchainReader,
-      blockQueue
-    )
+    override lazy val blockValidation =
+      val validatingMining = mining.withValidators(Mocks.MockValidatorsAlwaysSucceed)
+      new BlockValidation(
+        validatingMining,
+        blockchainReader,
+        blockQueue,
+        ConsensusEngine.engineFor(validatingMining, blockchainConfig)
+      )
 
     lazy val exec: BlockExecution = new BlockExecution(
       blockchain,

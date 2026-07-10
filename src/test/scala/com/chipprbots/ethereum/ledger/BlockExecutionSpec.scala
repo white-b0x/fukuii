@@ -69,7 +69,12 @@ class BlockExecutionSpec
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(block1.header.number.value)
         val newMining: TestMining = mining.withVM(vm).withValidators(mockValidators)
         override lazy val blockValidation =
-          new BlockValidation(newMining, blockchainReader, BlockQueue(blockchainReader, syncConfig))
+          new BlockValidation(
+            newMining,
+            blockchainReader,
+            BlockQueue(blockchainReader, syncConfig),
+            ConsensusEngine.engineFor(newMining, blockchainConfig)
+          )
         override lazy val blockExecution =
           new BlockExecution(
             blockchain,
@@ -111,7 +116,12 @@ class BlockExecutionSpec
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(block2.header.number.value)
         val newMining: TestMining = mining.withVM(mockVm).withValidators(mockValidators)
         override lazy val blockValidation =
-          new BlockValidation(newMining, blockchainReader, BlockQueue(blockchainReader, syncConfig))
+          new BlockValidation(
+            newMining,
+            blockchainReader,
+            BlockQueue(blockchainReader, syncConfig),
+            ConsensusEngine.engineFor(newMining, blockchainConfig)
+          )
         override lazy val blockExecution =
           new BlockExecution(
             blockchain,
@@ -146,7 +156,12 @@ class BlockExecutionSpec
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(chain.last.number.value)
         val newMining: TestMining = mining.withVM(mockVm).withValidators(mockValidators)
         override lazy val blockValidation =
-          new BlockValidation(newMining, blockchainReader, BlockQueue(blockchainReader, syncConfig))
+          new BlockValidation(
+            newMining,
+            blockchainReader,
+            BlockQueue(blockchainReader, syncConfig),
+            ConsensusEngine.engineFor(newMining, blockchainConfig)
+          )
         override lazy val blockExecution =
           new BlockExecution(
             blockchain,
@@ -199,7 +214,12 @@ class BlockExecutionSpec
         val newMining: TestMining = mining.withVM(mockVm)
 
         override lazy val blockValidation =
-          new BlockValidation(newMining, blockchainReader, BlockQueue(blockchainReader, syncConfig))
+          new BlockValidation(
+            newMining,
+            blockchainReader,
+            BlockQueue(blockchainReader, syncConfig),
+            ConsensusEngine.engineFor(newMining, blockchainConfig)
+          )
         override lazy val blockExecution =
           new BlockExecution(
             blockchain,
@@ -280,7 +300,12 @@ class BlockExecutionSpec
 
           val newConsensus = mining.withValidators(mockValidators).withVM(mockVm)
           val blockValidation =
-            new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchainReader, syncConfig))
+            new BlockValidation(
+              newConsensus,
+              blockchainReader,
+              BlockQueue(blockchainReader, syncConfig),
+              ConsensusEngine.engineFor(newConsensus, blockchainConfig)
+            )
           val blockExecution =
             new BlockExecution(
               blockchain,
@@ -730,7 +755,12 @@ class BlockExecutionSpec
       )
 
     override lazy val blockValidation =
-      new BlockValidation(mining, blockchainReader, BlockQueue(blockchainReader, syncConfig))
+      new BlockValidation(
+        mining,
+        blockchainReader,
+        BlockQueue(blockchainReader, syncConfig),
+        ConsensusEngine.engineFor(mining, blockchainConfig)
+      )
     override lazy val blockExecution =
       new BlockExecution(
         blockchain,

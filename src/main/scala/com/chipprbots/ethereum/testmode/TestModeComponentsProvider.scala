@@ -35,7 +35,8 @@ class TestModeComponentsProvider(
       preimageCache: collection.concurrent.Map[ByteString, UInt256]
   ): ConsensusAdapter =
     val consensuz = consensus()
-    val blockValidation = new BlockValidation(consensuz, blockchainReader, node.blockQueue)
+    val consensusEngine = ConsensusEngine.engineFor(consensuz, node.blockchainConfig)
+    val blockValidation = new BlockValidation(consensuz, blockchainReader, node.blockQueue, consensusEngine)
     val blockExecution =
       new TestModeBlockExecution(
         blockchain,
@@ -43,7 +44,7 @@ class TestModeComponentsProvider(
         blockchainWriter,
         evmCodeStorage,
         consensuz.blockPreparator,
-        ConsensusEngine.engineFor(consensuz, node.blockchainConfig),
+        consensusEngine,
         blockValidation,
         (key: UInt256) => preimageCache.put(crypto.kec256(key.bytes), key)
       )
