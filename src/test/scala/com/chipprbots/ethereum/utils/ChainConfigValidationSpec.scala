@@ -21,6 +21,27 @@ class ChainConfigValidationSpec extends AnyFlatSpec with Matchers:
 
   private val etcConfig = BlockchainConfig.fromRawConfig(fullConfig.getConfig("fukuii.blockchains.etc"))
   private val mordorConfig = BlockchainConfig.fromRawConfig(fullConfig.getConfig("fukuii.blockchains.mordor"))
+  private val gorgorothConfig = BlockchainConfig.fromRawConfig(fullConfig.getConfig("fukuii.blockchains.gorgoroth"))
+
+  // ===== ECIP-1122 MIN_MINER_TIP (min-tip) tip floor =====
+  // MIN_MINER_TIP = 1 gwei per ECIP-1122 (spec §"Constants": 1,000,000,000 wei) and core-geth
+  // TxPoolPriceLimit = InitialBaseFee (config_classic.go / config_mordor.go). The tip floor is a
+  // ClientPolicy pool-admission parameter (non-consensus, no state-root effect), tunable per chain.
+
+  private val oneGwei = BigInt(1000000000)
+
+  "ECIP-1122 min-tip floor" should "resolve to the explicit 1 gwei value on etc, mordor, and gorgoroth" taggedAs (UnitTest) in {
+    etcConfig.minTip shouldBe oneGwei
+    mordorConfig.minTip shouldBe oneGwei
+    gorgorothConfig.minTip shouldBe oneGwei
+  }
+
+  it should "fall back to the 1 gwei default (not 1 wei) when min-tip is omitted from a config" taggedAs (UnitTest) in {
+    val rawWithoutMinTip = fullConfig.getConfig("fukuii.blockchains.etc").withoutPath("min-tip")
+    val configWithoutMinTip = BlockchainConfig.fromRawConfig(rawWithoutMinTip)
+    configWithoutMinTip.minTip shouldBe oneGwei
+    configWithoutMinTip.minTip should not be BigInt(1)
+  }
 
   // ===== ETC Mainnet Chain Identity =====
 

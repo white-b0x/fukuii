@@ -284,7 +284,7 @@ object BlockchainConfig:
       Try(BigInt(blockchainConfig.getString("base-fee-floor"))).getOrElse(BigInt(0))
 
     val minTip: BigInt =
-      Try(BigInt(blockchainConfig.getString("min-tip"))).getOrElse(BigInt(1))
+      Try(BigInt(blockchainConfig.getString("min-tip"))).getOrElse(BigInt(1000000000))
 
     val networkType: NetworkType =
       Try(NetworkType.fromString(blockchainConfig.getString("network-type"))).getOrElse(NetworkType.ETC)
