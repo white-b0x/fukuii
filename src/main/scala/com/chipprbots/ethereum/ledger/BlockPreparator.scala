@@ -46,7 +46,9 @@ class BlockPreparator(
     * @return
     *   the state after paying the appropriate reward to who corresponds
     */
-  protected[ledger] def payBlockReward(
+  // Widened ledger -> ethereum so the additive consensus/engine seam (ConsensusEngine.finalizeBlock)
+  // can DELEGATE here unchanged; behavior is byte-identical (same method body). Still not public API.
+  protected[ethereum] def payBlockReward(
       block: Block,
       worldStateProxy: InMemoryWorldStateProxy
   )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
