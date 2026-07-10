@@ -156,20 +156,41 @@ case class ForkBlockNumbers(
     spiralGasTarget: Option[BigInt] = None,
     olympiaGasTarget: Option[BigInt] = None
 ):
-  // Relies on `BlockNumber`'s opaque-type erasure: at runtime every `BlockNumber` field IS a
-  // `BigInt` instance, so `collect { case i: BigInt => i }` matches all of them and skips the
-  // `Option[BigInt]` gas-target fields (an Option is never itself a BigInt). This is fragile —
-  // it silently breaks if a future field's *erased* runtime type is BigInt but it isn't a fork
-  // block number (or vice versa) — but an explicit 24-field list here would need to be kept in
-  // sync by hand on every fork addition, which is its own fragility. Feeds ForkId.scala's
-  // fork-id hash (network handshake compat) — do not change this method without `herald`/`forge`
-  // review.
-  // E165 (productIterator -> Iterator[Any]) is left VISIBLE: a safe typed fix exists
-  // (Tuple.fromProductTyped -> List[BlockNumber | Option[BigInt]], compiler-exhaustive) but it
-  // touches the fork-id hash, so it is scheduled as a MOD with a golden-test guard, not suppressed.
-  def all: List[BigInt] = this.productIterator.toList.collect { case i: BigInt =>
-    i
-  }
+  // Explicit, order-preserving list of every fork *block-number* field (the two trailing
+  // `Option[BigInt]` gas-target fields are deliberately excluded — they aren't fork-id
+  // checksum points). Order matches field-declaration order above, which matches the
+  // pre-existing `productIterator` enumeration this replaced. Feeds ForkId.scala's fork-id
+  // hash (network handshake compat) — do not reorder/add/remove entries without
+  // `herald`/`forge` review, since that changes the wire-visible fork-id CRC32.
+  def all: List[BigInt] = List(
+    frontierBlockNumber,
+    homesteadBlockNumber,
+    eip106BlockNumber,
+    eip150BlockNumber,
+    eip155BlockNumber,
+    eip160BlockNumber,
+    eip161BlockNumber,
+    difficultyBombPauseBlockNumber,
+    difficultyBombContinueBlockNumber,
+    difficultyBombRemovalBlockNumber,
+    byzantiumBlockNumber,
+    constantinopleBlockNumber,
+    istanbulBlockNumber,
+    atlantisBlockNumber,
+    aghartaBlockNumber,
+    phoenixBlockNumber,
+    petersburgBlockNumber,
+    ecip1099BlockNumber,
+    muirGlacierBlockNumber,
+    magnetoBlockNumber,
+    berlinBlockNumber,
+    mystiqueBlockNumber,
+    spiralBlockNumber,
+    olympiaBlockNumber,
+    arrowGlacierBlockNumber,
+    grayGlacierBlockNumber,
+    mergeNetsplitBlockNumber
+  ).map(_.value)
 
   /** Returns the convergence target that
     * [[com.chipprbots.ethereum.consensus.blocks.BlockGeneratorSkeleton.calculateGasLimit]] should aim for at the given
