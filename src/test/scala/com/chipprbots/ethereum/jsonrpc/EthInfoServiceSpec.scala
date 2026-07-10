@@ -92,6 +92,23 @@ class EthServiceSpec
 
     response shouldEqual Right(SyncingResponse(None))
 
+  it should "omit forks parked at the HOCON pending sentinel from the fork schedule" taggedAs (UnitTest, RPCTest) in new TestSetup:
+    // The "test" network config schedules only Frontier(0) and Homestead(1150000) at real block numbers; every
+    // later fork (Atlantis, Agharta, Phoenix, Magneto, Mystique, Spiral, Olympia, ...) is parked at the shared
+    // "not yet scheduled" HOCON sentinel (1e18). Pre-fix, those sentinel-parked forks deduplicated (by block
+    // number) to a single bogus entry that surfaced as a literal `next`/`last` fork at block 1e18. Post-fix,
+    // with nothing genuinely scheduled beyond Homestead, `next`/`last` must both be None.
+    val pendingSentinel: BigInt = BigInt("1000000000000000000")
+    val homestead: BigInt = BigInt(1150000)
+    blockchainWriter.saveBestKnownBlocks(BlockHash(ByteString.empty), BigInt(5000000))
+
+    val response: ConfigResponse = ethService.config(ConfigRequest()).unsafeRunSync().toOption.get
+
+    response.current.value.activationBlock shouldEqual homestead
+    response.next shouldEqual None
+    response.last shouldEqual None
+    List(response.current, response.next, response.last).flatten.map(_.activationBlock) should not contain pendingSentinel
+
   it should "execute call and return a value" taggedAs (UnitTest, RPCTest) in new TestSetup:
     blockchainWriter.storeBlock(blockToRequest).commit()
     blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number.value)

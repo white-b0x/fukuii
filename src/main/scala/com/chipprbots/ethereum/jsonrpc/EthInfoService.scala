@@ -17,6 +17,7 @@ import com.chipprbots.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import com.chipprbots.ethereum.consensus.mining.Mining
 import com.chipprbots.ethereum.crypto.*
 import com.chipprbots.ethereum.domain.*
+import com.chipprbots.ethereum.forkid.ForkId
 import com.chipprbots.ethereum.jsonrpc.AkkaTaskOps.*
 import com.chipprbots.ethereum.keystore.KeyStore
 import com.chipprbots.ethereum.ledger.BlockExecution.HistoryStorageAddress
@@ -174,6 +175,11 @@ class EthInfoService(
 
   /** Build fork schedule: (name, blockNumber, precompiles, systemContracts). JSON-RPC response boundary
     * (ForkConfig.block: BigInt) — unwrap here.
+    *
+    * Excludes both the `Long.MaxValue` missing-config fallback and the `1e18` HOCON "not yet scheduled" sentinel
+    * (`com.chipprbots.ethereum.forkid.ForkId.knownSentinels`, e.g. Olympia on ETC/Mordor) — a pending fork must not
+    * be reported as a literal activation at that sentinel block. Mirrors the filtering
+    * `ForkId.gatherBlockForks` already applies to the EIP-2124 fork-id checksum list.
     */
   private def forkSchedule(fbn: ForkBlockNumbers): List[(String, BigInt, Map[String, Address], Map[String, Address])] =
     List(
@@ -186,7 +192,7 @@ class EthInfoService(
       ("Mystique", fbn.mystiqueBlockNumber.value, istanbulPrecompiles, noSystemContracts),
       ("Spiral", fbn.spiralBlockNumber.value, istanbulPrecompiles, noSystemContracts),
       ("Olympia", fbn.olympiaBlockNumber.value, olympiaPrecompiles, olympiaSystemContracts)
-    ).filter(_._2 < Long.MaxValue) // exclude forks not configured
+    ).filter(f => f._2 < Long.MaxValue && !ForkId.knownSentinels.contains(f._2)) // exclude unscheduled/pending forks
       .sortBy(_._2)
       .distinctBy(_._2) // deduplicate by block number
 
