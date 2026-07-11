@@ -34,10 +34,10 @@ import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
 // SCALA 3 MIGRATION: Fixed by refactoring MinerSpecSetup to use abstract mock members pattern.
-// The two epoch-1 tests below (crossing the block-30000 boundary) carry ResourceHeavy in
-// addition to SlowTest: mining across that boundary forces a cold Ethash DAG build, which is
+// The two epoch-1 tests below (crossing the block-30000 boundary) carry ResourceHeavy, not
+// SlowTest: mining across that boundary forces a cold Ethash DAG build, which is
 // compute/memory-bound and equipment-dependent rather than intrinsically slow — see
-// Tags.ResourceHeavy. The epoch-0 test stays SlowTest-only.
+// Tags.ResourceHeavy. The epoch-0 test stays SlowTest-only (13s, not equipment-dependent).
 class EthashMinerSpec extends AnyFlatSpec with Matchers with org.scalamock.scalatest.MockFactory:
 
   "EthashMiner actor" should "mine valid blocks" taggedAs (UnitTest, ConsensusTest, SlowTest) in new TestSetup:
@@ -49,7 +49,6 @@ class EthashMinerSpec extends AnyFlatSpec with Matchers with org.scalamock.scala
   it should "mine valid block on the end and beginning of the new epoch" taggedAs (
     UnitTest,
     ConsensusTest,
-    SlowTest,
     ResourceHeavy
   ) in new TestSetup:
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
@@ -66,7 +65,6 @@ class EthashMinerSpec extends AnyFlatSpec with Matchers with org.scalamock.scala
   it should "mine valid blocks on the end of the epoch" taggedAs (
     UnitTest,
     ConsensusTest,
-    SlowTest,
     ResourceHeavy
   ) in new TestSetup:
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099

@@ -123,7 +123,7 @@ class VMTestsSpec extends EthereumTestsSpec:
 
     BlockchainTestSuite(filteredTests)
 
-  "VMTests" should "discover vmArithmeticTest tests" taggedAs (IntegrationTest, EthereumTest, VMTest, SlowTest) in {
+  "VMTests" should "discover vmArithmeticTest tests" taggedAs (IntegrationTest, EthereumTest, VMTest) in {
     val baseDir = new File(vmTestsBasePath)
 
     if !baseDir.exists() then
@@ -136,7 +136,7 @@ class VMTestsSpec extends EthereumTestsSpec:
       tests.size should be > 0
   }
 
-  it should "discover vmBitwiseLogicOperation tests" taggedAs (IntegrationTest, EthereumTest, VMTest, SlowTest) in {
+  it should "discover vmBitwiseLogicOperation tests" taggedAs (IntegrationTest, EthereumTest, VMTest) in {
     val baseDir = new File(vmTestsBasePath)
 
     if !baseDir.exists() then
@@ -148,7 +148,7 @@ class VMTestsSpec extends EthereumTestsSpec:
       tests.size should be > 0
   }
 
-  it should "discover vmIOandFlowOperations tests" taggedAs (IntegrationTest, EthereumTest, VMTest, SlowTest) in {
+  it should "discover vmIOandFlowOperations tests" taggedAs (IntegrationTest, EthereumTest, VMTest) in {
     val baseDir = new File(vmTestsBasePath)
 
     if !baseDir.exists() then
@@ -160,7 +160,7 @@ class VMTestsSpec extends EthereumTestsSpec:
       tests.size should be > 0
   }
 
-  it should "discover vmLogTest tests" taggedAs (IntegrationTest, EthereumTest, VMTest, SlowTest) in {
+  it should "discover vmLogTest tests" taggedAs (IntegrationTest, EthereumTest, VMTest) in {
     val baseDir = new File(vmTestsBasePath)
 
     if !baseDir.exists() then
@@ -172,7 +172,7 @@ class VMTestsSpec extends EthereumTestsSpec:
       tests.size should be > 0
   }
 
-  it should "discover vmTests tests" taggedAs (IntegrationTest, EthereumTest, VMTest, SlowTest) in {
+  it should "discover vmTests tests" taggedAs (IntegrationTest, EthereumTest, VMTest) in {
     val baseDir = new File(vmTestsBasePath)
 
     if !baseDir.exists() then
@@ -214,7 +214,7 @@ class VMTestsSpec extends EthereumTestsSpec:
     filtered should not contain key("London_VM_Test")
   }
 
-  it should "load and parse a sample VM arithmetic test" taggedAs (IntegrationTest, EthereumTest, VMTest, SlowTest) in {
+  it should "load and parse a sample VM arithmetic test" taggedAs (IntegrationTest, EthereumTest, VMTest) in {
     val testFile = s"$vmTestsBasePath/vmArithmeticTest/add.json"
     val file = new File(testFile)
 

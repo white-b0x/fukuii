@@ -42,7 +42,6 @@ import com.chipprbots.ethereum.testing.Tags.*
 
 // §8a-E6: computeCapabilityOffsets tests extracted to RLPxCapabilityOffsetsSpec (pure unit, no actor deps)
 // SCALA 3 MIGRATION: Fixed by creating manual stub implementation for AuthHandshaker
-// @Ignore - Un-ignored per issue to identify test failures
 class RLPxConnectionHandlerSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike with Matchers with MockFactory:
 
   // Classic ActorSystem for the Classic-boundary TestProbes below (`connection`, `tcpActorProbe`).

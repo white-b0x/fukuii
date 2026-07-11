@@ -21,20 +21,20 @@ class KzgCellProofsSpec extends AnyFunSuite with BeforeAndAfterAll with Matchers
   // A zero-filled blob: all 4096 field elements are 0, which is a valid BLS12-381 field element.
   private lazy val zeroBlobBytes: Array[Byte] = Array.fill[Byte](CKZG4844JNI.BYTES_PER_BLOB)(0)
 
-  test("computeCellsAndKzgProofs returns CELLS_PER_EXT_BLOB proofs per blob", SlowTest, CryptoTest) {
+  test("computeCellsAndKzgProofs returns CELLS_PER_EXT_BLOB proofs per blob", ResourceHeavy, CryptoTest) {
     val (cells, proofs) = KzgCellProofs.computeCellsAndKzgProofs(zeroBlobBytes)
     cells.length shouldBe KzgCellProofs.CELLS_PER_EXT_BLOB
     proofs.length shouldBe KzgCellProofs.CELLS_PER_EXT_BLOB
   }
 
-  test("computeCellsAndKzgProofs: each proof is BYTES_PER_PROOF (48) bytes", SlowTest, CryptoTest) {
+  test("computeCellsAndKzgProofs: each proof is BYTES_PER_PROOF (48) bytes", ResourceHeavy, CryptoTest) {
     val (_, proofs) = KzgCellProofs.computeCellsAndKzgProofs(zeroBlobBytes)
     proofs.foreach { proof =>
       proof.length shouldBe KzgCellProofs.BYTES_PER_PROOF
     }
   }
 
-  test("computeCellsAndKzgProofs: each cell is BYTES_PER_CELL (2048) bytes", SlowTest, CryptoTest) {
+  test("computeCellsAndKzgProofs: each cell is BYTES_PER_CELL (2048) bytes", ResourceHeavy, CryptoTest) {
     val (cells, _) = KzgCellProofs.computeCellsAndKzgProofs(zeroBlobBytes)
     cells.foreach { cell =>
       cell.length shouldBe KzgCellProofs.BYTES_PER_CELL

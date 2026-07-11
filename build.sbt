@@ -87,6 +87,12 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
       "-l",
       "ResourceHeavy"
     ), // compute/memory-bound tests excluded by default; run via testResourceHeavy
+  (Test / testOptions) += Tests
+    .Argument(
+      TestFrameworks.ScalaTest,
+      "-l",
+      "FlakyTest"
+    ), // known-intermittent tests excluded from every tier — never a gate; fix, don't opt back in
   // Configure scalacOptions for Scala 3
   scalacOptions := {
     val base = baseScalacOptions
@@ -340,6 +346,12 @@ lazy val node = {
           // This `:=` (not `+=`) fully replaces the inherited value instead of appending to
           // it, so Integration/testOptions carries ONLY what this config actually needs.
           :+ (testOptions := Seq(Tests.Argument("-oDG")))
+          // Future-proofing: no src/it test currently carries ResourceHeavy or FlakyTest (zero
+          // behavior change today), but mirror the Test-axis exclusions here so an IT-side test
+          // tagged either in the future is excluded from IntegrationTest / test too, instead of
+          // silently running because this axis's testOptions was fully replaced above.
+          :+ (testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-l", "ResourceHeavy"))
+          :+ (testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-l", "FlakyTest"))
           :+ (testOptions += {
             val reportsDir = (Test / target).value / "test-reports"
             Tests.Setup(_ => IO.createDirectory(reportsDir))
@@ -556,7 +568,9 @@ addCommandAlias(
 )
 
 // testStandard - Tier 2: Standard tests (< 30 minutes)
-// Runs unit and integration tests. Excludes only Tier 3 tests:
+// Runs unit tests only (`testOnly` on the Test config) — despite the historical name, this
+// alias never runs `IntegrationTest / testOnly`; the IntegrationTest config only runs in
+// testComprehensive (Tier 3). Excludes only Tier 3-flavored Test-config tags:
 // BenchmarkTest/EthereumTest: the 3-hour compliance suite — belongs in testComprehensive only.
 addCommandAlias(
   "testStandard",

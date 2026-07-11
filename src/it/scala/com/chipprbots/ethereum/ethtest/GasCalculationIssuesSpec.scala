@@ -138,8 +138,7 @@ class GasCalculationIssuesSpec extends EthereumTestsSpec:
 
   it should "document known gas calculation issues for follow-up" taggedAs (
     IntegrationTest,
-    EthereumTest,
-    SlowTest
+    EthereumTest
   ) in {
     info("Documenting gas calculation status (REPO-06-GASCALC, verified 2026-07-11)...")
     info("")

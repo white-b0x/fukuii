@@ -8,7 +8,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.testing.Tags.*
 
-/** SlowTest: verifies Ethash nonce search and PoW verification using the light-client cache.
+/** ResourceHeavy: verifies Ethash nonce search and PoW verification using the light-client cache.
   *
   * Cache generation is a shared lazy val (~1-5s); individual hashimotoLight calls are fast. All tests operate on epoch
   * 0 (Mordor genesis epoch) to avoid generating multiple caches.
@@ -37,29 +37,29 @@ class EthashNonceSearchSpec extends AnyFlatSpec with Matchers:
       }
       .collectFirst { case Some(x) => x }
 
-  "EthashNonceSearch" should "find a valid nonce at Mordor genesis difficulty" taggedAs SlowTest in {
+  "EthashNonceSearch" should "find a valid nonce at Mordor genesis difficulty" taggedAs ResourceHeavy in {
     searchResult shouldBe defined
   }
 
-  it should "produce a 32-byte mixHash" taggedAs SlowTest in {
+  it should "produce a 32-byte mixHash" taggedAs ResourceHeavy in {
     searchResult.get._1.length shouldBe 32
   }
 
-  it should "produce an 8-byte nonce" taggedAs SlowTest in {
+  it should "produce an 8-byte nonce" taggedAs ResourceHeavy in {
     searchResult.get._2.length shouldBe 8
   }
 
-  it should "produce a nonce that re-verifies with checkDifficulty" taggedAs SlowTest in {
+  it should "produce a nonce that re-verifies with checkDifficulty" taggedAs ResourceHeavy in {
     val (_, nonceBytes) = searchResult.get
     val pow = EthashUtils.hashimotoLight(testHeaderHash, nonceBytes.toArray, epoch0FullSize, epoch0Cache)
     EthashUtils.checkDifficulty(0x20000L, pow) shouldBe true
   }
 
-  it should "return None for impossibly high difficulty" taggedAs SlowTest in {
+  it should "return None for impossibly high difficulty" taggedAs ResourceHeavy in {
     searchNonce(testHeaderHash, Long.MaxValue, maxIterations = 100) shouldBe None
   }
 
-  it should "cross-verify block 100 test vector with known nonce" taggedAs SlowTest in {
+  it should "cross-verify block 100 test vector with known nonce" taggedAs ResourceHeavy in {
     val hash = Hex.decode("41944a94a42695180b1ca231720a87825f17d36475112b659c23dea1542e0977")
     val nonce = Hex.decode("37129c7f29a9364b")
     val pow = EthashUtils.hashimotoLight(hash, nonce, epoch0FullSize, epoch0Cache)

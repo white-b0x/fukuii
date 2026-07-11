@@ -112,7 +112,7 @@ class TransactionTestsSpec extends AnyFlatSpec with Matchers:
           case None => false
       case None => false
 
-  "TransactionTests" should "discover ttNonce tests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  "TransactionTests" should "discover ttNonce tests" taggedAs (IntegrationTest, EthereumTest) in {
     val baseDir = new File(transactionTestsBasePath)
 
     if !baseDir.exists() then
@@ -125,7 +125,7 @@ class TransactionTestsSpec extends AnyFlatSpec with Matchers:
       tests.size should be > 0
   }
 
-  it should "discover ttData tests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "discover ttData tests" taggedAs (IntegrationTest, EthereumTest) in {
     val baseDir = new File(transactionTestsBasePath)
 
     if !baseDir.exists() then
@@ -137,7 +137,7 @@ class TransactionTestsSpec extends AnyFlatSpec with Matchers:
       tests.size should be > 0
   }
 
-  it should "discover ttGasLimit tests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "discover ttGasLimit tests" taggedAs (IntegrationTest, EthereumTest) in {
     val baseDir = new File(transactionTestsBasePath)
 
     if !baseDir.exists() then
@@ -149,7 +149,7 @@ class TransactionTestsSpec extends AnyFlatSpec with Matchers:
       tests.size should be > 0
   }
 
-  it should "discover ttGasPrice tests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "discover ttGasPrice tests" taggedAs (IntegrationTest, EthereumTest) in {
     val baseDir = new File(transactionTestsBasePath)
 
     if !baseDir.exists() then
@@ -161,7 +161,7 @@ class TransactionTestsSpec extends AnyFlatSpec with Matchers:
       tests.size should be > 0
   }
 
-  it should "discover ttValue tests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "discover ttValue tests" taggedAs (IntegrationTest, EthereumTest) in {
     val baseDir = new File(transactionTestsBasePath)
 
     if !baseDir.exists() then
@@ -173,7 +173,7 @@ class TransactionTestsSpec extends AnyFlatSpec with Matchers:
       tests.size should be > 0
   }
 
-  it should "discover ttSignature tests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "discover ttSignature tests" taggedAs (IntegrationTest, EthereumTest) in {
     val baseDir = new File(transactionTestsBasePath)
 
     if !baseDir.exists() then
@@ -185,7 +185,7 @@ class TransactionTestsSpec extends AnyFlatSpec with Matchers:
       tests.size should be > 0
   }
 
-  it should "discover ttVValue tests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "discover ttVValue tests" taggedAs (IntegrationTest, EthereumTest) in {
     val baseDir = new File(transactionTestsBasePath)
 
     if !baseDir.exists() then
@@ -197,7 +197,7 @@ class TransactionTestsSpec extends AnyFlatSpec with Matchers:
       tests.size should be > 0
   }
 
-  it should "discover ttRSValue tests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "discover ttRSValue tests" taggedAs (IntegrationTest, EthereumTest) in {
     val baseDir = new File(transactionTestsBasePath)
 
     if !baseDir.exists() then
@@ -209,7 +209,7 @@ class TransactionTestsSpec extends AnyFlatSpec with Matchers:
       tests.size should be > 0
   }
 
-  it should "discover ttWrongRLP tests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "discover ttWrongRLP tests" taggedAs (IntegrationTest, EthereumTest) in {
     val baseDir = new File(transactionTestsBasePath)
 
     if !baseDir.exists() then
@@ -221,7 +221,7 @@ class TransactionTestsSpec extends AnyFlatSpec with Matchers:
       tests.size should be > 0
   }
 
-  it should "load and validate a sample transaction test" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "load and validate a sample transaction test" taggedAs (IntegrationTest, EthereumTest) in {
     val testFile = s"$transactionTestsBasePath/ttNonce/TransactionWithHighNonce256.json"
     val file = new File(testFile)
 

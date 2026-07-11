@@ -145,8 +145,7 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
 
   it should "discover tests in ValidBlocks/bcValidBlockTest" taggedAs (
     IntegrationTest,
-    EthereumTest,
-    SlowTest
+    EthereumTest
   ) in {
     val basePath = s"$etsTestsBasePath/BlockchainTests"
     val baseDir = new File(basePath)
@@ -163,8 +162,7 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
 
   it should "discover tests in ValidBlocks/bcStateTests" taggedAs (
     IntegrationTest,
-    EthereumTest,
-    SlowTest
+    EthereumTest
   ) in {
     val basePath = s"$etsTestsBasePath/BlockchainTests"
     val baseDir = new File(basePath)
@@ -179,7 +177,7 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
       tests.size should be > 0
   }
 
-  it should "filter out unsupported networks" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "filter out unsupported networks" taggedAs (IntegrationTest, EthereumTest) in {
     // This test validates that we properly filter post-Spiral tests
     val suite = BlockchainTestSuite(
       Map(

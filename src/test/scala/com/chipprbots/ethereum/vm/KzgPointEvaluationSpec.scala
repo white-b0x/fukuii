@@ -42,12 +42,12 @@ class KzgPointEvaluationSpec extends AnyFunSuite with BeforeAndAfterAll with Mat
     )
   )
 
-  test("KZGPointEvaluation valid proof returns FIELD_ELEMENTS_PER_BLOB ++ BLS_MODULUS", SlowTest, VMTest) {
+  test("KZGPointEvaluation valid proof returns FIELD_ELEMENTS_PER_BLOB ++ BLS_MODULUS", ResourceHeavy, VMTest) {
     val result = PrecompiledContracts.KzgPointEvaluation.exec(validInput)
     result shouldBe Some(expectedOutput)
   }
 
-  test("KZGPointEvaluation invalid proof (corrupted proof bytes) reverts", SlowTest, VMTest) {
+  test("KZGPointEvaluation invalid proof (corrupted proof bytes) reverts", ResourceHeavy, VMTest) {
     // Corrupt one byte of the proof field (bytes 144-191); passes hash/field checks but fails KZG verify
     val arr = validInput.toArray
     arr(144) = (arr(144) ^ 0xff.toByte).toByte
