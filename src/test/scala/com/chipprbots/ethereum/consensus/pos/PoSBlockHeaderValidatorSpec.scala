@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.validators
+package com.chipprbots.ethereum.consensus.pos
 
 import org.apache.pekko.util.ByteString
 
@@ -6,7 +6,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures
-import com.chipprbots.ethereum.consensus.engine.PoSBlockHeaderValidator
+import com.chipprbots.ethereum.consensus.pos.PoSBlockHeaderValidator
+import com.chipprbots.ethereum.consensus.validators.BlockHeaderValid
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.MissingBlobGasFieldsError

@@ -485,7 +485,7 @@ class EthSimulateService(
       val parentExcess = parentHeader.excessBlobGas.getOrElse(BigInt(0))
       val parentUsed = parentHeader.blobGasUsed.getOrElse(BigInt(0))
       val parentBaseFee = parentHeader.baseFee.map(_.value).getOrElse(BigInt(0))
-      com.chipprbots.ethereum.consensus.engine.BlobGasUtils.expectedExcessBlobGas(
+      com.chipprbots.ethereum.consensus.pos.BlobGasUtils.expectedExcessBlobGas(
         parentExcess,
         parentUsed,
         parentBaseFee,

@@ -15,7 +15,7 @@ import com.chipprbots.ethereum.Mocks
 import com.chipprbots.ethereum.Mocks.MockVM
 import com.chipprbots.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import com.chipprbots.ethereum.Mocks.MockValidatorsFailOnSpecificBlockNumber
-import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
+import com.chipprbots.ethereum.consensus.ConsensusEngine
 import com.chipprbots.ethereum.consensus.mining.TestMining
 import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValidator

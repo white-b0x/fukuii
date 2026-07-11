@@ -8,7 +8,7 @@ import scala.annotation.unused
 
 import org.bouncycastle.util.encoders.Hex
 
-import com.chipprbots.ethereum.consensus.engine.ForkChoiceManager
+import com.chipprbots.ethereum.consensus.pos.ForkChoiceManager
 import com.chipprbots.ethereum.consensus.mining.Mining
 import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.BlockHeaderImplicits.BlockHeaderEnc
@@ -295,7 +295,7 @@ class EthBlocksService(
         .map { h =>
           h.excessBlobGas
             .map(eg =>
-              com.chipprbots.ethereum.consensus.engine.BlobGasUtils
+              com.chipprbots.ethereum.consensus.pos.BlobGasUtils
                 .getBlobGasPrice(eg, h.unixTimestamp, blockchainConfig)
             )
             .getOrElse(BigInt(0))
@@ -309,7 +309,7 @@ class EthBlocksService(
         .map { h =>
           h.blobGasUsed
             .map { used =>
-              val max = com.chipprbots.ethereum.consensus.engine.BlobGasUtils
+              val max = com.chipprbots.ethereum.consensus.pos.BlobGasUtils
                 .maxBlobGasPerBlock(h.unixTimestamp, blockchainConfig)
               if used > 0 && max > 0 then used.toDouble / max.toDouble else 0.0
             }
@@ -348,7 +348,7 @@ class EthBlocksService(
     val fee = blockchainReader.getBestBlock
       .flatMap(b => b.header.excessBlobGas.map(eg => (eg, b.header.unixTimestamp)))
       .map { case (eg, ts) =>
-        com.chipprbots.ethereum.consensus.engine.BlobGasUtils.getBlobGasPrice(eg, ts, blockchainConfig)
+        com.chipprbots.ethereum.consensus.pos.BlobGasUtils.getBlobGasPrice(eg, ts, blockchainConfig)
       }
       .getOrElse(BigInt(0))
     Right(BlobBaseFeeResponse(fee))

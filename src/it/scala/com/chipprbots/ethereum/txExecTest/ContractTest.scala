@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.domain.BlockchainStorages
 import com.chipprbots.ethereum.domain.Receipt
-import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
+import com.chipprbots.ethereum.consensus.ConsensusEngine
 import com.chipprbots.ethereum.ledger.BlockExecution
 import com.chipprbots.ethereum.ledger.BlockQueue
 import com.chipprbots.ethereum.ledger.BlockValidation

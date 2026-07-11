@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus.pos
 
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.http.scaladsl.Http

@@ -1,8 +1,9 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus
 
-import com.chipprbots.ethereum.consensus.TransitionBlockHeaderValidator
 import com.chipprbots.ethereum.consensus.blocks.BlockGenerator
 import com.chipprbots.ethereum.consensus.mining.Mining
+import com.chipprbots.ethereum.consensus.pos.EngineApiEngine
+import com.chipprbots.ethereum.consensus.pow.EthashEngine
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValidator
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
@@ -57,34 +58,6 @@ trait ConsensusEngine:
   def finalizeBlock(block: Block, world: InMemoryWorldStateProxy)(implicit
       blockchainConfig: BlockchainConfig
   ): InMemoryWorldStateProxy
-
-/** PoW (Ethash / ETChash) engine. Wraps an existing [[Mining]] instance (a `PoWMining` in practice) and exposes its
-  * already-constructed validators, block generator, miner plumbing, and block finalization unchanged.
-  */
-final class EthashEngine(val mining: Mining) extends ConsensusEngine:
-  val id: EngineId = EngineId.Ethash
-  def headerValidator: BlockHeaderValidator = mining.validators.blockHeaderValidator
-  def sealer: Option[Mining] = Some(mining)
-  def blockGenerator: BlockGenerator = mining.blockGenerator
-  def finalizeBlock(block: Block, world: InMemoryWorldStateProxy)(implicit
-      blockchainConfig: BlockchainConfig
-  ): InMemoryWorldStateProxy =
-    mining.blockPreparator.payBlockReward(block, world)
-
-/** Engine-API (PoS) engine. Header validation routes through the existing, transition-aware
-  * [[TransitionBlockHeaderValidator]] unchanged (it already dispatches PoS vs PoW per header, so a from-genesis regular
-  * sync validates both pre- and post-Merge seals). No sealer — blocks come from the consensus layer. Finalization
-  * delegates to the same `payBlockReward`, whose `isPoS` early return yields "no block reward, base fee burned".
-  */
-final class EngineApiEngine(val mining: Mining) extends ConsensusEngine:
-  val id: EngineId = EngineId.EngineApi
-  def headerValidator: BlockHeaderValidator = TransitionBlockHeaderValidator
-  def sealer: Option[Mining] = None
-  def blockGenerator: BlockGenerator = mining.blockGenerator
-  def finalizeBlock(block: Block, world: InMemoryWorldStateProxy)(implicit
-      blockchainConfig: BlockchainConfig
-  ): InMemoryWorldStateProxy =
-    mining.blockPreparator.payBlockReward(block, world)
 
 object ConsensusEngine:
 

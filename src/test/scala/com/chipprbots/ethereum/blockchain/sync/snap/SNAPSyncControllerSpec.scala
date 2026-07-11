@@ -9,7 +9,7 @@ import scala.concurrent.duration.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import com.chipprbots.ethereum.consensus.engine.PoSBlockHeaderValidator
+import com.chipprbots.ethereum.consensus.pos.PoSBlockHeaderValidator
 import com.chipprbots.ethereum.db.storage.MptStorage
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.testing.TestMptStorage

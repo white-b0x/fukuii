@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus.pos
 
 import java.nio.file.Files
 import java.nio.file.Paths

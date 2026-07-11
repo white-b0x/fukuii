@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus.pos
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.util.ByteString
@@ -7,7 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import com.chipprbots.ethereum.consensus.engine.ForkChoiceManager.BeaconHead
+import com.chipprbots.ethereum.consensus.pos.ForkChoiceManager.BeaconHead
 import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.BlockHeader

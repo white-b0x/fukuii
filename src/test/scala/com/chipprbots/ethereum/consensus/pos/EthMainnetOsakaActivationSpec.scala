@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus.pos
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

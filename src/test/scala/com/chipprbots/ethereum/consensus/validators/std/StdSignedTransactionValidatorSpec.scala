@@ -7,7 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.Fixtures
-import com.chipprbots.ethereum.consensus.engine.BlobGasUtils
+import com.chipprbots.ethereum.consensus.pos.BlobGasUtils
 import com.chipprbots.ethereum.consensus.validators.SignedTransactionError.TransactionInitCodeSizeError
 import com.chipprbots.ethereum.consensus.validators.SignedTransactionError.TransactionMaxFeePerBlobGasTooLow
 import com.chipprbots.ethereum.consensus.validators.SignedTransactionError.TransactionNotEnoughGasForIntrinsicError

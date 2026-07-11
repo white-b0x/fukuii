@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures
-import com.chipprbots.ethereum.consensus.engine.PoSBlockHeaderValidator
+import com.chipprbots.ethereum.consensus.pos.PoSBlockHeaderValidator
 import com.chipprbots.ethereum.consensus.TransitionBlockHeaderValidator
 import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.consensus.mining.Protocol

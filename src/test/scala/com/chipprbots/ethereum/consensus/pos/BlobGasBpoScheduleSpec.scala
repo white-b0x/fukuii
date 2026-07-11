@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus.pos
 
 import org.scalatest.ParallelTestExecution
 import org.scalatest.flatspec.AnyFlatSpec

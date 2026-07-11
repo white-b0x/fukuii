@@ -6,7 +6,7 @@ import cats.implicits.*
 
 import scala.annotation.tailrec
 
-import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
+import com.chipprbots.ethereum.consensus.ConsensusEngine
 import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator.OmmersError
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError
 import com.chipprbots.ethereum.consensus.validators.std.StdBlockValidator.BlockError

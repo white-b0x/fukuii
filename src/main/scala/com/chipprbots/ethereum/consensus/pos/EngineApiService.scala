@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus.pos
 
 import java.security.MessageDigest
 
@@ -6,7 +6,7 @@ import org.apache.pekko.util.ByteString
 
 import cats.effect.IO
 
-import com.chipprbots.ethereum.consensus.engine.PayloadStatus.*
+import com.chipprbots.ethereum.consensus.pos.PayloadStatus.*
 import com.chipprbots.ethereum.consensus.validators.std.MptListValidator
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.domain.*

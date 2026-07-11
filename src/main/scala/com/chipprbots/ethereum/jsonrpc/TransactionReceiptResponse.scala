@@ -131,7 +131,7 @@ object TransactionReceiptResponse:
       // blobGasPrice only for blob (type 3) transactions — fake_exponential of excessBlobGas
       blobGasPrice = blobGasUsed.flatMap(_ =>
         blockHeader.excessBlobGas.map(eg =>
-          com.chipprbots.ethereum.consensus.engine.BlobGasUtils
+          com.chipprbots.ethereum.consensus.pos.BlobGasUtils
             .getBlobGasPrice(eg, blockHeader.unixTimestamp, blockchainConfig)
         )
       ),

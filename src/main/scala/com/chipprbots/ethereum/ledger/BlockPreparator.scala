@@ -14,7 +14,7 @@ import com.chipprbots.ethereum.ledger.BlockExecutionError.TxsExecutionError
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.ByteStringUtils.ByteStringOps
 import com.chipprbots.ethereum.utils.DebugTrace
-import com.chipprbots.ethereum.consensus.engine.BlobGasUtils
+import com.chipprbots.ethereum.consensus.pos.BlobGasUtils
 import com.chipprbots.ethereum.utils.Logger
 import com.chipprbots.ethereum.vm.{PC as _, *}
 

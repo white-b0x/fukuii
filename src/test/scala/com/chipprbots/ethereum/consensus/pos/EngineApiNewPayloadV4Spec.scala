@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus.pos
 
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime

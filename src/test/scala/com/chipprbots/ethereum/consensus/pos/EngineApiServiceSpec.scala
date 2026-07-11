@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus.pos
 
 import org.apache.pekko.actor.typed.scaladsl.adapter.*
 import org.apache.pekko.util.ByteString
@@ -10,8 +10,9 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import com.chipprbots.ethereum.consensus.engine.ForkChoiceManager.BeaconHead
-import com.chipprbots.ethereum.consensus.engine.PayloadStatus.*
+import com.chipprbots.ethereum.consensus.ConsensusEngine
+import com.chipprbots.ethereum.consensus.pos.ForkChoiceManager.BeaconHead
+import com.chipprbots.ethereum.consensus.pos.PayloadStatus.*
 import com.chipprbots.ethereum.consensus.validators.std.StdValidators
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.domain.*

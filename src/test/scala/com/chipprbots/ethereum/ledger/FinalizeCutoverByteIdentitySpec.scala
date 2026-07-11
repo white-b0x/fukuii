@@ -6,8 +6,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.consensus.blocks.BlockGenerator
-import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
-import com.chipprbots.ethereum.consensus.engine.EngineId
+import com.chipprbots.ethereum.consensus.ConsensusEngine
+import com.chipprbots.ethereum.consensus.EngineId
 import com.chipprbots.ethereum.consensus.mining.Mining
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValidator
 import com.chipprbots.ethereum.domain.*

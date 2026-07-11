@@ -19,7 +19,7 @@ import sangria.schema.OptionType
 import sangria.schema.Schema
 import sangria.schema.fields
 
-import com.chipprbots.ethereum.consensus.engine.BlobGasUtils
+import com.chipprbots.ethereum.consensus.pos.BlobGasUtils
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.domain.AccessListItem
 import com.chipprbots.ethereum.domain.BlockHash

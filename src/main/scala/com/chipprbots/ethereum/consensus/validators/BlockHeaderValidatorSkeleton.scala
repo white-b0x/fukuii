@@ -71,7 +71,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
       blockHeader: BlockHeader,
       parentHeader: BlockHeader
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
-    import com.chipprbots.ethereum.consensus.engine.BlobGasUtils
+    import com.chipprbots.ethereum.consensus.pos.BlobGasUtils
     (blockHeader.blobGasUsed, blockHeader.excessBlobGas) match
       case (Some(used), Some(excess)) =>
         val maxBlobGas = BlobGasUtils.maxBlobGasPerBlock(blockHeader.unixTimestamp, blockchainConfig)

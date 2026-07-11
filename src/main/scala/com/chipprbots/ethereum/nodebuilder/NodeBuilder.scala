@@ -33,7 +33,7 @@ import com.chipprbots.ethereum.blockchain.sync.SyncController
 import com.chipprbots.ethereum.consensus.Consensus
 import com.chipprbots.ethereum.consensus.ConsensusAdapter
 import com.chipprbots.ethereum.consensus.ConsensusImpl
-import com.chipprbots.ethereum.consensus.engine.ConsensusEngine
+import com.chipprbots.ethereum.consensus.ConsensusEngine
 import com.chipprbots.ethereum.consensus.mess.MESSConfig
 import com.chipprbots.ethereum.consensus.mining.MiningBuilder
 import com.chipprbots.ethereum.consensus.mining.MiningConfigBuilder
@@ -607,7 +607,7 @@ trait EthBlocksServiceBuilder:
   self: BlockchainBuilder & MiningBuilder & BlockQueueBuilder & BlockchainConfigBuilder =>
 
   /** Override in subtraits that have access to ForkChoiceManager (e.g. EngineApiBuilder) */
-  def forkChoiceManagerForRpc: Option[com.chipprbots.ethereum.consensus.engine.ForkChoiceManager] = None
+  def forkChoiceManagerForRpc: Option[com.chipprbots.ethereum.consensus.pos.ForkChoiceManager] = None
 
   lazy val ethBlocksService =
     new EthBlocksService(blockchain, blockchainReader, mining, blockQueue, forkChoiceManagerForRpc, blockchainConfig)
@@ -815,7 +815,7 @@ trait EngineApiBuilder:
   self: ActorSystemBuilder & BlockchainBuilder & BlockchainConfigBuilder & ConsensusBuilder & StorageBuilder &
     MiningBuilder & PendingTransactionsManagerBuilder & InstanceConfigProvider & JSONRpcControllerBuilder =>
 
-  import com.chipprbots.ethereum.consensus.engine.*
+  import com.chipprbots.ethereum.consensus.pos.*
 
   lazy val engineApiConfig: EngineApiHttpServer.Config =
     val engineConf = scala.util.Try(instanceConfig.config.getConfig("network.engine-api")).toOption
@@ -965,7 +965,7 @@ trait SyncControllerBuilder extends SyncControllerRefBuilder:
   /** Override in concrete builders that also mix in [[EngineApiBuilder]] to enable CL-driven SNAP pivot selection.
     * Defaults to `None` for setups without an Engine API (e.g. ETC mainnet pre-merge wiring). Closes #1207.
     */
-  def forkChoiceManagerForSync: Option[com.chipprbots.ethereum.consensus.engine.ForkChoiceManager] = None
+  def forkChoiceManagerForSync: Option[com.chipprbots.ethereum.consensus.pos.ForkChoiceManager] = None
 
   // SyncController is Pekko Typed (Group ROOT, narrowed) — a `Behavior[Command]`. Spawned via
   // classicSystem.spawn so it lives in the Classic system's guardian tree while exposing a fully-Typed
@@ -1172,10 +1172,10 @@ trait Node
   implicit override lazy val ioRuntime: IORuntime = IORuntime.global
 
   // Wire ForkChoiceManager to RPC services for "safe"/"finalized" block tag resolution
-  override def forkChoiceManagerForRpc: Option[com.chipprbots.ethereum.consensus.engine.ForkChoiceManager] =
+  override def forkChoiceManagerForRpc: Option[com.chipprbots.ethereum.consensus.pos.ForkChoiceManager] =
     Some(forkChoiceManager)
 
   // Wire ForkChoiceManager to the sync layer so SNAP can pivot off CL-driven heads on
   // post-merge chains. Closes #1207.
-  override def forkChoiceManagerForSync: Option[com.chipprbots.ethereum.consensus.engine.ForkChoiceManager] =
+  override def forkChoiceManagerForSync: Option[com.chipprbots.ethereum.consensus.pos.ForkChoiceManager] =
     Some(forkChoiceManager)

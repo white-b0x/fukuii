@@ -20,7 +20,7 @@ import com.chipprbots.ethereum.utils.NetworkType
 /** Unit coverage for [[BlockHeader.validateFieldCount]].
   *
   * Verifies that a decoded header whose ExtraFields shape is inconsistent with the fork timestamps active at its
-  * timestamp is rejected early — before the full [[com.chipprbots.ethereum.consensus.engine.PoSBlockHeaderValidator]]
+  * timestamp is rejected early — before the full [[com.chipprbots.ethereum.consensus.pos.PoSBlockHeaderValidator]]
   * runs. ETC chains are unaffected (no timestamp forks).
   */
 // scalastyle:off magic.number

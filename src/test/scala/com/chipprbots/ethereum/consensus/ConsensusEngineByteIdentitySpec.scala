@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus
 
 import org.apache.pekko.util.ByteString
 
@@ -9,6 +9,8 @@ import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.Mocks.MockVM
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import com.chipprbots.ethereum.consensus.mining.Protocol
+import com.chipprbots.ethereum.consensus.pos.EngineApiEngine
+import com.chipprbots.ethereum.consensus.pow.EthashEngine
 import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
