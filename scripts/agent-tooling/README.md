@@ -44,6 +44,7 @@ the recurrence signal that actually earns promotion into `lib/` or a top-level s
 | `logging-standards-check.sh` | The 10 "grep-verifiable ratchet targets" in `logging-standards.md` | `logging-standards.md`, all agents |
 | `storage-rocksdb-check.sh` | The 5 "grep patterns for storage code review" in `storage-rocksdb.md` | `storage-rocksdb.md`, VAULT |
 | `pekko-typed-check.sh` | ~20 grep/cross-reference checks across P1-P25 + TL1-TL2 + the CAPSTONE sweep in `pekko-typed-api.md` (excludes checks needing a per-actor name parameter) | `pekko-typed-api.md`, LOOM, PRISM |
+| `finding-placement-check.sh` | Manually cross-checking every `chase-deferred.md` "→ Batch N" routing (and QUEUE.md's own close-out-row routings) against whether that finding actually has a line-item inside Batch N's own section body — catches "logged, not scheduled" drift. Exits nonzero on any orphan (a gate, unlike this tier's other informational-only scripts) | `finding-resolution.md` Rule 1b, `sprint-lifecycle.md` Rule 5 (batch close-out) |
 
 ## Adding a new script
 

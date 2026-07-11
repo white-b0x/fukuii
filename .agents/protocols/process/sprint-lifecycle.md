@@ -190,9 +190,15 @@ the precedent: one incident was sufficient evidence, no need to wait and see if 
    why, which commits. This is the permanent record; write it before clearing the batch out of
    the queue, not after, while the detail is still fresh in context.
 2. **Pattern check** (Rule 4).
-3. **`sprint-clear.sh --apply`** — moves the closed batch out of `QUEUE.md` into
+3. **Placement check** — run `scripts/agent-tooling/lib/finding-placement-check.sh` and resolve
+   any orphan it reports before proceeding. This confirms every `→ Batch N` routing anyone
+   pointed at THIS batch (from `chase-deferred.md` or `QUEUE.md`'s own close-out rows) actually
+   has a line-item inside this batch's section body — not just a cross-reference — per
+   `finding-resolution.md`'s Rule 1b PLACEMENT rule. A batch does not close with an orphan still
+   routed to it.
+4. **`sprint-clear.sh --apply`** — moves the closed batch out of `QUEUE.md` into
    `sprints/completed/<branch>-CLEARED.md`.
-4. **`sprint-archive.sh <file> --apply`** — moves a `sprints/completed/` file into
+5. **`sprint-archive.sh <file> --apply`** — moves a `sprints/completed/` file into
    `sprints/archive/`, but only once step 1's log entry exists for it. The script enforces
    this mechanically; it refuses without `--force` if it can't find a reference.
 

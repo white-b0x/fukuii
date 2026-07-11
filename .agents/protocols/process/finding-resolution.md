@@ -128,6 +128,42 @@ two hard multi-network requirements by marking them "optional"/deferring their c
 
 ---
 
+## Rule 1b: PLACEMENT — where "scheduled" physically lives
+
+Rule 1's three dispositions each name a **placement home** — a physical location a `scout` (or
+any agent picking up a batch) actually reads when it drafts or executes that batch. "Scheduled"
+is not a claim about intent; it names one of these homes, mirroring which disposition applies:
+
+1. **Absorbed into an existing scheduled IP** → the site lives in that IP's own known-site-list,
+   inside its Thread's kickoff prompt.
+2. **A new IP is created** → the IP lives at its correct run-order position inside its owning
+   container — a `### Batch N` section in `QUEUE.md`, or the matching `queue/persistent/*.md`
+   file for a Persistent-Section Item.
+3. **Deferred to a named future batch** → the finding is written as a concrete line-item
+   **inside that `### Batch N` section's own body in `QUEUE.md`** — not merely
+   cross-referenced from `queue/chase-deferred.md`.
+
+**`queue/chase-deferred.md` is the INDEX, never the sole home of a batched finding.** A one-line
+`→ Batch N` cross-reference there is a pointer, not a placement — the finding still needs its own
+line-item inside Batch N's section body before it counts as resolved under disposition 3.
+`chase-deferred.md` remains the full, standalone home ONLY for genuinely un-batched / standing
+items gated on something other than a batch (an external event — e.g. a pre-fork gate like
+`OLYMPIA-TREASURY-VECTOR-RECONCILE-01`): those have no `### Batch N` section to be placed inside,
+so the index entry IS the content, by construction rather than by exception.
+
+**The failure mode this closes, stated once so it's felt:** a `→ Batch N` disposition with no
+matching line-item in Batch N's own section body is an unscheduled finding wearing a scheduled
+costume. Logged != scheduled.
+
+**Mechanical shortcut:** `scripts/agent-tooling/lib/finding-placement-check.sh` catches this
+drift before a batch closes — it scans `chase-deferred.md` (both its prose routing bullets and
+its inline `` `ID` → Batch N `` shorthand) and `QUEUE.md`'s own close-out rows for every
+`→ Batch N` / `→ B<n>` routing, and asserts each routed ID also appears inside that batch's own
+`### Batch N` section body. Exits nonzero on any orphan — see `sprint-lifecycle.md` Rule 5 for
+where this is wired into the batch close-out gate.
+
+---
+
 ## Rule 2: Findings Resolution Log
 
 Every sprint tracking doc with an active audit/cleanup batch keeps a **Findings
@@ -191,3 +227,4 @@ by this prompt's <field list>.`
 | Leaving a correction to a prior verdict as a paragraph buried in a new audit's prose | State it explicitly in the resolving IP's CONTEXT (Rule 4) and in the Findings Resolution Log |
 | Assuming "someone will pick this up later" | There is no implicit owner in this workflow — an unscheduled finding has no owner |
 | Treating audit-pass findings the same as incidental cleanup finds | Audit findings get scheduled immediately; Chase & Deferred Items/critical-mass batching is for incidental finds only (see the comparison table above) |
+| A `→ Batch N` routing in `chase-deferred.md` with no matching line-item inside Batch N's own section body | Write the concrete line-item inside that batch's section (Rule 1b's PLACEMENT rule); verify with `finding-placement-check.sh` before closing the batch |
