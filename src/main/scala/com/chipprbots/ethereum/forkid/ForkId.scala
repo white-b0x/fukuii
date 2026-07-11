@@ -4,6 +4,8 @@ import java.util.zip.CRC32
 
 import org.apache.pekko.util.ByteString
 
+import com.chipprbots.ethereum.forks.ForkActivation
+import com.chipprbots.ethereum.forks.ScheduledProposal
 import com.chipprbots.ethereum.rlp.*
 import com.chipprbots.ethereum.utils.BigIntExtensionMethods.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -51,27 +53,29 @@ object ForkId:
     }
     new ForkId(crc.getValue(), next.map(_._1))
 
-  // Long.MaxValue is the in-code fallback when a fork config key is missing
-  // (BlockchainConfig.fromRawConfig and ForkBlockNumbers.Empty). It must be filtered
-  // out of the EIP-2124 fork-id checksum chain as it is not a real fork block.
-  // 10^18 is the genesis JSON "not yet scheduled" sentinel. Many ETH-specific fork
-  // fields in the ETC config also sit at 10^18 (forks ETC never activated); filtering
-  // all 10^18 values from forkBlockNumbers.all prevents those from polluting the fork
-  // list. Olympia is re-appended explicitly below when olympiaBlockNumber itself is
-  // the sentinel, ensuring ETC/Mordor advertise Olympia as the next fork.
-  private val maxBlockSentinel: BigInt = BigInt(Long.MaxValue)
+  // 10^18 is the genesis JSON "not yet scheduled" sentinel. Olympia is re-appended
+  // explicitly below when olympiaBlockNumber itself is still the sentinel, ensuring
+  // ETC/Mordor advertise Olympia as the next fork. This one purpose cannot be
+  // schedule-derived: ForkSchedule's `byBlockIfReal` collapses "pending at 10^18" and
+  // "never scheduled" to the same `Never`, so the sentinel-vs-absent distinction
+  // Olympia needs is only recoverable by reading `forkBlockNumbers.olympiaBlockNumber`
+  // directly (Row 5.8b F1 caveat).
   private val olympiaSentinel: BigInt = BigInt("1000000000000000000")
 
   def gatherForks(config: BlockchainConfig): List[BigInt] =
     (gatherBlockForks(config) ++ gatherTimestampForks(config)).distinct.sorted
 
+  /** Row 5.8b: derived from `ForkSchedule` (the L3 fork registry) rather than the flat `ForkBlockNumbers` struct + the
+    * ad hoc DAO special-case. Every `ByBlock` entry in the schedule has already had "not yet scheduled" sentinels
+    * (10^18 / Long.MaxValue) filtered to `ForkActivation.Never` at derivation time
+    * (`BlockchainConfig.deriveForkSchedule`'s `byBlockIfReal`), so only the genesis-active (`v == 0`) dedup remains
+    * here — the same dedup the old struct-based enumeration performed (e.g. Mordor's `difficultyBombPause`, `atlantis`,
+    * etc. sit at block 0 and must not appear as fork-id checkpoints).
+    */
   def gatherBlockForks(config: BlockchainConfig): List[BigInt] =
-    val maybeDaoBlock: Option[BigInt] = config.daoForkConfig.flatMap { daoConf =>
-      if daoConf.includeOnForkIdList then Some(daoConf.forkBlockNumber.value)
-      else None
-    }
-    val realForks = (maybeDaoBlock.toList ++ config.forkBlockNumbers.all)
-      .filterNot(v => v == 0 || v == olympiaSentinel || v == maxBlockSentinel)
+    val realForks = config.forkSchedule.entries.values
+      .collect { case ScheduledProposal(ForkActivation.ByBlock(bn), _) if bn.value != 0 => bn.value }
+      .toList
       .distinct
       .sorted
     // Advertise Olympia sentinel as the next fork when not yet scheduled
