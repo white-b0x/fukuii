@@ -10,6 +10,8 @@ import com.chipprbots.ethereum.forks.ProposalId.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.utils.NetworkType
+import com.chipprbots.ethereum.vm.BlockchainConfigForEvm
+import com.chipprbots.ethereum.vm.forks.EvmProposals
 
 /** Stage 5.3a derivation proof: `BlockchainConfig.forkSchedule` (the derived L3 view) reproduces, for the 5 real conf
   * files, the exact activation decision each underlying L2 field already makes — for every registered proposal, at
@@ -169,6 +171,142 @@ class ForkScheduleDerivationSpec extends AnyWordSpec with Matchers:
           cfg.forkSchedule.activationOf(
             Custom("merge", 0)
           ) shouldBe ForkActivation.Never // ETC has no terminal-total-difficulty
+        }
+      }
+    }
+
+    // ---- Row 5.8a: fork-id-only block markers (PoW/ETC + neutral half; forge) --------------------------------------
+    // Each marker must reproduce the OLD raw-field predicate (block >= field, unless the field is a not-scheduled
+    // sentinel) at before/at/after boundary points, on the ETC-family confs where these ETC/neutral forks live.
+
+    // Independent reference: a block field is active iff it is a real (non-sentinel) height that the block has reached.
+    def blockFieldRef(v: BigInt, block: BigInt): Boolean =
+      v != OlympiaPendingSentinel && v != MaxBlockSentinel && block >= v
+
+    // Boundary heights around a specific field value, plus the shared block grid.
+    def fieldPoints(v: BigInt, cfg: BlockchainConfig): List[BigInt] =
+      (List(v - 1, v, v + 1).filter(_ >= 0) ::: blockPoints(cfg)).distinct
+
+    val forkIdMarkers: List[(ProposalId, BlockchainConfig => BigInt)] = List(
+      Ecip(1099) -> (_.forkBlockNumbers.ecip1099BlockNumber.value),
+      Custom("ecip1010", 1) -> (_.forkBlockNumbers.difficultyBombPauseBlockNumber.value),
+      Custom("ecip1010", 2) -> (_.forkBlockNumbers.difficultyBombContinueBlockNumber.value),
+      Ecip(1041) -> (_.forkBlockNumbers.difficultyBombRemovalBlockNumber.value),
+      Eip(106) -> (_.forkBlockNumbers.eip106BlockNumber.value),
+      Eip(155) -> (_.forkBlockNumbers.eip155BlockNumber.value)
+    )
+
+    "reproduce every Row 5.8a fork-id block marker against its raw field, at boundary heights on the ETC-family confs" in {
+      List("etc", "mordor", "gorgoroth").foreach { name =>
+        val cfg = confs(name)
+        withClue(s"[$name] ") {
+          forkIdMarkers.foreach { case (id, field) =>
+            val v = field(cfg)
+            withClue(s"${id.label} (field=$v) ") {
+              fieldPoints(v, cfg).foreach { b =>
+                cfg.forkSchedule.isActive(id, BlockNumber(b), tsZero, tdZero) shouldBe blockFieldRef(v, b)
+              }
+            }
+          }
+        }
+      }
+    }
+
+    "keep the fork-id-only markers structurally invisible to the EVM fold (not in the allowlist; deriveEvm invariant)" in {
+      val markers: Set[ProposalId] =
+        Set(Ecip(1099), Custom("ecip1010", 1), Custom("ecip1010", 2), Ecip(1041), Eip(106), Eip(155))
+      // The fold that produces the EVM config iterates `evmApplicationOrder` / `byId`, never `schedule.entries`, so an
+      // id absent from both cannot alter the derived opcode set, fee schedule or config flags.
+      markers.foreach { id =>
+        EvmProposals.evmApplicationOrder should not contain id
+        EvmProposals.byId.keySet should not contain id
+      }
+      // Direct byte-identity proof: injecting the markers into any active proposal set leaves `deriveEvm` unchanged.
+      confs.foreach { case (name, cfg) =>
+        withClue(s"[$name] ") {
+          val cfgEvm = BlockchainConfigForEvm(cfg)
+          blockPoints(cfg).filter(_ >= 0).foreach { b =>
+            val active = EvmProposals.activeBlockProposals(cfgEvm, BlockNumber(b))
+            val (opsWith, feeWith) = EvmProposals.deriveEvm(active ++ markers)
+            val (opsBase, feeBase) = EvmProposals.deriveEvm(active)
+            opsWith.toSet shouldBe opsBase.toSet
+            feeWith shouldBe feeBase
+          }
+        }
+      }
+    }
+
+    // ---- Row 5.8a: fork-id-only block markers (PoS/ETH half; beacon) -----------------------------------------------
+    // The ETH-lineage pre-merge block markers (Petersburg, the three Glacier bomb-delays, Sepolia's merge-netsplit) and
+    // the conditional DAO fork-id-list entry. Each reproduces the OLD raw-field predicate on the ETH-family confs. These
+    // reuse forge's `blockFieldRef`/`fieldPoints` helpers above.
+
+    val forkIdMarkersEth: List[(ProposalId, BlockchainConfig => BigInt)] = List(
+      Eip(1716) -> (_.forkBlockNumbers.petersburgBlockNumber.value),
+      Eip(2384) -> (_.forkBlockNumbers.muirGlacierBlockNumber.value),
+      Eip(4345) -> (_.forkBlockNumbers.arrowGlacierBlockNumber.value),
+      Eip(5133) -> (_.forkBlockNumbers.grayGlacierBlockNumber.value),
+      Custom("merge-netsplit", 0) -> (_.forkBlockNumbers.mergeNetsplitBlockNumber.value)
+    )
+
+    "reproduce every Row 5.8a PoS/ETH fork-id block marker against its raw field, at boundary heights on the ETH confs" in {
+      List("eth", "sepolia").foreach { name =>
+        val cfg = confs(name)
+        withClue(s"[$name] ") {
+          forkIdMarkersEth.foreach { case (id, field) =>
+            val v = field(cfg)
+            withClue(s"${id.label} (field=$v) ") {
+              fieldPoints(v, cfg).foreach { b =>
+                cfg.forkSchedule.isActive(id, BlockNumber(b), tsZero, tdZero) shouldBe blockFieldRef(v, b)
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // DAO (EIP-779) is Option-conditional, not a plain block field: it contributes iff `includeOnForkIdList == true`,
+    // reproducing `ForkId.gatherBlockForks`'s exact predicate (ETH true; ETC/Mordor false -> Never).
+    def daoRef(cfg: BlockchainConfig, block: BigInt): Boolean =
+      cfg.daoForkConfig match
+        case Some(dao) if dao.includeOnForkIdList =>
+          val v = dao.forkBlockNumber.value
+          v != OlympiaPendingSentinel && v != MaxBlockSentinel && block >= v
+        case _ => false
+
+    "gate the DAO (EIP-779) fork-id entry on includeOnForkIdList: Never on ETC/Mordor, ByBlock(1920000) on ETH" in {
+      confs("etc").forkSchedule.activationOf(Eip(779)) shouldBe ForkActivation.Never
+      confs("mordor").forkSchedule.activationOf(Eip(779)) shouldBe ForkActivation.Never
+      confs("eth").forkSchedule.activationOf(Eip(779)) shouldBe ForkActivation.ByBlock(BlockNumber(1920000))
+      // Boundary-height equivalence against the includeOnForkIdList-gated raw predicate, across every conf.
+      confs.foreach { case (name, cfg) =>
+        withClue(s"[$name] ") {
+          val daoBlock = cfg.daoForkConfig.map(_.forkBlockNumber.value).getOrElse(BigInt(1920000))
+          (List(daoBlock - 1, daoBlock, daoBlock + 1).filter(_ >= 0) ::: blockPoints(cfg)).distinct.foreach { b =>
+            cfg.forkSchedule.isActive(Eip(779), BlockNumber(b), tsZero, tdZero) shouldBe daoRef(cfg, b)
+          }
+        }
+      }
+    }
+
+    "keep the PoS/ETH fork-id markers structurally invisible to the EVM fold (not in the allowlist; deriveEvm invariant)" in {
+      val markers: Set[ProposalId] =
+        Set(Eip(1716), Eip(2384), Eip(4345), Eip(5133), Custom("merge-netsplit", 0), Eip(779))
+      markers.foreach { id =>
+        EvmProposals.evmApplicationOrder should not contain id
+        EvmProposals.byId.keySet should not contain id
+      }
+      // Direct byte-identity proof: injecting the PoS markers into any active proposal set leaves `deriveEvm` unchanged.
+      confs.foreach { case (name, cfg) =>
+        withClue(s"[$name] ") {
+          val cfgEvm = BlockchainConfigForEvm(cfg)
+          blockPoints(cfg).filter(_ >= 0).foreach { b =>
+            val active = EvmProposals.activeBlockProposals(cfgEvm, BlockNumber(b))
+            val (opsWith, feeWith) = EvmProposals.deriveEvm(active ++ markers)
+            val (opsBase, feeBase) = EvmProposals.deriveEvm(active)
+            opsWith.toSet shouldBe opsBase.toSet
+            feeWith shouldBe feeBase
+          }
         }
       }
     }

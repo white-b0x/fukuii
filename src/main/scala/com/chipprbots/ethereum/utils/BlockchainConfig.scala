@@ -275,6 +275,12 @@ object BlockchainConfig:
         .map(td => ForkActivation.ByTotalDifficulty(TotalDifficulty(td)))
         .getOrElse(ForkActivation.Never)
 
+    // A block field derives to ByBlock unless parked at a not-scheduled sentinel (isPending: 10^18 / Long.MaxValue),
+    // which is Never. Block 0 is not a sentinel: a genesis-active marker derives to ByBlock(0). The `v == 0` fork-id
+    // dedup lives in `ForkId.gatherBlockForks` (Row 5.8b), not here.
+    def byBlockIfReal(bn: BlockNumber): ForkActivation =
+      if isPending(bn) then ForkActivation.Never else ForkActivation.ByBlock(bn)
+
     // ECIP-1122 ClientPolicy params (banksy-owned): MIN_MINER_TIP + the gas-target schedule (Spiral 8M / Olympia 60M).
     val ecip1122Params: ProposalParams = ProposalParams(
       Map(ProposalParams.MinTipKey -> ParamValue.Number(cfg.minTip))
@@ -349,7 +355,45 @@ object BlockchainConfig:
         )
       else Map.empty
 
-    ForkSchedule(rewardAndPolicyEntries ++ evmBlockEntries ++ evmTimestampEntries)
+    // Fork-id-only registry markers (Row 5.8a) — block forks that carry NO EVM/reward/base-fee delta but must be
+    // enumerated for the EIP-2124 fork-id (Row 5.8b migrates `ForkId.gatherBlockForks` onto `.entries`). Their ids are
+    // absent from `EvmProposals.evmApplicationOrder`/`byId`, the allowlist the `EvmConfig.forBlock` fold iterates, so
+    // they are structurally invisible to `deriveEvm`/the config fold — no byte-identity risk to the EVM config or the
+    // RPC surface. PoW/ETC + neutral half (forge); the PoS/ETH half (petersburg, glaciers, merge-netsplit, DAO) is
+    // added by beacon reusing this exact `byBlockIfReal` layer.
+    val forkIdBlockMarkers: Map[ProposalId, ScheduledProposal] = Map(
+      Ecip(1099) -> ScheduledProposal(byBlockIfReal(fb.ecip1099BlockNumber)), // Thanos / ETChash (ETC)
+      Custom("ecip1010", 1) -> ScheduledProposal(byBlockIfReal(fb.difficultyBombPauseBlockNumber)), // Die Hard pause
+      Custom("ecip1010", 2) -> ScheduledProposal(byBlockIfReal(fb.difficultyBombContinueBlockNumber)), // bomb continue
+      Ecip(1041) -> ScheduledProposal(byBlockIfReal(fb.difficultyBombRemovalBlockNumber)), // defuse bomb (ETC)
+      Eip(106) -> ScheduledProposal(byBlockIfReal(fb.eip106BlockNumber)), // dead everywhere (sentinel -> Never)
+      Eip(155) -> ScheduledProposal(byBlockIfReal(fb.eip155BlockNumber)) // replay protection (ETC + ETH)
+    )
+
+    // DAO (EIP-779) fork-id-list entry — reproduces `ForkId.gatherBlockForks`'s predicate exactly: contributes its
+    // block ONLY when `includeOnForkIdList == true` (ETH), else `Never` (ETC/Mordor set it false). This is the fork-id
+    // registry entry alone; the DAO irregular-state-change validators are a separate mechanism, out of Row 5.8 scope.
+    val daoForkIdActivation: ForkActivation =
+      cfg.daoForkConfig match
+        case Some(dao) if dao.includeOnForkIdList => byBlockIfReal(dao.forkBlockNumber)
+        case _                                    => ForkActivation.Never
+
+    // PoS/ETH fork-id-only registry markers (Row 5.8a, beacon) — block forks with NO EVM/reward/base-fee delta, added
+    // for the EIP-2124 fork-id (Row 5.8b migrates `ForkId.gatherBlockForks` onto `.entries`). Same `byBlockIfReal` layer
+    // as the PoW half above; ids kept OUT of `EvmProposals.evmApplicationOrder`/`byId`, so they are structurally
+    // invisible to `deriveEvm`/the config fold — no byte-identity risk to the EVM config or the RPC surface.
+    val forkIdBlockMarkersPos: Map[ProposalId, ScheduledProposal] = Map(
+      Eip(1716) -> ScheduledProposal(byBlockIfReal(fb.petersburgBlockNumber)), // Petersburg (ETH; == constantinople)
+      Eip(2384) -> ScheduledProposal(byBlockIfReal(fb.muirGlacierBlockNumber)), // Muir Glacier bomb delay (ETH)
+      Eip(4345) -> ScheduledProposal(byBlockIfReal(fb.arrowGlacierBlockNumber)), // Arrow Glacier bomb delay (ETH)
+      Eip(5133) -> ScheduledProposal(byBlockIfReal(fb.grayGlacierBlockNumber)), // Gray Glacier bomb delay (ETH)
+      Custom("merge-netsplit", 0) -> ScheduledProposal(byBlockIfReal(fb.mergeNetsplitBlockNumber)), // Sepolia netsplit
+      Eip(779) -> ScheduledProposal(daoForkIdActivation) // DAO fork-id-list entry (includeOnForkIdList-gated)
+    )
+
+    ForkSchedule(
+      rewardAndPolicyEntries ++ evmBlockEntries ++ evmTimestampEntries ++ forkIdBlockMarkers ++ forkIdBlockMarkersPos
+    )
 
   // scalastyle:off method.length
   def fromRawConfig(blockchainConfig: TypesafeConfig): BlockchainConfig =
