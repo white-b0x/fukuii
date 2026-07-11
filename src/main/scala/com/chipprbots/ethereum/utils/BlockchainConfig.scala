@@ -359,19 +359,33 @@ object BlockchainConfig:
         .map(_.getSeconds)
     val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
     val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
-    val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
+    // Foreign/dead fork-name fields (Row 5.5a Stage 1): parse via the safe `Try(...).getOrElse(sentinel)` pattern so
+    // Stage 2 can remove the foreign HOCON keys from each network's conf without a `ConfigException.Missing` at startup.
+    // Sentinel is `OlympiaPendingSentinel` (10^18), NOT `Long.MaxValue` — the confs declare 10^18 literally today, and
+    // `MilestoneLog.formatMilestones` filters only `== Long.MaxValue`, so 10^18 preserves byte-identity in logs too.
+    // No-op at this stage: the confs still declare every key, so no default is exercised.
+    val eip106BlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("eip106-block-number"))).getOrElse(OlympiaPendingSentinel)
     val eip150BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip150-block-number"))
     val eip155BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip155-block-number"))
     val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
-    val eip161BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip161-block-number"))
-    val byzantiumBlockNumber: BigInt = BigInt(blockchainConfig.getString("byzantium-block-number"))
-    val constantinopleBlockNumber: BigInt = BigInt(blockchainConfig.getString("constantinople-block-number"))
-    val istanbulBlockNumber: BigInt = BigInt(blockchainConfig.getString("istanbul-block-number"))
+    val eip161BlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("eip161-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val byzantiumBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("byzantium-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val constantinopleBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("constantinople-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val istanbulBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("istanbul-block-number"))).getOrElse(OlympiaPendingSentinel)
 
-    val atlantisBlockNumber: BigInt = BigInt(blockchainConfig.getString("atlantis-block-number"))
-    val aghartaBlockNumber: BigInt = BigInt(blockchainConfig.getString("agharta-block-number"))
-    val phoenixBlockNumber: BigInt = BigInt(blockchainConfig.getString("phoenix-block-number"))
-    val petersburgBlockNumber: BigInt = BigInt(blockchainConfig.getString("petersburg-block-number"))
+    val atlantisBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("atlantis-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val aghartaBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("agharta-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val phoenixBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("phoenix-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val petersburgBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("petersburg-block-number"))).getOrElse(OlympiaPendingSentinel)
     val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
     val difficultyBombPauseBlockNumber: BigInt = BigInt(
       blockchainConfig.getString("difficulty-bomb-pause-block-number")
@@ -411,12 +425,19 @@ object BlockchainConfig:
       .getOrElse(Seq.empty)
     val allowedMinersPublicKeys = readPubKeySet(blockchainConfig, "allowed-miners")
 
-    val ecip1099BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1099-block-number"))
-    val muirGlacierBlockNumber: BigInt = BigInt(blockchainConfig.getString("muir-glacier-block-number"))
-    val magnetoBlockNumber: BigInt = BigInt(blockchainConfig.getString("magneto-block-number"))
-    val berlinBlockNumber: BigInt = BigInt(blockchainConfig.getString("berlin-block-number"))
-    val mystiqueBlockNumber: BigInt = BigInt(blockchainConfig.getString("mystique-block-number"))
-    val spiralBlockNumber: BigInt = BigInt(blockchainConfig.getString("spiral-block-number"))
+    // Row 5.5a Stage 1 (continued): same safe-default treatment for the remaining foreign fork-name fields.
+    val ecip1099BlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("ecip1099-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val muirGlacierBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("muir-glacier-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val magnetoBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("magneto-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val berlinBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("berlin-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val mystiqueBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("mystique-block-number"))).getOrElse(OlympiaPendingSentinel)
+    val spiralBlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("spiral-block-number"))).getOrElse(OlympiaPendingSentinel)
     val olympiaBlockNumber: BigInt =
       Try(BigInt(blockchainConfig.getString("olympia-block-number"))).getOrElse(BigInt(Long.MaxValue))
     val arrowGlacierBlockNumber: BigInt =

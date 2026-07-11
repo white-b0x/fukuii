@@ -22,6 +22,16 @@ class ChainConfigValidationSpec extends AnyFlatSpec with Matchers:
   private val etcConfig = BlockchainConfig.fromRawConfig(fullConfig.getConfig("fukuii.blockchains.etc"))
   private val mordorConfig = BlockchainConfig.fromRawConfig(fullConfig.getConfig("fukuii.blockchains.mordor"))
   private val gorgorothConfig = BlockchainConfig.fromRawConfig(fullConfig.getConfig("fukuii.blockchains.gorgoroth"))
+  private val ethConfig = BlockchainConfig.fromRawConfig(fullConfig.getConfig("fukuii.blockchains.eth"))
+  private val sepoliaConfig = BlockchainConfig.fromRawConfig(fullConfig.getConfig("fukuii.blockchains.sepolia"))
+
+  // ===== Row 5.5a Stage 1 — foreign/dead fork-field sentinel byte-identity lock =====
+  // The 15 foreign/dead fork-name fields are declared at 10^18 (the "pending"/OlympiaPendingSentinel value) in every
+  // real conf today. These assertions pin the exact parsed value so the Stage 1 parse-safety change is a proven no-op
+  // and Stage 2's conf-key removals (which will then exercise the new `getOrElse(OlympiaPendingSentinel)` defaults)
+  // stay byte-identical for the raw-field consumers (BlockRewardCalculator, EthashDifficultyCalculator, MilestoneLog,
+  // AdminService, EthInfoService, McpTools) that bypass ForkSchedule and read the raw block number.
+  private val pendingSentinel = BlockNumber(BigInt("1000000000000000000"))
 
   // ===== ECIP-1122 MIN_MINER_TIP (min-tip) tip floor =====
   // MIN_MINER_TIP = 1 gwei per ECIP-1122 (spec §"Constants": 1,000,000,000 wei) and core-geth
@@ -150,6 +160,44 @@ class ChainConfigValidationSpec extends AnyFlatSpec with Matchers:
     mordorConfig.forkBlockNumbers.difficultyBombContinueBlockNumber shouldBe BlockNumber(0)
     mordorConfig.forkBlockNumbers.difficultyBombRemovalBlockNumber shouldBe BlockNumber(0)
   }
+
+  // ===== Row 5.5a Stage 1 — ETH-named + eip106 foreign fields on ETC-family confs =====
+
+  "ETC-family confs (etc, mordor, gorgoroth)" should
+    "declare the ETH-named + eip106 foreign fork fields at the 10^18 pending sentinel" taggedAs (
+      UnitTest,
+      ConsensusTest
+    ) in {
+      for cfg <- List(etcConfig, mordorConfig, gorgorothConfig) do
+        val f = cfg.forkBlockNumbers
+        f.eip106BlockNumber shouldBe pendingSentinel
+        f.eip161BlockNumber shouldBe pendingSentinel
+        f.byzantiumBlockNumber shouldBe pendingSentinel
+        f.constantinopleBlockNumber shouldBe pendingSentinel
+        f.petersburgBlockNumber shouldBe pendingSentinel
+        f.istanbulBlockNumber shouldBe pendingSentinel
+        f.muirGlacierBlockNumber shouldBe pendingSentinel
+        f.berlinBlockNumber shouldBe pendingSentinel
+    }
+
+  // ===== Row 5.5a Stage 1 — ETC-named + eip106 foreign fields on ETH-family confs =====
+
+  "ETH-family confs (eth, sepolia)" should
+    "declare the ETC-named + eip106 foreign fork fields at the 10^18 pending sentinel" taggedAs (
+      UnitTest,
+      ConsensusTest
+    ) in {
+      for cfg <- List(ethConfig, sepoliaConfig) do
+        val f = cfg.forkBlockNumbers
+        f.eip106BlockNumber shouldBe pendingSentinel
+        f.atlantisBlockNumber shouldBe pendingSentinel
+        f.aghartaBlockNumber shouldBe pendingSentinel
+        f.phoenixBlockNumber shouldBe pendingSentinel
+        f.ecip1099BlockNumber shouldBe pendingSentinel
+        f.magnetoBlockNumber shouldBe pendingSentinel
+        f.mystiqueBlockNumber shouldBe pendingSentinel
+        f.spiralBlockNumber shouldBe pendingSentinel
+    }
 
 // scalastyle:on magic.number
 
