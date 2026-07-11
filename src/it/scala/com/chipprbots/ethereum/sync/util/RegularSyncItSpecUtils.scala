@@ -31,7 +31,7 @@ import com.chipprbots.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
 import com.chipprbots.ethereum.consensus.pow
 import com.chipprbots.ethereum.consensus.pow.EthashConfig
 import com.chipprbots.ethereum.consensus.pow.PoWMining
-import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
 import com.chipprbots.ethereum.db.dataSource.EphemDataSource
 import com.chipprbots.ethereum.db.storage.StateStorage

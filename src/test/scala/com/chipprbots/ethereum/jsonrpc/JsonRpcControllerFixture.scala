@@ -30,7 +30,7 @@ import com.chipprbots.ethereum.consensus.mining.MiningConfigs
 import com.chipprbots.ethereum.consensus.mining.TestMining
 import com.chipprbots.ethereum.consensus.pow.blocks.*
 import com.chipprbots.ethereum.consensus.pow.blocks.PoWBlockGenerator
-import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.db.storage.AppStateStorage
 import com.chipprbots.ethereum.domain.Difficulty

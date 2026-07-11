@@ -1,5 +1,6 @@
-package com.chipprbots.ethereum.consensus.engine
+package com.chipprbots.ethereum.consensus
 
+import com.chipprbots.ethereum.consensus.engine.PoSBlockHeaderValidator
 import com.chipprbots.ethereum.consensus.mining.GetBlockHeaderByHash
 import com.chipprbots.ethereum.consensus.pow.validators.MockedPowBlockHeaderValidator
 import com.chipprbots.ethereum.consensus.pow.validators.PoWBlockHeaderValidator

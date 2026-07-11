@@ -1,11 +1,15 @@
-package com.chipprbots.ethereum.consensus.pow.validators
+package com.chipprbots.ethereum.consensus
 
 import org.apache.pekko.util.ByteString
 
-import com.chipprbots.ethereum.consensus.engine.TransitionBlockHeaderValidator
 import com.chipprbots.ethereum.consensus.mining.GetBlockHeaderByHash
 import com.chipprbots.ethereum.consensus.mining.GetNBlocksBack
 import com.chipprbots.ethereum.consensus.mining.Protocol
+import com.chipprbots.ethereum.consensus.pow.validators.MockedPowBlockHeaderValidator
+import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator
+import com.chipprbots.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
+import com.chipprbots.ethereum.consensus.pow.validators.RestrictedEthashBlockHeaderValidator
+import com.chipprbots.ethereum.consensus.pow.validators.StdOmmersValidator
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValidator
 import com.chipprbots.ethereum.consensus.validators.Validators
 import com.chipprbots.ethereum.consensus.validators.std.StdBlockValidator

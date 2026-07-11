@@ -5,7 +5,7 @@ import com.chipprbots.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
 import com.chipprbots.ethereum.consensus.mining.Protocol.RestrictedPoWMinerData
 import com.chipprbots.ethereum.consensus.pow.EthashConfig
 import com.chipprbots.ethereum.consensus.pow.PoWMining
-import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.nodebuilder.BlockchainBuilder
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.nodebuilder.NodeKeyBuilder

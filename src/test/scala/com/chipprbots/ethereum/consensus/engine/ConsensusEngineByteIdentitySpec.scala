@@ -9,7 +9,7 @@ import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.Mocks.MockVM
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import com.chipprbots.ethereum.consensus.mining.Protocol
-import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy

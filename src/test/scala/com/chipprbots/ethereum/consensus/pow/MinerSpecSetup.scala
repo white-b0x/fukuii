@@ -28,7 +28,7 @@ import com.chipprbots.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
 import com.chipprbots.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import com.chipprbots.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
 import com.chipprbots.ethereum.consensus.pow.miners.MockedMiner
-import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.db.storage.MptStorage
 import com.chipprbots.ethereum.domain.*

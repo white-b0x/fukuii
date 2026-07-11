@@ -1,5 +1,6 @@
 package com.chipprbots.ethereum.consensus.engine
 
+import com.chipprbots.ethereum.consensus.TransitionBlockHeaderValidator
 import com.chipprbots.ethereum.consensus.blocks.BlockGenerator
 import com.chipprbots.ethereum.consensus.mining.Mining
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValidator

@@ -18,7 +18,7 @@ import com.chipprbots.ethereum.consensus.pow.miners.MinerProtocol
 import com.chipprbots.ethereum.consensus.pow.miners.MockedMiner.MockedMinerProtocol
 import com.chipprbots.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
 import com.chipprbots.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotExist
-import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.consensus.validators.*
 import com.chipprbots.ethereum.consensus.validators.std.StdBlockValidator
 import com.chipprbots.ethereum.consensus.validators.std.StdSignedTransactionValidator

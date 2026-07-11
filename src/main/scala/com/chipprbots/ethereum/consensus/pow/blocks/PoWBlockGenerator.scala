@@ -8,7 +8,7 @@ import com.chipprbots.ethereum.consensus.blocks.*
 import com.chipprbots.ethereum.consensus.pow.difficulty.DifficultyCalculator
 import com.chipprbots.ethereum.consensus.mining.MiningConfig
 import com.chipprbots.ethereum.consensus.mining.MiningMetrics
-import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.domain.*

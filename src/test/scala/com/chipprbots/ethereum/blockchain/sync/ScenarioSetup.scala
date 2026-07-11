@@ -16,7 +16,7 @@ import com.chipprbots.ethereum.consensus.mining.Mining
 import com.chipprbots.ethereum.consensus.mining.Protocol
 import com.chipprbots.ethereum.consensus.mining.StdTestMiningBuilder
 import com.chipprbots.ethereum.consensus.mining.TestMining
-import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.consensus.validators.Validators
 import com.chipprbots.ethereum.ledger.BlockExecution
 import com.chipprbots.ethereum.ledger.BlockValidation

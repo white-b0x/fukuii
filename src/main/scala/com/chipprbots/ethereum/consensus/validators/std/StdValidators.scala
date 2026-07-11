@@ -22,8 +22,7 @@ import com.chipprbots.ethereum.utils.BlockchainConfig
   * [[com.chipprbots.ethereum.consensus.validators.Validators Validators]] interface.
   *
   * @see
-  *   [[com.chipprbots.ethereum.consensus.pow.validators.StdValidatorsExecutor StdEthashValidators]] for the
-  *   PoW-specific counterpart.
+  *   [[com.chipprbots.ethereum.consensus.StdValidatorsExecutor StdEthashValidators]] for the PoW-specific counterpart.
   */
 final class StdValidators(
     val blockValidator: BlockValidator,

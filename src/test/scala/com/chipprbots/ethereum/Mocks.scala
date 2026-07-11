@@ -9,7 +9,7 @@ import com.chipprbots.ethereum.consensus.mining.GetNBlocksBack
 import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator
 import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator.OmmersError.OmmersHeaderError
 import com.chipprbots.ethereum.consensus.pow.validators.OmmersValidator.OmmersValid
-import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.consensus.validators.*
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError

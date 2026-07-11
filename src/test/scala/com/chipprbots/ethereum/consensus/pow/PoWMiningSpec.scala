@@ -16,7 +16,7 @@ import com.chipprbots.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
 import com.chipprbots.ethereum.consensus.mining.Protocol.RestrictedPoWMinerData
 import com.chipprbots.ethereum.consensus.pow.blocks.PoWBlockGeneratorImpl
 import com.chipprbots.ethereum.consensus.pow.blocks.RestrictedPoWBlockGeneratorImpl
-import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.db.storage.EvmCodeStorage
 import com.chipprbots.ethereum.domain.BlockchainImpl
 import com.chipprbots.ethereum.domain.BlockchainReader

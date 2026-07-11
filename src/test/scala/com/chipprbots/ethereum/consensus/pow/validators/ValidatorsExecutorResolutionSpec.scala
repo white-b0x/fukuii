@@ -7,7 +7,8 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.consensus.engine.PoSBlockHeaderValidator
-import com.chipprbots.ethereum.consensus.engine.TransitionBlockHeaderValidator
+import com.chipprbots.ethereum.consensus.TransitionBlockHeaderValidator
+import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.consensus.mining.Protocol
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValid
