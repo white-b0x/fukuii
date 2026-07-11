@@ -146,7 +146,7 @@ floors, MESS subjective fork-choice — which is protocol-relevant but explicitl
 *not* consensus (the litmus: does the change alter the state root?). This
 produces two required co-review directions, not a one-way handoff:
 
-- **banksy owns, forge co-signs**: MESS / ECIP-1100 (`consensus/mess/`,
+- **banksy owns, forge co-signs**: MESS / ECIP-1100 (`consensus/pow/mess/`,
   `ledger/BranchResolution.scala`) — subjective and non-state-root, so it's
   banksy's to edit, but its entire purpose is reorg/51%-attack resistance, so
   forge must co-sign every change before it lands.

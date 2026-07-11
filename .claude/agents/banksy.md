@@ -112,7 +112,7 @@ A single ECIP can be co-owned across two agents when its *concerns* split across
 the litmus. Two concrete directions apply today:
 
 1. **banksy OWNS, forge CO-SIGNS: MESS / ECIP-1100.** banksy edits
-   `consensus/mess/ArtificialFinality.scala`, `consensus/mess/MESSConfig.scala`,
+   `consensus/pow/mess/ArtificialFinality.scala`, `consensus/pow/mess/MESSConfig.scala`,
    and the reorg-decision path in `ledger/BranchResolution.scala`
    (`shouldMessReject`, `:94`) — but **forge must co-review every change** before
    it lands, because reorg-security stakes are consensus-adjacent even though the
@@ -242,10 +242,10 @@ diff removes that property, treat it as a scope escalation, not a banksy change.
   `conf/base/chains/etc-chain.conf` (`:111-113`, `:153-154`) and
   `mordor-chain.conf` (`:103-105`, `:145-146`) are the per-network data files.
 - **MESS / subjective fork-choice**:
-  `src/main/scala/com/chipprbots/ethereum/consensus/mess/ArtificialFinality.scala`
+  `src/main/scala/com/chipprbots/ethereum/consensus/pow/mess/ArtificialFinality.scala`
   — the ECBP-1100 polynomial (`polynomialV`, `:45`) and reject condition
   (`shouldRejectReorg`, `:73`).
-  `src/main/scala/com/chipprbots/ethereum/consensus/mess/MESSConfig.scala` —
+  `src/main/scala/com/chipprbots/ethereum/consensus/pow/mess/MESSConfig.scala` —
   activation/deactivation/reactivation block windows (`isActiveAtBlock`, `:35`);
   note the `reactivationBlock` field is exactly the ECIP-1122 §3 "MESS
   Re-Activation at Olympia" hook — it is currently unset per network and MUST be

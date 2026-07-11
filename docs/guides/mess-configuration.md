@@ -233,4 +233,4 @@ Planned improvements to MESS:
 For issues or questions about MESS:
 - Create an issue on GitHub
 - Check CON-004 for detailed technical information
-- Review integration test examples in `src/it/scala/com/chipprbots/ethereum/consensus/mess/`
+- Review integration test examples in `src/it/scala/com/chipprbots/ethereum/consensus/pow/mess/`

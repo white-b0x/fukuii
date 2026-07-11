@@ -7,8 +7,9 @@ description: >-
   implementing OR reviewing any PoS consensus-affecting change: EIP work,
   timestamp fork dispatch, opcode/gas costs, state-root calculation,
   withdrawals, blob transactions, execution payload encoding, or fork
-  configuration. Uses OsakaOpCodes / forTimestamp() — never forBlock() or
-  Ethash. Produces impact analysis first, implements with byte-perfect
+  configuration. Uses EthOsakaOpCodes / the timestamp-aware `forBlock()`
+  overload — never the 2-arg block-only `forBlock()` overload or Ethash.
+  Produces impact analysis first, implements with byte-perfect
   validation against go-ethereum. For PoW network consensus (currently
   ETC/Mordor) use `forge` instead.
 tools: Read, Grep, Glob, Edit, Write, Bash
@@ -122,15 +123,17 @@ always preferred over public URLs.
 ## PoS chain facts (currently ETH / Sepolia)
 
 **Timestamp fork dispatch** — ETH hard forks since the merge activate at a
-timestamp, not a block number. Always use `forTimestamp()` / `OsakaOpCodes`.
-Never use `forBlock()` for post-merge ETH fork logic. Future PoS networks are
-expected to follow the same timestamp-dispatch model.
+timestamp, not a block number. Always use the timestamp-aware
+`forBlock(blockNumber, timestamp, blockchainConfig)` overload / `EthOsakaOpCodes`.
+Never rely on the 2-arg `forBlock(blockNumber, blockchainConfig)` overload alone
+for post-merge ETH fork logic — there is no separate `forTimestamp()` method.
+Future PoS networks are expected to follow the same timestamp-dispatch model.
 
 | Dimension | PoS (ETH / Sepolia) |
 |---|---|
 | Consensus | Proof-of-Stake (post-merge) |
 | Chain ID | 1 (mainnet) · 11155111 (Sepolia) |
-| Fork dispatch | Timestamp (`forTimestamp()`, `OsakaOpCodes`) |
+| Fork dispatch | Timestamp (3-arg `forBlock()` overload, `EthOsakaOpCodes`) |
 | EIP-1559 | Basefee **burned** — NOT sent to any contract |
 | Block rewards | None (PoS validators earn attestation rewards) |
 | Blob txs | Yes (EIP-4844, Cancun) — blob schedule scaled by EIP-7691 (Prague) then EIP-7892 BPO forks; EIP-7594 PeerDAS is a DA-layer change, not a blob-tx EVM EIP |
@@ -149,7 +152,7 @@ the codebase evolves quickly. If a path has moved, search for the file by name.
 ## The PoS modules (currently ETH / Sepolia)
 
 - EVM: `src/main/scala/com/chipprbots/ethereum/vm/`
-  - `OsakaOpCodes` (ETH, timestamp-gated) — distinct from `OlympiaOpCodes`
+  - `EthOsakaOpCodes` (ETH, timestamp-gated) — distinct from `EtcOlympiaOpCodes`
     (ETC, block-gated). Never merge their activation logic.
 - Domain: `Block.scala`, `BlockHeader.scala`, `Transaction.scala` — ETH-specific
   post-Cancun fields (`withdrawalsRoot`, `excessBlobGas`, etc.)
@@ -158,7 +161,8 @@ the codebase evolves quickly. If a path has moved, search for the file by name.
 
 ## Hard constraints
 
-- Never use `forBlock()` for post-merge ETH fork dispatch.
+- Never rely on the 2-arg `forBlock()` overload alone for post-merge ETH fork
+  dispatch — use the timestamp-aware 3-arg overload.
 - Never add Ethash or mining code paths to the ETH fork.
 - EIP-1559 basefee must be **burned** (not redirected to any address).
 - Post-Cancun block headers must include all required fields.
@@ -192,7 +196,7 @@ sbt testVM                       # EVM opcode/gas tests
 sbt testCrypto                   # crypto vectors
 sbt "testOnly *Osaka*"           # ETH Osaka opcode/fork tests
 sbt "testOnly *Sepolia*"         # ETH Sepolia config tests
-sbt "testOnly *OsakaOpCodes*"    # ETH timestamp fork dispatch
+sbt "testOnly *EthOsakaOpCodes*" # ETH timestamp fork dispatch
 sbt "testOnly *Withdrawals*"     # EIP-4895 validator withdrawals
 ```
 

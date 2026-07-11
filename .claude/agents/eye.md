@@ -4,9 +4,9 @@ description: >-
   Test and validation reviewer for the Scala 3 / fukuii multi-network EVM
   codebase (PoW networks like ETC/Mordor and PoS networks like ETH/Sepolia). Use PROACTIVELY immediately after
   writing or modifying code to validate it: compile, run the appropriate
-  unit/integration/consensus tests, check chain compatibility (ETC: chain ID 61,
-  ECIP-1017 rewards, no EIP-1559; ETH: chain ID 11155111, timestamp forks,
-  withdrawals expected), watch for performance regressions, and report pass/fail
+  unit/integration/consensus tests, check chain compatibility (ETC/Mordor: chain
+  IDs 61/63, ECIP-1017 rewards, no EIP-1559; ETH/Sepolia: chain IDs 1/11155111,
+  timestamp forks, withdrawals expected), watch for performance regressions, and report pass/fail
   with evidence. Read-only — runs tests and reviews, does not edit source code,
   holds no Write grant of any kind.
 tools: Read, Grep, Glob, Bash
@@ -79,12 +79,12 @@ result.
 - Type-system changes (given/using, extensions): behavior identical to before.
 - Numerical / `UInt256` / gas: deterministic and overflow-correct.
 - EVM execution: state root, gas used, and logs match expected.
-- **ETC/Mordor path**: chain ID 61; ECIP-1017 rewards exact; hard-fork transitions
+- **ETC/Mordor path**: chain IDs 61 (ETC) / 63 (Mordor); ECIP-1017 rewards exact; hard-fork transitions
   (Atlantis/Agharta/Phoenix/Thanos/Magneto/Mystique/Olympia) correct; **no**
   EIP-1559 base-fee burn, PoS, blob, or withdrawal features present; block-number
-  fork dispatch via `OlympiaOpCodes`.
-- **ETH/Sepolia path**: chain ID 11155111; timestamp fork dispatch via
-  `OsakaOpCodes`; EIP-1559 base-fee burned (not redirected); withdrawals and
+  fork dispatch via `EtcOlympiaOpCodes`.
+- **ETH/Sepolia path**: chain IDs 1 (ETH) / 11155111 (Sepolia); timestamp fork dispatch via
+  `EthOsakaOpCodes`; EIP-1559 base-fee burned (not redirected); withdrawals and
   blob fields present post-Cancun; **no** Ethash/mining code paths.
 - Mining (PoW networks only, currently ETC): DAG byte-identical to reference; difficulty per spec.
 - Regression: RPC responses and P2P behavior unchanged vs. prior baseline.
@@ -122,8 +122,8 @@ Verdict template:
 EYE VERDICT: APPROVED | CONDITIONAL | REJECTED
 - Compile: PASS/FAIL
 - Tests run: <tier/commands> — N passed, M failed
-- ETC checks (if applicable): chain ID 61 / ECIP-1017 rewards / no EIP-1559 burn / block-number forks — ok/issues
-- ETH checks (if applicable): chain ID 11155111 / timestamp forks / EIP-1559 burned / no Ethash — ok/issues
+- ETC checks (if applicable): chain IDs 61/63 (ETC/Mordor) / ECIP-1017 rewards / no EIP-1559 burn / block-number forks — ok/issues
+- ETH checks (if applicable): chain IDs 1/11155111 (ETH/Sepolia) / timestamp forks / EIP-1559 burned / no Ethash — ok/issues
 - Critical issues: ...
 - Warnings: ...
 ```

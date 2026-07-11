@@ -183,7 +183,7 @@ nesting:
 |---|---|---|
 | `blockchain/sync` (all strategies) | `herald` (wire/protocol) + `flow` (Pekko Streams/actor) | `forge`/`beacon` for consensus-adjacent validation (state-root, pivot correctness) |
 | `consensus/pow`, `consensus/mining` | `forge` | — |
-| `consensus/engine` (PoS) | `beacon` | — |
+| `consensus/pos` (PoS) | `beacon` | — |
 | `consensus/eip1559`, `consensus/validators` (spans both families) | `forge` + `beacon` | — |
 | `network/` | `herald` | — |
 | `db/` | `vault` | — |

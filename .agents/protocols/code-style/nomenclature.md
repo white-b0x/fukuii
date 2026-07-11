@@ -69,16 +69,17 @@ applied to the vocabulary layer, *before* a symbol even gets written: a network-
 as if it were generic is the identical failure mode as a shared opcode bundle — it invites the
 next person (or agent) to treat a one-family concept as if it applied everywhere.
 
-**The concrete, already-diagnosed instance of this failure** (`PARITY-02`,
-`.claude/sprints/QUEUE.md`): `vm/OpCode.scala`/`vm/EvmConfig.scala` name ETC's real
-block-number-dispatch Olympia opcode list `EtcOlympiaOpCodes` (correctly family-scoped), but
-ETH's timestamp-dispatch path reuses the unprefixed `OlympiaOpCodes` — ETC's own fork name —
-for its Cancun opcode list, and `OsakaOpCodes` is a bare alias (`= OlympiaOpCodes`), not an
-independent definition. A future ECIP landing in ETC's actual Olympia fork could silently
-mutate ETH's Cancun/Osaka opcode set through that shared name. Vocabulary discipline (this
-doc) is what should have prevented the name from ever being chosen; the code-symbol de-alias
-(`PARITY-02`'s Tier A, forge+beacon gated) is the repair once it already happened. Don't wait
-for the repair — get the name right the first time.
+**The concrete, already-repaired instance of this failure** (`PARITY-02`,
+`.claude/sprints/QUEUE.md`): `vm/OpCode.scala`/`vm/EvmConfig.scala` originally named ETC's
+real block-number-dispatch Olympia opcode list `EtcOlympiaOpCodes` (correctly family-scoped),
+but ETH's timestamp-dispatch path reused the unprefixed `OlympiaOpCodes` — ETC's own fork
+name — for its Cancun opcode list, with `OsakaOpCodes` as a bare alias (`= OlympiaOpCodes`),
+not an independent definition. A future ECIP landing in ETC's actual Olympia fork could have
+silently mutated ETH's Cancun/Osaka opcode set through that shared name. Vocabulary discipline
+(this doc) is what should have prevented the name from ever being chosen; the code-symbol
+de-alias landed in Batch 5 Row 5.1 (`b46e21ea1`) — ETH's objects are now independently named
+`EthCancunOpCodes`/`EthOsakaOpCodes`, and the unprefixed `OlympiaOpCodes`/`OsakaOpCodes` names
+no longer exist. Don't wait for a repair next time — get the name right the first time.
 
 ## Watch-list + preferred substitutions
 
@@ -86,7 +87,7 @@ for the repair — get the name right the first time.
 |----------------------------------------|-------------|
 | `Merge` / `preMerge` / `postMerge` (as a general consensus-transition concept) | `PoW` / `PoS` (or "consensus transition") |
 | `London` (as the base-fee-era concept) | `EIP-1559` |
-| `Paris`/`Shanghai`/`Cancun`/`Osaka`/`Olympia` naming a *shared* abstraction | Keep these — they're correct — but only as **family-local** labels (e.g. ETH's own `OsakaOpCodes`, ETC's own `EtcOlympiaOpCodes`); never let one stand in for the other or for a framework-level concept |
+| `Paris`/`Shanghai`/`Cancun`/`Osaka`/`Olympia` naming a *shared* abstraction | Keep these — they're correct — but only as **family-local** labels (e.g. ETH's own `EthOsakaOpCodes`, ETC's own `EtcOlympiaOpCodes`); never let one stand in for the other or for a framework-level concept |
 | generic "beacon chain" (as a code/domain-naming choice) | "consensus layer" / "PoS engine" |
 
 **Carve-out — `mergeNetsplitBlockNumber`:** a field bearing a Tier-2 event name inside the
@@ -119,7 +120,7 @@ protocol does **not** currently have a mechanical `0 hits` check, and one isn't 
 build:
 
 - Tier-2 fork names (`Osaka`, `Olympia`, `Cancun`, ...) are **correct and expected** to appear
-  in family-local symbols (`OsakaOpCodes`, `EtcOlympiaOpCodes`) — a bare textual grep for
+  in family-local symbols (`EthOsakaOpCodes`, `EtcOlympiaOpCodes`) — a bare textual grep for
   those words can't distinguish a legitimate family-local label from a leaked shared
   abstraction. The violation is structural (does this symbol's *definition* live in a
   framework-shared path and get read by both families?), not lexical.

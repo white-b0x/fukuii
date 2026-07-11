@@ -8,11 +8,12 @@ cryptographic correctness.
 Used by: ALL agents (hard stop — non-negotiable)
 Referenced by: `fukuii/CLAUDE.md`, loom.md, wraith.md, mithril.md, banksy.md
 
-**Vocabulary counterpart:** the naming trap this protocol's `OlympiaOpCodes` mentions
-allude to (ETH's Cancun path reusing ETC's own fork name — see `PARITY-02`,
-`.claude/sprints/QUEUE.md`) is a code-symbol instance of a broader naming discipline —
-see `nomenclature.md` for the general rule: neutral ecosystem vocabulary at the shared
-level, network fork/event names as family-local instance labels only.
+**Vocabulary counterpart:** the naming trap this protocol used to allude to (ETH's Cancun
+path briefly reusing ETC's own fork name, `OlympiaOpCodes` — repaired in Batch 5 Row 5.1,
+`b46e21ea1`; see `PARITY-02`, `.claude/sprints/QUEUE.md`) was a code-symbol instance of a
+broader naming discipline — see `nomenclature.md` for the general rule: neutral ecosystem
+vocabulary at the shared level, network fork/event names as family-local instance labels
+only.
 
 ---
 
@@ -21,13 +22,14 @@ level, network fork/event names as family-local instance labels only.
 **FORGE scope — ETC (mainnet) / Mordor (testnet) and any future PoW-family network:**
 - `consensus/pow/` — Ethash, PoW block validation, mining
 - `consensus/validators/pow/` — PoW-specific validator executors
-- Anything touching: ECIP fork blocks, ECIP-1017 rewards, Ethash, ETChash, `forBlock()`, `OlympiaOpCodes`
+- Anything touching: ECIP fork blocks, ECIP-1017 rewards, Ethash, ETChash, `forBlock()`, `EtcOlympiaOpCodes`
 
 **BEACON scope — ETH (mainnet) / Sepolia (testnet) and any future PoS-family network:**
-- `consensus/engine/` — Engine API domain, EngineApiController, EngineApiService
+- `consensus/pos/` — Engine API domain, EngineApiController, EngineApiService
 - PoS consensus, timestamp fork dispatch, EIP execution
 - Withdrawals, blob transactions (EIP-4844), execution payload encoding
-- `forTimestamp()`, `OsakaOpCodes`
+- the timestamp-aware `forBlock()` overload (there is no separate `forTimestamp()`
+  method — see `vm/EvmConfig.scala`), `EthOsakaOpCodes`
 
 **FORGE + BEACON jointly — shared execution-layer (applies to all supported networks):**
 - `consensus/validators/std/` — standard gas/block validation runs on every network's EL
@@ -59,7 +61,7 @@ level, network fork/event names as family-local instance labels only.
   `olympiaGasTarget` and the `min-tip`/`*-gas-target` keys in
   `conf/base/chains/*-chain.conf` — operator-tunable client parameters, not
   consensus rules
-- `consensus/mess/ArtificialFinality.scala`, `consensus/mess/MESSConfig.scala`,
+- `consensus/pow/mess/ArtificialFinality.scala`, `consensus/pow/mess/MESSConfig.scala`,
   and the reorg-decision path in `ledger/BranchResolution.scala` — MESS /
   ECIP-1100 subjective fork-choice scoring (see co-review note below)
 
@@ -148,7 +150,7 @@ no issue, but the review should have happened before the fix, not after.
 | Symptom / Change | Agent |
 |-----------------|-------|
 | PoW fork activation, block rewards, Ethash, ETChash, `forBlock()` | FORGE |
-| Engine API, PoS, timestamp forks, `forTimestamp()` | BEACON |
+| Engine API, PoS, timestamp forks (timestamp-aware `forBlock()` overload) | BEACON |
 | EVM opcodes, gas computation, `vm/` | FORGE + BEACON |
 | Shared execution-layer validation, `consensus/validators/std/` | FORGE + BEACON |
 | Domain types: Block, BlockHeader, Transaction, Receipt | FORGE + BEACON |

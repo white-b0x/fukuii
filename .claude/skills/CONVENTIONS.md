@@ -86,7 +86,9 @@ Fukuii is a **multi-network EVM client** supporting two independent chain famili
 - **ETH/Sepolia** (chain-ID 1/11155111): Proof-of-Stake (post-Merge), Engine API
   driven, EIP-1559, EIP-4844 blobs, timestamp fork dispatch. No mining.
 
-See `CLAUDE.md` for the authoritative code-path rules (OlympiaOpCodes vs OsakaOpCodes).
+See `AGENTS.md`'s "PoW vs PoS — read this first" section for the authoritative code-path
+rules (the network-prefixed fork opcode/fee-schedule objects in `vm/OpCode.scala`/
+`vm/EvmConfig.scala`, e.g. `EtcOlympiaOpCodes` vs. `EthOsakaOpCodes`).
 Do NOT recommend ETH-mainnet procedures for ETC networks, or ETC/PoW procedures for
 ETH/Sepolia networks. Always identify the target chain before advising on consensus,
 mining, fee, or fork-related operations.

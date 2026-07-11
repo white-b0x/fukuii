@@ -161,9 +161,11 @@ Rules:
   PoW consensus (currently ETC/Mordor); `beacon` (`.claude/agents/beacon.md`)
   for PoS consensus (currently ETH/Sepolia).
 - Do NOT mix PoW and PoS code paths (currently ETC and ETH, respectively). PoW
-  fork dispatch uses `OlympiaOpCodes` / `forBlock()`; PoS fork dispatch uses
-  `OsakaOpCodes` / `forTimestamp()`. A change to one family MUST NOT silently
-  affect the other.
+  fork dispatch uses `EtcOlympiaOpCodes` / the 2-arg `forBlock()` overload; PoS
+  fork dispatch uses `EthOsakaOpCodes` / the timestamp-aware `forBlock()`
+  overload (there is no separate `forTimestamp()` method — see
+  `vm/EvmConfig.scala`). A change to one family MUST NOT silently affect the
+  other.
 - ETC is and remains Proof-of-Work. PoS validator logic MUST NOT enter the ETC
   (or any other PoW network's) code path.
 - ETH/Sepolia is post-Merge PoS. PoW-specific assumptions (Ethash DAG, mining

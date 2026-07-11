@@ -7,7 +7,8 @@ description: >-
   implementing OR reviewing any PoW consensus-affecting change: EIP/ECIP work,
   block-number fork dispatch, opcode/gas costs, state-root calculation, block
   rewards, Ethash mining, transaction validation, signing, or fork
-  configuration. Uses OlympiaOpCodes / forBlock() — never forTimestamp().
+  configuration. Uses EtcOlympiaOpCodes / the 2-arg `forBlock()` overload — never
+  the timestamp-aware `forBlock()` overload ETH's PoS path uses.
   Produces impact analysis first, implements with byte-perfect validation
   against core-geth. For PoS network consensus (currently ETH/Sepolia) use
   `beacon` instead.
@@ -129,7 +130,7 @@ expected to follow the same dimensions.
 |---|---|---|
 | Consensus | Proof-of-Work (Ethash) | Proof-of-Stake (post-merge) |
 | Chain ID | 61 (mainnet) · 63 (Mordor) | 1 (mainnet) · 11155111 (Sepolia) |
-| Fork dispatch | Block-number (`forBlock()`, `OlympiaOpCodes`) | Timestamp (`forTimestamp()`, `OsakaOpCodes`) |
+| Fork dispatch | Block-number (2-arg `forBlock()`, `EtcOlympiaOpCodes`) | Timestamp (3-arg `forBlock()` overload, `EthOsakaOpCodes`) |
 | EIP-1559 | Olympia: basefee → Treasury (NOT burned) | Native: basefee burned |
 | Block rewards | ECIP-1017 (5→4→3.2 ETC, 20% per 5M blocks) | None (PoS validators) |
 | Blob txs | No | Yes (EIP-4844 / EIP-7594) |
@@ -138,8 +139,11 @@ expected to follow the same dimensions.
 | Current planned fork | Olympia (ECIP-1111/1112/1121/1122) | Osaka |
 
 **Fork-dispatch rule**: ETC hard forks activate at a block number. ETH hard forks
-since the merge activate at a timestamp. Never swap these — using `forTimestamp()`
-on an ETC change, or `forBlock()` on a post-merge ETH change, is a consensus bug.
+since the merge activate at a timestamp. Never swap these — using the timestamp-aware
+`forBlock(blockNumber, timestamp, blockchainConfig)` overload on an ETC change, or the
+2-arg `forBlock(blockNumber, blockchainConfig)` overload on a post-merge ETH change, is
+a consensus bug. There is no separate `forTimestamp()` method — both dispatch axes are
+overloads of the same `forBlock()` name (`vm/EvmConfig.scala`).
 
 **ETC keeps**: PoW/Ethash, ECIP-1017 fixed-supply emission, traditional gas model,
 pre-merge opcodes, no PoS/blob/withdrawal features. Reject changes that introduce
@@ -156,7 +160,7 @@ ECIP-1017 block-reward schedule (20% reduction every 5M blocks):
 
 - EVM: `src/main/scala/com/chipprbots/ethereum/vm/` — `VM.scala`, `OpCode.scala`,
   `EvmConfig.scala`, `WorldStateProxy.scala`, `Stack.scala`, `Memory.scala`.
-  **Fork-config objects**: `OlympiaOpCodes` (ETC, block-gated) and `OsakaOpCodes`
+  **Fork-config objects**: `EtcOlympiaOpCodes` (ETC, block-gated) and `EthOsakaOpCodes`
   (ETH, timestamp-gated) are distinct — never merge their activation logic.
 - Mining: `src/main/scala/com/chipprbots/ethereum/consensus/mining/` — Ethash,
   DAG generation/epochs, difficulty, block rewards. **PoW networks only**
@@ -183,7 +187,7 @@ ECIP-1017 block-reward schedule (20% reduction every 5M blocks):
 - Wire-protocol message format must match the peer's negotiated capability
   (ETH68 vs ETH69) — never mix formats on one connection. ETH63–67 are removed.
 - ETC opcode/fork config must never reference timestamp fields — block-number
-  dispatch only via `forBlock()` / `OlympiaOpCodes`.
+  dispatch only via the 2-arg `forBlock()` overload / `EtcOlympiaOpCodes`.
 
 ## Destructive change rule (MANDATORY)
 
@@ -211,7 +215,7 @@ sbt testVM                       # EVM opcode/gas tests
 sbt testCrypto                   # crypto vectors
 sbt testEthereum                 # ethereum/tests compliance (ETC-filtered)
 sbt "testOnly *ECIP1017*"          # ETC block-reward schedule
-sbt "testOnly *OlympiaOpCodes*"    # ETC Olympia fork dispatch
+sbt "testOnly *EtcOlympiaOpCodes*" # ETC Olympia fork dispatch
 sbt "testOnly *BlockExecution*"    # ledger block execution pipeline
 sbt "testOnly *BlockValidation*"   # ledger block validation
 sbt "testOnly *StxLedger*"         # ledger transaction application

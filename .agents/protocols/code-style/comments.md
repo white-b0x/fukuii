@@ -55,7 +55,7 @@ Sampled fukuii examples confirming the pattern already in use:
 - `blockchain/sync/codec/ReceiptCodecs.scala` — class doc stating where the code was moved
   from and why it lives in `sync/codec` rather than `domain` (avoiding a circular import), plus
   a cross-client reference (`Matches the Besu ethereum/core/encoding/ pattern`).
-- `consensus/engine/ForkChoiceManager.scala` — class doc plus per-method docs using
+- `consensus/pos/ForkChoiceManager.scala` — class doc plus per-method docs using
   Scaladoc `[[...]]` cross-references to related types and actors.
 - `consensus/ConsensusAdapter.scala` — a short class doc flagging the class itself as a
   temporary isolation layer.
