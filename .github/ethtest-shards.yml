@@ -12,11 +12,14 @@
 #   classes      - concrete `ethtest` ScalaTest spec class names (short name only,
 #                  the workflow prefixes `com.chipprbots.ethereum.ethtest.`)
 #
-# `gascalc` is report_only because GasCalculationIssuesSpec's 4 tests document a
-# known, currently-unresolved Berlin-fork gas-calculation discrepancy investigation
-# (tracked as REPO-06-GASCALC in .claude/sprints/QUEUE.md) — isolating it here means
-# the other 8 classes get genuine pass/fail signal instead of a blanket
-# continue-on-error hiding real regressions in any of them.
+# `gascalc` is report_only because 2 of GasCalculationIssuesSpec's 4 tests (add11,
+# addNonConst) currently fail. Per REPO-06-GASCALC (verified 2026-07-11): the failure
+# is NOT a gas discrepancy — fukuii's Berlin/Magneto gas is byte-correct vs core-geth
+# (Row 5.7 deep-map). It is ValidationBeforeExecError(HeaderPoWError), i.e. failure
+# mode (a) of ETHTEST-EXEC-REGRESSIONS-01 (fixture PoW-seal validation not disabled),
+# which fires before gas is ever computed. Keep this shard report_only until
+# ETHTEST-EXEC-REGRESSIONS-01 lands; isolating it means the other 8 classes get genuine
+# pass/fail signal instead of a blanket continue-on-error hiding real regressions.
 #
 # shard-a / shard-b are a simple round-robin split (Besu's splitList.sh pattern:
 # i % N, alphabetical class-name order) of the remaining 8 classes — NOT a

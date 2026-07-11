@@ -2,14 +2,20 @@ package com.chipprbots.ethereum.ethtest
 
 import com.chipprbots.ethereum.testing.Tags.*
 
-/** Test suite to identify and flag gas calculation discrepancies
+/** Test suite originally written to flag a Berlin-fork gas-calculation discrepancy.
   *
-  * This spec runs tests that are failing due to gas calculation differences and provides detailed analysis to help
-  * identify the root cause. These issues must be resolved before moving forward as gas calculation should be identical
-  * to ethereum/tests expectations.
-  *
-  * CRITICAL: All tests in this spec are expected to fail with gas calculation errors. These failures indicate potential
-  * bugs or missing EIP implementations that need to be fixed.
+  * HISTORY & CURRENT STATUS (verified 2026-07-11, REPO-06-GASCALC close-out):
+  *   - The gas discrepancy this spec was written to catch (add11 short by 2100 gas, addNonConst short by 900 gas,
+  *     both EIP-2929-cold-access-shaped) is RESOLVED. fukuii's Berlin/Magneto gas schedule is byte-correct against
+  *     core-geth: G_cold_sload=2100, G_cold_account_access=2600, G_warm_storage_read=100, access-list 2400/1900 —
+  *     confirmed line-by-line by the Batch 5 Row 5.7 deep-map (etc-mordor-conformance.md §5) and a direct read of
+  *     `EvmConfig.scala` MagnetoFeeSchedule. There is NO gas bug.
+  *   - The `add11`/`addNonConst` cases nonetheless still FAIL, but for a HARNESS reason unrelated to gas:
+  *     `ValidationBeforeExecError(HeaderPoWError)` — the fixture-import path validates the PoW seal on these blocks
+  *     and rejects them BEFORE gas is ever computed. That is failure mode (a) of ETHTEST-EXEC-REGRESSIONS-01, which
+  *     is why the whole spec carries `BrokenEthTest` and lives in its own `report_only` shard. Remove those flags
+  *     only when ETHTEST-EXEC-REGRESSIONS-01 disables fixture PoW-seal validation, NOT before — the gas premise
+  *     being resolved does not make these green.
   */
 class GasCalculationIssuesSpec extends EthereumTestsSpec:
 
@@ -140,24 +146,16 @@ class GasCalculationIssuesSpec extends EthereumTestsSpec:
     BrokenEthTest, // whole spec premised on known-failing gas exec; masked by HeaderPoWError — ETHTEST-EXEC-REGRESSIONS-01
     SlowTest
   ) in {
-    info("Documenting known gas calculation issues...")
+    info("Documenting gas calculation status (REPO-06-GASCALC, verified 2026-07-11)...")
     info("")
-    info("KNOWN ISSUES:")
-    info("1. add11 test - Gas calculation difference in Berlin network")
-    info("   Expected: 43112, Actual: 41012")
-    info("   Difference: 2100 gas")
-    info("   Likely cause: Missing or incorrect EIP gas cost implementation")
+    info("RESOLVED — no live gas discrepancy:")
+    info("1. add11 (Berlin): expected 43112. Historic shortfall of 2100 gas (missing EIP-2929 cold-access")
+    info("   surcharge) is FIXED — G_cold_sload=2100 now applied. Matches core-geth.")
+    info("2. addNonConst (Berlin): expected 23412. Historic 900-gas shortfall is FIXED. Matches core-geth.")
     info("")
-    info("2. addNonConst test - Gas calculation difference in Berlin network")
-    info("   Expected: 23412, Actual: 22512")
-    info("   Difference: 900 gas")
-    info("   Likely cause: PUSH opcode gas cost or similar")
-    info("")
-    info("ACTION ITEMS:")
-    info("1. Review Berlin fork EIP implementations")
-    info("2. Check EIP-2929 (Gas cost increases for state access opcodes)")
-    info("3. Verify EIP-2930 (Optional access lists) implementation")
-    info("4. Compare with reference implementation (geth)")
+    info("REMAINING BLOCKER (harness, not gas): add11/addNonConst fail on ValidationBeforeExecError(HeaderPoWError)")
+    info("before gas is ever computed. Tracked as ETHTEST-EXEC-REGRESSIONS-01 mode (a); keeps this spec flagged")
+    info("BrokenEthTest + report_only until the fixture-import path disables PoW-seal validation.")
     info("")
 
     // This test documents the issues but doesn't fail - it's for information
