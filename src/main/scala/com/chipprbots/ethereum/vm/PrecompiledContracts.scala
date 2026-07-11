@@ -573,8 +573,11 @@ object PrecompiledContracts:
           // Valid signature: return 0x01 left-padded to 32 bytes
           Some(ByteUtils.padLeft(ByteString(1), 32))
         else
-          // Invalid signature: return 0x00 left-padded to 32 bytes
-          Some(ByteString(new Array[Byte](32)))
+          // Invalid signature: return empty output (failure), NOT 32 zero bytes.
+          // EIP-7951 and reference clients (go-ethereum contracts.go `return nil, nil`,
+          // Besu P256VerifyPrecompiledContract INVALID = Bytes.EMPTY) return empty for both
+          // the invalid-length and the well-formed-but-invalid-signature paths.
+          Some(ByteString.empty)
 
     def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt = BigInt(6900)
 

@@ -20,7 +20,6 @@ class P256VerifySpec extends AnyFlatSpec with Matchers:
   private def h(s: String): ByteString = ByteString(Hex.decode(s))
 
   private val success32 = h("0000000000000000000000000000000000000000000000000000000000000001")
-  private val failure32 = h("0000000000000000000000000000000000000000000000000000000000000000")
 
   "P256Verify" should "return 0x01 for a valid secp256r1 signature (Wycheproof SHA-256 #1)" taggedAs (
     OlympiaTest,
@@ -37,7 +36,9 @@ class P256VerifySpec extends AnyFlatSpec with Matchers:
     P256Verify.exec(input) shouldBe Some(success32)
   }
 
-  it should "return 0x00 for a modified-r/s signature (Wycheproof SHA-256 #3)" taggedAs (OlympiaTest, VMTest) in {
+  it should "return empty for a modified-r/s signature (Wycheproof SHA-256 #3)" taggedAs (OlympiaTest, VMTest) in {
+    // EIP-7951: a well-formed but invalid signature returns EMPTY output (not 32 zero bytes),
+    // matching go-ethereum (`return nil, nil`) and Besu (INVALID = Bytes.EMPTY).
     val input = h(
       "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023" + // hash
         "d45c5740946b2a147f59262ee6f5bc90bd01ed280528b62b3aed5fc93f06f739" + // r (modified)
@@ -45,7 +46,7 @@ class P256VerifySpec extends AnyFlatSpec with Matchers:
         "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838" + // Qx
         "c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e" // Qy
     )
-    P256Verify.exec(input) shouldBe Some(failure32)
+    P256Verify.exec(input) shouldBe Some(ByteString.empty)
   }
 
   it should "return Some(empty) for input shorter than 160 bytes" taggedAs (OlympiaTest, VMTest) in {
@@ -71,7 +72,7 @@ class P256VerifySpec extends AnyFlatSpec with Matchers:
     P256Verify.exec(ByteString(new Array[Byte](161))) shouldBe Some(ByteString.empty)
   }
 
-  it should "return 0x00 for all-zero r and s" taggedAs (OlympiaTest, VMTest) in {
+  it should "return empty for all-zero r and s" taggedAs (OlympiaTest, VMTest) in {
     val input = h(
       "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023" + // hash
         "0000000000000000000000000000000000000000000000000000000000000000" + // r = 0
@@ -79,10 +80,10 @@ class P256VerifySpec extends AnyFlatSpec with Matchers:
         "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838" + // Qx
         "c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e" // Qy
     )
-    P256Verify.exec(input) shouldBe Some(failure32)
+    P256Verify.exec(input) shouldBe Some(ByteString.empty)
   }
 
-  it should "return 0x00 when the public key is not on the P-256 curve" taggedAs (OlympiaTest, VMTest) in {
+  it should "return empty when the public key is not on the P-256 curve" taggedAs (OlympiaTest, VMTest) in {
     val input = h(
       "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023" + // hash
         "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18" + // r (valid)
@@ -90,6 +91,6 @@ class P256VerifySpec extends AnyFlatSpec with Matchers:
         "0000000000000000000000000000000000000000000000000000000000000000" + // Qx = 0
         "0000000000000000000000000000000000000000000000000000000000000001" // Qy = 1 (not on curve)
     )
-    P256Verify.exec(input) shouldBe Some(failure32)
+    P256Verify.exec(input) shouldBe Some(ByteString.empty)
   }
 // scalastyle:on line.size.limit
