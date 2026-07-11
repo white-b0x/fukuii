@@ -89,6 +89,17 @@ for the repair — get the name right the first time.
 | `Paris`/`Shanghai`/`Cancun`/`Osaka`/`Olympia` naming a *shared* abstraction | Keep these — they're correct — but only as **family-local** labels (e.g. ETH's own `OsakaOpCodes`, ETC's own `EtcOlympiaOpCodes`); never let one stand in for the other or for a framework-level concept |
 | generic "beacon chain" (as a code/domain-naming choice) | "consensus layer" / "PoS engine" |
 
+**Carve-out — `mergeNetsplitBlockNumber`:** a field bearing a Tier-2 event name inside the
+shared `ForkBlockNumbers` config is *not* a violation when (i) it is the reference client's
+canonical identifier (go-ethereum `MergeNetsplitBlock` / `mergeNetsplitBlock`), (ii) it defaults
+to the Never sentinel on all other families, and (iii) it is read only by that one family's
+fork-dispatch / fork-id path (here the PoS marker map, `Custom("merge-netsplit", 0)`, Sepolia
+block 1735371). Structural co-location in a shared container ≠ a shared abstraction — the field
+is the same species as its siblings `arrowGlacierBlockNumber`/`grayGlacierBlockNumber`/etc. that
+line 89 already blesses as family-local labels. Retain the ecosystem name; renaming would
+*violate* the core "don't invent parallel identifiers" principle and break config greppability
+against every other client. (Assessed 2026-07-11, `NOMENCLATURE-SWEEP-01`; do not re-litigate.)
+
 **Note on the `beacon` agent name:** the `beacon` subagent (`.claude/agents/beacon.md`) is
 deliberately, permanently ETH-PoS-scoped — that name is fine and out of scope for this rule.
 This protocol governs code/domain/doc naming, not the fixed roster of specialist agent names.
