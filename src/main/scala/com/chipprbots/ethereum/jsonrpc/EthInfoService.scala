@@ -177,9 +177,9 @@ class EthInfoService(
     * (ForkConfig.block: BigInt) — unwrap here.
     *
     * Excludes both the `Long.MaxValue` missing-config fallback and the `1e18` HOCON "not yet scheduled" sentinel
-    * (`com.chipprbots.ethereum.forkid.ForkId.knownSentinels`, e.g. Olympia on ETC/Mordor) — a pending fork must not
-    * be reported as a literal activation at that sentinel block. Mirrors the filtering
-    * `ForkId.gatherBlockForks` already applies to the EIP-2124 fork-id checksum list.
+    * (`com.chipprbots.ethereum.forkid.ForkId.knownSentinels`, e.g. Olympia on ETC/Mordor) — a pending fork must not be
+    * reported as a literal activation at that sentinel block. Mirrors the filtering `ForkId.gatherBlockForks` already
+    * applies to the EIP-2124 fork-id checksum list.
     */
   private def forkSchedule(fbn: ForkBlockNumbers): List[(String, BigInt, Map[String, Address], Map[String, Address])] =
     List(

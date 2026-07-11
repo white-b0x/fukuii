@@ -92,7 +92,10 @@ class EthServiceSpec
 
     response shouldEqual Right(SyncingResponse(None))
 
-  it should "omit forks parked at the HOCON pending sentinel from the fork schedule" taggedAs (UnitTest, RPCTest) in new TestSetup:
+  it should "omit forks parked at the HOCON pending sentinel from the fork schedule" taggedAs (
+    UnitTest,
+    RPCTest
+  ) in new TestSetup:
     // The "test" network config schedules only Frontier(0) and Homestead(1150000) at real block numbers; every
     // later fork (Atlantis, Agharta, Phoenix, Magneto, Mystique, Spiral, Olympia, ...) is parked at the shared
     // "not yet scheduled" HOCON sentinel (1e18). Pre-fix, those sentinel-parked forks deduplicated (by block
@@ -107,7 +110,8 @@ class EthServiceSpec
     response.current.value.activationBlock shouldEqual homestead
     response.next shouldEqual None
     response.last shouldEqual None
-    List(response.current, response.next, response.last).flatten.map(_.activationBlock) should not contain pendingSentinel
+    List(response.current, response.next, response.last).flatten
+      .map(_.activationBlock) should not contain pendingSentinel
 
   it should "execute call and return a value" taggedAs (UnitTest, RPCTest) in new TestSetup:
     blockchainWriter.storeBlock(blockToRequest).commit()
