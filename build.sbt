@@ -80,9 +80,13 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   // organize-imports removed — built-in to Scalafix 0.11.0+
   // Scalanet snapshots are published to Sonatype after each build (now defined in inThisBuild resolvers).
   (Test / testOptions) += Tests
-    .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec"), // miner tests disabled by default
-  (Test / testOptions) += Tests
     .Argument(TestFrameworks.ScalaTest, "-l", "IntegrationTest"), // network-dependent tests excluded by default
+  (Test / testOptions) += Tests
+    .Argument(
+      TestFrameworks.ScalaTest,
+      "-l",
+      "ResourceHeavy"
+    ), // compute/memory-bound tests excluded by default; run via testResourceHeavy
   // Configure scalacOptions for Scala 3
   scalacOptions := {
     val base = baseScalacOptions
@@ -343,13 +347,20 @@ lazy val node = {
           :+ (testGrouping := {
             val tests = (definedTests).value
             tests.map { test =>
+              val idOpt = s"-DFUKUII_TEST_ID=${System.currentTimeMillis()}-${test.name.hashCode.abs}"
+              // ethtest fixtures carry fake Ethash seals (fixed nonce/mixHash); the ETH-mainnet
+              // config they load resolves TransitionBlockHeaderValidator -> real PoW seal check,
+              // so scope the hive-adapter seal-skip flag to only the ethtest sub-JVMs.
+              // ETHTEST-EXEC-REGRESSIONS-01.
+              val skipPowOpt =
+                if (test.name.startsWith("com.chipprbots.ethereum.ethtest."))
+                  Vector("-Dfukuii.mining.skip-pow-validation=true")
+                else Vector.empty
               Tests.Group(
                 name = test.name,
                 tests = Seq(test),
                 runPolicy = Tests.SubProcess(
-                  ForkOptions().withRunJVMOptions(
-                    Vector(s"-DFUKUII_TEST_ID=${System.currentTimeMillis()}-${test.name.hashCode.abs}")
-                  )
+                  ForkOptions().withRunJVMOptions(Vector(idOpt) ++ skipPowOpt)
                 )
               )
             }
@@ -556,7 +567,9 @@ addCommandAlias(
 
 // testComprehensive - Tier 3: Comprehensive tests (< 3 hours)
 // Runs all tests including the ethereum/tests compliance suite. `test`/`testOnly` (Test
-// config) still exclude EthashMinerSpec/IntegrationTest per commonSettings, but
+// config) still exclude IntegrationTest/ResourceHeavy per commonSettings — ResourceHeavy
+// tests (equipment-dependent, e.g. cold Ethash DAG builds) are excluded from every standard
+// tier, including this one; run them deliberately via `sbt testResourceHeavy`. Meanwhile
 // `IntegrationTest / testOnly` now genuinely runs its full suite — including every
 // IntegrationTest-tagged ethtest spec class — since the Integration-axis testOptions
 // override above stopped it from silently inheriting those same Test-scoped exclusions.
@@ -580,6 +593,17 @@ addCommandAlias(
   "testEthSmoke",
   """; compile-all
     |; IntegrationTest / testOnly -- -n EthSmoke
+    |""".stripMargin
+)
+
+// testResourceHeavy - Opt-in target for compute/memory-bound tests (equipment-dependent
+// runtime, e.g. cold Ethash DAG builds). Excluded from every standard tier via the global
+// `-l ResourceHeavy` in commonSettings; run this alias deliberately on capable hardware.
+addCommandAlias(
+  "testResourceHeavy",
+  """; compile-all
+    |; testOnly -- -n ResourceHeavy
+    |; IntegrationTest / testOnly -- -n ResourceHeavy
     |""".stripMargin
 )
 

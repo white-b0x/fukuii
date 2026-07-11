@@ -34,10 +34,10 @@ import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
 // SCALA 3 MIGRATION: Fixed by refactoring MinerSpecSetup to use abstract mock members pattern.
-// NOTE: This test runs real Ethash mining which is inherently slow.
-// The test takes several minutes to complete due to DAG generation and actual PoW mining.
-// Marked as @Ignore for regular CI runs - run manually with: sbt "testOnly *EthashMinerSpec"
-@org.scalatest.Ignore
+// The two epoch-1 tests below (crossing the block-30000 boundary) carry ResourceHeavy in
+// addition to SlowTest: mining across that boundary forces a cold Ethash DAG build, which is
+// compute/memory-bound and equipment-dependent rather than intrinsically slow — see
+// Tags.ResourceHeavy. The epoch-0 test stays SlowTest-only.
 class EthashMinerSpec extends AnyFlatSpec with Matchers with org.scalamock.scalatest.MockFactory:
 
   "EthashMiner actor" should "mine valid blocks" taggedAs (UnitTest, ConsensusTest, SlowTest) in new TestSetup:
@@ -49,7 +49,8 @@ class EthashMinerSpec extends AnyFlatSpec with Matchers with org.scalamock.scala
   it should "mine valid block on the end and beginning of the new epoch" taggedAs (
     UnitTest,
     ConsensusTest,
-    SlowTest
+    SlowTest,
+    ResourceHeavy
   ) in new TestSetup:
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
     val parent29998: Int = epochLength - 2 // 29998, mined block will be 29999 (last block of the epoch)
@@ -62,7 +63,12 @@ class EthashMinerSpec extends AnyFlatSpec with Matchers with org.scalamock.scala
     setBlockForMining(parentBlock29999)
     executeTest(parentBlock29999)
 
-  it should "mine valid blocks on the end of the epoch" taggedAs (UnitTest, ConsensusTest, SlowTest) in new TestSetup:
+  it should "mine valid blocks on the end of the epoch" taggedAs (
+    UnitTest,
+    ConsensusTest,
+    SlowTest,
+    ResourceHeavy
+  ) in new TestSetup:
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
     val parentBlockNumber: Int =
       2 * epochLength - 2 // 59998, mined block will be 59999 (last block of the current epoch)

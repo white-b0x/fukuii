@@ -42,7 +42,6 @@ class ExecutionSpecsStateTestsSpec extends EthereumTestsSpec:
   "Execution Specs State Tests" should "pass basic ADD operation (add11)" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     StateTest,
     SlowTest
   ) in {
@@ -72,7 +71,6 @@ class ExecutionSpecsStateTestsSpec extends EthereumTestsSpec:
   it should "handle non-constant addition (addNonConst)" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     StateTest,
     SlowTest
   ) in {
@@ -101,7 +99,6 @@ class ExecutionSpecsStateTestsSpec extends EthereumTestsSpec:
   it should "maintain correct state roots across transactions" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     StateTest,
     SlowTest
   ) in {
@@ -127,7 +124,6 @@ class ExecutionSpecsStateTestsSpec extends EthereumTestsSpec:
   it should "execute contract code correctly" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     StateTest,
     SlowTest
   ) in {
@@ -144,7 +140,6 @@ class ExecutionSpecsStateTestsSpec extends EthereumTestsSpec:
   it should "handle fork-specific state transitions" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     StateTest,
     SlowTest
   ) in {
@@ -166,7 +161,6 @@ class ExecutionSpecsStateTestsSpec extends EthereumTestsSpec:
   it should "correctly update account balances and nonces" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     StateTest,
     SlowTest
   ) in {
@@ -187,7 +181,6 @@ class ExecutionSpecsStateTestsSpec extends EthereumTestsSpec:
   it should "compute gas costs correctly per execution specs" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     StateTest,
     SlowTest
   ) in {
@@ -206,7 +199,6 @@ class ExecutionSpecsStateTestsSpec extends EthereumTestsSpec:
   it should "handle storage operations correctly" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     StateTest,
     SlowTest
   ) in {
@@ -226,7 +218,6 @@ class ExecutionSpecsStateTestsSpec extends EthereumTestsSpec:
   it should "execute pre-compiled contracts per specs" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     StateTest,
     SlowTest
   ) in {
@@ -243,7 +234,6 @@ class ExecutionSpecsStateTestsSpec extends EthereumTestsSpec:
   it should "validate complete state across all test cases" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     StateTest,
     SlowTest
   ) in {

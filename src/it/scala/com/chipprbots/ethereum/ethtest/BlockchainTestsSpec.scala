@@ -20,6 +20,13 @@ import com.chipprbots.ethereum.testing.Tags.*
   */
 class BlockchainTestsSpec extends EthereumTestsSpec:
 
+  // Base path for ethereum/tests — configurable via system property or environment variable,
+  // falling back to a user.dir-relative path so it resolves outside the CI runner. MOD-11.
+  private val etsTestsBasePath = sys.props
+    .get("blockchaintests.basePath")
+    .orElse(sys.env.get("BLOCKCHAINTESTS_BASEPATH"))
+    .getOrElse(new File(System.getProperty("user.dir"), "ets/tests").getPath)
+
   // Supported networks — all forks through Prague
   val supportedNetworks: Set[String] = Set(
     "Frontier",
@@ -48,7 +55,7 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
     *   List of test file paths
     */
   def discoverTests(testCategory: String): Seq[String] =
-    val basePath = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests"
+    val basePath = s"$etsTestsBasePath/BlockchainTests"
     val categoryPath = new File(s"$basePath/$testCategory")
 
     if !categoryPath.exists() || !categoryPath.isDirectory then Seq.empty
@@ -67,7 +74,7 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
     *   Filtered test suite with only supported networks
     */
   def loadAndFilterTestSuite(resourcePath: String): BlockchainTestSuite =
-    val fullPath = s"/home/runner/work/fukuii/fukuii/ets/tests$resourcePath"
+    val fullPath = s"$etsTestsBasePath$resourcePath"
     val file = new File(fullPath)
 
     if !file.exists() then BlockchainTestSuite(Map.empty)
@@ -81,11 +88,9 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
 
       BlockchainTestSuite(filteredTests)
 
-  // BrokenEthTest: HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
   "BlockchainTests" should "pass SimpleTx from ValidBlocks" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest,
     SlowTest
   ) in {
     info("Running SimpleTx test from ValidBlocks/bcValidBlockTest...")
@@ -108,8 +113,7 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
     }
   }
 
-  // BrokenEthTest: HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
-  it should "pass ExtraData32 test" taggedAs (IntegrationTest, EthereumTest, BrokenEthTest, SlowTest) in {
+  it should "pass ExtraData32 test" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
     info("Running ExtraData32 test...")
     val suite = loadTestSuite("/ethereum-tests/ExtraData32.json")
 
@@ -124,8 +128,7 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
     }
   }
 
-  // BrokenEthTest: HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
-  it should "pass dataTx test" taggedAs (IntegrationTest, EthereumTest, BrokenEthTest, SlowTest) in {
+  it should "pass dataTx test" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
     info("Running dataTx test...")
     val suite = loadTestSuite("/ethereum-tests/dataTx.json")
 
@@ -140,14 +143,12 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
     }
   }
 
-  // BrokenEthTest: hardcoded CI-runner path resolves only on GitHub runners — ETHTEST-EXEC-REGRESSIONS-01
   it should "discover tests in ValidBlocks/bcValidBlockTest" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest,
     SlowTest
   ) in {
-    val basePath = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests"
+    val basePath = s"$etsTestsBasePath/BlockchainTests"
     val baseDir = new File(basePath)
 
     if !baseDir.exists() then
@@ -160,14 +161,12 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
       tests.size should be > 0
   }
 
-  // BrokenEthTest: hardcoded CI-runner path resolves only on GitHub runners — ETHTEST-EXEC-REGRESSIONS-01
   it should "discover tests in ValidBlocks/bcStateTests" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest,
     SlowTest
   ) in {
-    val basePath = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests"
+    val basePath = s"$etsTestsBasePath/BlockchainTests"
     val baseDir = new File(basePath)
 
     if !baseDir.exists() then

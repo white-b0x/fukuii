@@ -16,6 +16,13 @@ import com.chipprbots.ethereum.testing.Tags.*
   */
 class ComprehensiveBlockchainTestsSpec extends EthereumTestsSpec:
 
+  // Base path for ethereum/tests BlockchainTests — configurable via system property or environment
+  // variable, falling back to a user.dir-relative path so it resolves outside the CI runner. MOD-11.
+  private val blockchainTestsBasePath = sys.props
+    .get("blockchaintests.basePath")
+    .orElse(sys.env.get("BLOCKCHAINTESTS_BASEPATH"))
+    .getOrElse(new File(System.getProperty("user.dir"), "ets/tests/BlockchainTests").getPath)
+
   // Supported networks (pre-Spiral fork only)
   val supportedNetworks: Set[String] = Set(
     "Frontier",
@@ -104,10 +111,9 @@ class ComprehensiveBlockchainTestsSpec extends EthereumTestsSpec:
   "ComprehensiveBlockchainTests" should "run multiple tests from ValidBlocks/bcValidBlockTest" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // hardcoded CI-runner path resolves only on GitHub runners — ETHTEST-EXEC-REGRESSIONS-01
     SlowTest
   ) in {
-    val testDir = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests/ValidBlocks/bcValidBlockTest"
+    val testDir = s"$blockchainTestsBasePath/ValidBlocks/bcValidBlockTest"
 
     info(s"Running tests from ValidBlocks/bcValidBlockTest (max 10)...")
     val (passed, failed, skipped) = runTestsInDirectory(testDir, maxTests = 10)
@@ -123,10 +129,9 @@ class ComprehensiveBlockchainTestsSpec extends EthereumTestsSpec:
   it should "run multiple tests from ValidBlocks/bcStateTests" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest,
     SlowTest
   ) in {
-    val testDir = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests/ValidBlocks/bcStateTests"
+    val testDir = s"$blockchainTestsBasePath/ValidBlocks/bcStateTests"
 
     info(s"Running tests from ValidBlocks/bcStateTests (max 20)...")
     val (passed, failed, skipped) = runTestsInDirectory(testDir, maxTests = 20)
@@ -140,10 +145,9 @@ class ComprehensiveBlockchainTestsSpec extends EthereumTestsSpec:
   it should "run tests from ValidBlocks/bcUncleTest" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest,
     SlowTest
   ) in {
-    val testDir = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests/ValidBlocks/bcUncleTest"
+    val testDir = s"$blockchainTestsBasePath/ValidBlocks/bcUncleTest"
 
     info(s"Running tests from ValidBlocks/bcUncleTest (max 5)...")
     val (passed, failed, skipped) = runTestsInDirectory(testDir, maxTests = 5)
@@ -157,7 +161,6 @@ class ComprehensiveBlockchainTestsSpec extends EthereumTestsSpec:
   it should "achieve at least 50 passing tests across all categories" taggedAs (
     IntegrationTest,
     EthereumTest,
-    BrokenEthTest, // hardcoded CI-runner path resolves only on GitHub runners — ETHTEST-EXEC-REGRESSIONS-01
     SlowTest
   ) in {
     var totalPassed = 0
@@ -171,7 +174,7 @@ class ComprehensiveBlockchainTestsSpec extends EthereumTestsSpec:
     )
 
     testCategories.foreach { case (category, maxTests) =>
-      val testDir = s"/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests/$category"
+      val testDir = s"$blockchainTestsBasePath/$category"
       info(s"Running tests from $category (max $maxTests)...")
 
       val (passed, failed, skipped) = runTestsInDirectory(testDir, maxTests)

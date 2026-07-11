@@ -106,6 +106,18 @@ object Tags:
   /** Long-running stress tests. Reserved for future use — no tests currently use this tag. */
   object StressTest extends Tag("StressTest")
 
+  /** Compute/memory-bound tests whose runtime is equipment-dependent — fast on capable hardware, very slow or OOM-prone
+    * on constrained machines.
+    *
+    * Contrast with [[SlowTest]]: `SlowTest` marks tests that are intrinsically slow by design (large data processing,
+    * multiple block validation), regardless of hardware. `ResourceHeavy` marks tests whose slowness is a function of
+    * the machine running them (e.g. a cold Ethash DAG build), not the test's inherent design.
+    *
+    * Excluded from all standard tiers (testEssential/testStandard/testComprehensive/testAll) via a global `-l
+    * ResourceHeavy` in `commonSettings`. Run deliberately on demand via `sbt testResourceHeavy`.
+    */
+  object ResourceHeavy extends Tag("ResourceHeavy")
+
   // ===== Module-Specific Tags =====
 
   /** Tests for cryptographic operations.
