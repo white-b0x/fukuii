@@ -110,17 +110,43 @@ class OlympiaEipEnablementSpec extends AnyFlatSpec with Matchers:
     BlockchainConfigForEvm.isEip7951Enabled(spiralEtcFork) shouldBe false
   }
 
-  "ETC Olympia precompile dispatch (ECIP-1121) when osakaContracts (ETC Olympia / ETH Osaka set)" should
-    "include P256VERIFY at address 0x100" taggedAs (UnitTest, OlympiaTest) in {
-      // Both ETC Olympia (block-based) and ETH Osaka (timestamp-based) route to osakaContracts.
-      // Regression guard: previously the etcFork >= Olympia branch routed to olympiaContracts
-      // (BLS-only), missing P256VERIFY per ECIP-1121 / EIP-7951.
-      (PrecompiledContracts.osakaContracts should contain).key(PrecompiledContracts.P256VerifyAddr)
+  "ETC Olympia precompile set (ECIP-1121, etcOlympiaContracts)" should
+    "include P256VERIFY at address 0x100 (EIP-7951)" taggedAs (UnitTest, OlympiaTest) in {
+      (PrecompiledContracts.etcOlympiaContracts should contain).key(PrecompiledContracts.P256VerifyAddr)
     }
 
-  "ETC Olympia precompile dispatch (ECIP-1121) when olympiaContracts (ETH Prague / BLS-only set)" should
+  it should "include all seven BLS12-381 precompiles at 0x0b-0x11 (EIP-2537)" taggedAs (UnitTest, OlympiaTest) in {
+    val blsAddrs = Seq(
+      PrecompiledContracts.BlsG1AddAddr,
+      PrecompiledContracts.BlsG1MultiExpAddr,
+      PrecompiledContracts.BlsG2AddAddr,
+      PrecompiledContracts.BlsG2MultiExpAddr,
+      PrecompiledContracts.BlsPairingAddr,
+      PrecompiledContracts.BlsMapG1Addr,
+      PrecompiledContracts.BlsMapG2Addr
+    )
+    blsAddrs.foreach(addr => (PrecompiledContracts.etcOlympiaContracts should contain).key(addr))
+  }
+
+  it should "EXCLUDE the Cancun 0x0a KZG precompile (EIP-4844 not adopted on ETC — core-geth has no EIP4844FBlock)" taggedAs (
+    UnitTest,
+    OlympiaTest
+  ) in {
+    // Regression guard for the latent chain-split: ETC Olympia previously routed through ETH's
+    // osakaContracts, which inherits the Cancun 0x0a KZG precompile. A CALL to 0x0a on ETC would then
+    // charge 50000 gas + run KZG in fukuii vs hit an empty account in core-geth → state-root split.
+    PrecompiledContracts.etcOlympiaContracts should not contain key(PrecompiledContracts.KzgPointEvalAddr)
+  }
+
+  "ETH Osaka precompile set (osakaContracts)" should
+    "retain the Cancun 0x0a KZG precompile (EIP-4844 IS active on ETH)" taggedAs (UnitTest, OlympiaTest) in {
+      // ETH path is unchanged by the ETC decoupling: 0x0a stays a precompile on ETH.
+      (PrecompiledContracts.osakaContracts should contain).key(PrecompiledContracts.KzgPointEvalAddr)
+    }
+
+  "ETH Prague precompile set (pragueContracts, BLS-only)" should
     "NOT include P256VERIFY (EIP-7951 is Osaka-only on ETH)" taggedAs (UnitTest, OlympiaTest) in {
-      PrecompiledContracts.olympiaContracts should not contain key(PrecompiledContracts.P256VerifyAddr)
+      PrecompiledContracts.pragueContracts should not contain key(PrecompiledContracts.P256VerifyAddr)
     }
 
   "ETC Olympia precompile dispatch (ECIP-1121) when P256VerifyAddr" should "be Address(0x100) per EIP-7951" taggedAs (

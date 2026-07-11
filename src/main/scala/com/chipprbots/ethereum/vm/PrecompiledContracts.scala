@@ -71,8 +71,8 @@ object PrecompiledContracts:
     KzgPointEvalAddr -> KzgPointEvaluation
   )
 
-  /** BLS12-381 precompiles (EIP-2537). Active at ETH Prague and ETC Olympia base set. */
-  val olympiaContracts: Map[Address, PrecompiledContract] = cancunContracts ++ Map(
+  /** EIP-2537 BLS12-381 precompiles (0x0b-0x11). Shared building block for ETH Prague/Osaka and ETC Olympia. */
+  val blsContracts: Map[Address, PrecompiledContract] = Map(
     BlsG1AddAddr -> BlsG1Add,
     BlsG1MultiExpAddr -> BlsG1MultiExp,
     BlsG2AddAddr -> BlsG2Add,
@@ -82,10 +82,26 @@ object PrecompiledContracts:
     BlsMapG2Addr -> BlsMapG2
   )
 
-  /** ETC Olympia (block-based) and ETH Osaka (timestamp-based): BLS12-381 + P256VERIFY (EIP-7951, ECIP-1121). */
-  val osakaContracts: Map[Address, PrecompiledContract] = olympiaContracts ++ Map(
+  /** EIP-7951 P256VERIFY precompile (0x100). Shared building block for ETH Osaka and ETC Olympia (ECIP-1121). */
+  val p256Contract: Map[Address, PrecompiledContract] = Map(
     P256VerifyAddr -> P256Verify
   )
+
+  /** ETH Prague: Cancun set (incl. 0x0a KZG, EIP-4844) + BLS12-381 (EIP-2537). */
+  val pragueContracts: Map[Address, PrecompiledContract] = cancunContracts ++ blsContracts
+
+  /** ETH Osaka: Prague set + P256VERIFY (EIP-7951). Retains 0x0a KZG — correct on ETH. */
+  val osakaContracts: Map[Address, PrecompiledContract] = pragueContracts ++ p256Contract
+
+  /** ETC Olympia (ECIP-1121, block-based): Phoenix-era set + BLS12-381 (EIP-2537) + P256VERIFY (EIP-7951).
+    *
+    * Deliberately built on `istanbulPhoenixContracts`, NOT `cancunContracts`, so it EXCLUDES the Cancun 0x0a
+    * KZG precompile. ETC never adopts EIP-4844/blobs — core-geth's config_classic.go / config_mordor.go set
+    * no EIP4844FBlock/EIP4844TransitionTime, so 0x0a is an empty account on ETC, not a precompile. Routing ETC
+    * Olympia through ETH's `osakaContracts` (which inherits 0x0a) would fork the chain on any CALL to 0x0a.
+    */
+  val etcOlympiaContracts: Map[Address, PrecompiledContract] =
+    istanbulPhoenixContracts ++ blsContracts ++ p256Contract
 
   /** Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
     */
@@ -131,14 +147,19 @@ object PrecompiledContracts:
     val isPrague = context.evmConfig.blockchainConfig.isPragueTimestamp(context.blockHeader.unixTimestamp)
     // EIP-7951 P256VERIFY activates at Osaka timestamp on ETH chains
     val isOsaka = context.evmConfig.blockchainConfig.isOsakaTimestamp(context.blockHeader.unixTimestamp)
+    val isEthereum = context.evmConfig.blockchainConfig.isEthereum
 
     if isOsaka then osakaContracts
-    else if etcFork >= EtcForks.Olympia then
-      // ETC Olympia activates BLS12-381 + P256VERIFY (ECIP-1121). Same set as ETH Osaka.
-      osakaContracts
+    else if etcFork >= EtcForks.Olympia && !isEthereum then
+      // ETC Olympia (ECIP-1121) adds BLS12-381 (EIP-2537, 0x0b-0x11) + P256VERIFY (EIP-7951, 0x100) on top of
+      // the Phoenix-era set. It does NOT include the Cancun 0x0a KZG precompile — ETC never adopts EIP-4844/blobs
+      // (no EIP4844FBlock in core-geth config_classic.go/config_mordor.go). The `!isEthereum` guard mirrors ModExp:
+      // hive maps ETH London→olympiaBlockNumber, so etcFork can read >= Olympia on ETH chains where this set is
+      // wrong — those must fall through to the ETH timestamp/block branches below.
+      etcOlympiaContracts
     else if isPrague then
       // ETH Prague activates BLS12-381 (EIP-2537) but NOT P256VERIFY (that is Osaka-only).
-      olympiaContracts
+      pragueContracts
     else if isCancun then cancunContracts
     else if ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix then istanbulPhoenixContracts
     else if ethFork >= EthForks.Byzantium || etcFork >= EtcForks.Atlantis then
