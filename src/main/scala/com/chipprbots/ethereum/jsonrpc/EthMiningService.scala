@@ -38,7 +38,7 @@ import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
-import com.chipprbots.ethereum.ommers.OmmersPool
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool
 import com.chipprbots.ethereum.transactions.TransactionPicker
 
 object EthMiningService:

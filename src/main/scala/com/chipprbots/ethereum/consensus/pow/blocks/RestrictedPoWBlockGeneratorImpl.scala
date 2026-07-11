@@ -5,7 +5,7 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import com.chipprbots.ethereum.consensus.blocks.BlockTimestampProvider
 import com.chipprbots.ethereum.consensus.blocks.DefaultBlockTimestampProvider
 import com.chipprbots.ethereum.consensus.blocks.PendingBlockAndState
-import com.chipprbots.ethereum.consensus.difficulty.DifficultyCalculator
+import com.chipprbots.ethereum.consensus.pow.difficulty.DifficultyCalculator
 import com.chipprbots.ethereum.consensus.mining.MiningConfig
 import com.chipprbots.ethereum.consensus.mining.MiningMetrics
 import com.chipprbots.ethereum.consensus.pow.RestrictedPoWSigner

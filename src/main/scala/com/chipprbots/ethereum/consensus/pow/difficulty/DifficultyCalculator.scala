@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.difficulty
+package com.chipprbots.ethereum.consensus.pow.difficulty
 
 import com.chipprbots.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
 import com.chipprbots.ethereum.consensus.pow.difficulty.TargetTimeDifficultyCalculator

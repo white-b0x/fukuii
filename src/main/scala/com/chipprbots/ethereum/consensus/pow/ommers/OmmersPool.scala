@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.ommers
+package com.chipprbots.ethereum.consensus.pow.ommers
 
 import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.Behavior

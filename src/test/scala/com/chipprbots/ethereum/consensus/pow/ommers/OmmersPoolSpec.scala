@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.ommers
+package com.chipprbots.ethereum.consensus.pow.ommers
 
 import org.apache.pekko.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.apache.pekko.actor.testkit.typed.scaladsl.TestProbe
@@ -14,10 +14,10 @@ import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.BlockchainReader
-import com.chipprbots.ethereum.ommers.OmmersPool.AddOmmers
-import com.chipprbots.ethereum.ommers.OmmersPool.Command
-import com.chipprbots.ethereum.ommers.OmmersPool.GetOmmers
-import com.chipprbots.ethereum.ommers.OmmersPool.Ommers
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool.AddOmmers
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool.Command
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool.GetOmmers
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool.Ommers
 
 class OmmersPoolSpec extends ScalaTestWithActorTestKit with AnyFreeSpecLike with Matchers with MockFactory:
 

@@ -41,8 +41,8 @@ import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.PeerEventBusActor.Command as PeerEventBusCommand
 import com.chipprbots.ethereum.network.PeerId
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
-import com.chipprbots.ethereum.ommers.OmmersPool
-import com.chipprbots.ethereum.ommers.OmmersPool.AddOmmers
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool.AddOmmers
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager.AddUncheckedTransactions
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager.RemoveTransactions

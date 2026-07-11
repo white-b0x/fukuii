@@ -1,6 +1,6 @@
 package com.chipprbots.ethereum.consensus.pow.difficulty
 
-import com.chipprbots.ethereum.consensus.difficulty.DifficultyCalculator
+import com.chipprbots.ethereum.consensus.pow.difficulty.DifficultyCalculator
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.Timestamp

@@ -50,7 +50,7 @@ import com.chipprbots.ethereum.ledger.StxLedger
 import com.chipprbots.ethereum.network.PeerManagerActor
 import com.chipprbots.ethereum.network.p2p.messages.Capability
 import com.chipprbots.ethereum.nodebuilder.ApisBuilder
-import com.chipprbots.ethereum.ommers.OmmersPool
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config

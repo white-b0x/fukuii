@@ -36,7 +36,7 @@ import com.chipprbots.ethereum.jsonrpc.EthMiningService
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
 import com.chipprbots.ethereum.ledger.VMImpl
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
-import com.chipprbots.ethereum.ommers.OmmersPool
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config

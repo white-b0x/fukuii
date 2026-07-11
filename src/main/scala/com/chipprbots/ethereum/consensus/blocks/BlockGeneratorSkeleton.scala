@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import org.apache.pekko.util.ByteString
 
-import com.chipprbots.ethereum.consensus.difficulty.DifficultyCalculator
+import com.chipprbots.ethereum.consensus.pow.difficulty.DifficultyCalculator
 import com.chipprbots.ethereum.consensus.mining.MiningConfig
 import com.chipprbots.ethereum.consensus.pow.blocks.Ommers
 import com.chipprbots.ethereum.consensus.pow.blocks.OmmersSeqEnc

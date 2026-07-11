@@ -1,6 +1,6 @@
 package com.chipprbots.ethereum.consensus.validators
 
-import com.chipprbots.ethereum.consensus.difficulty.DifficultyCalculator
+import com.chipprbots.ethereum.consensus.pow.difficulty.DifficultyCalculator
 import com.chipprbots.ethereum.consensus.eip1559.BaseFeeCalculator
 import com.chipprbots.ethereum.consensus.mining.GetBlockHeaderByHash
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.*
@@ -22,7 +22,7 @@ import com.chipprbots.ethereum.utils.DaoForkConfig
   * The former is a characteristic of standard ethereum with Ethash, so it is not even known to this implementation.
   *
   * The latter is treated polymorphically by directly using a difficulty
-  * [[com.chipprbots.ethereum.consensus.difficulty.DifficultyCalculator calculator]].
+  * [[com.chipprbots.ethereum.consensus.pow.difficulty.DifficultyCalculator calculator]].
   */
 trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
 

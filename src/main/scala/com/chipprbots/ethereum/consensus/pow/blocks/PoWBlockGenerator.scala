@@ -5,7 +5,7 @@ import java.util.function.UnaryOperator
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.consensus.blocks.*
-import com.chipprbots.ethereum.consensus.difficulty.DifficultyCalculator
+import com.chipprbots.ethereum.consensus.pow.difficulty.DifficultyCalculator
 import com.chipprbots.ethereum.consensus.mining.MiningConfig
 import com.chipprbots.ethereum.consensus.mining.MiningMetrics
 import com.chipprbots.ethereum.consensus.pow.validators.ValidatorsExecutor

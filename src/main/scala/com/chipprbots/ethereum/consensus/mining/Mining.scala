@@ -4,7 +4,7 @@ import cats.effect.IO
 
 import com.chipprbots.ethereum.consensus.blocks.BlockGenerator
 import com.chipprbots.ethereum.consensus.blocks.TestBlockGenerator
-import com.chipprbots.ethereum.consensus.difficulty.DifficultyCalculator
+import com.chipprbots.ethereum.consensus.pow.difficulty.DifficultyCalculator
 import com.chipprbots.ethereum.consensus.pow.miners.MinerProtocol
 import com.chipprbots.ethereum.consensus.pow.miners.MockedMiner.MockedMinerProtocol
 import com.chipprbots.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse

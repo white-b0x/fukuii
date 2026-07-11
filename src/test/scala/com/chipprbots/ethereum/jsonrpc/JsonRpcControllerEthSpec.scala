@@ -43,7 +43,7 @@ import com.chipprbots.ethereum.jsonrpc.ProofService.StorageValueProof
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
-import com.chipprbots.ethereum.ommers.OmmersPool.Ommers
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool.Ommers
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager
 

@@ -135,7 +135,9 @@ object SyncController:
       blockTopic: org.apache.pekko.actor.typed.ActorRef[
         org.apache.pekko.actor.typed.pubsub.Topic.Command[com.chipprbots.ethereum.jsonrpc.NewBlockImported]
       ],
-      ommersPool: org.apache.pekko.actor.typed.ActorRef[com.chipprbots.ethereum.ommers.OmmersPool.Command],
+      ommersPool: org.apache.pekko.actor.typed.ActorRef[
+        com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool.Command
+      ],
       networkPeerManager: TypedActorRef[com.chipprbots.ethereum.network.NetworkPeerManagerActor.Command],
       blacklist: Blacklist,
       syncConfig: SyncConfig,
@@ -205,7 +207,9 @@ object SyncController:
       blockTopic: org.apache.pekko.actor.typed.ActorRef[
         org.apache.pekko.actor.typed.pubsub.Topic.Command[com.chipprbots.ethereum.jsonrpc.NewBlockImported]
       ],
-      ommersPool: org.apache.pekko.actor.typed.ActorRef[com.chipprbots.ethereum.ommers.OmmersPool.Command],
+      ommersPool: org.apache.pekko.actor.typed.ActorRef[
+        com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool.Command
+      ],
       networkPeerManager: TypedActorRef[com.chipprbots.ethereum.network.NetworkPeerManagerActor.Command],
       blacklist: Blacklist,
       syncConfig: SyncConfig,

@@ -13,7 +13,7 @@ import cats.effect.IO
 import scala.concurrent.duration.*
 
 import com.chipprbots.ethereum.consensus.blocks.TestBlockGenerator
-import com.chipprbots.ethereum.consensus.difficulty.DifficultyCalculator
+import com.chipprbots.ethereum.consensus.pow.difficulty.DifficultyCalculator
 import com.chipprbots.ethereum.consensus.mining.FullMiningConfig
 import com.chipprbots.ethereum.consensus.mining.Protocol
 import com.chipprbots.ethereum.consensus.mining.Protocol.AdditionalPoWProtocolData

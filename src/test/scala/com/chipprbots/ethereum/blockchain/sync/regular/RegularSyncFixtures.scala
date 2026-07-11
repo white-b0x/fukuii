@@ -58,7 +58,7 @@ import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.GetBlockBodies as
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.GetBlockHeaders as ETHGetBlockHeaders
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.GetNodeData
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.NodeData
-import com.chipprbots.ethereum.ommers.OmmersPool
+import com.chipprbots.ethereum.consensus.pow.ommers.OmmersPool
 import com.chipprbots.ethereum.security.SecureRandomBuilder
 import com.chipprbots.ethereum.testing.ActorsTesting.fishForSpecificMessage
 import com.chipprbots.ethereum.transactions.PendingTransactionsManager
