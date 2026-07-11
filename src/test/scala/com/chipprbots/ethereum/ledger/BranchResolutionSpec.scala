@@ -14,7 +14,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import com.chipprbots.ethereum.ObjectGenerators
-import com.chipprbots.ethereum.consensus.mess.MESSConfig
+import com.chipprbots.ethereum.consensus.pow.mess.MESSConfig
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockBody

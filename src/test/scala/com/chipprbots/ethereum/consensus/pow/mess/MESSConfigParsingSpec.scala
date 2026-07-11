@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.mess
+package com.chipprbots.ethereum.consensus.pow.mess
 
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValueFactory

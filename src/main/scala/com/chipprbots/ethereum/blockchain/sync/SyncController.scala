@@ -25,7 +25,7 @@ import com.chipprbots.ethereum.blockchain.sync.snap.ChainDownloader
 import com.chipprbots.ethereum.blockchain.sync.snap.SNAPSyncController.StartRegularSyncBootstrapByHash
 import com.chipprbots.ethereum.consensus.ConsensusAdapter
 import com.chipprbots.ethereum.consensus.pos.ForkChoiceManager
-import com.chipprbots.ethereum.consensus.mess.MESSConfig
+import com.chipprbots.ethereum.consensus.pow.mess.MESSConfig
 import com.chipprbots.ethereum.consensus.validators.Validators
 import com.chipprbots.ethereum.db.storage.AppStateStorage
 import com.chipprbots.ethereum.db.storage.BlockNumberMappingStorage

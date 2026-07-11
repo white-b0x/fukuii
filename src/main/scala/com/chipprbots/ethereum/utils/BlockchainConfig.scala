@@ -9,7 +9,7 @@ import com.typesafe.config.Config as TypesafeConfig
 import com.typesafe.config.ConfigRenderOptions
 
 import com.chipprbots.ethereum.consensus.pos.BlobGasUtils
-import com.chipprbots.ethereum.consensus.mess.MESSConfig
+import com.chipprbots.ethereum.consensus.pow.mess.MESSConfig
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainId

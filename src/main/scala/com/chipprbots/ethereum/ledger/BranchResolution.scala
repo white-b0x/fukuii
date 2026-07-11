@@ -2,8 +2,8 @@ package com.chipprbots.ethereum.ledger
 
 import cats.data.NonEmptyList
 
-import com.chipprbots.ethereum.consensus.mess.ArtificialFinality
-import com.chipprbots.ethereum.consensus.mess.MESSConfig
+import com.chipprbots.ethereum.consensus.pow.mess.ArtificialFinality
+import com.chipprbots.ethereum.consensus.pow.mess.MESSConfig
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockNumber

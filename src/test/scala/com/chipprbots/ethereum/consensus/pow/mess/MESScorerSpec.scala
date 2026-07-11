@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.mess
+package com.chipprbots.ethereum.consensus.pow.mess
 
 import org.scalatest.ParallelTestExecution
 import org.scalatest.flatspec.AnyFlatSpec

@@ -1,4 +1,4 @@
-package com.chipprbots.ethereum.consensus.mess
+package com.chipprbots.ethereum.consensus.pow.mess
 
 /** ECIP-1100: MESS (Modified Exponential Subjective Scoring).
   *

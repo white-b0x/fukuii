@@ -34,7 +34,7 @@ import com.chipprbots.ethereum.consensus.Consensus
 import com.chipprbots.ethereum.consensus.ConsensusAdapter
 import com.chipprbots.ethereum.consensus.ConsensusImpl
 import com.chipprbots.ethereum.consensus.ConsensusEngine
-import com.chipprbots.ethereum.consensus.mess.MESSConfig
+import com.chipprbots.ethereum.consensus.pow.mess.MESSConfig
 import com.chipprbots.ethereum.consensus.mining.MiningBuilder
 import com.chipprbots.ethereum.consensus.mining.MiningConfigBuilder
 import com.chipprbots.ethereum.db.components.*
