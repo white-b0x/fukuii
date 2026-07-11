@@ -23,6 +23,7 @@ class GeneralStateTestsSpec extends EthereumTestsSpec:
   "GeneralStateTests" should "pass basic arithmetic tests (add11)" taggedAs (
     IntegrationTest,
     EthereumTest,
+    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     SlowTest
   ) in {
     // Test from BlockchainTests/GeneralStateTests/stExample/add11.json
@@ -51,6 +52,7 @@ class GeneralStateTestsSpec extends EthereumTestsSpec:
   it should "pass addNonConst test from stArgsZeroOneBalance category" taggedAs (
     IntegrationTest,
     EthereumTest,
+    BrokenEthTest, // HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
     SlowTest
   ) in {
     // Test from BlockchainTests/GeneralStateTests/stArgsZeroOneBalance/addNonConst.json

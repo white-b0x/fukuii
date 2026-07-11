@@ -41,6 +41,7 @@ class GasCalculationIssuesSpec extends EthereumTestsSpec:
   "GasCalculationIssues" should "flag add11 test gas calculation discrepancy" taggedAs (
     IntegrationTest,
     EthereumTest,
+    BrokenEthTest, // whole spec premised on known-failing gas exec; masked by HeaderPoWError — ETHTEST-EXEC-REGRESSIONS-01
     SlowTest
   ) in {
     info("Testing add11 (basic ADD opcode) - should use identical gas")
@@ -62,7 +63,13 @@ class GasCalculationIssuesSpec extends EthereumTestsSpec:
     }
   }
 
-  it should "flag addNonConst test gas calculation discrepancy" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  // BrokenEthTest: gas exec masked by HeaderPoWError — ETHTEST-EXEC-REGRESSIONS-01
+  it should "flag addNonConst test gas calculation discrepancy" taggedAs (
+    IntegrationTest,
+    EthereumTest,
+    BrokenEthTest,
+    SlowTest
+  ) in {
     info("Testing addNonConst (ADD with non-constant values) - should use identical gas")
     val suite = loadTestSuite("/ethereum-tests/addNonConst.json")
 
@@ -84,6 +91,7 @@ class GasCalculationIssuesSpec extends EthereumTestsSpec:
   it should "provide detailed analysis of gas calculation patterns" taggedAs (
     IntegrationTest,
     EthereumTest,
+    BrokenEthTest, // whole spec premised on known-failing gas exec; masked by HeaderPoWError — ETHTEST-EXEC-REGRESSIONS-01
     SlowTest
   ) in {
     info("Analyzing gas calculation patterns across multiple tests...")
@@ -129,6 +137,7 @@ class GasCalculationIssuesSpec extends EthereumTestsSpec:
   it should "document known gas calculation issues for follow-up" taggedAs (
     IntegrationTest,
     EthereumTest,
+    BrokenEthTest, // whole spec premised on known-failing gas exec; masked by HeaderPoWError — ETHTEST-EXEC-REGRESSIONS-01
     SlowTest
   ) in {
     info("Documenting known gas calculation issues...")

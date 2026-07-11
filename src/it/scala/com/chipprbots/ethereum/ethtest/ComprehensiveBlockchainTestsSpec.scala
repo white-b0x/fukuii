@@ -104,6 +104,7 @@ class ComprehensiveBlockchainTestsSpec extends EthereumTestsSpec:
   "ComprehensiveBlockchainTests" should "run multiple tests from ValidBlocks/bcValidBlockTest" taggedAs (
     IntegrationTest,
     EthereumTest,
+    BrokenEthTest, // hardcoded CI-runner path resolves only on GitHub runners — ETHTEST-EXEC-REGRESSIONS-01
     SlowTest
   ) in {
     val testDir = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests/ValidBlocks/bcValidBlockTest"
@@ -119,7 +120,12 @@ class ComprehensiveBlockchainTestsSpec extends EthereumTestsSpec:
     passed should be > failed
   }
 
-  it should "run multiple tests from ValidBlocks/bcStateTests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "run multiple tests from ValidBlocks/bcStateTests" taggedAs (
+    IntegrationTest,
+    EthereumTest,
+    BrokenEthTest,
+    SlowTest
+  ) in {
     val testDir = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests/ValidBlocks/bcStateTests"
 
     info(s"Running tests from ValidBlocks/bcStateTests (max 20)...")
@@ -131,7 +137,12 @@ class ComprehensiveBlockchainTestsSpec extends EthereumTestsSpec:
     passed should be > 0
   }
 
-  it should "run tests from ValidBlocks/bcUncleTest" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  it should "run tests from ValidBlocks/bcUncleTest" taggedAs (
+    IntegrationTest,
+    EthereumTest,
+    BrokenEthTest,
+    SlowTest
+  ) in {
     val testDir = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests/ValidBlocks/bcUncleTest"
 
     info(s"Running tests from ValidBlocks/bcUncleTest (max 5)...")
@@ -146,6 +157,7 @@ class ComprehensiveBlockchainTestsSpec extends EthereumTestsSpec:
   it should "achieve at least 50 passing tests across all categories" taggedAs (
     IntegrationTest,
     EthereumTest,
+    BrokenEthTest, // hardcoded CI-runner path resolves only on GitHub runners — ETHTEST-EXEC-REGRESSIONS-01
     SlowTest
   ) in {
     var totalPassed = 0

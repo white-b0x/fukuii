@@ -1,0 +1,172 @@
+{
+  "_comment": "Cross-client Olympia (EIP-7935 + related) consensus test vectors. Consumed by core-geth, besu, and fukuii.",
+  "_version": "1.0.0",
+  "_date": "2026-03-04",
+
+  "eip7935_gas_limit_convergence": {
+    "_comment": "Gas limit convergence at ±(parent/1024 - 1) per block. All clients must match these values exactly.",
+    "gas_limit_bound_divisor": 1024,
+    "min_gas_limit": 5000,
+    "convergence_from_8M_to_60M": {
+      "start": 8000000,
+      "target": 60000000,
+      "threshold_pct": 99,
+      "blocks_to_99pct": 2055,
+      "approximate_hours_at_13s": 7.4,
+      "checkpoints": [
+        {"block": 1, "expected_gas_limit": 8007811},
+        {"block": 10, "expected_gas_limit": 8078258},
+        {"block": 100, "expected_gas_limit": 8829445},
+        {"block": 500, "expected_gas_limit": 13195139},
+        {"block": 1000, "expected_gas_limit": 22649985},
+        {"block": 1500, "expected_gas_limit": 38499454},
+        {"block": 2000, "expected_gas_limit": 56651261},
+        {"block": 2055, "expected_gas_limit": 59446790}
+      ]
+    },
+    "convergence_from_1M_to_8M": {
+      "start": 1000000,
+      "target": 8000000,
+      "blocks_to_target": 2122
+    },
+    "convergence_from_10M_to_8M": {
+      "start": 10000000,
+      "target": 8000000,
+      "direction": "decrease",
+      "blocks_to_target": 219
+    }
+  },
+
+  "eip7935_per_block_delta": {
+    "_comment": "First-block delta values at various parent gas limits. delta = parent / 1024 - 1.",
+    "vectors": [
+      {"parent_gas_limit": 5000, "delta": 3, "next_up": 5003},
+      {"parent_gas_limit": 1000000, "delta": 975, "next_up": 1000975},
+      {"parent_gas_limit": 8000000, "delta": 7811, "next_up": 8007811},
+      {"parent_gas_limit": 30000000, "delta": 29296, "next_up": 30029296},
+      {"parent_gas_limit": 60000000, "delta": 58593, "next_up": 60058593}
+    ]
+  },
+
+  "eip7935_validation_bounds": {
+    "_comment": "Gas limit validation: |parent - child| must be strictly less than parent/1024. Exclusive bound.",
+    "vectors": [
+      {"parent": 8000000, "child": 8007811, "valid": true, "reason": "max valid increase (delta - 1)"},
+      {"parent": 8000000, "child": 8007812, "valid": true, "reason": "within bound (7812 < 7812.5)"},
+      {"parent": 8000000, "child": 8000000, "valid": true, "reason": "no change"},
+      {"parent": 8000000, "child": 7992189, "valid": true, "reason": "max valid decrease"},
+      {"parent": 8000000, "child": 8007813, "valid": false, "reason": "exceeds bound by 1"},
+      {"parent": 8000000, "child": 7992187, "valid": false, "reason": "exceeds bound downward"},
+      {"parent": 8000000, "child": 60000000, "valid": false, "reason": "dramatic jump"},
+      {"parent": 8000000, "child": 4999, "valid": false, "reason": "below MinGasLimit"},
+      {"parent": 60000000, "child": 60058593, "valid": true, "reason": "max valid at 60M"},
+      {"parent": 60000000, "child": 60058594, "valid": false, "reason": "exceeds bound at 60M"}
+    ]
+  },
+
+  "eip7935_adversarial_equilibrium": {
+    "_comment": "Game theory: miner hashrate distribution affects gas limit equilibrium. Simulated over 10,000 blocks.",
+    "scenarios": [
+      {
+        "name": "normal_100pct_honest",
+        "honest_target": 60000000,
+        "honest_pct": 100,
+        "adversary_target": null,
+        "expected_equilibrium_min_pct": 99,
+        "expected_equilibrium_max_pct": 100
+      },
+      {
+        "name": "70_30_split",
+        "honest_target": 60000000,
+        "honest_pct": 70,
+        "adversary_target": 30000000,
+        "expected_equilibrium_min_pct": 95,
+        "expected_equilibrium_max_pct": 105,
+        "_comment": "With 70% honest, equilibrium stays near 60M"
+      },
+      {
+        "name": "50_50_split",
+        "honest_target": 60000000,
+        "honest_pct": 50,
+        "adversary_target": 30000000,
+        "expected_equilibrium_range": "below 60M, near or above 30M",
+        "_comment": "50/50 favors lower target — equilibrium drifts down"
+      },
+      {
+        "name": "40_60_adversary_majority",
+        "honest_target": 60000000,
+        "honest_pct": 40,
+        "adversary_target": 52000000,
+        "expected_equilibrium_range": "near 52M",
+        "_comment": ">50% hashrate controls the equilibrium"
+      }
+    ]
+  },
+
+  "eip7825_transaction_gas_cap": {
+    "_comment": "EIP-7825: Maximum gas limit per transaction is 30M (half of 60M block limit).",
+    "max_transaction_gas": 30000000,
+    "vectors": [
+      {"tx_gas_limit": 29999999, "valid": true},
+      {"tx_gas_limit": 30000000, "valid": true},
+      {"tx_gas_limit": 30000001, "valid": false},
+      {"tx_gas_limit": 60000000, "valid": false}
+    ]
+  },
+
+  "eip7883_modexp_complexity": {
+    "_comment": "EIP-7883: ModExp multiplication complexity changes for inputs > 128 bytes. words = ceil(x/8).",
+    "formula_lte_128": "words^2",
+    "formula_gt_128": "words^2 + 12 * words",
+    "vectors": [
+      {"max_input_bytes": 1, "words": 1, "complexity_eip2565": 1, "complexity_eip7883": 1},
+      {"max_input_bytes": 64, "words": 8, "complexity_eip2565": 64, "complexity_eip7883": 64},
+      {"max_input_bytes": 128, "words": 16, "complexity_eip2565": 256, "complexity_eip7883": 256},
+      {"max_input_bytes": 129, "words": 17, "complexity_eip2565": 289, "complexity_eip7883": 493},
+      {"max_input_bytes": 256, "words": 32, "complexity_eip2565": 1024, "complexity_eip7883": 1408},
+      {"max_input_bytes": 512, "words": 64, "complexity_eip2565": 4096, "complexity_eip7883": 4864},
+      {"max_input_bytes": 1024, "words": 128, "complexity_eip2565": 16384, "complexity_eip7883": 17920}
+    ]
+  },
+
+  "eip7823_modexp_size_limit": {
+    "_comment": "EIP-7823: Post-Olympia, ModExp rejects operands > 1024 bytes.",
+    "max_operand_bytes": 1024,
+    "vectors": [
+      {"base_len": 1024, "exp_len": 1024, "mod_len": 1024, "valid": true},
+      {"base_len": 1025, "exp_len": 1, "mod_len": 1, "valid": false, "reason": "base exceeds 1024"},
+      {"base_len": 1, "exp_len": 1025, "mod_len": 1, "valid": false, "reason": "exp exceeds 1024"},
+      {"base_len": 1, "exp_len": 1, "mod_len": 1025, "valid": false, "reason": "mod exceeds 1024"}
+    ]
+  },
+
+  "eip7934_block_size_limit": {
+    "_comment": "EIP-7934: Maximum block RLP size is 2,097,152 bytes (2 MiB).",
+    "max_block_rlp_bytes": 2097152,
+    "vectors": [
+      {"block_size": 2097151, "valid": true},
+      {"block_size": 2097152, "valid": true},
+      {"block_size": 2097153, "valid": false}
+    ]
+  },
+
+  "olympia_treasury": {
+    "_comment": "ECIP-1112/1113: 20% of base fee goes to treasury. Treasury address is constant.",
+    "treasury_address": "0xCfE1e0ECbff745e6c800fF980178a8dDEf94bEe2",
+    "treasury_pct": 20,
+    "vectors": [
+      {"base_fee_gwei": 1, "gas_used": 8000000, "treasury_credit_wei": "1600000000000000"},
+      {"base_fee_gwei": 10, "gas_used": 60000000, "treasury_credit_wei": "120000000000000000"},
+      {"base_fee_gwei": 100, "gas_used": 30000000, "treasury_credit_wei": "600000000000000000"}
+    ]
+  },
+
+  "cross_client_defaults": {
+    "_comment": "Post-Olympia default gas limit targets across all ETC clients.",
+    "clients": [
+      {"name": "core-geth", "default_gas_target": 60000000, "reference": "miner/miner.go:65"},
+      {"name": "besu", "default_gas_target": 60000000, "reference": "config/NetworkDefinition.java:126"},
+      {"name": "fukuii", "default_gas_target": "configurable via mining.gas-limit-target", "reference": "mining.conf + MiningConfig.scala"}
+    ]
+  }
+}

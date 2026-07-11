@@ -49,7 +49,13 @@ class ForksTest extends AnyFlatSpec with Matchers:
     )
     val noErrors: ResultOfATypeInvocation[Right[?, Seq[Receipt]]] = a[Right[?, Seq[Receipt]]]
 
-  "Ledger" should "execute blocks with respect to forks" taggedAs (IntegrationTest, VMTest, SlowTest) in new TestSetup:
+  // EthereumTest: real ETC ledger replay across fork boundaries — selected by `sbt testEthereum`.
+  "Ledger" should "execute blocks with respect to forks" taggedAs (
+    IntegrationTest,
+    EthereumTest,
+    VMTest,
+    SlowTest
+  ) in new TestSetup:
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/forksTest")
 
     val startBlock = 1

@@ -57,8 +57,10 @@ class ECIP1017Test extends AnyFlatSpec with Matchers:
     * reaches zero at era 193 (which starts at block number 579), given an eraDuration of 3, a rewardReductionRate of
     * 0.2 and a firstEraBlockReward of 5 ether.
     */
+  // EthereumTest: real ETC ledger replay across ECIP-1017 era boundaries — selected by `sbt testEthereum`.
   "Ledger" should "execute blocks with respect to block reward changed by ECIP 1017" taggedAs (
     IntegrationTest,
+    EthereumTest,
     VMTest,
     SlowTest
   ) in new TestSetup:

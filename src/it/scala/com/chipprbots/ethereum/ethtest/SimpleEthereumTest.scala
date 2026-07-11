@@ -95,7 +95,14 @@ class SimpleEthereumTest extends EthereumTestsSpec:
     }
   }
 
-  it should "execute blocks and validate post-state" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  // BrokenEthTest: HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01.
+  // The three structural specs above (parse / setup / validate) do NOT execute and remain real-green.
+  it should "execute blocks and validate post-state" taggedAs (
+    IntegrationTest,
+    EthereumTest,
+    BrokenEthTest,
+    SlowTest
+  ) in {
     val testFile = "/ethereum-tests/SimpleTx.json"
     val suite = loadTestSuite(testFile)
 

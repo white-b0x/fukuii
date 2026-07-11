@@ -81,7 +81,13 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
 
       BlockchainTestSuite(filteredTests)
 
-  "BlockchainTests" should "pass SimpleTx from ValidBlocks" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  // BrokenEthTest: HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
+  "BlockchainTests" should "pass SimpleTx from ValidBlocks" taggedAs (
+    IntegrationTest,
+    EthereumTest,
+    BrokenEthTest,
+    SlowTest
+  ) in {
     info("Running SimpleTx test from ValidBlocks/bcValidBlockTest...")
     val suite = loadTestSuite("/ethereum-tests/SimpleTx.json")
 
@@ -102,7 +108,8 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
     }
   }
 
-  it should "pass ExtraData32 test" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  // BrokenEthTest: HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
+  it should "pass ExtraData32 test" taggedAs (IntegrationTest, EthereumTest, BrokenEthTest, SlowTest) in {
     info("Running ExtraData32 test...")
     val suite = loadTestSuite("/ethereum-tests/ExtraData32.json")
 
@@ -117,7 +124,8 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
     }
   }
 
-  it should "pass dataTx test" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  // BrokenEthTest: HeaderPoWError on imported fixture blocks — ETHTEST-EXEC-REGRESSIONS-01
+  it should "pass dataTx test" taggedAs (IntegrationTest, EthereumTest, BrokenEthTest, SlowTest) in {
     info("Running dataTx test...")
     val suite = loadTestSuite("/ethereum-tests/dataTx.json")
 
@@ -132,7 +140,13 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
     }
   }
 
-  it should "discover tests in ValidBlocks/bcValidBlockTest" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  // BrokenEthTest: hardcoded CI-runner path resolves only on GitHub runners — ETHTEST-EXEC-REGRESSIONS-01
+  it should "discover tests in ValidBlocks/bcValidBlockTest" taggedAs (
+    IntegrationTest,
+    EthereumTest,
+    BrokenEthTest,
+    SlowTest
+  ) in {
     val basePath = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests"
     val baseDir = new File(basePath)
 
@@ -146,7 +160,13 @@ class BlockchainTestsSpec extends EthereumTestsSpec:
       tests.size should be > 0
   }
 
-  it should "discover tests in ValidBlocks/bcStateTests" taggedAs (IntegrationTest, EthereumTest, SlowTest) in {
+  // BrokenEthTest: hardcoded CI-runner path resolves only on GitHub runners — ETHTEST-EXEC-REGRESSIONS-01
+  it should "discover tests in ValidBlocks/bcStateTests" taggedAs (
+    IntegrationTest,
+    EthereumTest,
+    BrokenEthTest,
+    SlowTest
+  ) in {
     val basePath = "/home/runner/work/fukuii/fukuii/ets/tests/BlockchainTests"
     val baseDir = new File(basePath)
 

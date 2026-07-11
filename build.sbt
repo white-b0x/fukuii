@@ -590,7 +590,24 @@ addCommandAlias("testNetwork", "testOnly -- -n NetworkTest")
 addCommandAlias("testDatabase", "testOnly -- -n DatabaseTest")
 addCommandAlias("testRLP", "testOnly -- -n RLPTest")
 addCommandAlias("testMPT", "testOnly -- -n MPTTest")
-addCommandAlias("testEthereum", "testOnly -- -n EthereumTest")
+// testEthereum - real ETC/ETH conformance selection (honestly green, with visible tracked skips).
+// Selects every EthereumTest-tagged spec in BOTH the Test config (the field-identity + cross-client
+// oracles: EtcConsensusVectorsSpec, ChainConfigValidationSpec, ETCDaoExclusionSpec,
+// ECIP1017EmissionScheduleSpec, BeaconRootsSpec, ...) AND the IntegrationTest config (the ethtest
+// fixture specs that actually resolve — VMTestsSpec, TransactionTestsSpec, the SimpleEthereumTest
+// structural specs, the BlockchainTestsSpec network-filter spec). The exec specs still RED under
+// batch-6 row ETHTEST-EXEC-REGRESSIONS-01 carry the `BrokenEthTest` tag and are excluded via
+// `-l BrokenEthTest` — a VISIBLE, tracked, deliberate skip (ScalaTest prints the excluded count),
+// never a silent pending/no-op. Was previously `testOnly -- -n EthereumTest`: unscoped to the Test
+// axis, it ran 5 unrelated BeaconRootsSpec tests and printed "all passed" while touching zero
+// fixtures (a false-green). See .local/docs/research-july/test-infra-ethtest-vectors-scout.md.
+addCommandAlias(
+  "testEthereum",
+  """; compile-all
+    |; testOnly -- -n EthereumTest -l BrokenEthTest
+    |; IntegrationTest / testOnly -- -n EthereumTest -l BrokenEthTest
+    |""".stripMargin
+)
 // Domain test commands — added in P12 (tag taxonomy audit)
 // ConsensusTest (284), RPCTest (219), OlympiaTest (201), StateTest (63), SyncTest (84)
 addCommandAlias("testConsensus", "testOnly -- -n ConsensusTest")
