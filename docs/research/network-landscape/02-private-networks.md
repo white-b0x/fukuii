@@ -11,7 +11,7 @@ final target-tree shape to those. Besu paths verified on disk under
 
 A **Clique/PoA devnet is the concrete "third network fukuii could add next"** with the smallest external
 dependency — no consensus-layer client (unlike PoS), no external miner fleet (unlike PoW mainnet). It is
-therefore the load-bearing stress test of the `consensus/engine/ConsensusEngine` seam
+therefore the load-bearing stress test of the `consensus/ConsensusEngine` seam
 (`EngineId.{Ethash,EngineApi,Clique,Qbft,Bor}` — `Clique`/`Qbft` already exist as reserved seams that
 `throw NotImplementedError`). Everything below is framed as additions to the **four-seam model**
 (**selection · scheduling · finality · fork-choice**), the vocabulary Part D synthesizes against.

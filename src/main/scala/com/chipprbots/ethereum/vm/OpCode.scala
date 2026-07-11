@@ -1385,7 +1385,7 @@ case object BLOBHASH extends OpCode(0x49, 1, 1, _.G_verylow) with ConstGas:
 
 /** EIP-7516: BLOBBASEFEE opcode — returns the current block's blob base fee per EIP-4844 CalcBlobFee. Fork-aware update
   * fraction matching BlobGasUtils.updateFractionFor: BPO2 (11684671) → BPO1 (8346193) → Prague (5007716) → Cancun
-  * (3338477). Formula inlined from BlobGasUtils.fakeExponential to avoid a vm→consensus.engine import cycle.
+  * (3338477). Formula inlined from BlobGasUtils.fakeExponential to avoid a vm→consensus.pos import cycle.
   */
 case object BLOBBASEFEE extends OpCode(0x4a, 0, 1, _.G_base) with ConstGas:
   private val MinBlobBaseFee: BigInt = BigInt(1)

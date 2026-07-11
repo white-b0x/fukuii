@@ -1,11 +1,15 @@
 # consensus — PoW/PoS Consensus Dispatch
 
-<!-- breadcrumb-currency: directory/file listing verified against source tree 2026-07-05 (a68dbec1f); re-verify when subpackages are added/removed/renamed, not on every code change inside existing files -->
+<!-- breadcrumb-currency: directory/file listing verified against source tree 2026-07-10 (ed2498430, after the Batch 5 5.5b mechanism-leaf reorg); re-verify when subpackages are added/removed/renamed, not on every code change inside existing files -->
 
 Fukuii supports two independent consensus families from one codebase: **PoW** (ETC/Mordor,
 Ethash, block-number fork dispatch) and **PoS** (ETH/Sepolia, Engine-API-driven, timestamp fork
-dispatch). `Consensus.scala`/`ConsensusImpl.scala`/`ConsensusAdapter.scala` are the top-level
-family-selection layer; almost everything else here is PoW-only, PoS-only, or shared.
+dispatch). The tree is organized by **consensus mechanism**: `pow/` and `pos/` leaves (a reserved
+`poa/` seam, built in Batch 7), with a **neutral spine** at the top level —
+`Consensus`/`ConsensusImpl`/`ConsensusAdapter` (family selection) plus the family-spanning dispatch
+(`ConsensusEngine`/`engineFor`, `ValidatorsExecutor`, `TransitionBlockHeaderValidator`) that decides
+*which* mechanism a block uses. Networks stay config/data — a new network is a new conf, not a new
+package.
 
 **Before touching anything here, read root `AGENTS.md`'s "PoW vs PoS" section and
 `.agents/protocols/consensus-change-protocol.md` — this is the one subsystem in the repo with a
@@ -16,24 +20,25 @@ code).**
 
 | Path | Family | Purpose |
 |------|--------|---------|
-| `consensus/` (top-level) | Shared | Family dispatch: `Consensus`, `ConsensusImpl`, `ConsensusAdapter` |
+| `consensus/` (neutral spine) | Shared/neutral | Family dispatch (`Consensus`, `ConsensusImpl`, `ConsensusAdapter`) + the family-spanning seam: `ConsensusEngine` (EngineId enum + trait + `engineFor`/`engineIdFor`), `ValidatorsExecutor`/`StdValidatorsExecutor` (TTD-aware validator resolver), `TransitionBlockHeaderValidator` (per-header PoW↔PoS dispatcher) |
 | `consensus/blocks/` | Shared | Block generation skeleton (`BlockGenerator`, `NoOmmersBlockGenerator`) |
-| `consensus/difficulty/` | Shared interface | `DifficultyCalculator` — PoW's actual implementations live in `pow/difficulty/` |
 | `consensus/eip1559/` | Shared (post-Olympia PoW too) | `BaseFeeCalculator.scala` — see PARITY-01 below before editing |
-| `consensus/engine/` | **PoS only** | Engine API surface: `EngineApiController/Service/HttpServer`, `ForkChoiceManager/State`, `PoSBlockHeaderValidator`, `TransitionBlockHeaderValidator`, `JwtAuthenticator` |
-| `consensus/mess/` | **PoW only** (ETC) | `ArtificialFinality.scala`/`MESSConfig.scala` — ECIP-1100 MESS anti-51% |
 | `consensus/mining/` | Shared interface | `Mining` interface, `MiningConfig`/`FullMiningConfig`/builders |
-| `consensus/pow/` | **PoW only** | Ethash: `EthashConfig/Utils`, `PoWMining`/`PoWMiningCoordinator`, `RestrictedPoWSigner`, `WorkNotifier` |
-| `consensus/pow/blocks/` | PoW only | `PoWBlockGenerator`, `RestrictedPoWBlockGeneratorImpl` |
-| `consensus/pow/difficulty/` | PoW only | `EthashDifficultyCalculator`, `TargetTimeDifficultyCalculator` |
-| `consensus/pow/miners/` | PoW only | `EthashMiner`, `EthashDAGManager`, `MockedMiner` |
-| `consensus/pow/validators/` | PoW only | `EthashBlockHeaderValidator`, `OmmersValidator`/`StdOmmersValidator`, `PoWBlockHeaderValidator`, `ValidatorsExecutor`/`StdValidatorsExecutor` |
 | `consensus/validators/` | Shared interface | `BlockHeaderValidator`, `BlockValidator`, `SignedTransactionValidator` |
 | `consensus/validators/std/` | Shared, network-agnostic impl | `StdBlockValidator`, `StdSignedTransactionValidator`, `StdValidators`, `MptListValidator` |
+| `consensus/pow/` | **PoW mechanism** | Ethash: `EthashConfig/Utils`, `EthashEngine`, `PoWMining`/`PoWMiningCoordinator`, `RestrictedPoWSigner`, `WorkNotifier` |
+| `consensus/pow/blocks/` | PoW | `PoWBlockGenerator`, `RestrictedPoWBlockGeneratorImpl` |
+| `consensus/pow/difficulty/` | PoW | `DifficultyCalculator` (selector) + `EthashDifficultyCalculator`, `TargetTimeDifficultyCalculator` |
+| `consensus/pow/miners/` | PoW | `EthashMiner`, `EthashDAGManager`, `MockedMiner` |
+| `consensus/pow/ommers/` | PoW | `OmmersPool` (YP uncle mempool actor) |
+| `consensus/pow/mess/` | PoW-family (currently ETC) | `ArtificialFinality`/`MESSConfig` — ECIP-1100 MESS anti-51% subjective fork-choice (banksy-owned policy) |
+| `consensus/pow/validators/` | PoW | `EthashBlockHeaderValidator`, `OmmersValidator`/`StdOmmersValidator`, `PoWBlockHeaderValidator` |
+| `consensus/pos/` | **PoS mechanism** | Engine-API surface: `EngineApiController/Service/Domain/HttpServer/Metrics`, `ForkChoiceManager/State`, `PoSBlockHeaderValidator`, `JwtAuthenticator`, `EngineApiEngine` |
+| `consensus/poa/` | **PoA mechanism (reserved)** | Not yet created — `EngineId.Clique/Qbft/Bor` reserve the seam; built in Batch 7 (Private Network Stack, NET-02 Clique-first) |
 
-**Note**: the PoW/standard-validator split is `pow/validators/` (PoW-specific) vs.
-`validators/std/` (network-agnostic) — different parents, not a `validators/{pow,std}` sibling
-pair.
+**Note**: three validator tiers, not a `validators/{pow,std}` sibling pair — the family-spanning
+RESOLVER (`ValidatorsExecutor`) lives in the neutral spine (`consensus/`), the PoW-specific validator
+IMPLS in `pow/validators/`, and the network-agnostic std impls in `validators/std/`.
 
 ## Known live issue — read before touching `eip1559/`
 

@@ -521,7 +521,7 @@ graph TB
 
 ### 9. Engine API / Consensus Layer Integration
 
-**Location:** `com.chipprbots.ethereum.consensus.engine`
+**Location:** `com.chipprbots.ethereum.consensus.pos` (renamed from `consensus.engine` in the Batch 5 mechanism-leaf reorg)
 
 The Engine API is the standardized interface between an execution layer (EL) and a consensus layer (CL) for post-Merge Ethereum networks. Fukuii implements Engine API V1 through V4 (Prague/Electra), enabling it to operate as a full execution layer paired with any CL client. This is the primary seam that makes Fukuii a general-purpose EVM runtime rather than an ETC-specific client — see [Pluggable Consensus Vision](pluggable-consensus-vision.md).
 
