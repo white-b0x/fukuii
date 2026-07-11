@@ -40,6 +40,23 @@ code).**
 RESOLVER (`ValidatorsExecutor`) lives in the neutral spine (`consensus/`), the PoW-specific validator
 IMPLS in `pow/validators/`, and the network-agnostic std impls in `validators/std/`.
 
+## Improvement proposals (EIPs/ECIPs) — NOT in this subsystem
+
+`consensus/` is the consensus **mechanism** (how blocks are produced/sealed/validated/scored).
+Improvement **proposals** ("what execution rules apply, and when") live in a separate,
+network-agnostic layer — EIPs, ECIPs, and `Custom` family proposals are handled UNIFORMLY:
+
+- **Registry (what exists + when it activates):** `forks/` (`ProposalId` = `Eip(n)` / `Ecip(n)` /
+  `Custom(f, n)`, `ForkSchedule`, `ForkActivation`) · `vm/forks/EvmProposals.scala` (EVM proposals) ·
+  `ledger/forks/RewardProposals.scala` (reward/emission). One authoritative list — not scattered.
+- **Behavior (impl-by-concern):** opcodes → `vm/OpCode.scala` · gas/fee schedules →
+  `vm/EvmConfig.scala` · base fee (EIP-1559) → `consensus/eip1559/BaseFeeCalculator.scala` · rewards
+  (ECIP-1017) → `ledger/BlockRewardCalculator.scala`.
+- ETC composes adopted **EIPs** (shared with ETH, activated at ETC block heights) + native **ECIPs**
+  via its fork schedule — both are just `ProposalId`s. Only PoW-**mechanism** ECIPs (1099 ETChash,
+  1010/1041 difficulty, 1100 MESS) have their compute in `pow/`; their fork *definition* still lives
+  in the neutral registry above.
+
 ## Known live issue — read before touching `eip1559/`
 
 `PARITY-01` (open, `.claude/sprints/QUEUE.md` Chase & Deferred Items): `BaseFeeCalculator.scala`'s
