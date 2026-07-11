@@ -5,17 +5,17 @@ import com.chipprbots.ethereum.testing.Tags.*
 /** Test suite originally written to flag a Berlin-fork gas-calculation discrepancy.
   *
   * HISTORY & CURRENT STATUS (verified 2026-07-11, REPO-06-GASCALC close-out):
-  *   - The gas discrepancy this spec was written to catch (add11 short by 2100 gas, addNonConst short by 900 gas,
-  *     both EIP-2929-cold-access-shaped) is RESOLVED. fukuii's Berlin/Magneto gas schedule is byte-correct against
+  *   - The gas discrepancy this spec was written to catch (add11 short by 2100 gas, addNonConst short by 900 gas, both
+  *     EIP-2929-cold-access-shaped) is RESOLVED. fukuii's Berlin/Magneto gas schedule is byte-correct against
   *     core-geth: G_cold_sload=2100, G_cold_account_access=2600, G_warm_storage_read=100, access-list 2400/1900 —
   *     confirmed line-by-line by the Batch 5 Row 5.7 deep-map (etc-mordor-conformance.md §5) and a direct read of
   *     `EvmConfig.scala` MagnetoFeeSchedule. There is NO gas bug.
   *   - The `add11`/`addNonConst` cases nonetheless still FAIL, but for a HARNESS reason unrelated to gas:
-  *     `ValidationBeforeExecError(HeaderPoWError)` — the fixture-import path validates the PoW seal on these blocks
-  *     and rejects them BEFORE gas is ever computed. That is failure mode (a) of ETHTEST-EXEC-REGRESSIONS-01, which
-  *     is why the whole spec carries `BrokenEthTest` and lives in its own `report_only` shard. Remove those flags
-  *     only when ETHTEST-EXEC-REGRESSIONS-01 disables fixture PoW-seal validation, NOT before — the gas premise
-  *     being resolved does not make these green.
+  *     `ValidationBeforeExecError(HeaderPoWError)` — the fixture-import path validates the PoW seal on these blocks and
+  *     rejects them BEFORE gas is ever computed. That is failure mode (a) of ETHTEST-EXEC-REGRESSIONS-01, which is why
+  *     the whole spec carries `BrokenEthTest` and lives in its own `report_only` shard. Remove those flags only when
+  *     ETHTEST-EXEC-REGRESSIONS-01 disables fixture PoW-seal validation, NOT before — the gas premise being resolved
+  *     does not make these green.
   */
 class GasCalculationIssuesSpec extends EthereumTestsSpec:
 

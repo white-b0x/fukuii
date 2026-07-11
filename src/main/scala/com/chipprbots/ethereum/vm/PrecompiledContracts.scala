@@ -95,10 +95,10 @@ object PrecompiledContracts:
 
   /** ETC Olympia (ECIP-1121, block-based): Phoenix-era set + BLS12-381 (EIP-2537) + P256VERIFY (EIP-7951).
     *
-    * Deliberately built on `istanbulPhoenixContracts`, NOT `cancunContracts`, so it EXCLUDES the Cancun 0x0a
-    * KZG precompile. ETC never adopts EIP-4844/blobs — core-geth's config_classic.go / config_mordor.go set
-    * no EIP4844FBlock/EIP4844TransitionTime, so 0x0a is an empty account on ETC, not a precompile. Routing ETC
-    * Olympia through ETH's `osakaContracts` (which inherits 0x0a) would fork the chain on any CALL to 0x0a.
+    * Deliberately built on `istanbulPhoenixContracts`, NOT `cancunContracts`, so it EXCLUDES the Cancun 0x0a KZG
+    * precompile. ETC never adopts EIP-4844/blobs — core-geth's config_classic.go / config_mordor.go set no
+    * EIP4844FBlock/EIP4844TransitionTime, so 0x0a is an empty account on ETC, not a precompile. Routing ETC Olympia
+    * through ETH's `osakaContracts` (which inherits 0x0a) would fork the chain on any CALL to 0x0a.
     */
   val etcOlympiaContracts: Map[Address, PrecompiledContract] =
     istanbulPhoenixContracts ++ blsContracts ++ p256Contract
