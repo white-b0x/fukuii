@@ -34,6 +34,14 @@ set -euo pipefail
 
 NETWORK="${FUKUII_NETWORK:-etc}"
 
+# Datadir — mirrors the container's conventional data volume mount point.
+# FUKUII_DATADIR is the escape hatch for a conf-overridden datadir: the entrypoint can't cheaply parse
+# HOCON, so if the node's config sets a custom `fukuii.datadir`, set FUKUII_DATADIR to match it too.
+# NOTE: FUKUII_DATADIR (the IN-CONTAINER datadir path the JVM uses, here) is distinct from
+# docker-compose's FUKUII_DATA_DIR (the HOST directory bind-mounted to this path) — same concept,
+# different layers; don't conflate them.
+DATADIR="${FUKUII_DATADIR:-/app/data}"
+
 # Network-appropriate heap bounds (MB). Derived from Blockscout chain activity data (June 2026).
 case "$NETWORK" in
   mordor)
@@ -110,6 +118,8 @@ else
   echo "[entrypoint] Heap: hardcoded default for network=${NETWORK} (${HEAP_ARG})" >&2
 fi
 
+mkdir -p "${DATADIR}/logs/heap-dump"
+
 exec java \
   "$HEAP_ARG" \
   "$INIT_ARG" \
@@ -118,6 +128,7 @@ exec java \
   -XX:+UseG1GC \
   -XX:MaxGCPauseMillis=200 \
   -XX:+HeapDumpOnOutOfMemoryError \
-  -XX:HeapDumpPath=/app/data/logs/heapdump.hprof \
+  -XX:HeapDumpPath="${DATADIR}/logs/heap-dump/" \
   -XX:+ExitOnOutOfMemoryError \
+  -Dfukuii.datadir="$DATADIR" \
   "$@"

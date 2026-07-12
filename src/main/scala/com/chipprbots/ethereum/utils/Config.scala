@@ -100,7 +100,7 @@ object Config extends InstanceConfig(ConfigFactory.load().getConfig("fukuii"), "
       // All three fields default to None (disabled). Optional `.gz` decompression is automatic.
       //
       // - `checkpointSyncFile`: local path. Wins over URL when both are set.
-      // - `checkpointSyncUrl`: remote URL fetched into `${datadir}/checkpoint.bin` (resumable).
+      // - `checkpointSyncUrl`: remote URL fetched into `${datadir}/checkpoints/checkpoint.bin` (resumable).
       // - `checkpointSyncDownloadDir`: where to place the downloaded archive. Defaults to datadir.
       checkpointSyncFile: Option[java.nio.file.Path],
       checkpointSyncUrl: Option[String],

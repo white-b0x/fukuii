@@ -25,6 +25,11 @@ NETWORK="${1:-etc}"
 CONFIG_FILE="${2:-src/main/resources/conf/base/fukuii.conf}"
 JAR="${FUKUII_JAR:-target/scala-3.3.7/fukuii-assembly-0.6.18.jar}"
 
+# Datadir — mirrors fukuii.conf's `datadir = ${user.home}"/.fukuii/"${fukuii.blockchains.network}` default.
+# FUKUII_DATADIR is the escape hatch for a conf-overridden datadir: the launcher can't cheaply parse HOCON,
+# so if the node's config file sets a custom `fukuii.datadir`, set FUKUII_DATADIR to match it here too.
+DATADIR="${FUKUII_DATADIR:-$HOME/.fukuii/$NETWORK}"
+
 if [ ! -f "$JAR" ]; then
   echo "[start.sh] ERROR: JAR not found at ${JAR}. Run 'sbt assembly' first or set FUKUII_JAR." >&2
   exit 1
@@ -81,6 +86,8 @@ else
   INIT_ARG="-Xms${INIT_MB}m"
 fi
 
+mkdir -p "${DATADIR}/logs/heap-dump"
+
 exec java \
   "$HEAP_ARG" \
   "$INIT_ARG" \
@@ -89,8 +96,9 @@ exec java \
   -XX:+UseG1GC \
   -XX:MaxGCPauseMillis=200 \
   -XX:+HeapDumpOnOutOfMemoryError \
-  -XX:HeapDumpPath=/tmp/fukuii-heapdump.hprof \
+  -XX:HeapDumpPath="${DATADIR}/logs/heap-dump/" \
   -XX:+ExitOnOutOfMemoryError \
   -Dconfig.file="$CONFIG_FILE" \
+  -Dfukuii.datadir="$DATADIR" \
   -jar "$JAR" \
   "$NETWORK"

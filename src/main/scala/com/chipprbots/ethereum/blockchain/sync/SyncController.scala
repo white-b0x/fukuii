@@ -1394,7 +1394,7 @@ object SyncController:
       // of running SNAP. Only fires when DB is fresh (best-block == 0 and SNAP not already done).
       // Resolution order:
       //   1. `checkpoint-sync-file` if set — use the local path directly.
-      //   2. else `checkpoint-sync-url` if set — download to `${datadir}/checkpoint.bin`
+      //   2. else `checkpoint-sync-url` if set — download to `${datadir}/checkpoints/checkpoint.bin`
       //      (resumable via HTTP Range) and import.
       // On success the importer marks SNAP/bytecode/storage as done; the match below routes to
       // RegularSync. On failure we log and fall through to the normal SNAP/Fast/Regular path.
@@ -1404,7 +1404,9 @@ object SyncController:
             // INFO-5: normalize + validate to prevent path-traversal from a crafted system-property value.
             val rawDatadir = java.nio.file.Paths.get(System.getProperty("fukuii.datadir", "."))
             val datadir = rawDatadir.normalize().toAbsolutePath()
-            val target = datadir.resolve("checkpoint.bin").normalize().toAbsolutePath()
+            // Downloaded archives are transient scratch, not persistent data — kept in a `checkpoints/`
+            // subdir (rather than the datadir root) so they don't clutter the top-level datadir listing.
+            val target = datadir.resolve("checkpoints").resolve("checkpoint.bin").normalize().toAbsolutePath()
             if !target.startsWith(datadir) then
               log.warn(
                 "[CHECKPOINT DOWNLOAD] Resolved path {} escapes datadir {} — skipping checkpoint download",
