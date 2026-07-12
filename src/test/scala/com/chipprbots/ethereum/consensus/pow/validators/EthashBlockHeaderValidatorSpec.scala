@@ -104,6 +104,17 @@ class EthashBlockHeaderValidatorSpec
     }
   }
 
+  // F2: core-geth verifySeal (consensus.go:555-557) rejects difficulty <= 0 before any target
+  // math. A crafted difficulty==0 ETC header must return a clean Left(HeaderDifficultyError),
+  // NOT throw ArithmeticException from 2^256 / 0 inside checkDifficulty.
+  it should "cleanly reject a difficulty==0 header on the PoW path (no divide-by-zero)" taggedAs (
+    UnitTest,
+    ConsensusTest
+  ) in {
+    val zeroDiffHeader = validBlockHeader.copy(difficulty = Difficulty.Zero)
+    PoWBlockHeaderValidator.validate(zeroDiffHeader, validParent.header) shouldBe Left(HeaderDifficultyError)
+  }
+
   it should "return a failure if created based on invalid gas used" taggedAs (UnitTest, ConsensusTest) in {
     forAll(bigIntGen) { gasUsed =>
       val blockHeader = validBlockHeader.copy(gasUsed = GasAmount(gasUsed))

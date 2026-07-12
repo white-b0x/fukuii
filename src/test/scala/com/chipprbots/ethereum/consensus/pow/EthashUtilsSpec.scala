@@ -2,6 +2,7 @@ package com.chipprbots.ethereum.consensus.pow
 
 import org.apache.pekko.util.ByteString
 
+import org.bouncycastle.util.BigIntegers
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -55,6 +56,44 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     forAll(table) { (blockNUmber, _epoch, ecip1099BlockNumber) =>
       epoch(blockNUmber, ecip1099BlockNumber) shouldEqual _epoch
     }
+  }
+
+  // F1: the mining target must be computed as 2^256 / difficulty over full BigInt width
+  // (core-geth consensus.go:597), never narrowing difficulty to a 64-bit Long first.
+  it should "compute the mining target with full BigInt precision (no Long truncation)" taggedAs (
+    UnitTest,
+    ConsensusTest
+  ) in {
+    // Difficulty just above Long.MaxValue (2^63): the old `.toLong` narrowing wrapped this to a
+    // small/negative value and produced a wildly wrong (enormous) target. Full BigInt must not.
+    val hugeDifficulty: BigInt = BigInt(2).pow(63) + 1
+    val expectedTarget: BigInt = BigInt(2).pow(256) / hugeDifficulty
+    val targetBytes: Array[Byte] = BigIntegers.asUnsignedByteArray(32, expectedTarget.bigInteger)
+
+    // boundary == target → result <= target → accepted
+    checkDifficulty(hugeDifficulty, EthashProofOfWork(ByteString.empty, ByteString(targetBytes))) shouldBe true
+
+    // boundary == target + 1 → result > target → rejected. A wrapped-Long target would be
+    // enormous and wrongly accept this, so this assertion proves no truncation occurred.
+    val justOverBytes: Array[Byte] = BigIntegers.asUnsignedByteArray(32, (expectedTarget + 1).bigInteger)
+    checkDifficulty(hugeDifficulty, EthashProofOfWork(ByteString.empty, ByteString(justOverBytes))) shouldBe false
+  }
+
+  // F1 golden-path guard: for reachable difficulty (< 2^63) the BigInt path is byte-identical to
+  // the prior Long path — BigInteger.valueOf(d.toLong) equals d.bigInteger — so no behavior change.
+  it should "compute a byte-identical target for reachable difficulty (golden path unchanged)" taggedAs (
+    UnitTest,
+    ConsensusTest
+  ) in {
+    val reachable: BigInt = BigInt(10).pow(15) // ~ real ETC difficulty, well under 2^63
+    java.math.BigInteger.valueOf(reachable.toLong) shouldBe reachable.bigInteger
+
+    val target: BigInt = BigInt(2).pow(256) / reachable
+    val targetBytes: Array[Byte] = BigIntegers.asUnsignedByteArray(32, target.bigInteger)
+    checkDifficulty(reachable, EthashProofOfWork(ByteString.empty, ByteString(targetBytes))) shouldBe true
+
+    val justOverBytes: Array[Byte] = BigIntegers.asUnsignedByteArray(32, (target + 1).bigInteger)
+    checkDifficulty(reachable, EthashProofOfWork(ByteString.empty, ByteString(justOverBytes))) shouldBe false
   }
 
   it should "compute proof of work using cache" taggedAs (UnitTest, ConsensusTest) in {

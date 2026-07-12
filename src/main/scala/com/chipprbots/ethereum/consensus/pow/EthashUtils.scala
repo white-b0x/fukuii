@@ -229,7 +229,7 @@ object EthashUtils:
   private def fnv(v1: Int, v2: Int): Int =
     (v1 * FNV_PRIME) ^ v2
 
-  private[pow] def checkDifficulty(blockDifficulty: Long, proofOfWork: EthashProofOfWork): Boolean =
+  private[pow] def checkDifficulty(blockDifficulty: BigInt, proofOfWork: EthashProofOfWork): Boolean =
     @tailrec
     def compare(a1: Array[Byte], a2: Array[Byte]): Int =
       if a1.length > a2.length then 1
@@ -239,8 +239,11 @@ object EthashUtils:
       else if (a1.head & 0xff) < (a2.head & 0xff) then -1
       else compare(a1.tail, a2.tail)
 
+    // target = 2^256 / difficulty over full BigInt width (core-geth consensus.go:597,
+    // `new(big.Int).Div(two256, header.Difficulty)`). No `.toLong` narrowing: difficulties
+    // above 2^63 must not wrap. Reachable difficulties (< 2^63) are byte-identical either way.
     val headerDifficultyAsByteArray: Array[Byte] =
-      BigIntegers.asUnsignedByteArray(32, BigInteger.ONE.shiftLeft(256).divide(BigInteger.valueOf(blockDifficulty)))
+      BigIntegers.asUnsignedByteArray(32, BigInteger.ONE.shiftLeft(256).divide(blockDifficulty.bigInteger))
 
     compare(headerDifficultyAsByteArray, proofOfWork.difficultyBoundary.toArray[Byte]) >= 0
 

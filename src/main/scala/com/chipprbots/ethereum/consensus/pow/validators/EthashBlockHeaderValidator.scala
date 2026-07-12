@@ -6,10 +6,12 @@ import java.util.concurrent.atomic.AtomicReference
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError
+import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import com.chipprbots.ethereum.consensus.validators.BlockHeaderValid
 import com.chipprbots.ethereum.crypto
 import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
 /** A block header validator for Ethash.
@@ -37,31 +39,37 @@ object EthashBlockHeaderValidator:
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     import EthashUtils.*
 
-    def getPowCacheData(epoch: Long, seed: ByteString): PowCacheData =
-      val updatedCaches = powCaches.updateAndGet { cache =>
-        cache.find(_.epoch == epoch) match
-          case Some(_) => cache
-          case None =>
-            val data =
-              PowCacheData(epoch, cache = EthashUtils.makeCache(epoch, seed), dagSize = EthashUtils.dagSize(epoch))
-            (data :: cache).take(MaxPowCaches)
-      }
-      // The winning CAS either found `epoch` already present or prepended it (head survives
-      // `take(MaxPowCaches)` since MaxPowCaches >= 1), so this lookup is total by construction.
-      updatedCaches.find(_.epoch == epoch).get
+    // core-geth verifySeal (consensus.go:555-557) rejects difficulty <= 0 before any target
+    // math. Guards the pure-ETC PoW path against a crafted difficulty==0 header reaching
+    // 2^256 / 0; legitimate Ethash headers always carry positive difficulty.
+    if blockHeader.difficulty <= Difficulty.Zero then Left(HeaderDifficultyError)
+    else
+      def getPowCacheData(epoch: Long, seed: ByteString): PowCacheData =
+        val updatedCaches = powCaches.updateAndGet { cache =>
+          cache.find(_.epoch == epoch) match
+            case Some(_) => cache
+            case None =>
+              val data =
+                PowCacheData(epoch, cache = EthashUtils.makeCache(epoch, seed), dagSize = EthashUtils.dagSize(epoch))
+              (data :: cache).take(MaxPowCaches)
+        }
+        // The winning CAS either found `epoch` already present or prepended it (head survives
+        // `take(MaxPowCaches)` since MaxPowCaches >= 1), so this lookup is total by construction.
+        updatedCaches.find(_.epoch == epoch).get
 
-    val epoch =
-      EthashUtils.epoch(blockHeader.number.toLong, blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)
-    val seed = EthashUtils.seed(blockHeader.number.toLong, blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)
-    val powCacheData = getPowCacheData(epoch, seed)
+      val epoch =
+        EthashUtils.epoch(blockHeader.number.toLong, blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)
+      val seed =
+        EthashUtils.seed(blockHeader.number.toLong, blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)
+      val powCacheData = getPowCacheData(epoch, seed)
 
-    val proofOfWork = hashimotoLight(
-      crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),
-      blockHeader.nonce.toArray[Byte],
-      powCacheData.dagSize,
-      powCacheData.cache
-    )
+      val proofOfWork = hashimotoLight(
+        crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),
+        blockHeader.nonce.toArray[Byte],
+        powCacheData.dagSize,
+        powCacheData.cache
+      )
 
-    if proofOfWork.mixHash == blockHeader.mixHash.value && checkDifficulty(blockHeader.difficulty.toLong, proofOfWork)
-    then Right(BlockHeaderValid)
-    else Left(HeaderPoWError)
+      if proofOfWork.mixHash == blockHeader.mixHash.value && checkDifficulty(blockHeader.difficulty.value, proofOfWork)
+      then Right(BlockHeaderValid)
+      else Left(HeaderPoWError)
