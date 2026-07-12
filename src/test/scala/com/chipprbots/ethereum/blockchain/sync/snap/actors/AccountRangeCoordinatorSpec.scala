@@ -8,6 +8,7 @@ import org.apache.pekko.util.ByteString
 import scala.concurrent.Await
 import scala.concurrent.duration.*
 
+import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -33,7 +34,11 @@ import com.chipprbots.ethereum.testing.TestMptStorage
   * dropped: a Typed `Behavior` exposes no `underlyingActor`. The behavioral coverage that survives is asserted through
   * observable effects on the `networkPeerManager` and `snapSyncController` probes — the same approach used in BCC/SRC.
   */
-class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike with Matchers:
+class AccountRangeCoordinatorSpec
+    extends ScalaTestWithActorTestKit()
+    with AnyFlatSpecLike
+    with Matchers
+    with Eventually:
 
   implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
   private val statusProbe = testKit.createTestProbe[AccountRangeStats]()
@@ -690,4 +695,58 @@ class AccountRangeCoordinatorSpec extends ScalaTestWithActorTestKit() with AnyFl
     // Release bytecode — set is now empty, dispatch resumes.
     coord ! AccountRangeCoordinator.ByteCodeQueuePressure(paused = false)
     networkPeerManager.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
+  }
+
+  /** Snapshot of `fukuii-contract-accounts-*.bin` files currently on disk (`java.io.tmpdir`, which — per
+    * `Fukuii.main()` — is `${datadir}/tmp` in production; here it's whatever the test JVM defaults to). Used to detect
+    * the coordinator's spill file being created on spawn and deleted on stop, without reaching into actor internals
+    * (unavailable on a Typed `Behavior`).
+    */
+  private def contractAccountsFiles(): Set[java.nio.file.Path] =
+    val tmpDir = java.nio.file.Paths.get(System.getProperty("java.io.tmpdir"))
+    if java.nio.file.Files.isDirectory(tmpDir) then
+      val stream = java.nio.file.Files.newDirectoryStream(tmpDir, "fukuii-contract-accounts-*.bin")
+      try
+        import scala.jdk.CollectionConverters.*
+        stream.asScala.toSet
+      finally stream.close()
+    else Set.empty
+
+  it should "delete contractAccountsFile on stop (onStop must run all 4 cleanup steps, not just the first)" taggedAs UnitTest in {
+    val stateRoot = kec256(ByteString("test-state-root-cleanup"))
+    val storage = new TestMptStorage()
+    val requestTracker = new SNAPRequestTracker()(classicSystem.scheduler)
+    val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
+    val snapSyncController = testKit.createTestProbe[SNAPSyncController.Command]()
+
+    val before = contractAccountsFiles()
+
+    val coordinator = arcProps(
+      stateRoot = stateRoot,
+      networkPeerManager = networkPeerManager.ref,
+      requestTracker = requestTracker,
+      mptStorage = storage,
+      concurrency = 1,
+      snapSyncController = snapSyncController.ref
+    )
+
+    // `testKit.spawn` returns once the actor is registered, not once its `Behaviors.setup` factory
+    // body (which creates the spill file) has actually run — that body executes asynchronously on the
+    // dispatcher. Poll until the new `fukuii-contract-accounts-*` temp file shows up rather than
+    // asserting immediately.
+    val spillFile = eventually(timeout(3.seconds), interval(100.millis)) {
+      val created = contractAccountsFiles() -- before
+      created should have size 1
+      created.head
+    }
+    java.nio.file.Files.exists(spillFile) shouldBe true
+
+    // `onStop()` runs inside the `PostStop` signal handler, which is likewise dispatched
+    // asynchronously — poll for the file's removal instead of asserting immediately after
+    // `testKit.stop` returns.
+    testKit.stop(coordinator)
+
+    eventually(timeout(3.seconds), interval(100.millis)) {
+      java.nio.file.Files.exists(spillFile) shouldBe false
+    }
   }

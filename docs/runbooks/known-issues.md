@@ -310,6 +310,29 @@ Fukuii and its JVM may use temporary directories for various operations. This se
 **Frequency**: Uncommon  
 **Impact**: Node crashes or performance degradation
 
+#### Default behavior (fukuii.tmpdir)
+
+Fukuii does **not** use the OS `/tmp` by default. `fukuii.tmpdir` (config key, `conf/base/fukuii.conf`)
+defaults to `${fukuii.datadir}/tmp` — the same volume as the RocksDB database. `Fukuii.main()` creates
+that directory and sets `java.io.tmpdir` to it as the first substantive line of startup, before any
+RocksDB native-library load or SNAP-sync actor construction, so every JVM temp-file consumer (SNAP
+sync's `contractAccountsFile`/`contractStorageFile`/`uniqueCodeHashesFile` spill files, RocksDB JNI
+`.so` extraction, JFR profiles) lands on `${datadir}/tmp` rather than a small, separately-provisioned
+`/tmp` partition. This is what prevents the root/`/tmp` filesystem from filling up during SNAP sync,
+which can write several GB of contract-account/storage/codeHash spill data over a sync run.
+
+Override to place temp files on a different volume (e.g. a dedicated tmpfs mount) by setting `fukuii.tmpdir`
+in your config file or via `-Dfukuii.tmpdir=/path/to/tmp` — no JVM-level `-Djava.io.tmpdir` override is
+needed or honored (it would be overwritten by `Fukuii.main()` before any temp file is created).
+
+The SNAP-sync spill files above are deleted by the client itself once no longer needed (account-range
+completion, storage/bytecode-phase completion, fallback-to-fast-sync, or a pivot restart) — see
+`AccountRangeCoordinator.onStop()` and the three cleanup points in `SNAPSyncController` (success,
+fallback, restart). If you observe stale `fukuii-contract-*`/`fukuii-unique-codehashes-*` files
+accumulating under `${datadir}/tmp`, that indicates a crash before cleanup ran (best-effort — it never
+blocks sync or crashes the node) rather than day-to-day operation; they are safe to delete manually
+while the node is stopped.
+
 #### Symptoms
 
 ```
@@ -320,44 +343,37 @@ java.io.IOException: No space left on device
 
 - Node hangs or crashes unexpectedly
 - Slow performance during heavy operations
+- (Pre-`fukuii.tmpdir` deployments only) `/tmp` fills up during SNAP sync even though the datadir volume
+  has plenty of free space
 
 #### Root Cause
 
-- `/tmp` partition full
-- Large temporary files not cleaned up
-- Small `/tmp` partition size
+- `${datadir}/tmp` (or an operator-overridden `fukuii.tmpdir`) partition full — check the volume backing
+  your datadir, not `/tmp`
+- Large temporary files not cleaned up (stale spill files from a crash before cleanup ran)
+- Small partition size relative to expected SNAP-sync spill volume
 - Excessive JVM temporary file usage
 
 #### Workaround
 
 **Immediate fix**:
 ```bash
-# Check temp space
-df -h /tmp
+# Check space on the datadir volume (where fukuii.tmpdir now lives by default)
+df -h "$(fukuii-config-get fukuii.datadir 2>/dev/null || echo ~/.fukuii)"
 
-# Clean temp files (carefully)
-sudo find /tmp -type f -atime +7 -delete  # Files older than 7 days
-sudo rm -rf /tmp/hsperfdata_*  # JVM performance data
-sudo rm -rf /tmp/java_*  # JVM temporary files
+# List and, if the node is stopped, clean up any stale SNAP spill files
+ls -la "${DATADIR:-~/.fukuii}/tmp"
+find "${DATADIR:-~/.fukuii}/tmp" -name 'fukuii-contract-*' -o -name 'fukuii-unique-codehashes-*'
 ```
 
 #### Permanent Fix
 
-**Option 1: Increase /tmp size**
+**Option 1: Increase the datadir volume's available space**
 
-For tmpfs (RAM-based):
-```bash
-# Check current size
-df -h /tmp
+`fukuii.tmpdir` already lives on the datadir volume by default — sizing that volume for the database
+also sizes it for temp spill files. No separate `/tmp` provisioning is required.
 
-# Increase to 4GB (edit /etc/fstab)
-tmpfs /tmp tmpfs defaults,size=4G 0 0
-
-# Remount
-sudo mount -o remount /tmp
-```
-
-**Option 2: Use dedicated temp directory**
+**Option 2: Redirect `fukuii.tmpdir` to a dedicated volume**
 
 ```bash
 # Create dedicated temp directory
@@ -366,30 +382,41 @@ sudo chown fukuii_user:fukuii_group /var/tmp/fukuii
 sudo chmod 700 /var/tmp/fukuii
 ```
 
-Set in JVM options (`.jvmopts` or startup script):
-```
--Djava.io.tmpdir=/var/tmp/fukuii
+Set in `fukuii.conf` (or an override file):
+```hocon
+fukuii.tmpdir = "/var/tmp/fukuii"
 ```
 
-**Option 3: Automated cleanup**
+or on the command line:
+```
+-Dfukuii.tmpdir=/var/tmp/fukuii
+```
 
-Create systemd timer or cron job:
+**Option 3: Automated cleanup for pre-crash-cleanup deployments**
+
+The client cleans up its own spill files on the normal completion/fallback/restart paths (see
+"Default behavior" above). If running an older build without that cleanup, or as defense-in-depth against
+crash-before-cleanup leaks, a cron/systemd-timer sweep is still reasonable:
+
 ```bash
 #!/bin/bash
 # /usr/local/bin/cleanup-fukuii-temp.sh
+# Only run while fukuii is stopped — these files may be in active use otherwise.
 
-TEMP_DIR=/var/tmp/fukuii
-find "$TEMP_DIR" -type f -mtime +1 -delete  # Delete files older than 1 day
+TEMP_DIR="${1:?usage: cleanup-fukuii-temp.sh <datadir>/tmp}"
+find "$TEMP_DIR" \( -name 'fukuii-contract-*' -o -name 'fukuii-storage-*' -o -name 'fukuii-unique-codehashes-*' \) -mtime +1 -delete
 ```
 
 Cron:
 ```cron
-0 2 * * * /usr/local/bin/cleanup-fukuii-temp.sh
+0 2 * * * /usr/local/bin/cleanup-fukuii-temp.sh /var/lib/fukuii/tmp
 ```
 
 #### Status
 
-**Fixed**: Configure adequate temp space and automated cleanup.
+**Fixed**: `fukuii.tmpdir` (defaulting to `${datadir}/tmp`) keeps temp files off `/tmp` by default, and
+the client deletes SNAP-sync spill files itself once no longer needed. Manual cleanup is a fallback for
+crash recovery only, not routine maintenance.
 
 ---
 

@@ -1869,6 +1869,18 @@ private class SNAPSyncControllerImpl(
           )
           bytecodeCoordinator.foreach(_ ! actors.ByteCodeCoordinator.ForceCompleteByteCodes)
 
+  /** Best-effort delete of a persisted SNAP spill file (`contractStorageFile`/`uniqueCodeHashesFile`, written by
+    * `AccountRangeCoordinator` under `fukuii.tmpdir`). Never throws — cleanup failures must not crash the controller or
+    * block sync; a leftover file is only ever a disk-space concern, not a correctness one.
+    */
+  private def deleteSnapSpillFile(pathStr: Option[String], label: String): Unit =
+    pathStr.filter(_.nonEmpty).foreach { p =>
+      try
+        if java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(p)) then
+          ctx.log.debug(s"Deleted SNAP spill file ($label): $p")
+      catch case e: Exception => ctx.log.warn(s"Failed to delete SNAP spill file ($label) at $p: ${e.getMessage}")
+    }
+
   /** Geth-aligned: check if all 3 concurrent download phases are complete. Only transitions to healing when accounts +
     * bytecodes + storage are ALL done. The sentinel pattern (NoMoreByteCodeTasks/NoMoreStorageTasks) ensures bytecodes
     * and storage cannot complete before accounts.
@@ -1877,6 +1889,12 @@ private class SNAPSyncControllerImpl(
     if accountsComplete && bytecodePhaseComplete && storagePhaseComplete &&
       currentPhase != StateHealing && currentPhase != ChainDownloadCompletion && currentPhase != Completed
     then
+      // All 3 phases are done streaming from these files (or never needed to, if this was a
+      // single uninterrupted run) — safe to reclaim the disk space now.
+      deleteSnapSpillFile(appStateStorage.getSnapSyncStorageFilePath(), "storage")
+      deleteSnapSpillFile(appStateStorage.getSnapSyncCodeHashesPath(), "codeHashes")
+      appStateStorage.putSnapSyncStorageFilePath("").commit()
+      appStateStorage.putSnapSyncCodeHashesPath("").commit()
       if SNAPSyncController.shouldSkipHealingAfterDownloads(
           snapSyncConfig,
           resumedStaleCursors
@@ -2946,7 +2964,12 @@ private class SNAPSyncControllerImpl(
       .and(appStateStorage.putSnapSyncStorageComplete(false))
       .and(appStateStorage.putSnapSyncBytecodeComplete(false))
       .commit()
+    // Reclaim the spill files before dropping the pointers to them — fast sync starts fresh
+    // and will never read these back.
+    deleteSnapSpillFile(appStateStorage.getSnapSyncStorageFilePath(), "storage")
+    deleteSnapSpillFile(appStateStorage.getSnapSyncCodeHashesPath(), "codeHashes")
     appStateStorage.putSnapSyncStorageFilePath("").commit()
+    appStateStorage.putSnapSyncCodeHashesPath("").commit()
     preservedRangeProgress = Map.empty
     preservedAtPivotBlock = None
 
@@ -4401,7 +4424,13 @@ private class SNAPSyncControllerImpl(
       .and(appStateStorage.putSnapSyncStorageComplete(false))
       .and(appStateStorage.putSnapSyncBytecodeComplete(false))
       .commit()
+    // Reclaim the spill files before dropping the pointers to them — the coordinators were just
+    // stopped above and a fresh AccountRangeCoordinator (spawned under the new pivot) creates its
+    // own new temp files rather than reusing these.
+    deleteSnapSpillFile(appStateStorage.getSnapSyncStorageFilePath(), "storage")
+    deleteSnapSpillFile(appStateStorage.getSnapSyncCodeHashesPath(), "codeHashes")
     appStateStorage.putSnapSyncStorageFilePath("").commit()
+    appStateStorage.putSnapSyncCodeHashesPath("").commit()
 
     // Reset pivot/state root and storage so a new selection is committed
     pivotBlock = None

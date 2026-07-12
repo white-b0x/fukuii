@@ -558,28 +558,24 @@ private class AccountRangeCoordinatorImpl(
   def onStop(): Unit =
     // Send final progress snapshot so controller can resume from saved positions on restart
     sendProgressSnapshot()
-    // Close and delete temporary files.
-    // Note: contractStorageFile is NOT deleted here — the controller reads it asynchronously
-    // during storage sync (Bug 20 fix: streaming from file to avoid OOM). The controller
-    // deletes it after streaming completes.
+    // Close and delete temporary files. Each cleanup step below is independent — a failure in
+    // one must not skip the rest, and the completion log must always print. (Regression from a
+    // Classic->Typed migration that nested these into a nothing-but-the-first-step-runs
+    // try/catch chain.) contractStorageFile / uniqueCodeHashesFile are intentionally NOT deleted
+    // here — the controller manages their lifecycle (needed for accounts-complete recovery
+    // across process restarts) and deletes them once no longer needed (success,
+    // fallback-to-fast-sync, or restart).
     try contractAccountsOut.close()
-    catch
-      case _: Exception =>
-        try contractStorageOut.close()
-        catch
-          case _: Exception =>
-            try uniqueCodeHashesOut.close()
-            catch
-              case _: Exception =>
-                try Files.deleteIfExists(contractAccountsFile)
-                catch
-                  case _: Exception =>
-                    // contractStorageFile intentionally NOT deleted — controller manages its lifecycle
-                    // uniqueCodeHashesFile intentionally NOT deleted — controller manages its lifecycle
-                    // (needed for accounts-complete recovery across process restarts)
-                    log.info(
-                      s"AccountRangeCoordinator stopped. Downloaded $accountsDownloaded accounts, identified $contractAccountsCount contracts ($uniqueCodeHashesCount unique codeHashes)"
-                    )
+    catch case _: Exception => ()
+    try contractStorageOut.close()
+    catch case _: Exception => ()
+    try uniqueCodeHashesOut.close()
+    catch case _: Exception => ()
+    try Files.deleteIfExists(contractAccountsFile)
+    catch case _: Exception => ()
+    log.info(
+      s"AccountRangeCoordinator stopped. Downloaded $accountsDownloaded accounts, identified $contractAccountsCount contracts ($uniqueCodeHashesCount unique codeHashes)"
+    )
 
   /** Collect current task positions and send to controller for resume across restarts. */
   private def sendProgressSnapshot(): Unit =

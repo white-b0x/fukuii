@@ -625,6 +625,125 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
     storage.isSnapSyncInProgress() shouldBe false // Done wins over in-progress
   }
 
+  // SNAP spill-file cleanup contract — checkAllDownloadsComplete()/fallbackToFastSync()/restartSnapSync()
+  // all follow the same read-path -> delete-if-exists (best-effort) -> clear-path sequence for the
+  // AccountRangeCoordinator-written storage/codeHashes spill files (never deleted before this fix — a
+  // permanent multi-GB leak on every SNAP sync attempt). Modeled here at the storage-semantics level
+  // (real files + a real AppStateStorage, no actor system) per this file's established convention; the
+  // full actor path is an integration test.
+  private def withSpillFile(prefix: String)(
+      test: (java.nio.file.Path, com.chipprbots.ethereum.db.storage.AppStateStorage) => Unit
+  ): Unit =
+    import com.chipprbots.ethereum.db.dataSource.EphemDataSource
+    import com.chipprbots.ethereum.db.storage.AppStateStorage
+    val file = java.nio.file.Files.createTempFile(prefix, ".bin")
+    try test(file, new AppStateStorage(EphemDataSource()))
+    finally java.nio.file.Files.deleteIfExists(file)
+
+  /** Mirrors `SNAPSyncController.deleteSnapSpillFile` exactly: best-effort delete, never throws. Keep this in sync if
+    * that method changes — `SNAPSyncController` exposes no test harness to call it directly.
+    */
+  private def deleteSpillFileForTest(pathStr: Option[String]): Unit =
+    pathStr.filter(_.nonEmpty).foreach { p =>
+      try java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(p))
+      catch case _: Exception => ()
+    }
+
+  "SNAP spill-file cleanup" should "delete the storage file and clear its path after checkAllDownloadsComplete (success path)" taggedAs UnitTest in
+    withSpillFile("fukuii-contract-storage-") { (file, storage) =>
+      storage.putSnapSyncStorageFilePath(file.toString).commit()
+      java.nio.file.Files.exists(file) shouldBe true
+
+      deleteSpillFileForTest(storage.getSnapSyncStorageFilePath())
+      storage.putSnapSyncStorageFilePath("").commit()
+
+      java.nio.file.Files.exists(file) shouldBe false
+      storage.getSnapSyncStorageFilePath() shouldBe Some("")
+    }
+
+  it should "delete the codeHashes file and clear its path after checkAllDownloadsComplete (success path)" taggedAs UnitTest in
+    withSpillFile("fukuii-unique-codehashes-") { (file, storage) =>
+      storage.putSnapSyncCodeHashesPath(file.toString).commit()
+      java.nio.file.Files.exists(file) shouldBe true
+
+      deleteSpillFileForTest(storage.getSnapSyncCodeHashesPath())
+      storage.putSnapSyncCodeHashesPath("").commit()
+
+      java.nio.file.Files.exists(file) shouldBe false
+      storage.getSnapSyncCodeHashesPath() shouldBe Some("")
+    }
+
+  it should "delete both spill files and clear both paths after fallbackToFastSync" taggedAs UnitTest in {
+    import com.chipprbots.ethereum.db.dataSource.EphemDataSource
+    import com.chipprbots.ethereum.db.storage.AppStateStorage
+    val storageFile = java.nio.file.Files.createTempFile("fukuii-contract-storage-", ".bin")
+    val codeHashesFile = java.nio.file.Files.createTempFile("fukuii-unique-codehashes-", ".bin")
+    try
+      val storage = new AppStateStorage(EphemDataSource())
+      storage.putSnapSyncStorageFilePath(storageFile.toString).commit()
+      storage.putSnapSyncCodeHashesPath(codeHashesFile.toString).commit()
+
+      // Same sequence as fallbackToFastSync(): read both paths, delete both files, then clear both.
+      deleteSpillFileForTest(storage.getSnapSyncStorageFilePath())
+      deleteSpillFileForTest(storage.getSnapSyncCodeHashesPath())
+      storage.putSnapSyncStorageFilePath("").commit()
+      storage.putSnapSyncCodeHashesPath("").commit()
+
+      java.nio.file.Files.exists(storageFile) shouldBe false
+      java.nio.file.Files.exists(codeHashesFile) shouldBe false
+      storage.getSnapSyncStorageFilePath() shouldBe Some("")
+      storage.getSnapSyncCodeHashesPath() shouldBe Some("")
+    finally
+      java.nio.file.Files.deleteIfExists(storageFile)
+      java.nio.file.Files.deleteIfExists(codeHashesFile)
+  }
+
+  it should "delete both spill files and clear both paths after restartSnapSync, including the previously-never-cleared codeHashes pointer" taggedAs UnitTest in {
+    import com.chipprbots.ethereum.db.dataSource.EphemDataSource
+    import com.chipprbots.ethereum.db.storage.AppStateStorage
+    val storageFile = java.nio.file.Files.createTempFile("fukuii-contract-storage-", ".bin")
+    val codeHashesFile = java.nio.file.Files.createTempFile("fukuii-unique-codehashes-", ".bin")
+    try
+      val storage = new AppStateStorage(EphemDataSource())
+      storage.putSnapSyncStorageFilePath(storageFile.toString).commit()
+      storage.putSnapSyncCodeHashesPath(codeHashesFile.toString).commit()
+
+      // Before this fix, restartSnapSync only cleared putSnapSyncStorageFilePath("") — the codeHashes
+      // pointer (and file) leaked on every pivot restart. Both must now be cleared.
+      deleteSpillFileForTest(storage.getSnapSyncStorageFilePath())
+      deleteSpillFileForTest(storage.getSnapSyncCodeHashesPath())
+      storage.putSnapSyncStorageFilePath("").commit()
+      storage.putSnapSyncCodeHashesPath("").commit()
+
+      java.nio.file.Files.exists(storageFile) shouldBe false
+      java.nio.file.Files.exists(codeHashesFile) shouldBe false
+      storage.getSnapSyncStorageFilePath() shouldBe Some("")
+      storage.getSnapSyncCodeHashesPath() shouldBe Some("")
+    finally
+      java.nio.file.Files.deleteIfExists(storageFile)
+      java.nio.file.Files.deleteIfExists(codeHashesFile)
+  }
+
+  it should "not throw when the persisted path points at a file that no longer exists (best-effort cleanup)" taggedAs UnitTest in {
+    import com.chipprbots.ethereum.db.dataSource.EphemDataSource
+    import com.chipprbots.ethereum.db.storage.AppStateStorage
+    val storage = new AppStateStorage(EphemDataSource())
+    val missingFile = java.nio.file.Files.createTempFile("fukuii-contract-storage-", ".bin")
+    java.nio.file.Files.delete(missingFile) // file removed out-of-band before cleanup runs
+    storage.putSnapSyncStorageFilePath(missingFile.toString).commit()
+
+    noException should be thrownBy deleteSpillFileForTest(storage.getSnapSyncStorageFilePath())
+  }
+
+  it should "not attempt deletion when no path was ever persisted (empty pointer)" taggedAs UnitTest in {
+    import com.chipprbots.ethereum.db.dataSource.EphemDataSource
+    import com.chipprbots.ethereum.db.storage.AppStateStorage
+    val storage = new AppStateStorage(EphemDataSource())
+
+    storage.getSnapSyncStorageFilePath() shouldBe None
+    noException should be thrownBy deleteSpillFileForTest(storage.getSnapSyncStorageFilePath())
+  }
+
   it should "show ByteCode phase with total and percentage" taggedAs UnitTest in {
     val progress = SyncProgress(
       phase = ByteCodeAndStorageSync,
