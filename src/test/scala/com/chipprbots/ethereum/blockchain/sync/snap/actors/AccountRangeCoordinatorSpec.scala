@@ -43,6 +43,10 @@ class AccountRangeCoordinatorSpec
   implicit private val classicSystem: org.apache.pekko.actor.ActorSystem = system.classicSystem
   private val statusProbe = testKit.createTestProbe[AccountRangeStats]()
 
+  // Injected in place of the production `${datadir}/snap-work` dir — isolates the spill files
+  // this spec's coordinators create from any other test/process using the shared OS temp dir.
+  private val testSnapWorkDir: java.nio.file.Path = java.nio.file.Files.createTempDirectory("arc-spec-snap-work-")
+
   private def arcProps(
       stateRoot: ByteString,
       networkPeerManager: org.apache.pekko.actor.typed.ActorRef[NetworkPeerManagerActor.Command],
@@ -50,6 +54,7 @@ class AccountRangeCoordinatorSpec
       mptStorage: TestMptStorage,
       concurrency: Int,
       snapSyncController: org.apache.pekko.actor.typed.ActorRef[SNAPSyncController.Command],
+      snapWorkDir: java.nio.file.Path = testSnapWorkDir,
       resumeProgress: Map[ByteString, ByteString] = Map.empty,
       initialMaxInFlightPerPeer: Int = 5
   ): org.apache.pekko.actor.typed.ActorRef[AccountRangeCoordinator.Command] =
@@ -61,6 +66,7 @@ class AccountRangeCoordinatorSpec
         mptStorage = mptStorage,
         concurrency = concurrency,
         snapSyncController = snapSyncController,
+        snapWorkDir = snapWorkDir,
         resumeProgress = resumeProgress,
         initialMaxInFlightPerPeer = initialMaxInFlightPerPeer,
         accountTrieEcOverride = Some(classicSystem.dispatcher)
@@ -197,31 +203,6 @@ class AccountRangeCoordinatorSpec
     // Coordinator should still be operational
     coordinator ! AccountRangeCoordinator.AccountGetProgress(statusProbe.ref)
     statusProbe.expectMessageType[AccountRangeStats]
-  }
-
-  it should "collect contract accounts for bytecode download" taggedAs UnitTest in {
-    val stateRoot = kec256(ByteString("test-state-root"))
-    val storage = new TestMptStorage()
-    val requestTracker = new SNAPRequestTracker()(classicSystem.scheduler)
-    val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
-    val snapSyncController = testKit.createTestProbe[SNAPSyncController.Command]()
-
-    val coordinator = arcProps(
-      stateRoot = stateRoot,
-      networkPeerManager = networkPeerManager.ref,
-      requestTracker = requestTracker,
-      mptStorage = storage,
-      concurrency = 4,
-      snapSyncController = snapSyncController.ref
-    )
-
-    coordinator ! AccountRangeCoordinator.StartAccountRangeSync(TrieRoot(stateRoot))
-
-    val contractProbe = testKit.createTestProbe[AccountRangeCoordinator.ContractAccountsResponse]()
-    coordinator ! AccountRangeCoordinator.AccountGetContractAccounts(contractProbe.ref)
-    val response = contractProbe.expectMessageType[AccountRangeCoordinator.ContractAccountsResponse]
-
-    response.accounts shouldBe empty
   }
 
   it should "provide statistics on request" taggedAs UnitTest in {
@@ -697,31 +678,28 @@ class AccountRangeCoordinatorSpec
     networkPeerManager.expectMessageType[NetworkPeerManagerActor.SendMessageCmd]
   }
 
-  /** Snapshot of `fukuii-contract-accounts-*.bin` files currently on disk (`java.io.tmpdir`, which — per
-    * `Fukuii.main()` — is `${datadir}/tmp` in production; here it's whatever the test JVM defaults to). Used to detect
-    * the coordinator's spill file being created on spawn and deleted on stop, without reaching into actor internals
-    * (unavailable on a Typed `Behavior`).
+  /** Snapshot of files matching `glob` currently in `testSnapWorkDir` — the injected replacement for the production
+    * `${datadir}/snap-work` dir. Used to detect the coordinator's spill files being created on spawn, without reaching
+    * into actor internals (unavailable on a Typed `Behavior`).
     */
-  private def contractAccountsFiles(): Set[java.nio.file.Path] =
-    val tmpDir = java.nio.file.Paths.get(System.getProperty("java.io.tmpdir"))
-    if java.nio.file.Files.isDirectory(tmpDir) then
-      val stream = java.nio.file.Files.newDirectoryStream(tmpDir, "fukuii-contract-accounts-*.bin")
-      try
-        import scala.jdk.CollectionConverters.*
-        stream.asScala.toSet
-      finally stream.close()
-    else Set.empty
+  private def snapWorkFiles(glob: String): Set[java.nio.file.Path] =
+    val stream = java.nio.file.Files.newDirectoryStream(testSnapWorkDir, glob)
+    try
+      import scala.jdk.CollectionConverters.*
+      stream.asScala.toSet
+    finally stream.close()
 
-  it should "delete contractAccountsFile on stop (onStop must run all 4 cleanup steps, not just the first)" taggedAs UnitTest in {
+  it should "create contractStorageFile and uniqueCodeHashesFile inside the injected snapWorkDir on spawn" taggedAs UnitTest in {
     val stateRoot = kec256(ByteString("test-state-root-cleanup"))
     val storage = new TestMptStorage()
     val requestTracker = new SNAPRequestTracker()(classicSystem.scheduler)
     val networkPeerManager = testKit.createTestProbe[NetworkPeerManagerActor.Command]()
     val snapSyncController = testKit.createTestProbe[SNAPSyncController.Command]()
 
-    val before = contractAccountsFiles()
+    val storageBefore = snapWorkFiles("fukuii-contract-storage-*.bin")
+    val codeHashesBefore = snapWorkFiles("fukuii-unique-codehashes-*.bin")
 
-    val coordinator = arcProps(
+    arcProps(
       stateRoot = stateRoot,
       networkPeerManager = networkPeerManager.ref,
       requestTracker = requestTracker,
@@ -731,22 +709,15 @@ class AccountRangeCoordinatorSpec
     )
 
     // `testKit.spawn` returns once the actor is registered, not once its `Behaviors.setup` factory
-    // body (which creates the spill file) has actually run — that body executes asynchronously on the
-    // dispatcher. Poll until the new `fukuii-contract-accounts-*` temp file shows up rather than
-    // asserting immediately.
-    val spillFile = eventually(timeout(3.seconds), interval(100.millis)) {
-      val created = contractAccountsFiles() -- before
-      created should have size 1
-      created.head
-    }
-    java.nio.file.Files.exists(spillFile) shouldBe true
-
-    // `onStop()` runs inside the `PostStop` signal handler, which is likewise dispatched
-    // asynchronously — poll for the file's removal instead of asserting immediately after
-    // `testKit.stop` returns.
-    testKit.stop(coordinator)
-
+    // body (which creates the spill files) has actually run — that body executes asynchronously on
+    // the dispatcher. Poll until both new spill files show up in the injected `snapWorkDir` rather
+    // than asserting immediately.
     eventually(timeout(3.seconds), interval(100.millis)) {
-      java.nio.file.Files.exists(spillFile) shouldBe false
+      val newStorageFiles = snapWorkFiles("fukuii-contract-storage-*.bin") -- storageBefore
+      val newCodeHashesFiles = snapWorkFiles("fukuii-unique-codehashes-*.bin") -- codeHashesBefore
+      newStorageFiles should have size 1
+      newCodeHashesFiles should have size 1
+      newStorageFiles.head.getParent shouldBe testSnapWorkDir
+      newCodeHashesFiles.head.getParent shouldBe testSnapWorkDir
     }
   }

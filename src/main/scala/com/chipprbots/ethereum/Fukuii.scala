@@ -19,16 +19,9 @@ object Fukuii extends Logger:
   def main(args: Array[String]): Unit =
     LogManager.getLogManager().reset(); // disable java.util.logging, ie. in legacy parts of jupnp
 
-    // Redirect all JVM temp files to the configured tmpdir (defaults to <datadir>/tmp).
-    // Prevents root SSD from filling up during SNAP sync — RocksDB JNI .so extraction,
-    // contract account temp files, and JFR profiles all land on the same volume as the database.
-    val tmpDir = Paths.get(Config.config.getString("tmpdir"))
-    Files.createDirectories(tmpDir)
-    System.setProperty("java.io.tmpdir", tmpDir.toString)
-
     // Truncate log files so each process starts with a clean log (no stale output from prior runs).
-    // Placed here — after tmpdir is set, before any log.info() call — so the truncation notice
-    // is the first line in each file and nothing from the current process is missed.
+    // Placed here before any log.info() call so the truncation notice is the first line in each
+    // file and nothing from the current process is missed.
     truncateLogs()
 
     // Check for --tui flag to enable console UI (disabled by default)

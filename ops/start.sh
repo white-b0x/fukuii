@@ -88,6 +88,13 @@ fi
 
 mkdir -p "${DATADIR}/logs/heap-dump"
 
+# RocksDB's Java binding dlopen()s its native library after extracting it to a scratch
+# directory; that directory must be exec-able. Point it at an explicit datadir subdir instead
+# of the OS default /tmp (which may be mounted noexec) — see docs/runbooks/known-issues.md
+# Issue 4.
+mkdir -p "${DATADIR}/native-lib"
+export ROCKSDB_SHAREDLIB_DIR="${DATADIR}/native-lib"
+
 exec java \
   "$HEAP_ARG" \
   "$INIT_ARG" \

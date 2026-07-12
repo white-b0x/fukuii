@@ -1870,8 +1870,8 @@ private class SNAPSyncControllerImpl(
           bytecodeCoordinator.foreach(_ ! actors.ByteCodeCoordinator.ForceCompleteByteCodes)
 
   /** Best-effort delete of a persisted SNAP spill file (`contractStorageFile`/`uniqueCodeHashesFile`, written by
-    * `AccountRangeCoordinator` under `fukuii.tmpdir`). Never throws — cleanup failures must not crash the controller or
-    * block sync; a leftover file is only ever a disk-space concern, not a correctness one.
+    * `AccountRangeCoordinator` under `${datadir}/snap-work/`). Never throws — cleanup failures must not crash the
+    * controller or block sync; a leftover file is only ever a disk-space concern, not a correctness one.
     */
   private def deleteSnapSpillFile(pathStr: Option[String], label: String): Unit =
     pathStr.filter(_.nonEmpty).foreach { p =>
@@ -3308,6 +3308,11 @@ private class SNAPSyncControllerImpl(
 
     val storage = getOrCreateMptStorage(currentPivot)
 
+    val snapWorkDir = java.nio.file.Paths
+      .get(com.chipprbots.ethereum.utils.Config.config.getString("datadir"))
+      .resolve("snap-work")
+    java.nio.file.Files.createDirectories(snapWorkDir)
+
     accountRangeCoordinator = Some(
       ctx.spawn(
         Behaviors
@@ -3319,6 +3324,7 @@ private class SNAPSyncControllerImpl(
               mptStorage = storage,
               concurrency = effectiveConcurrency,
               snapSyncController = ctx.self,
+              snapWorkDir = snapWorkDir,
               resumeProgress = resumeProgress,
               initialMaxInFlightPerPeer =
                 5, // Full per-peer budget during AccountRangeSync (storage+bytecode deferred to 0)

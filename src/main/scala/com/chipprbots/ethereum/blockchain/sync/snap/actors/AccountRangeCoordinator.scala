@@ -74,6 +74,7 @@ private class AccountRangeCoordinatorImpl(
     mptStorage: MptStorage,
     concurrency: Int,
     snapSyncController: org.apache.pekko.actor.typed.ActorRef[SNAPSyncController.Command],
+    snapWorkDir: Path,
     resumeProgress: Map[ByteString, ByteString] = Map.empty,
     initialMaxInFlightPerPeer: Int = 5,
     initialResponseBytesConfig: Int = 524288,
@@ -398,20 +399,14 @@ private class AccountRangeCoordinatorImpl(
       }
     else BigInt(0)
 
-  // Contract accounts persisted to temp files to avoid unbounded memory growth.
-  // On ETC mainnet ~20% of ~67M accounts are contracts — ~13M entries × 64 bytes each
-  // would consume ~1.6GB in memory. Writing to disk keeps memory usage near zero.
-  // Each entry is 64 bytes: 32-byte accountHash + 32-byte codeHash (or storageRoot).
-  private val contractAccountsFile: Path = Files.createTempFile("fukuii-contract-accounts-", ".bin")
-  private val contractStorageFile: Path = Files.createTempFile("fukuii-contract-storage-", ".bin")
-  private val contractAccountsOut = new BufferedOutputStream(new FileOutputStream(contractAccountsFile.toFile), 65536)
+  // Contract storage roots persisted to a temp file to avoid unbounded memory growth.
+  // Each entry is 64 bytes: 32-byte accountHash + 32-byte storageRoot.
+  private val contractStorageFile: Path = Files.createTempFile(snapWorkDir, "fukuii-contract-storage-", ".bin")
   private val contractStorageOut = new BufferedOutputStream(new FileOutputStream(contractStorageFile.toFile), 65536)
-  private var contractAccountsCount: Long = 0
   private var contractStorageCount: Long = 0
-  private val ContractEntrySize = 64 // 32 bytes hash + 32 bytes codeHash/storageRoot
+  private val ContractEntrySize = 64 // 32 bytes accountHash + 32 bytes storageRoot
 
   // Unique codeHashes for bytecode download — Bloom filter (~4MB) for dedup + temp file for storage.
-  // At handoff, reads ~64MB (2M × 32 bytes) instead of the 4.7GB contractAccountsFile (73.5M × 64 bytes).
   // Bug 20 fix: the original ask-based handoff timed out (5s) and OOMed when reading the full file.
   implicit private object ByteStringFunnel extends Funnel[ByteString]:
     override def funnel(from: ByteString, into: PrimitiveSink): Unit =
@@ -421,7 +416,7 @@ private class AccountRangeCoordinatorImpl(
     3_000_000,
     0.0001 // ~4MB for 3M expected entries at 0.01% FPR
   )
-  private val uniqueCodeHashesFile: Path = Files.createTempFile("fukuii-unique-codehashes-", ".bin")
+  private val uniqueCodeHashesFile: Path = Files.createTempFile(snapWorkDir, "fukuii-unique-codehashes-", ".bin")
   private val uniqueCodeHashesOut = new BufferedOutputStream(new FileOutputStream(uniqueCodeHashesFile.toFile), 65536)
   private var uniqueCodeHashesCount: Long = 0
 
@@ -565,16 +560,12 @@ private class AccountRangeCoordinatorImpl(
     // here — the controller manages their lifecycle (needed for accounts-complete recovery
     // across process restarts) and deletes them once no longer needed (success,
     // fallback-to-fast-sync, or restart).
-    try contractAccountsOut.close()
-    catch case _: Exception => ()
     try contractStorageOut.close()
     catch case _: Exception => ()
     try uniqueCodeHashesOut.close()
     catch case _: Exception => ()
-    try Files.deleteIfExists(contractAccountsFile)
-    catch case _: Exception => ()
     log.info(
-      s"AccountRangeCoordinator stopped. Downloaded $accountsDownloaded accounts, identified $contractAccountsCount contracts ($uniqueCodeHashesCount unique codeHashes)"
+      s"AccountRangeCoordinator stopped. Downloaded $accountsDownloaded accounts, identified $contractStorageCount contracts ($uniqueCodeHashesCount unique codeHashes)"
     )
 
   /** Collect current task positions and send to controller for resume across restarts. */
@@ -841,12 +832,6 @@ private class AccountRangeCoordinatorImpl(
           replyTo ! calculateProgress()
           Behaviors.same
 
-        case AccountGetContractAccounts(replyTo) =>
-          replyTo ! ContractAccountsResponse(
-            readContractFile(contractAccountsFile, contractAccountsOut, contractAccountsCount)
-          )
-          Behaviors.same
-
         case AccountGetContractStorageAccounts(replyTo) =>
           replyTo ! ContractStorageAccountsResponse(
             readContractFile(contractStorageFile, contractStorageOut, contractStorageCount)
@@ -969,12 +954,6 @@ private class AccountRangeCoordinatorImpl(
 
       case AccountGetProgress(replyTo) =>
         replyTo ! calculateProgress()
-        Behaviors.same
-
-      case AccountGetContractAccounts(replyTo) =>
-        replyTo ! ContractAccountsResponse(
-          readContractFile(contractAccountsFile, contractAccountsOut, contractAccountsCount)
-        )
         Behaviors.same
 
       case AccountGetContractStorageAccounts(replyTo) =>
@@ -1529,9 +1508,6 @@ private class AccountRangeCoordinatorImpl(
 
     accounts.foreach { case (accountHash, account) =>
       if account.codeHash != Account.EmptyCodeHash then
-        // Write 32-byte accountHash + 32-byte codeHash to bytecode file (crash recovery)
-        contractAccountsOut.write(accountHash.toArray.padTo(32, 0.toByte), 0, 32)
-        contractAccountsOut.write(account.codeHash.value.toArray.padTo(32, 0.toByte), 0, 32)
         // Write 32-byte accountHash + 32-byte storageRoot to storage file (crash recovery)
         contractStorageOut.write(accountHash.toArray.padTo(32, 0.toByte), 0, 32)
         contractStorageOut.write(account.storageRoot.toArray.padTo(32, 0.toByte), 0, 32)
@@ -1552,14 +1528,12 @@ private class AccountRangeCoordinatorImpl(
     }
 
     if count > 0 then
-      contractAccountsCount += count
       contractStorageCount += count
       // Flush file streams (crash recovery path)
-      contractAccountsOut.flush()
       contractStorageOut.flush()
       uniqueCodeHashesOut.flush()
       log.info(
-        s"Identified $count contract accounts (total: $contractAccountsCount, unique codeHashes: $uniqueCodeHashesCount)"
+        s"Identified $count contract accounts (total: $contractStorageCount, unique codeHashes: $uniqueCodeHashesCount)"
       )
 
     // Geth-aligned: dispatch contract data inline to controller → bytecode/storage coordinators.
@@ -1660,7 +1634,7 @@ private class AccountRangeCoordinatorImpl(
       tasksPending = pendingTasks.size,
       progress = progress,
       elapsedTimeMs = elapsedMs,
-      contractAccountsFound = contractAccountsCount
+      contractAccountsFound = contractStorageCount
     )
 
   private def isComplete: Boolean =
@@ -1712,9 +1686,6 @@ object AccountRangeCoordinator:
   case object GetProgress extends Command
   case class AccountGetProgress(replyTo: org.apache.pekko.actor.typed.ActorRef[AccountRangeStats]) extends Command
   case object GetContractAccounts extends Command
-  case class AccountGetContractAccounts(replyTo: org.apache.pekko.actor.typed.ActorRef[ContractAccountsResponse])
-      extends Command
-  case class ContractAccountsResponse(accounts: Seq[(ByteString, ByteString)]) extends Command
   case object GetContractStorageAccounts extends Command
   case class AccountGetContractStorageAccounts(
       replyTo: org.apache.pekko.actor.typed.ActorRef[ContractStorageAccountsResponse]
@@ -1789,6 +1760,7 @@ object AccountRangeCoordinator:
       mptStorage: MptStorage,
       concurrency: Int,
       snapSyncController: org.apache.pekko.actor.typed.ActorRef[SNAPSyncController.Command],
+      snapWorkDir: Path,
       resumeProgress: Map[ByteString, ByteString] = Map.empty,
       initialMaxInFlightPerPeer: Int = 5,
       initialResponseBytes: Int = 524288,
@@ -1808,6 +1780,7 @@ object AccountRangeCoordinator:
           mptStorage = mptStorage,
           concurrency = concurrency,
           snapSyncController = snapSyncController,
+          snapWorkDir = snapWorkDir,
           resumeProgress = resumeProgress,
           initialMaxInFlightPerPeer = initialMaxInFlightPerPeer,
           initialResponseBytesConfig = initialResponseBytes,
