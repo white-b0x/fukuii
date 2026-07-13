@@ -48,9 +48,18 @@ The NUC is resource-constrained; do NOT fan out a dozens-of-agents Workflow.
   `git -C <repo> log upstream …` / read the `upstream` ref; NEVER `git log --all` or read/checkout
   `main`/`origin/main`; sanity-check any suspicious commit with `git merge-base --is-ancestor <sha> upstream`
   (fails → overlay-only, ignore for the reference finding). (erigon/reth/go-ethereum: `main`==`upstream`, clean.)
-  **Known contamination to fix:** the core-geth ORIENTATION docs were documented at overlaid `main`
-  (`b28aa0a0`) — re-verify their Olympia/ECIP-1111/1122 claims against `upstream` core-geth (besu/nethermind
-  orientation docs used `upstream`, clean).
+  **core-geth is INVERTED (operator 2026-07-13):** its `upstream` = the **DEPRECATED Sept-2024** branch (the
+  last *independent* core-geth — sunset, but still the **frozen ETC byte-authority** for ECIP-1017/1099/1100/
+  1041/1010). Its `main` = **fukuii's live ETC MODERNIZATION sprint** (Olympia ECIP-1111/1112/1121/1122,
+  treasury-ordering, ECIP-1122) — fukuii's OWN forward work → belongs to the **fukuii audit (Phase 3-4)**, not
+  reference findings. Reference research still reads `upstream`.
+  **Known contamination to FIX:** the core-geth ORIENTATION docs were documented at overlaid `main`
+  (`b28aa0a0`) — their **Olympia/ECIP-1111/1112/1121/1122** claims may be fukuii's modernization, not
+  upstream(deprecated) core-geth. Re-verify vs `upstream`; attribute Olympia to fukuii's `main` where absent
+  upstream. (besu/nethermind orientation docs used `upstream`, clean.)
+  **ETC landscape:** core-geth deprecated (Sept 2024) + besu removed ETC (Feb 2026) → maintained ETC clients
+  are sunsetting; **fukuii is the successor.** References frozen-but-rich: upstream(deprecated) core-geth
+  (values) + besu-history 2019–2026 (JVM structure) + geth pre-merge (ancestral Ethash).
 - **Secondary NON-EVM PoW client sources (for mining-protocol + PoW-specific angles only):**
   `/media/dev/2tb/dev/reference-clients-pow/{bitcoin,monero,zcash}` (+ monero-gui). NOT documented via the
   14-slot EVM taxonomy — consulted for **targeted PoW questions**: the **mining-protocol layer** (getWork /
