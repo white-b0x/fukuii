@@ -207,3 +207,16 @@ _Partial credit already banked (fold into the relevant cells when Phase 1 formal
 engine-axis research already covers `consensus-engines` engine-selection for core-geth/besu/geth/erigon/
 nethermind/reth (`.local/docs/research-july/b7.0-engine-axis-decision.md`) — migrate that into
 `{client}/consensus-engines.md` + `observations/consensus-engines.md` rather than re-deriving._
+
+**Cross-cutting Phase-2 theme to crystallize (operator 2026-07-13): "CSP/JVM structure → Pekko Typed migration
+target."** No reference client uses actors (Go channels, C# async, Rust tokio, besu Vert.x/services), so there
+is NO Classic→Typed *framework* to import — that mechanics lives in fukuii's own `loom` agent +
+`pekko-typed-api.md`. But the clients inform the *target architecture* the Typed migration should adopt:
+geth/erigon **channel-ownership** = the actor-granularity litmus (one goroutine's exclusive state → one Typed
+actor); besu **ServiceManager constructor-injected services** = pass typed `ActorRef[Command]` at spawn, not
+lookup; besu **Lifecycle FSM** = behavior-as-state-machine; besu **ProtocolSpec** = immutable per-fork bundle
+actors reference (no mutable fork state in the actor); typed message DTOs = sealed Command ADT + replyTo. Also
+sbt: besu versionless-submodule BOM → single version source (`project/Dependencies.scala`); erigon module
+boundary at the process/gRPC hop → product-family seams. Effect systems (Cats Effect) are NOT in any reference
+client → Typelevel ecosystem is the reference, not the EVM clients. Each `{client}` doc's "fukuii takeaway"
+lines accumulate this; the comparison pass names it as a standalone observation.
