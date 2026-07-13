@@ -227,7 +227,9 @@ class OlympiaBlockHeaderValidationSpec
           extraData = baseExtraData,
           extraFields = HefPostEip1559(BaseFeePerGas(BigInt(7)))
         )
-        MockedPowBlockHeaderValidator.validate(child, emptyParent)(configFloorZero) shouldBe Right(BlockHeaderValid)
+        MockedPowBlockHeaderValidator.validate(child, emptyParent)(using configFloorZero) shouldBe Right(
+          BlockHeaderValid
+        )
       }
     }
   }

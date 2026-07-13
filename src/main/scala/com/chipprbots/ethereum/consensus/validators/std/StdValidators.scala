@@ -35,7 +35,7 @@ final class StdValidators(
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack,
       headerValidator: BlockHeaderValidator
-  )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
+  )(using blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
     StdValidators.validateBlockBeforeExecution(
       self = this,
       block = block,
@@ -49,7 +49,7 @@ final class StdValidators(
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: GasAmount
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] =
     StdValidators.validateBlockAfterExecution(
       self = this,
       block = block,
@@ -65,7 +65,7 @@ object StdValidators:
       getBlockHeaderByHash: GetBlockHeaderByHash,
       @unused getNBlocksBack: GetNBlocksBack,
       headerValidator: BlockHeaderValidator
-  )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
+  )(using blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
 
     val header = block.header
     val body = block.body

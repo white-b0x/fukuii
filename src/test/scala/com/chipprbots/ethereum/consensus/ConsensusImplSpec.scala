@@ -165,7 +165,7 @@ class ConsensusImplSpec extends AnyFlatSpec with Matchers with ScalaFutures with
 
     // Set up stub behavior
     (blockExecution
-      .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
+      .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(using _: BlockchainConfig))
       .when(*, *, *)
       .anyNumberOfTimes()
       .onCall { (blocks, _, _) =>

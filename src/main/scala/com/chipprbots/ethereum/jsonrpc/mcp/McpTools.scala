@@ -64,7 +64,7 @@ object NodeStatusTool:
     "Get the current status of the Fukuii node including sync state, peer count, and block numbers"
   )
 
-  def execute(deps: McpDependencies)(implicit timeout: Timeout, @unused ec: ExecutionContext): IO[String] =
+  def execute(deps: McpDependencies)(using timeout: Timeout)(implicit @unused ec: ExecutionContext): IO[String] =
     given scheduler: typed.Scheduler = deps.scheduler
     val syncStatusIO = deps.syncController.askForTyped[SyncProtocol.Status](replyTo =>
       SyncController.WrappedSyncProtocol(SyncProtocol.GetStatus(replyTo))
@@ -131,7 +131,7 @@ object SyncStatusTool:
     "Get detailed synchronization status including mode, progress, and remaining blocks"
   )
 
-  def execute(deps: McpDependencies)(implicit timeout: Timeout, @unused ec: ExecutionContext): IO[String] =
+  def execute(deps: McpDependencies)(using timeout: Timeout)(implicit @unused ec: ExecutionContext): IO[String] =
     given scheduler: typed.Scheduler = deps.scheduler
     deps.syncController
       .askForTyped[SyncProtocol.Status](replyTo => SyncController.WrappedSyncProtocol(SyncProtocol.GetStatus(replyTo)))
@@ -175,7 +175,7 @@ object PeerListTool:
     "List all connected peers with their addresses, status, and connection direction"
   )
 
-  def execute(deps: McpDependencies)(implicit timeout: Timeout, @unused ec: ExecutionContext): IO[String] =
+  def execute(deps: McpDependencies)(using timeout: Timeout)(implicit @unused ec: ExecutionContext): IO[String] =
     given scheduler: typed.Scheduler = deps.scheduler
     deps.peerManager
       .askForTyped[PeerManagerActor.Peers](PeerManagerActor.GetPeersCmd(_))
@@ -574,7 +574,7 @@ object McpToolRegistry:
       toolName: String,
       arguments: Option[JValue],
       deps: McpDependencies
-  )(implicit timeout: Timeout, ec: ExecutionContext): IO[String] =
+  )(using timeout: Timeout)(implicit ec: ExecutionContext): IO[String] =
     toolName match
       case NodeStatusTool.name       => NodeStatusTool.execute(deps)
       case NodeInfoTool.name         => NodeInfoTool.execute(deps)

@@ -39,7 +39,7 @@ class BlockExecution(
   def executeAndValidateBlock(
       block: Block,
       alreadyValidated: Boolean = false
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] =
     executeAndValidateBlockFull(block, alreadyValidated).map(_._1)
 
   /** Variant that also returns the EIP-7685 execution requests derived from block execution (deposits from receipts +
@@ -49,7 +49,7 @@ class BlockExecution(
   def executeAndValidateBlockFull(
       block: Block,
       alreadyValidated: Boolean = false
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, (Seq[Receipt], Seq[ByteString])] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockExecutionError, (Seq[Receipt], Seq[ByteString])] =
     val preExecValidationResult =
       if alreadyValidated then Right(block) else blockValidation.validateBlockBeforeExecution(block)
 
@@ -75,7 +75,7 @@ class BlockExecution(
     */
   def executeBlockNoValidation(
       block: Block
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, (Seq[Receipt], GasAmount, ByteString)] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockExecutionError, (Seq[Receipt], GasAmount, ByteString)] =
     executeBlock(block).map { result =>
       (result.receipts, result.gasUsed, result.worldState.stateRootHash)
     }
@@ -93,14 +93,14 @@ class BlockExecution(
     */
   def executeForProposer(
       block: Block
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockResult] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockResult] =
     executeBlock(block, isProposer = true)
 
   /** Executes a block (executes transactions and pays rewards) */
   private def executeBlock(
       block: Block,
       isProposer: Boolean = false
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockResult] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockResult] =
     try
       for
         parentHeader <- blockchainReader
@@ -130,7 +130,7 @@ class BlockExecution(
       )
     catch case e: MPTException => Left(BlockExecutionError.MPTError(e))
 
-  protected def buildInitialWorld(block: Block, parentHeader: BlockHeader, isProposer: Boolean = false)(implicit
+  protected def buildInitialWorld(block: Block, parentHeader: BlockHeader, isProposer: Boolean = false)(using
       blockchainConfig: BlockchainConfig
   ): InMemoryWorldStateProxy =
     // `isProposer` originally switched to `getReadOnlyMptStorage()` to keep proposer-mode tx
@@ -160,7 +160,7 @@ class BlockExecution(
   protected[ledger] def executeBlockTransactions(
       block: Block,
       initialWorld: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockResult] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockResult] =
     val blockHeaderNumber = block.header.number.value
     executeBlockTransactions(block, blockHeaderNumber, initialWorld)
 
@@ -168,7 +168,7 @@ class BlockExecution(
       block: Block,
       blockHeaderNumber: BigInt,
       initialWorld: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError.TxsExecutionError, BlockResult] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockExecutionError.TxsExecutionError, BlockResult] =
     val worldAfterDao = blockchainConfig.daoForkConfig match
       case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(BlockNumber(blockHeaderNumber)) =>
         drainDaoForkAccounts(initialWorld, daoForkConfig)
@@ -202,7 +202,7 @@ class BlockExecution(
   private def applyEip4788(
       block: Block,
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
+  )(using blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
     import BlockExecution.*
     // Only apply post-Cancun (when parentBeaconBlockRoot is present)
     block.header.parentBeaconBlockRoot match
@@ -239,7 +239,7 @@ class BlockExecution(
   private def applyEip2935(
       block: Block,
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
+  )(using blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
     import BlockExecution.*
     val blockNumber = block.header.number.value
     // EIP-2935 activates at Prague on ETH chains (timestamp fork), or at Olympia on ETC chains (block number fork).
@@ -305,7 +305,7 @@ class BlockExecution(
   def executeAndValidateBlocks(
       blocks: List[Block],
       parentChainWeight: ChainWeight
-  )(implicit blockchainConfig: BlockchainConfig): (List[BlockData], Option[BlockExecutionError]) =
+  )(using blockchainConfig: BlockchainConfig): (List[BlockData], Option[BlockExecutionError]) =
     @tailrec
     def go(
         executedBlocksDecOrder: List[BlockData],
@@ -366,7 +366,7 @@ class BlockExecution(
   private def processPragueSystemCalls(
       block: Block,
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): (InMemoryWorldStateProxy, Seq[ByteString]) =
+  )(using blockchainConfig: BlockchainConfig): (InMemoryWorldStateProxy, Seq[ByteString]) =
     if !blockchainConfig.isPragueTimestamp(block.header.unixTimestamp) then return (world, Nil)
 
     import BlockExecution.*
@@ -420,7 +420,7 @@ class BlockExecution(
     */
   def collectDepositRequests(
       receipts: Seq[Receipt]
-  )(implicit blockchainConfig: BlockchainConfig): Option[ByteString] =
+  )(using blockchainConfig: BlockchainConfig): Option[ByteString] =
     import BlockExecution.*
     // EIP-6110: the deposit contract address is network-specific (mainnet vs Sepolia), so read it
     // from config rather than a hardcoded literal. On Sepolia the wrong address would silently drop

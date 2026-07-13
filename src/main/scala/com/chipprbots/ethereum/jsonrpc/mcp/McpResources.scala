@@ -30,7 +30,7 @@ object NodeStatusResource:
   val description: Some[String] = Some("Current status of the Fukuii node including sync state and peer count")
   val mimeType: Some[String] = Some("application/json")
 
-  def read(deps: McpDependencies)(implicit timeout: Timeout, @unused ec: ExecutionContext): IO[String] =
+  def read(deps: McpDependencies)(using timeout: Timeout)(implicit @unused ec: ExecutionContext): IO[String] =
     given scheduler: typed.Scheduler = deps.scheduler
     val syncStatusIO = deps.syncController.askForTyped[SyncProtocol.Status](replyTo =>
       SyncController.WrappedSyncProtocol(SyncProtocol.GetStatus(replyTo))
@@ -97,7 +97,7 @@ object SyncStatusResource:
   val description: Some[String] = Some("Current blockchain synchronization status and progress")
   val mimeType: Some[String] = Some("application/json")
 
-  def read(deps: McpDependencies)(implicit timeout: Timeout, @unused ec: ExecutionContext): IO[String] =
+  def read(deps: McpDependencies)(using timeout: Timeout)(implicit @unused ec: ExecutionContext): IO[String] =
     given scheduler: typed.Scheduler = deps.scheduler
     deps.syncController
       .askForTyped[SyncProtocol.Status](replyTo => SyncController.WrappedSyncProtocol(SyncProtocol.GetStatus(replyTo)))
@@ -145,7 +145,7 @@ object ConnectedPeersResource:
   val description: Some[String] = Some("List of currently connected peers with addresses and status")
   val mimeType: Some[String] = Some("application/json")
 
-  def read(deps: McpDependencies)(implicit timeout: Timeout, @unused ec: ExecutionContext): IO[String] =
+  def read(deps: McpDependencies)(using timeout: Timeout)(implicit @unused ec: ExecutionContext): IO[String] =
     given scheduler: typed.Scheduler = deps.scheduler
     deps.peerManager
       .askForTyped[PeerManagerActor.Peers](PeerManagerActor.GetPeersCmd(_))
@@ -383,7 +383,7 @@ object McpResourceRegistry:
   def readResource(
       uri: String,
       deps: McpDependencies
-  )(implicit timeout: Timeout, ec: ExecutionContext): Either[String, IO[String]] =
+  )(using timeout: Timeout)(implicit ec: ExecutionContext): Either[String, IO[String]] =
     uri match
       case NodeStatusResource.uri     => Right(NodeStatusResource.read(deps))
       case NodeConfigResource.uri     => Right(NodeConfigResource.read(deps))

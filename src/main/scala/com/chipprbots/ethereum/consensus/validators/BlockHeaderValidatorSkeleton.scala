@@ -35,7 +35,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
 
   /** A hook where even more consensus-specific validation can take place. For example, PoW validation is done here.
     */
-  protected def validateEvenMore(blockHeader: BlockHeader)(implicit
+  protected def validateEvenMore(blockHeader: BlockHeader)(using
       blockchainConfig: BlockchainConfig
   ): Either[BlockHeaderError, BlockHeaderValid]
 
@@ -46,7 +46,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
     * @param parentHeader
     *   BlockHeader of the parent of the block to validate.
     */
-  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader)(implicit
+  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader)(using
       blockchainConfig: BlockchainConfig
   ): Either[BlockHeaderError, BlockHeaderValid] =
     for
@@ -70,7 +70,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
   private def validateBlobGasAgainstParent(
       blockHeader: BlockHeader,
       parentHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     import com.chipprbots.ethereum.consensus.pos.BlobGasUtils
     (blockHeader.blobGasUsed, blockHeader.excessBlobGas) match
       case (Some(used), Some(excess)) =>
@@ -103,7 +103,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
   override def validate(
       blockHeader: BlockHeader,
       getBlockHeaderByHash: GetBlockHeaderByHash
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     for
       blockHeaderParent <- getBlockHeaderByHash(blockHeader.parentHash.value)
         .map(Right(_))
@@ -122,7 +122,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
     */
   protected def validateExtraData(
       blockHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
 
     def validateDaoForkExtraData(
         blockHeader: BlockHeader,
@@ -171,7 +171,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
   private def validateDifficulty(
       blockHeader: BlockHeader,
       parent: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     if blockHeader.difficulty == Difficulty.Zero then
       // Post-merge: difficulty is always 0 (EIP-3675). Pre-merge blocks never have difficulty=0
       // because the Ethash difficulty algorithm always produces a positive value.
@@ -248,7 +248,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
     */
   private def validateExtraFields(
       blockHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     val isEip1559Activated = blockHeader.number >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber
 
     blockHeader.extraFields match
@@ -266,7 +266,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
   private def validateBaseFee(
       blockHeader: BlockHeader,
       parentHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     val isEip1559Activated = blockHeader.number >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber
     if !isEip1559Activated then Right(BlockHeaderValid)
     else
@@ -286,7 +286,7 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
 
   override def validateHeaderOnly(
       blockHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     for
       _ <- validateExtraData(blockHeader)
       _ <- validateGasUsed(blockHeader)

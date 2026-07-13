@@ -75,7 +75,9 @@ class EthashBlockHeaderValidatorSpec
     }.toSeq.flatten
 
     forAll(cases) { (blockHeader, parentBlock, supportsDaoFork, valid) =>
-      PoWBlockHeaderValidator.validate(blockHeader, parentBlock.header)(createBlockchainConfig(supportsDaoFork)) match
+      PoWBlockHeaderValidator.validate(blockHeader, parentBlock.header)(using
+        createBlockchainConfig(supportsDaoFork)
+      ) match
         case Right(_)                      => assert(valid)
         case Left(DaoHeaderExtraDataError) => assert(!valid)
         case _                             => fail()

@@ -47,7 +47,7 @@ class GenesisDataLoader(
 
   private val emptyTrieRootHash = ByteString(crypto.kec256(rlp.encode(Array.empty[Byte])))
 
-  def loadGenesisData()(implicit blockchainConfig: BlockchainConfig): Unit =
+  def loadGenesisData()(using blockchainConfig: BlockchainConfig): Unit =
     log.debug("Loading genesis data")
 
     val genesisJson = blockchainConfig.customGenesisJsonOpt.getOrElse {
@@ -81,7 +81,7 @@ class GenesisDataLoader(
         log.error("Unable to load genesis data", ex)
         throw ex
 
-  private def loadGenesisData(genesisJson: String)(implicit blockchainConfig: BlockchainConfig): Try[Unit] =
+  private def loadGenesisData(genesisJson: String)(using blockchainConfig: BlockchainConfig): Try[Unit] =
     import org.json4s.native.JsonMethods.parse
     import GenesisDataLoader.JsonSerializers.GenesisAccountSerializer
     given formats: Formats =
@@ -91,7 +91,7 @@ class GenesisDataLoader(
       _ <- loadGenesisData(genesisData)
     yield ()
 
-  def loadGenesisData(genesisData: GenesisData)(implicit blockchainConfig: BlockchainConfig): Try[Unit] =
+  def loadGenesisData(genesisData: GenesisData)(using blockchainConfig: BlockchainConfig): Try[Unit] =
 
     val storage = stateStorage.getReadOnlyStorage
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
@@ -123,7 +123,7 @@ class GenesisDataLoader(
         )
         Success(())
 
-  private def getGenesisStateRoot(genesisData: GenesisData, initalRootHash: Array[Byte], storage: MptStorage)(implicit
+  private def getGenesisStateRoot(genesisData: GenesisData, initalRootHash: Array[Byte], storage: MptStorage)(using
       blockchainConfig: BlockchainConfig
   ) =
     import MerklePatriciaTrie.defaultByteArraySerializable
@@ -173,7 +173,7 @@ class GenesisDataLoader(
 
     ByteString(storageTrie.getRootHash)
 
-  private def prepareHeader(genesisData: GenesisData, stateMptRootHash: Array[Byte])(implicit
+  private def prepareHeader(genesisData: GenesisData, stateMptRootHash: Array[Byte])(using
       blockchainConfig: BlockchainConfig
   ) =
     // Determine the fork era for the genesis block based on the genesis timestamp (0)

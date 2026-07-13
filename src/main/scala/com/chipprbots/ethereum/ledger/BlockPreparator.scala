@@ -29,7 +29,7 @@ class BlockPreparator(
 
   // NOTE We need a lazy val here, not a plain val, otherwise a mocked BlockChainConfig
   //      in some irrelevant test can throw an exception.
-  private[ledger] def blockRewardCalculator(implicit blockchainConfig: BlockchainConfig) = new BlockRewardCalculator(
+  private[ledger] def blockRewardCalculator(using blockchainConfig: BlockchainConfig) = new BlockRewardCalculator(
     blockchainConfig.monetaryPolicyConfig,
     blockchainConfig.forkBlockNumbers.byzantiumBlockNumber,
     blockchainConfig.forkBlockNumbers.constantinopleBlockNumber
@@ -51,7 +51,7 @@ class BlockPreparator(
   protected[ethereum] def payBlockReward(
       block: Block,
       worldStateProxy: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
+  )(using blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
     // Post-merge: no PoW rewards, no ommer rewards. EIP-4895 withdrawals are applied by
     // BlockExecution.processWithdrawals after payBlockReward returns; applying them here
     // too would double-credit every withdrawal and break state-root validation.
@@ -90,7 +90,7 @@ class BlockPreparator(
       blockHeader: BlockHeader,
       treasuryAddress: Address,
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
+  )(using blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
     val isEip1559Activated = blockHeader.number >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber
     if !isEip1559Activated then world
     else
@@ -147,7 +147,7 @@ class BlockPreparator(
       senderAddress: Address,
       worldStateProxy: InMemoryWorldStateProxy,
       blockHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
+  )(using blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     val blobGasCost = stx.tx match
       case bt: com.chipprbots.ethereum.domain.BlobTransaction =>
@@ -204,7 +204,7 @@ class BlockPreparator(
       senderAddress: Address,
       blockHeader: BlockHeader,
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy = stx.tx match
+  )(using blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy = stx.tx match
     case bt: com.chipprbots.ethereum.domain.BlobTransaction =>
       val blobGasUsed = BigInt(bt.blobVersionedHashes.size) * BigInt(131072)
       // Compute blob base fee from header's excessBlobGas using fork-correct update fraction.
@@ -222,7 +222,7 @@ class BlockPreparator(
       blockHeader: BlockHeader,
       world: InMemoryWorldStateProxy,
       tracer: Option[com.chipprbots.ethereum.vm.ExecutionTracer] = None
-  )(implicit blockchainConfig: BlockchainConfig): PR =
+  )(using blockchainConfig: BlockchainConfig): PR =
     val evmConfig = EvmConfig.forBlock(blockHeader.number, blockHeader.unixTimestamp, blockchainConfig)
     val context: PC = ProgramContext(stx, blockHeader, senderAddress, world, evmConfig)
     // Apply simulation flags if set (for eth_simulateV1)
@@ -247,7 +247,7 @@ class BlockPreparator(
       blockHeader: BlockHeader,
       world: InMemoryWorldStateProxy,
       tracer: ExecutionTracer
-  )(implicit blockchainConfig: BlockchainConfig): PR =
+  )(using blockchainConfig: BlockchainConfig): PR =
     val tracerVm = new VMImpl(Some(tracer))
     val evmConfig = EvmConfig.forBlock(blockHeader.number, blockHeader.unixTimestamp, blockchainConfig)
     val context: PC = ProgramContext(stx, blockHeader, senderAddress, world, evmConfig)
@@ -267,7 +267,7 @@ class BlockPreparator(
       stx: SignedTransaction,
       result: PR,
       blockNumber: BlockNumber
-  )(implicit blockchainConfig: BlockchainConfig): GasAmount =
+  )(using blockchainConfig: BlockchainConfig): GasAmount =
     result.error.map(_.useWholeGas) match
       case Some(true)  => GasAmount.Zero
       case Some(false) => result.gasRemaining
@@ -282,14 +282,14 @@ class BlockPreparator(
 
   private[ledger] def increaseAccountBalance(address: Address, value: UInt256)(
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
+  )(using blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
     val account =
       world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
     world.saveAccount(address, account)
 
   private[ledger] def pay(address: Address, value: UInt256, withTouch: Boolean)(
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
+  )(using blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
     // EIP-161: zero-value transfers to non-existent accounts are a no-op (they
     // must not materialise the account). All other zero-value payments still
     // count as touches when withTouch=true — an existing empty account that
@@ -332,7 +332,7 @@ class BlockPreparator(
     */
   private[ledger] def deleteEmptyTouchedAccounts(
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
+  )(using blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
     def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) =
       if world.getAccount(address).exists(_.isEmpty(blockchainConfig.accountStartNonce)) then
         world.deleteAccount(address)
@@ -353,7 +353,7 @@ class BlockPreparator(
       precompileRelocations: Map[Address, Address] = Map.empty,
       traceTransfers: Boolean = false,
       blobBaseFeeOverride: Option[BigInt] = None
-  )(implicit blockchainConfig: BlockchainConfig): TxResult =
+  )(using blockchainConfig: BlockchainConfig): TxResult =
     // Store simulation flags temporarily for runVM to pick up
     _simulatePrecompileRelocations = precompileRelocations
     _simulateTraceTransfers = traceTransfers
@@ -374,7 +374,7 @@ class BlockPreparator(
       senderAddress: Address,
       blockHeader: BlockHeader,
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): TxResult =
+  )(using blockchainConfig: BlockchainConfig): TxResult =
     log.debug(s"Transaction ${stx.hash.toHex} execution start")
     val gasPrice = UInt256(Transaction.effectiveGasPrice(stx.tx, blockHeader.baseFee))
     val gasLimit = stx.tx.gasLimit
@@ -523,7 +523,7 @@ class BlockPreparator(
       blockHeader: BlockHeader,
       acumGas: BigInt = 0,
       acumReceipts: Seq[Receipt] = Nil
-  )(implicit blockchainConfig: BlockchainConfig): Either[TxsExecutionError, BlockResult] =
+  )(using blockchainConfig: BlockchainConfig): Either[TxsExecutionError, BlockResult] =
     signedTransactions match
       case Nil =>
         Right(BlockResult(worldState = world, gasUsed = GasAmount(acumGas), receipts = acumReceipts))
@@ -603,7 +603,7 @@ class BlockPreparator(
       acumGas: BigInt = 0,
       acumReceipts: Seq[Receipt] = Nil,
       executed: Seq[SignedTransaction] = Nil
-  )(implicit blockchainConfig: BlockchainConfig): (BlockResult, Seq[SignedTransaction]) =
+  )(using blockchainConfig: BlockchainConfig): (BlockResult, Seq[SignedTransaction]) =
 
     val result = executeTransactions(signedTransactions, world, blockHeader, acumGas, acumReceipts)
 
@@ -626,7 +626,7 @@ class BlockPreparator(
       block: Block,
       parent: BlockHeader,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  )(implicit blockchainConfig: BlockchainConfig): PreparedBlock =
+  )(using blockchainConfig: BlockchainConfig): PreparedBlock =
 
     val initialWorld =
       initialWorldStateBeforeExecution.getOrElse(
@@ -661,7 +661,7 @@ class BlockPreparator(
   private def applyAuthorizationsWithRefund(
       authList: List[SetCodeAuthorization],
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): (InMemoryWorldStateProxy, BigInt) =
+  )(using blockchainConfig: BlockchainConfig): (InMemoryWorldStateProxy, BigInt) =
     authList.foldLeft((world, BigInt(0))) { case ((w, refund), auth) =>
       // Recover authority to check existence (needed for refund even if auth is invalid)
       val authorityOpt = recoverAuthority(auth)
@@ -676,7 +676,7 @@ class BlockPreparator(
   /** Recover authority address from authorization signature (for gas accounting) */
   private def recoverAuthority(
       auth: SetCodeAuthorization
-  )(implicit blockchainConfig: BlockchainConfig): Option[Address] =
+  )(using blockchainConfig: BlockchainConfig): Option[Address] =
     import com.chipprbots.ethereum.crypto.ECDSASignature
     import com.chipprbots.ethereum.rlp.{encode, PrefixedRLPEncodable, RLPList}
     import com.chipprbots.ethereum.rlp.RLPImplicitConversions.toEncodeable
@@ -707,7 +707,7 @@ class BlockPreparator(
   private def applyAuthorization(
       auth: SetCodeAuthorization,
       world: InMemoryWorldStateProxy
-  )(implicit blockchainConfig: BlockchainConfig): Option[InMemoryWorldStateProxy] =
+  )(using blockchainConfig: BlockchainConfig): Option[InMemoryWorldStateProxy] =
     import com.chipprbots.ethereum.crypto.ECDSASignature
     import com.chipprbots.ethereum.rlp.{encode, PrefixedRLPEncodable, RLPList}
     import com.chipprbots.ethereum.rlp.RLPImplicitConversions.toEncodeable

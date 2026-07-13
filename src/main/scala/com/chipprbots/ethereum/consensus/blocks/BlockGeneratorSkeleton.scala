@@ -46,7 +46,7 @@ abstract class BlockGeneratorSkeleton(
       beneficiary: Address,
       blockTimestamp: Timestamp,
       x: Ommers
-  )(implicit blockchainConfig: BlockchainConfig): BlockHeader =
+  )(using blockchainConfig: BlockchainConfig): BlockHeader =
     BlockHeader(
       parentHash = parent.header.hash,
       ommersHash = BlockHash(ByteString(kec256(x.toBytes: Array[Byte]))),
@@ -74,7 +74,7 @@ abstract class BlockGeneratorSkeleton(
       beneficiary: Address,
       blockTimestamp: Timestamp,
       x: X
-  )(implicit blockchainConfig: BlockchainConfig): BlockHeader
+  )(using blockchainConfig: BlockchainConfig): BlockHeader
 
   // scalastyle:off parameter.number
   protected def prepareBlock(
@@ -86,7 +86,7 @@ abstract class BlockGeneratorSkeleton(
       blockPreparator: BlockPreparator,
       x: X,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState =
+  )(using blockchainConfig: BlockchainConfig): PendingBlockAndState =
 
     val blockTimestamp = Timestamp(blockTimestampProvider.getEpochSecond)
     val header = prepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
@@ -127,7 +127,7 @@ abstract class BlockGeneratorSkeleton(
       blockGasLimit: GasAmount,
       blockBaseFee: BigInt = BigInt(0),
       blockNumber: BlockNumber = BlockNumber.Zero
-  )(implicit blockchainConfig: BlockchainConfig): Seq[SignedTransaction] =
+  )(using blockchainConfig: BlockchainConfig): Seq[SignedTransaction] =
 
     // ECIP-1122: filter out txs with effectiveTip < minTip before sorting — but only from
     // Olympia. Pre-Olympia ETC has no base fee; legacy txs are priced by gasPrice alone, and
@@ -191,7 +191,7 @@ abstract class BlockGeneratorSkeleton(
     * begin converging toward 60M at Olympia activation without any config change. The algorithm matches core-geth's
     * CalcGasLimit() and besu's OlympiaTargetingGasLimitCalculator.
     */
-  protected def calculateGasLimit(parentGas: BigInt, blockNumber: BlockNumber)(implicit
+  protected def calculateGasLimit(parentGas: BigInt, blockNumber: BlockNumber)(using
       blockchainConfig: BlockchainConfig
   ): BigInt =
     // The fork-embedded gas schedule (spiral/olympia gas targets) is an ECIP-1121 ETC-only mechanism.

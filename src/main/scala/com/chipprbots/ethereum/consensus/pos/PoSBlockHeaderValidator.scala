@@ -19,7 +19,7 @@ object PoSBlockHeaderValidator extends BlockHeaderValidatorSkeleton:
 
   override protected def validateEvenMore(
       blockHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     for
       _ <- validatePoSDifficulty(blockHeader)
       _ <- validatePoSNonce(blockHeader)
@@ -48,7 +48,7 @@ object PoSBlockHeaderValidator extends BlockHeaderValidatorSkeleton:
 
   private def validateWithdrawalsRoot(
       blockHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     val isShanghaiActive = blockchainConfig.isShanghaiTimestamp(blockHeader.unixTimestamp)
     if isShanghaiActive then
       blockHeader.withdrawalsRoot match
@@ -58,7 +58,7 @@ object PoSBlockHeaderValidator extends BlockHeaderValidatorSkeleton:
 
   private def validateBlobGasFields(
       blockHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     val isCancunActive = blockchainConfig.isCancunTimestamp(blockHeader.unixTimestamp)
     if isCancunActive then
       (blockHeader.blobGasUsed, blockHeader.excessBlobGas, blockHeader.parentBeaconBlockRoot) match

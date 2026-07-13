@@ -105,7 +105,7 @@ object SignedTransaction:
     */
   private def getRawSignature(
       signedTransaction: SignedTransaction
-  )(implicit blockchainConfig: BlockchainConfig): ECDSASignature =
+  )(using blockchainConfig: BlockchainConfig): ECDSASignature =
     signedTransaction.tx match
       case _: LegacyTransaction =>
         val chainIdOpt = extractChainId(signedTransaction)
@@ -265,14 +265,14 @@ object SignedTransaction:
               .mkString(", ")}"
         )
 
-  def getSender(tx: SignedTransaction)(implicit blockchainConfig: BlockchainConfig): Option[Address] =
+  def getSender(tx: SignedTransaction)(using blockchainConfig: BlockchainConfig): Option[Address] =
     Option(txSenders.getIfPresent(tx.hash)).orElse {
       val result = calculateSender(tx)
       result.foreach(address => txSenders.put(tx.hash, address))
       result
     }
 
-  private def calculateSender(tx: SignedTransaction)(implicit blockchainConfig: BlockchainConfig): Option[Address] =
+  private def calculateSender(tx: SignedTransaction)(using blockchainConfig: BlockchainConfig): Option[Address] =
     Try {
       val bytesToSign: Array[Byte] = getBytesToSign(tx)
       val recoveredPublicKey: Option[Array[Byte]] = getRawSignature(tx).publicKey(bytesToSign)
@@ -284,7 +284,7 @@ object SignedTransaction:
       yield Address(addrBytes)
     }.toOption.flatten
 
-  def retrieveSendersInBackGround(blocks: Seq[BlockBody])(implicit blockchainConfig: BlockchainConfig): Unit =
+  def retrieveSendersInBackGround(blocks: Seq[BlockBody])(using blockchainConfig: BlockchainConfig): Unit =
     val blocktx = blocks
       .collect {
         case block if block.transactionList.nonEmpty => block.transactionList
@@ -294,12 +294,12 @@ object SignedTransaction:
 
     IO.parTraverseN(availableProcessors)(blocktx.toSeq)(calculateSendersForTxs).void.unsafeRunAndForget()(ioRuntime)
 
-  private def calculateSendersForTxs(txs: Seq[SignedTransaction])(implicit
+  private def calculateSendersForTxs(txs: Seq[SignedTransaction])(using
       blockchainConfig: BlockchainConfig
   ): IO[Unit] =
     IO(txs.foreach(calculateAndCacheSender))
 
-  private def calculateAndCacheSender(stx: SignedTransaction)(implicit blockchainConfig: BlockchainConfig) =
+  private def calculateAndCacheSender(stx: SignedTransaction)(using blockchainConfig: BlockchainConfig) =
     calculateSender(stx).foreach(address => txSenders.put(stx.hash, address))
 
   /** Transaction specific piece of code. This should be moved to the Signer architecture once available.
@@ -359,7 +359,7 @@ object SignedTransaction:
     * @return
     *   Some(chainId) if available, None if not (unprotected signed transaction)
     */
-  private def extractChainId(stx: SignedTransaction)(implicit blockchainConfig: BlockchainConfig): Option[ChainId] =
+  private def extractChainId(stx: SignedTransaction)(using blockchainConfig: BlockchainConfig): Option[ChainId] =
     val chainIdOpt: Option[ChainId] = stx.tx match
       case _: LegacyTransaction
           if stx.signature.v == ECDSASignature.negativePointSign || stx.signature.v == ECDSASignature.positivePointSign =>
@@ -398,7 +398,7 @@ object SignedTransaction:
     */
   private def getBytesToSign(
       signedTransaction: SignedTransaction
-  )(implicit blockchainConfig: BlockchainConfig): Array[Byte] =
+  )(using blockchainConfig: BlockchainConfig): Array[Byte] =
     signedTransaction.tx match
       case _: LegacyTransaction            => getLegacyBytesToSign(signedTransaction)
       case twal: TransactionWithAccessList => getTWALBytesToSign(twal)
@@ -416,7 +416,7 @@ object SignedTransaction:
     */
   private def getLegacyBytesToSign(
       signedTransaction: SignedTransaction
-  )(implicit blockchainConfig: BlockchainConfig): Array[Byte] =
+  )(using blockchainConfig: BlockchainConfig): Array[Byte] =
     val chainIdOpt = extractChainId(signedTransaction)
     chainIdOpt match
       case None          => generalTransactionBytes(signedTransaction.tx)
@@ -529,7 +529,7 @@ object SignedTransaction:
 
 case class SignedTransaction(tx: Transaction, signature: ECDSASignature):
 
-  def safeSenderIsEqualTo(address: Address)(implicit blockchainConfig: BlockchainConfig): Boolean =
+  def safeSenderIsEqualTo(address: Address)(using blockchainConfig: BlockchainConfig): Boolean =
     SignedTransaction.getSender(this).contains(address)
 
   override def toString: String =
@@ -553,7 +553,7 @@ object SignedTransactionWithSender:
     */
   def getSignedTransactions(
       stxs: Seq[SignedTransaction]
-  )(implicit blockchainConfig: BlockchainConfig): Seq[SignedTransactionWithSender] =
+  )(using blockchainConfig: BlockchainConfig): Seq[SignedTransactionWithSender] =
     // Cheap stateless pre-filters before expensive ECDSA recovery
     val validated = getStatelessValidTransactions(stxs)
 
@@ -569,12 +569,12 @@ object SignedTransactionWithSender:
     */
   def getSignedTransactionsSequential(
       stxs: Seq[SignedTransaction]
-  )(implicit blockchainConfig: BlockchainConfig): Seq[SignedTransactionWithSender] =
+  )(using blockchainConfig: BlockchainConfig): Seq[SignedTransactionWithSender] =
     recoverSenders(getStatelessValidTransactions(stxs))
 
   def getStatelessValidTransactions(
       stxs: Seq[SignedTransaction]
-  )(implicit blockchainConfig: BlockchainConfig): Seq[SignedTransaction] =
+  )(using blockchainConfig: BlockchainConfig): Seq[SignedTransaction] =
     import com.chipprbots.ethereum.vm.EvmConfig
     // Always use the timestamp-aware overload so that on any timestamp-fork network EIP-3860 initcode metering
     // is included in the intrinsic gas check (omitting it under-estimates cost for contract-creation txs
@@ -624,7 +624,7 @@ object SignedTransactionWithSender:
 
   private def recoverSenders(
       stxs: Seq[SignedTransaction]
-  )(implicit blockchainConfig: BlockchainConfig): Seq[SignedTransactionWithSender] =
+  )(using blockchainConfig: BlockchainConfig): Seq[SignedTransactionWithSender] =
     stxs.flatMap { stx =>
       SignedTransaction.getSender(stx).map(addr => SignedTransactionWithSender(stx, addr))
     }
@@ -635,7 +635,7 @@ object SignedTransactionWithSender:
     */
   private def getSignedTransactionsParallel(
       stxs: Seq[SignedTransaction]
-  )(implicit blockchainConfig: BlockchainConfig): Seq[SignedTransactionWithSender] =
+  )(using blockchainConfig: BlockchainConfig): Seq[SignedTransactionWithSender] =
     val batches = stxs.grouped(SignedTransaction.batchSize).toVector
     val parallelism = math.min(Runtime.getRuntime.availableProcessors, batches.size).max(1)
     IO.parTraverseN(parallelism)(batches) { batch =>

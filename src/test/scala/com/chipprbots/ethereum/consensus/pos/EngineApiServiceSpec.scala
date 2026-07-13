@@ -243,7 +243,7 @@ class EngineApiServiceSpec extends AnyWordSpec with Matchers:
         val block = Block(headerTemplate, BlockBody(Nil, Nil, withdrawals = Some(Nil)))
 
         // Execute to compute the correct stateRoot, receiptsRoot, gasUsed
-        blockExec.executeBlockNoValidation(block)(blockchainConfig) match
+        blockExec.executeBlockNoValidation(block)(using blockchainConfig) match
           case Right((receipts, gasUsed, computedStateRoot)) =>
             // Build the correct header with computed values
             val correctHeader = headerTemplate.copy(

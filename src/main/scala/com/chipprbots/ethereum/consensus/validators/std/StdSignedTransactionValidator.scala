@@ -36,7 +36,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
       blockHeader: BlockHeader,
       upfrontGasCost: UInt256,
       accumGasUsed: BigInt
-  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     for
       _ <- validateOlympiaTxTypes(stx, blockHeader)
       _ <- validateBlobTransactionSupport(stx, blockHeader)
@@ -62,7 +62,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
   private def validateOlympiaTxTypes(
       stx: SignedTransaction,
       blockHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     // ETH gates these tx types via London/Prague, not Olympia; from Olympia onwards ETC accepts them.
     if blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETH then Right(SignedTransactionValid)
     else if blockHeader.number >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber then
@@ -86,7 +86,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
   private def validateBlobTransactionSupport(
       stx: SignedTransaction,
       blockHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     stx.tx match
       case _: BlobTransaction if !blockchainConfig.isCancunTimestamp(blockHeader.unixTimestamp) =>
         Left(
@@ -132,7 +132,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
   private def validateMaxFeePerBlobGas(
       stx: SignedTransaction,
       blockHeader: BlockHeader
-  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     stx.tx match
       case bt: BlobTransaction if blockchainConfig.isCancunTimestamp(blockHeader.unixTimestamp) =>
         val excessBlobGas = blockHeader.excessBlobGas.getOrElse(BigInt(0))
@@ -185,7 +185,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
   private def validateSignature(
       stx: SignedTransaction,
       blockNumber: BlockNumber
-  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     val r = stx.signature.r
     val s = stx.signature.s
 
@@ -256,7 +256,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
       stx: SignedTransaction,
       blockHeaderNumber: BlockNumber,
       blockHeaderTimestamp: Timestamp
-  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     import stx.tx
     if tx.isContractInit then
       val config = EvmConfig.forBlock(blockHeaderNumber, blockHeaderTimestamp, blockchainConfig)
@@ -280,7 +280,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
       stx: SignedTransaction,
       blockHeaderNumber: BlockNumber,
       blockHeaderTimestamp: Timestamp
-  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     import stx.tx
     val config = EvmConfig.forBlock(blockHeaderNumber, blockHeaderTimestamp, blockchainConfig)
     val authListSize = tx match
@@ -314,7 +314,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
       stx: SignedTransaction,
       blockHeaderNumber: BlockNumber,
       blockHeaderTimestamp: Timestamp
-  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+  )(using blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     val isEth = blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETH
     // EIP-7825 gas cap: ETC enables at Olympia (ECIP-1121 block-based). ETH enables at Osaka
     // timestamp (per execution-specs — Prague does NOT include EIP-7825). On ETH chains hive

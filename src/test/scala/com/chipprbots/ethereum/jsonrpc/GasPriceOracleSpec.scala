@@ -319,7 +319,7 @@ class GasPriceOracleSpec
     // Set the block coinbase = tx sender → the tx must be excluded.
     // Fill the rest of the window with blocks that have no txs.
     val tx = fixtureTxs.head
-    val sender = SignedTransaction.getSender(tx)(defaultCfg).value
+    val sender = SignedTransaction.getSender(tx)(using defaultCfg).value
 
     val coinbase = sender.bytes
     val coinbaseBlk = blk(20, Seq(tx), coinbase = coinbase)
@@ -343,7 +343,7 @@ class GasPriceOracleSpec
   it should "return the floor when an all-coinbase-tx block exhausts the window" taggedAs (UnitTest, RPCTest) in {
     // Every block in the window has only coinbase txs → oracle sees no valid samples → returns floor
     val tx = fixtureTxs.head
-    val sender = SignedTransaction.getSender(tx)(defaultCfg).value
+    val sender = SignedTransaction.getSender(tx)(using defaultCfg).value
     val window = (BigInt(0) to BigInt(20)).map { n =>
       n -> Some(blk(n, Seq(tx), coinbase = sender.bytes))
     }.toMap
