@@ -66,6 +66,13 @@ The NUC is resource-constrained; do NOT fan out a dozens-of-agents Workflow.
   Stratum v1 / **Stratum v2**, `getblocktemplate`, external-miner & mining-pool integration — the
   *mining-pool/validator* use case), PoW peer-management (Bitcoin's canonical model), and PoW mempool/relay.
   fukuii's ETC PoW mining (internal Ethash + external-miner wiring) is the alignment target for that material.
+- **GUI inspiration reference:** `/media/dev/2tb/dev/reference-clients-pow/monero-gui` — a cross-platform
+  **Qt/QML** desktop client (main.qml / LeftPanel / MiddlePanel / `pages/` / `wizard/` + multi-OS installers &
+  Dockerfiles) wrapping the daemon. The reference for fukuii's planned **GUI** (a fukuii deliverable, not a
+  reference-client subsystem): node lifecycle + sync/peer status, **mining controls** (start/stop, threads,
+  hashrate — pairs with internal-CPU-sealing + mining-pool use cases), onboarding wizard, i18n, packaging.
+  Serves the *end-user / enterprise-operator* + *mining-pool* use cases. Studied as a UX/architecture pattern,
+  not documented via the EVM taxonomy.
 
 ## Common subsystem taxonomy (~14 slots — the comparability keystone)
 Every client is documented against THIS list, same slugs, so Phase-2 tables line up. Dependency-ordered

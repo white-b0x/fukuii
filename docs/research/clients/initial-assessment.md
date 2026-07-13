@@ -108,6 +108,13 @@ use case (default + optional per the omni-client lens).
 
 ---
 
+### 3f. GUI (operator 2026-07-13) — end-user/enterprise-operator + mining-pool use cases
+fukuii's planned **GUI** is a deliverable, not a reference-client subsystem — but the EVM clients don't offer a
+strong GUI reference. **Inspiration = `reference-clients-pow/monero-gui`** (Qt/QML desktop client). Study its
+UX/architecture for: node lifecycle + sync/peer status, **mining controls** (start/stop, threads, hashrate —
+pairs with §3e internal-CPU-sealing + mining-pool), multi-network switching (enterprise), onboarding wizard,
+i18n, cross-platform packaging. A Phase-4 deliverable seed, not a comparison input.
+
 ## 4. fukuii Phase-4 seeds accumulated so far (NOT acted on — for the post-comparison backlog)
 
 **Governing principle (operator 2026-07-13) — fukuii is an OMNI-CLIENT: default = best practice, + optional
