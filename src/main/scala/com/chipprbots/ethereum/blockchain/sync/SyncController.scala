@@ -43,8 +43,6 @@ import com.chipprbots.ethereum.ledger.BranchResolution
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.utils.Config
 import com.chipprbots.ethereum.utils.Config.SyncConfig
-import com.chipprbots.ethereum.blockchain.sync.snap.StorageScheme
-import com.chipprbots.ethereum.utils.NetworkType
 
 /** Top-level sync orchestrator.
   *
@@ -415,22 +413,21 @@ object SyncController:
     val recoverySnapAdapter: TypedActorRef[SNAPSyncController.Command] =
       ctx.self.narrow[SNAPSyncController.Command]
 
-    /** Load SNAP sync configuration with fallback to defaults */
+    /** Load SNAP sync configuration with fallback to defaults.
+      *
+      * `storageScheme` is a per-network deployment choice, not a consensus-family invariant — each network's `.conf`
+      * declares its own default (`eth.conf`/`sepolia.conf` set `"path"`; `etc.conf`/`mordor.conf` rely on the `Hash`
+      * default), so it is trusted as-is here rather than re-derived from `networkType`. The invariant that actually
+      * matters — a datadir may not silently flip scheme across restarts — is enforced independently by
+      * [[com.chipprbots.ethereum.blockchain.sync.snap.SNAPSyncController.checkStorageSchemeMismatch]] against the
+      * on-disk trie data.
+      */
     private def loadSnapSyncConfig(): SNAPSyncConfig =
-      val config =
-        try SNAPSyncConfig.fromConfig(Config.config.getConfig("sync"))
-        catch
-          case e: Exception =>
-            log.warn(s"Failed to load SNAP sync config, using defaults: ${e.getMessage}")
-            SNAPSyncConfig()
-      val networkType = configBuilder.blockchainConfig.networkType
-      val expectedScheme = if networkType == NetworkType.ETH then StorageScheme.Path else StorageScheme.Hash
-      require(
-        config.storageScheme == expectedScheme,
-        s"storageScheme=${config.storageScheme} does not match expected $expectedScheme " +
-          s"for networkType=$networkType — check sync.snap-sync.storage-scheme in reference.conf"
-      )
-      config
+      try SNAPSyncConfig.fromConfig(Config.config.getConfig("sync"))
+      catch
+        case e: Exception =>
+          log.warn(s"Failed to load SNAP sync config, using defaults: ${e.getMessage}")
+          SNAPSyncConfig()
 
     def idle(): Behavior[CommandAndResponse] = Behaviors.receive { (_, cmd) =>
       cmd match
