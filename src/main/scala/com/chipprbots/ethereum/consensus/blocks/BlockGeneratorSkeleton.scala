@@ -134,7 +134,10 @@ abstract class BlockGeneratorSkeleton(
     // calcBaseFee returns the 1 gwei floor even before Olympia, so an un-gated filter would
     // (a) drop legitimate sub-(floor+minTip) legacy txs and (b) in block production, desync the
     // tx list from a pre-sealed header (→ HeaderPoWError). Gate on the Olympia activation block.
-    val isOlympia = blockNumber >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
+    // MIN_MINER_TIP (ECIP-1122) is ETC-only: on ETH/Sepolia olympiaBlockNumber holds London's
+    // block (or 0), so also gate on ETC-family networks to avoid enforcing the floor there.
+    val isOlympia = blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETC &&
+      blockNumber >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
     val eligibleTransactions =
       if !isOlympia then transactions
       else
