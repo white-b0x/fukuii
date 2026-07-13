@@ -17,21 +17,38 @@ import com.chipprbots.ethereum.NormalPatience
 import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import com.chipprbots.ethereum.consensus.blocks.PendingBlock
 import com.chipprbots.ethereum.consensus.blocks.PendingBlockAndState
+import com.chipprbots.ethereum.consensus.eip1559.BaseFeeCalculator
 import com.chipprbots.ethereum.consensus.mining.MiningConfigs
 import com.chipprbots.ethereum.consensus.mining.TestMining
 import com.chipprbots.ethereum.consensus.pow.blocks.PoWBlockGenerator
+import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.db.storage.AppStateStorage
+import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.Difficulty
+import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.Block
 import com.chipprbots.ethereum.domain.BlockBody
+import com.chipprbots.ethereum.domain.BlockHeader
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
+import com.chipprbots.ethereum.domain.BloomFilter
+import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.ChainWeight
+import com.chipprbots.ethereum.domain.GasAmount
+import com.chipprbots.ethereum.domain.LegacyReceipt
+import com.chipprbots.ethereum.domain.MaxFeePerGas
+import com.chipprbots.ethereum.domain.Nonce
+import com.chipprbots.ethereum.domain.PriorityFeePerGas
+import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.TotalDifficulty
+import com.chipprbots.ethereum.domain.TransactionWithDynamicFee
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockNumber
+import com.chipprbots.ethereum.domain.Wei
 import com.chipprbots.ethereum.jsonrpc.EthBlocksService.*
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
 import com.chipprbots.ethereum.testing.Tags.*
+import com.chipprbots.ethereum.utils.BlockchainConfig
 
 class EthBlocksServiceSpec
     extends ScalaTestWithActorTestKit
@@ -451,6 +468,82 @@ class EthBlocksServiceSpec
       GetUncleCountByBlockHashResponse(blockToRequest.body.uncleNodesList.size)
     )
 
+  // Regression: FEEHISTORY-REWARD-AND-PROJECTION-01(a). `reward` must be the gasUsed-weighted
+  // percentile of each tx's effective priority fee (min(maxPriorityFeePerGas, maxFeePerGas -
+  // baseFee)), not a hardcoded all-zeros row.
+  it should "answer eth_feeHistory with reward percentiles computed from tx tips, not hardcoded zeros" taggedAs (
+    UnitTest,
+    RPCTest
+  ) in new TestSetup:
+    val baseFee: BigInt = 50
+    // tip1 = min(maxPriorityFeePerGas=10, maxFeePerGas=100 - baseFee=50) = 10
+    // tip2 = min(maxPriorityFeePerGas=50, maxFeePerGas=200 - baseFee=50) = 50
+    val tx1: SignedTransaction = dynamicFeeTx(maxFeePerGas = 100, maxPriorityFeePerGas = 10)
+    val tx2: SignedTransaction = dynamicFeeTx(maxFeePerGas = 200, maxPriorityFeePerGas = 50)
+
+    val header: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
+      number = BlockNumber(blockToRequestNumber + 1),
+      gasLimit = GasAmount(10000000),
+      gasUsed = GasAmount(4000),
+      extraFields = HefPostEip1559(BaseFeePerGas(baseFee))
+    )
+    val block: Block = Block(header, BlockBody(Seq(tx1, tx2), Nil))
+
+    // Per-tx gasUsed, derived from cumulative receipt gas the way go-ethereum's Oracle.processBlock does:
+    // tx1 uses 1000, tx2 uses the remaining 3000 (cumulative 4000 == header.gasUsed).
+    val receipt1: LegacyReceipt =
+      LegacyReceipt.withHashOutcome(ByteString(Array.fill[Byte](32)(0)), GasAmount(1000), BloomFilter.Empty, Nil)
+    val receipt2: LegacyReceipt =
+      LegacyReceipt.withHashOutcome(ByteString(Array.fill[Byte](32)(0)), GasAmount(4000), BloomFilter.Empty, Nil)
+
+    blockchainWriter
+      .storeBlock(block)
+      .and(blockchainWriter.storeReceipts(header.hash, Seq(receipt1, receipt2)))
+      .commit()
+    blockchainWriter.saveBestKnownBlocks(header.hash, header.number.value)
+
+    val request: FeeHistoryRequest = FeeHistoryRequest(
+      blockCount = 1,
+      newestBlock = BlockParam.WithNumber(header.number.value),
+      rewardPercentiles = Some(Seq(10.0, 50.0))
+    )
+    val response: FeeHistoryResponse = ethBlocksService.feeHistory(request).unsafeRunSync().toOption.get
+
+    // p=10: threshold = 4000*10/100=400 <= tx1's cumulative gasUsed(1000) -> tx1's tip (10)
+    // p=50: threshold = 4000*50/100=2000 > tx1's 1000, advances to tx2 -> tx2's tip (50)
+    response.reward shouldBe Some(Seq(Seq(BigInt(10), BigInt(50))))
+
+  // Regression: FEEHISTORY-REWARD-AND-PROJECTION-01(b). The extra `newestBlock+1` baseFee entry
+  // must be derived via BaseFeeCalculator.calcBaseFee, not defaulted to 0 — and on a chain with a
+  // non-zero baseFeeFloor (ETC/Mordor = 1 gwei per ECIP-1111) it must respect that floor.
+  it should "answer eth_feeHistory's newestBlock+1 projection via BaseFeeCalculator, respecting baseFeeFloor" taggedAs (
+    UnitTest,
+    RPCTest
+  ) in new TestSetup:
+    override def serviceBlockchainConfig: BlockchainConfig =
+      blockchainConfig.copy(baseFeeFloor = BigInt(1000000000)) // ECIP-1111: 1 gwei floor on ETC/Mordor
+
+    // gasUsed=0 (fully empty, i.e. the maximal decrease branch) with baseFee=0 makes the naive
+    // EIP-1559 decrease formula project 0 for the next block; only the floor clamp saves it.
+    val header: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
+      gasLimit = GasAmount(10000000),
+      gasUsed = GasAmount.Zero,
+      extraFields = HefPostEip1559(BaseFeePerGas(BigInt(0)))
+    )
+    val block: Block = Block(header, BlockBody(Nil, Nil))
+
+    blockchainWriter.storeBlock(block).commit()
+    blockchainWriter.saveBestKnownBlocks(header.hash, header.number.value)
+
+    val request: FeeHistoryRequest =
+      FeeHistoryRequest(blockCount = 1, newestBlock = BlockParam.Latest, rewardPercentiles = None)
+    val response: FeeHistoryResponse = ethBlocksService.feeHistory(request).unsafeRunSync().toOption.get
+
+    val expectedNextBaseFee: BigInt = BaseFeeCalculator.calcBaseFee(header, serviceBlockchainConfig).value
+    expectedNextBaseFee shouldBe BigInt(1000000000) // sanity: the floor clamp is actually exercised
+    response.baseFeePerGas.last shouldBe expectedNextBaseFee
+    response.baseFeePerGas.last should not be BigInt(0)
+
   class TestSetup() extends EphemBlockchainTestSetup:
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
@@ -458,12 +551,36 @@ class EthBlocksServiceSpec
     override lazy val mining: TestMining = buildTestMining().withBlockGenerator(blockGenerator)
     override lazy val miningConfig = MiningConfigs.miningConfig
 
+    // Overridable so a subclass/test can exercise a non-default BlockchainConfig (e.g. a
+    // non-zero baseFeeFloor per ECIP-1111). Defaults to the cake's own `blockchainConfig`
+    // rather than `EthBlocksService`'s production default (`Config.blockchains.blockchainConfig`).
+    def serviceBlockchainConfig: BlockchainConfig = blockchainConfig
+
     lazy val ethBlocksService = new EthBlocksService(
       blockchain,
       blockchainReader,
       mining,
-      blockQueue
+      blockQueue,
+      configuredBlockchainConfig = serviceBlockchainConfig
     )
+
+    // Only the EIP-1559 fields matter for the reward-percentile computation (see
+    // ProgramContextEffectiveGasPriceSpec for the same minimal-fixture pattern); other fields use
+    // arbitrary fixture values, and the signature need not verify since feeHistory never derives
+    // a sender.
+    def dynamicFeeTx(maxFeePerGas: BigInt, maxPriorityFeePerGas: BigInt): SignedTransaction =
+      val raw = TransactionWithDynamicFee(
+        chainId = ChainId(1),
+        nonce = Nonce(0),
+        maxPriorityFeePerGas = PriorityFeePerGas(maxPriorityFeePerGas),
+        maxFeePerGas = MaxFeePerGas(maxFeePerGas),
+        gasLimit = GasAmount(100000),
+        receivingAddress = Some(Address(ByteString(Array.fill[Byte](20)(0xcc.toByte)))),
+        value = Wei(0),
+        payload = ByteString.empty,
+        accessList = Nil
+      )
+      SignedTransaction(raw, ECDSASignature(BigInt(0), BigInt(0), BigInt(0)))
 
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number.value

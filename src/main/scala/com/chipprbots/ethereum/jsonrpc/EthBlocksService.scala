@@ -8,6 +8,8 @@ import scala.annotation.unused
 
 import org.bouncycastle.util.encoders.Hex
 
+import com.chipprbots.ethereum.consensus.eip1559.BaseFeeCalculator
+import com.chipprbots.ethereum.consensus.pos.BlobGasUtils
 import com.chipprbots.ethereum.consensus.pos.ForkChoiceManager
 import com.chipprbots.ethereum.consensus.mining.Mining
 import com.chipprbots.ethereum.domain.*
@@ -276,9 +278,14 @@ class EthBlocksService(
     val count = req.blockCount.min(1024).toInt
     val oldestBlock = (newestBlockNum - count + 1).max(0)
 
-    val baseFees = (oldestBlock.toLong to (newestBlockNum + 1).toLong).map { num =>
+    // The extra `newestBlock+1` baseFee entry (required by EIP-1474/execution-apis) has no
+    // mined header to read yet — it is *projected* from the newest known header below, via
+    // nextBaseFee/nextBlobBaseFee, rather than defaulted to 0.
+    val newestHeaderOpt = blockchainReader.getBlockHeaderByNumber(BlockNumber(newestBlockNum))
+
+    val baseFees = (oldestBlock.toLong to newestBlockNum.toLong).map { num =>
       blockchainReader.getBlockHeaderByNumber(BlockNumber(num)).flatMap(_.baseFee).map(_.value).getOrElse(BigInt(0))
-    }.toSeq
+    }.toSeq :+ nextBaseFee(newestHeaderOpt)
 
     val gasUsedRatios = (oldestBlock.toLong to newestBlockNum.toLong).map { num =>
       blockchainReader
@@ -289,19 +296,16 @@ class EthBlocksService(
         .getOrElse(0.0)
     }.toSeq
 
-    val blobBaseFees = (oldestBlock.toLong to (newestBlockNum + 1).toLong).map { num =>
+    val blobBaseFees = (oldestBlock.toLong to newestBlockNum.toLong).map { num =>
       blockchainReader
         .getBlockHeaderByNumber(BlockNumber(num))
         .map { h =>
           h.excessBlobGas
-            .map(eg =>
-              com.chipprbots.ethereum.consensus.pos.BlobGasUtils
-                .getBlobGasPrice(eg, h.unixTimestamp, blockchainConfig)
-            )
+            .map(eg => BlobGasUtils.getBlobGasPrice(eg, h.unixTimestamp, blockchainConfig))
             .getOrElse(BigInt(0))
         }
         .getOrElse(BigInt(0))
-    }.toSeq
+    }.toSeq :+ nextBlobBaseFee(newestHeaderOpt)
 
     val blobGasUsedRatios = (oldestBlock.toLong to newestBlockNum.toLong).map { num =>
       blockchainReader
@@ -309,8 +313,7 @@ class EthBlocksService(
         .map { h =>
           h.blobGasUsed
             .map { used =>
-              val max = com.chipprbots.ethereum.consensus.pos.BlobGasUtils
-                .maxBlobGasPerBlock(h.unixTimestamp, blockchainConfig)
+              val max = BlobGasUtils.maxBlobGasPerBlock(h.unixTimestamp, blockchainConfig)
               if used > 0 && max > 0 then used.toDouble / max.toDouble else 0.0
             }
             .getOrElse(0.0)
@@ -318,9 +321,12 @@ class EthBlocksService(
         .getOrElse(0.0)
     }.toSeq
 
-    val rewards = req.rewardPercentiles.map { _ =>
-      (oldestBlock.toLong to newestBlockNum.toLong).map { _ =>
-        req.rewardPercentiles.getOrElse(Seq.empty).map(_ => BigInt(0))
+    val rewards = req.rewardPercentiles.map { percentiles =>
+      (oldestBlock.toLong to newestBlockNum.toLong).map { num =>
+        blockchainReader
+          .getBlockHeaderByNumber(BlockNumber(num))
+          .map(header => blockRewards(header, percentiles))
+          .getOrElse(percentiles.map(_ => BigInt(0)))
       }.toSeq
     }
 
@@ -335,6 +341,74 @@ class EthBlocksService(
       )
     )
   }
+
+  /** Projected baseFee for the unmined block right after `headerOpt` — the extra `newestBlock+1` entry `eth_feeHistory`
+    * must return per EIP-1474/execution-apis. Delegates to the same consensus rule used to derive a child block's
+    * baseFee from its parent (respects `blockchainConfig.baseFeeFloor`: 0 on ETH, 1 gwei on ETC per ECIP-1111), rather
+    * than hand-rolling the EIP-1559 formula here.
+    */
+  private def nextBaseFee(headerOpt: Option[BlockHeader]): BigInt =
+    headerOpt.map(header => BaseFeeCalculator.calcBaseFee(header, blockchainConfig).value).getOrElse(BigInt(0))
+
+  /** Projected blob baseFee for the unmined block right after `headerOpt`, mirroring `nextBaseFee` for EIP-4844 blob
+    * gas. Pre-Cancun headers (no `excessBlobGas`) project to 0, matching the non-projected blob columns.
+    */
+  private def nextBlobBaseFee(headerOpt: Option[BlockHeader]): BigInt =
+    headerOpt
+      .flatMap { header =>
+        header.excessBlobGas.map { parentExcessBlobGas =>
+          val parentBlobGasUsed = header.blobGasUsed.getOrElse(BigInt(0))
+          val parentBaseFee = header.baseFee.map(_.value).getOrElse(BigInt(0))
+          // No mined child header exists yet to read a real timestamp from; approximate with the
+          // canonical PoS 12s slot time, same estimate EthSimulateService.buildBlockHeader uses for
+          // an unmined child block, so fork-boundary/BPO-schedule lookups target the right era.
+          val childTimestamp = header.unixTimestamp + 12
+          val nextExcessBlobGas = BlobGasUtils.expectedExcessBlobGas(
+            parentExcessBlobGas,
+            parentBlobGasUsed,
+            parentBaseFee,
+            childTimestamp,
+            blockchainConfig
+          )
+          BlobGasUtils.getBlobGasPrice(nextExcessBlobGas, childTimestamp, blockchainConfig)
+        }
+      }
+      .getOrElse(BigInt(0))
+
+  /** The `reward` row for a single block: the requested percentiles of each transaction's effective priority fee
+    * (`min(maxPriorityFeePerGas, maxFeePerGas - baseFee)`), sorted ascending by tip and weighted/cumulated by gasUsed.
+    * Ported from go-ethereum `eth/gasprice/feehistory.go` `Oracle.processBlock` — for each percentile `p`, walk the
+    * tip-sorted list accumulating gasUsed until the threshold `blockGasUsed * p / 100` is reached, and report that
+    * transaction's tip.
+    */
+  private def blockRewards(header: BlockHeader, percentiles: Seq[Double]): Seq[BigInt] =
+    val txs = blockchainReader.getBlockBodyByHash(header.hash).map(_.transactionList).getOrElse(Nil)
+    val receipts = blockchainReader.getReceiptsByHash(header.hash).getOrElse(Nil)
+    if txs.isEmpty || receipts.size != txs.size then percentiles.map(_ => BigInt(0))
+    else
+      val baseFeeVal = header.baseFee.map(_.value).getOrElse(BigInt(0))
+      val gasUsedAndTip = txs.zipWithIndex.map { case (stx, idx) =>
+        val gasUsed =
+          if idx == 0 then receipts(idx).cumulativeGasUsed.value
+          else receipts(idx).cumulativeGasUsed.value - receipts(idx - 1).cumulativeGasUsed.value
+        val tip = Transaction.effectiveGasPrice(stx.tx, header.baseFee) - baseFeeVal
+        (gasUsed, tip)
+      }
+      val sorted = gasUsedAndTip.sortBy(_._2) // ascending by tip, stable
+
+      def advance(idx: Int, cumulativeGasUsed: BigInt, thresholdGasUsed: BigInt): (Int, BigInt) =
+        if cumulativeGasUsed < thresholdGasUsed && idx < sorted.length - 1 then
+          advance(idx + 1, cumulativeGasUsed + sorted(idx + 1)._1, thresholdGasUsed)
+        else (idx, cumulativeGasUsed)
+
+      val totalGasUsed = header.gasUsed.value
+      val (_, _, rewards) = percentiles.foldLeft((0, sorted.head._1, Vector.empty[BigInt])) {
+        case ((idx, cumulativeGasUsed, acc), p) =>
+          val thresholdGasUsed = (BigDecimal(totalGasUsed) * BigDecimal(p) / BigDecimal(100)).toBigInt
+          val (newIdx, newCumulativeGasUsed) = advance(idx, cumulativeGasUsed, thresholdGasUsed)
+          (newIdx, newCumulativeGasUsed, acc :+ sorted(newIdx)._2)
+      }
+      rewards
 
   def maxPriorityFeePerGas(@unused req: MaxPriorityFeePerGasRequest): ServiceResponse[MaxPriorityFeePerGasResponse] =
     IO {
