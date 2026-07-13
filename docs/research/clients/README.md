@@ -125,7 +125,7 @@ Status legend: ` ` = not started · `~` = in progress · `✓` = done. Update as
 | besu |  |  | ✓ |  | ✓ |  |  |  | ✓ | ✓ |  | ✓ |  |  |
 | erigon |  |  | ✓ |  | ✓ |  |  |  | ✓ |  |  | ✓ |  |  |
 | nethermind |  |  | ✓ |  | ✓ |  |  |  | ✓ |  |  | ✓ |  |  |
-| reth |  |  | ✓ |  | ✓ |  |  |  |  |  |  | ✓ |  |  |
+| reth |  |  | ✓ |  | ✓ |  |  |  | ✓ |  |  | ✓ |  |  |
 
 ## Progress — Phase 2 (observations, per subsystem)
 | Subsystem | Status |
