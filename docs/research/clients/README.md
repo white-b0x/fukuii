@@ -12,9 +12,14 @@ practice. We read and digest each reference client, aggregate structured reports
 audit fukuii against the comparison. Two mini-versions already proved the method this session (the B7.0
 engine-axis research; the preliminary-SR horizon scan).
 
-## The four phases (this dir = Phases 1–2; fukuii audit = Phases 3–4, local)
-- **Phase 1 — per-client docs** → `docs/research/clients/{client}/{subsystem}.md` (durable, public).
-- **Phase 2 — cross-client observations** → `docs/research/clients/observations/{subsystem}.md` (durable, public).
+## The phases (this dir = Phase 1–2; fukuii audit = Phase 3–4, local) — MULTI-WAVE (operator 2026-07-13)
+Phase 1 is **iterative, not a single pass** ("measure many times, cut once" — the raw material is 6 production
+clients + full git history). Do NOT rush to Phase 2.
+- **Phase 1a — ★ orientation** ✅ DONE: `{client}/{storage,consensus,sync,multi-network}.md` across all 6 (+ besu networking). Taught us the *shape* of the differences, not the depth.
+- **Initial assessment** ✅ [`initial-assessment.md`](initial-assessment.md) — orientation synthesis + the **deep-question map** that drives the rest. (Read this first.)
+- **Phase 1b — deep full review** → every subsystem (all 14 slots) per client, traversed via **each client's own dependency graph** (low→high). `{client}/{subsystem}.md`.
+- **Phase 1c — second-wave deep questions** (woven into 1b) → esp. **historical PoW/ETC** (git-log each client's pre-merge Ethash/ETC structure = 4-5 PoW references beyond core-geth) + **ETH68-71 wire commit-log evolution** + deeper ★-subsystem follow-ups. May expose a **third wave** of targeted questions — that's expected.
+- **Phase 2 — cross-client observations/comparison** → `observations/{subsystem}.md` (durable, public). ONLY after the deep review: align → best-practice; differ → *why* (language/runtime, performance, legacy-vs-modernized).
 - **Phase 3 — fukuii snapshot** → `.local/docs/…` (fukuii evolves; snapshot goes stale).
 - **Phase 4 — alignment audit → modernization backlog** → `.local/docs/…` → new QUEUE items.
 
