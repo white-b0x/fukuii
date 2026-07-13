@@ -3,7 +3,6 @@ package com.chipprbots.ethereum.db.dataSource
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import cats.effect.IO
-import cats.effect.Resource
 
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
@@ -207,34 +206,101 @@ class RocksDbDataSource(
     opts.setFillCache(false)
     opts
 
+  /** Batch size for [[unboundedScan]] — same value as `iterateSyncRange`'s `refillBatchSize`, kept as an independent
+    * constant since the two are separate (if numerically identical) mechanisms.
+    */
+  private val unboundedScanBatchSize = 4096
+
+  /** Shared batching engine behind `iterate()`, `iterate(namespace)`, and `seekFrom`
+    * (ITERATOR-UAF-ITERATE-SEEKFROM-01).
+    *
+    * These three scans are UNBOUNDED (no upper-bound key), so — unlike `scanRange`, which holds a single
+    * `dbLock.readLock()` for its whole bounded `[fromKey, toKeyExclusive)` window — a single lock cannot be held for
+    * the whole call here. Instead this mirrors `iterateSyncRange`'s batching contract (see that method's scaladoc for
+    * the full #1355 background): each batch opens a native `RocksIterator`, drains up to `unboundedScanBatchSize`
+    * entries, and closes it, ALL within one `dbLock.readLock()` + `assureNotClosed()` bracket. Between batches — which
+    * is exactly where fs2 observes cancellation/interruption on the returned Stream — no lock and no native iterator
+    * are held, so a concurrent `close()` (which takes `dbLock.writeLock()`) can never free native memory under a live
+    * iterator, and cancelling/abandoning the Stream mid-scan (e.g. `PathNodeStorage.hasAnyEntry`'s `.take(1)`) leaks
+    * nothing: the native iterator for the current batch is always closed in a `finally` before any element is emitted
+    * downstream, so no resource ever spans a suspension point.
+    *
+    * Previously `seekFrom`/`iterate`/`iterate(namespace)` opened ONE native `RocksIterator` via
+    * `Resource.fromAutoCloseable(IO(db.newIterator(...)))` with no lock and no `assureNotClosed()` guard, and kept it
+    * alive for the entire (potentially very long) scan — the exact pre-#1355 shape, just never patched on these paths.
+    * A `close()`/`clear()` racing a live scan (e.g. the `StdNode.shutdown` race where `Await.ready` returns before
+    * actor termination) could free the native db/CF handles while the iterator was still being read: use-after-free /
+    * SIGSEGV.
+    *
+    * @param openIterator
+    *   opens ONE fresh native iterator (called once per batch, never memoized) — carries both the column-family choice
+    *   and the `ReadOptions` choice of the original call site (`iterate()` used `db.newIterator()` with RocksDB's
+    *   default `ReadOptions`; `iterate(namespace)` used `db.newIterator(handles(namespace))`, also default
+    *   `ReadOptions`; `seekFrom` used `db.newIterator(handles(namespace), scanReadOptions)` — fillCache=false. Bundling
+    *   the open call as a closure (rather than threading `Option[Namespace]` + a shared `ReadOptions` through
+    *   `unboundedScan`) preserves each call site's exact original `ReadOptions` — a cache-behaviour detail, not a
+    *   correctness one, but not this fix's business to change).
+    * @param initialSeek
+    *   applied to a freshly-opened iterator only for the FIRST batch (`seekToFirst()` for `iterate`, `seek(startKey)`
+    *   for `seekFrom`); every subsequent batch instead resumes strictly after the last key returned by the previous
+    *   batch (seek-then-skip-if-equal, exactly as `iterateSyncRange` resumes — keys are unique so this is exact).
+    *
+    * Byte-identical output: within a single batch, entries are read in the same forward key order RocksDB always
+    * returns; across the batch boundary the resume point is the literal last key emitted, so concatenating batches
+    * reproduces the exact same (key, value) sequence a single long-lived iterator would have produced. Errors
+    * (including `RocksDbDataSourceClosedException` from a racing `close()`) surface as a single trailing
+    * `Left(IterationError(ex))` element, matching the pre-existing per-element polling contract.
+    */
+  private def unboundedScan(
+      openIterator: () => RocksIterator,
+      initialSeek: RocksIterator => Unit
+  ): Stream[IO, Either[IterationError, (Array[Byte], Array[Byte])]] =
+    def refill(resumeAfter: Option[Array[Byte]]): (Vector[(Array[Byte], Array[Byte])], Boolean, Array[Byte]) =
+      dbLock.readLock().lock()
+      try
+        assureNotClosed()
+        val it = openIterator()
+        try
+          resumeAfter match
+            case Some(lastKey) =>
+              it.seek(lastKey)
+              if it.isValid && java.util.Arrays.equals(it.key(), lastKey) then it.next()
+            case None => initialSeek(it)
+          val buf = Vector.newBuilder[(Array[Byte], Array[Byte])]
+          var taken = 0
+          var lastKey: Array[Byte] = resumeAfter.orNull
+          while taken < unboundedScanBatchSize && it.isValid do
+            val k = it.key()
+            buf += ((k, it.value()))
+            lastKey = k
+            it.next()
+            taken += 1
+          (buf.result(), taken < unboundedScanBatchSize, lastKey)
+        finally it.close()
+      finally dbLock.readLock().unlock()
+
+    def loop(resumeAfter: Option[Array[Byte]]): Stream[IO, Either[IterationError, (Array[Byte], Array[Byte])]] =
+      Stream
+        .eval(IO(refill(resumeAfter)))
+        .flatMap { case (items, exhausted, lastKey) =>
+          val batch = Stream.emits(items.map(Right(_)))
+          if exhausted then batch else batch ++ loop(Some(lastKey))
+        }
+        .handleErrorWith { case ex => Stream.emit(Left(IterationError(ex))) }
+
+    loop(None)
+
   /** Seek-based range scan starting from startKey (inclusive). Uses fillCache=false to avoid evicting hot data from the
     * block cache during large sequential scans (mirrors Besu's streamFromKey pattern).
     *
-    * Returns an fs2 Stream of (key, value) pairs in sorted key order. The iterator is resource-managed and closes when
-    * the stream completes.
+    * Returns an fs2 Stream of (key, value) pairs in sorted key order, batched via [[unboundedScan]] — no native
+    * `RocksIterator` outlives a single batch (see that method's scaladoc for the full locking rationale).
     */
   def seekFrom(
       namespace: Namespace,
       startKey: Array[Byte]
   ): Stream[IO, Either[IterationError, (Array[Byte], Array[Byte])]] =
-    val iterResource = Resource.fromAutoCloseable(
-      IO(db.newIterator(handles(namespace), scanReadOptions))
-    )
-    Stream.resource(iterResource).flatMap { it =>
-      Stream
-        .eval(IO(it.seek(startKey)))
-        .flatMap { _ =>
-          Stream.repeatEval(for
-            isValid <- IO(it.isValid)
-            item <- if isValid then IO(Right((it.key(), it.value()))) else IO.raiseError(IterationFinished)
-            _ <- IO(it.next())
-          yield item)
-        }
-        .handleErrorWith {
-          case IterationFinished => Stream.empty
-          case ex                => Stream.emit(Left(IterationError(ex)))
-        }
-    }
+    unboundedScan(() => db.newIterator(handles(namespace), scanReadOptions), _.seek(startKey))
 
   /** Synchronous forward scan of values in [fromKey, toKeyExcl) within namespace.
     *
@@ -315,32 +381,17 @@ class RocksDbDataSource(
         if !hasNext then throw new NoSuchElementException("iterateSyncRange exhausted")
         buffer.removeHead()
 
-  private def dbIterator: Resource[IO, RocksIterator] =
-    Resource.fromAutoCloseable(IO(db.newIterator()))
-
-  private def namespaceIterator(namespace: Namespace): Resource[IO, RocksIterator] =
-    Resource.fromAutoCloseable(IO(db.newIterator(handles(namespace))))
-
-  private def moveIterator(it: RocksIterator): Stream[IO, Either[IterationError, (Array[Byte], Array[Byte])]] =
-    Stream
-      .eval(IO(it.seekToFirst()))
-      .flatMap { _ =>
-        Stream.repeatEval(for
-          isValid <- IO(it.isValid)
-          item <- if isValid then IO(Right((it.key(), it.value()))) else IO.raiseError(IterationFinished)
-          _ <- IO(it.next())
-        yield item)
-      }
-      .handleErrorWith {
-        case IterationFinished => Stream.empty
-        case ex                => Stream.emit(Left(IterationError(ex)))
-      }
-
+  /** Iterates the default column family only, batched via [[unboundedScan]] — no native `RocksIterator` outlives a
+    * single batch (see that method's scaladoc for the full locking rationale).
+    */
   def iterate(): Stream[IO, Either[IterationError, (Array[Byte], Array[Byte])]] =
-    Stream.resource(dbIterator).flatMap(it => moveIterator(it))
+    unboundedScan(() => db.newIterator(), _.seekToFirst())
 
+  /** Iterates `namespace`, batched via [[unboundedScan]] — no native `RocksIterator` outlives a single batch (see that
+    * method's scaladoc for the full locking rationale).
+    */
   def iterate(namespace: Namespace): Stream[IO, Either[IterationError, (Array[Byte], Array[Byte])]] =
-    Stream.resource(namespaceIterator(namespace)).flatMap(it => moveIterator(it))
+    unboundedScan(() => db.newIterator(handles(namespace)), _.seekToFirst())
 
   /** This function is used only for tests. This function updates the DataSource by deleting all the (key-value) pairs
     * in it.
@@ -466,7 +517,6 @@ trait RocksDbConfig:
   val enableStatistics: Boolean = false
 
 object RocksDbDataSource extends Logger:
-  case object IterationFinished extends RuntimeException
   case class IterationError(ex: Throwable)
 
   case class RocksDbDataSourceClosedException(message: String) extends IllegalStateException(message)
