@@ -1,6 +1,7 @@
 package com.chipprbots.ethereum.blockchain.sync
 import org.apache.pekko.actor.ActorRef
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.typed.ActorRef as TypedActorRef
 import org.apache.pekko.testkit.TestActor.AutoPilot
 import org.apache.pekko.testkit.TestProbe
 import org.apache.pekko.util.ByteString
@@ -8,6 +9,8 @@ import org.apache.pekko.util.ByteString
 import cats.effect.Deferred
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
+
+import scala.concurrent.duration.DurationInt
 
 import fs2.Stream
 import fs2.concurrent.Topic
@@ -19,6 +22,7 @@ import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerInfo
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.SendMessageCmd
 import com.chipprbots.ethereum.network.Peer
+import com.chipprbots.ethereum.network.PeerEventBusActor
 import com.chipprbots.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets
 import com.chipprbots.ethereum.network.p2p.messages.ETHPackets.BlockBodies
@@ -34,7 +38,8 @@ import com.chipprbots.ethereum.utils.Config.SyncConfig
 class NetworkPeerManagerFake(
     syncConfig: SyncConfig,
     peers: Map[Peer, PeerInfo],
-    blocks: List[Block]
+    blocks: List[Block],
+    peerEventBus: TypedActorRef[PeerEventBusActor.Command]
 )(implicit system: ActorSystem, ioRuntime: IORuntime):
   private val responsesTopicIO: IO[Topic[IO, MessageFromPeer]] = Topic[IO, MessageFromPeer]
   private val requestsTopicIO: IO[Topic[IO, SendMessageCmd]] = Topic[IO, SendMessageCmd]
@@ -42,14 +47,14 @@ class NetworkPeerManagerFake(
   private val requestsTopic: Topic[IO, SendMessageCmd] = requestsTopicIO.unsafeRunSync()
   private val peersConnectedDeferred = Deferred.unsafe[IO, Unit]
 
-  // FIXABLE via event-bus delivery (fa16aeaf9/3b8b07f67 precedent) — deferred to MOD-09, NOT a
-  // permanent boundary; E165 stays visible, do not suppress. The AutoPilot below replies to
-  // SendMessageCmd via Classic sender(), but production never returns a reply on SendMessageCmd
-  // (it is fire-and-forget); the peer response arrives via the PeerEventBus (PeerRequestHandler
-  // subscribes and receives MessageFromPeer). The faithful fix spawns a real PeerEventBusActor and
-  // delivers via PublishCmd — the same mechanism IP-STATESYNC-01/SYNCCONTROLLERSPEC-REDO-01 used.
-  // (The GetHandshakedPeersCmd branch already uses a real replyTo and needs no change; it shares
-  // this single probe/AutoPilot, so the fixture is migrated as a whole under MOD-09.)
+  // The AutoPilot below replies via a real PeerEventBusActor, not `sender ! MessageFromPeer`:
+  // production's SendMessageCmd is fire-and-forget (the Typed FastSync/PivotBlockSelector sends it
+  // through a Classic-adapter ActorRef, so `sender` is deadLetters), and the production
+  // PeerRequestHandler reads peer responses only from the PeerEventBus (SubscribeCmd -> PublishCmd).
+  // A direct reply to `sender` is silently dropped and production hangs until PeerRequestHandler's
+  // own internal timeout — the outer 60s IO.timeout in FastSyncSpec was the observable symptom.
+  // Same fix shape as the fa16aeaf9/3b8b07f67 precedent (IP-STATESYNC-01 / SYNCCONTROLLERSPEC-REDO-01).
+  // (The GetHandshakedPeersCmd branch already uses a real replyTo and needs no change.)
   val probe: TestProbe = TestProbe("network_peer_manager")
   val autoPilot =
     new NetworkPeerManagerFake.NetworkPeerManagerAutoPilot(
@@ -57,7 +62,8 @@ class NetworkPeerManagerFake(
       responsesTopic,
       peersConnectedDeferred,
       peers,
-      blocks
+      blocks,
+      peerEventBus
     )
   probe.setAutoPilot(autoPilot)
 
@@ -111,9 +117,21 @@ object NetworkPeerManagerFake:
       responses: Topic[IO, MessageFromPeer],
       peersConnected: Deferred[IO, Unit],
       peers: Map[Peer, PeerInfo],
-      blocks: List[Block]
-  )(implicit ioRuntime: IORuntime)
+      blocks: List[Block],
+      peerEventBus: TypedActorRef[PeerEventBusActor.Command]
+  )(implicit system: ActorSystem, ioRuntime: IORuntime)
       extends AutoPilot:
+
+    // The Typed PeerRequestHandler sends SendMessageCmd and *then* subscribes to the PeerEventBus.
+    // Publishing synchronously here can race ahead of that subscription and be dropped (the bus only
+    // delivers to current subscribers); a small scheduled delay reproduces the happens-before that
+    // real network latency guarantees in production. Mirrors StateSyncSpec/SyncControllerSpec.
+    given scala.concurrent.ExecutionContext = system.dispatcher
+    private def publishResponse(response: MessageFromPeer): Unit =
+      system.scheduler.scheduleOnce(20.milliseconds)(
+        peerEventBus ! PeerEventBusActor.PublishCmd(response)
+      )
+
     def run(sender: ActorRef, msg: Any): NetworkPeerManagerAutoPilot =
       msg match
         case NetworkPeerManagerActor.GetHandshakedPeersCmd(replyTo) =>
@@ -134,7 +152,7 @@ object NetworkPeerManagerFake:
             case ETHPackets.GetNodeData(mptElementsHashes) =>
               ETHPackets.NodeData(Seq.empty)
           val theResponse = MessageFromPeer(response, peerId)
-          sender ! theResponse
+          publishResponse(theResponse)
           responses.publish1(theResponse).unsafeRunSync()
       this
 

@@ -76,6 +76,13 @@ class FastSyncSpec extends ScalaTestWithActorTestKit() with FreeSpecBase with Sp
         .withBestBlockData(lastBlock.number.value, lastBlock.hash.value)
         .copy(remoteStatus = peerInfo.remoteStatus.copy(bestHash = lastBlock.hash.value))
     }
+    // Real PeerEventBusActor (not a dumb probe): the Typed PeerRequestHandler that FastSync's
+    // PivotBlockSelector/SyncStateSchedulerActor children spawn receive peer responses only via a
+    // PeerEventBus subscription (SubscribeCmd -> PublishCmd) — a bare probe cannot route SubscribeCmd,
+    // and NetworkPeerManagerFake's AutoPilot must publish here (see NetworkPeerManagerFake) rather than
+    // reply to `sender` (production's SendMessageCmd is fire-and-forget through the Classic adapter).
+    lazy val peerEventBus: TypedActorRef[PeerEventBusActor.Command] =
+      self.testKit.spawn(PeerEventBusActor.behavior())
     lazy val networkPeerManager =
       new NetworkPeerManagerFake(
         syncConfig,
@@ -83,10 +90,9 @@ class FastSyncSpec extends ScalaTestWithActorTestKit() with FreeSpecBase with Sp
         // ETH69 G5 — include genesis so the pivot's parent-chain backlink probe (reverse from the pivot) can
         // walk back to genesis, which is the only block in the local canonical chain at sync start. Without it
         // the backlink finds no canonical ancestor and the pivot is (correctly) rejected.
-        BlockHelpers.genesis :: testBlocks
+        BlockHelpers.genesis :: testBlocks,
+        peerEventBus
       )
-    lazy val peerEventBus: TypedTestProbe[PeerEventBusActor.Command] =
-      self.testKit.createTestProbe[PeerEventBusActor.Command]()
     lazy val syncControllerProbe: TypedTestProbe[FastSync.SyncControllerMsg] =
       self.testKit.createTestProbe[FastSync.SyncControllerMsg]()
     lazy val fastSyncTyped: TypedActorRef[FastSync.Command] = self.testKit
@@ -102,7 +108,7 @@ class FastSyncSpec extends ScalaTestWithActorTestKit() with FreeSpecBase with Sp
           nodeStorage = storagesInstance.storages.nodeStorage,
           stateStorage = storagesInstance.storages.stateStorage,
           validators = validators,
-          peerEventBus = peerEventBus.ref,
+          peerEventBus = peerEventBus,
           networkPeerManager = networkPeerManager.ref,
           blacklist = blacklist,
           syncConfig = syncConfig,

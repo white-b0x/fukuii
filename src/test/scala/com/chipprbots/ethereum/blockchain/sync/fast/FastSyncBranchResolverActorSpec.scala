@@ -95,9 +95,15 @@ class FastSyncBranchResolverActorSpec
         val blocksSentFromPeer: Map[Int, List[Block]] = Map(1 -> firstBatchBlockHeaders)
 
         saveBlocks(blocksSaved)
-        val networkPeerManager: ActorRef = createNetworkPeerManager(handshakedPeers, blocksSentFromPeer)
+        val peerEventBus: TypedActorRef[PeerEventBusActor.Command] = createPeerEventBus()
+        val networkPeerManager: ActorRef = createNetworkPeerManager(handshakedPeers, blocksSentFromPeer, peerEventBus)
         val fastSyncBranchResolver: TypedActorRef[FastSyncBranchResolverActor.Command] =
-          creatFastSyncBranchResolver(sender.ref, networkPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
+          creatFastSyncBranchResolver(
+            sender.ref,
+            networkPeerManager,
+            CacheBasedBlacklist.empty(BlacklistMaxElements),
+            peerEventBus
+          )
 
         val expectation
             : PartialFunction[FastSyncBranchResolverActor.BranchResolverResponse, BranchResolvedSuccessful] = {
@@ -135,9 +141,15 @@ class FastSyncBranchResolverActorSpec
           )
 
           saveBlocks(blocksSaved)
-          val networkPeerManager: ActorRef = createNetworkPeerManager(handshakedPeers, blocksSentFromPeer)
+          val peerEventBus: TypedActorRef[PeerEventBusActor.Command] = createPeerEventBus()
+          val networkPeerManager: ActorRef = createNetworkPeerManager(handshakedPeers, blocksSentFromPeer, peerEventBus)
           val fastSyncBranchResolver: TypedActorRef[FastSyncBranchResolverActor.Command] =
-            creatFastSyncBranchResolver(sender.ref, networkPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
+            creatFastSyncBranchResolver(
+              sender.ref,
+              networkPeerManager,
+              CacheBasedBlacklist.empty(BlacklistMaxElements),
+              peerEventBus
+            )
 
           val expectation
               : PartialFunction[FastSyncBranchResolverActor.BranchResolverResponse, BranchResolvedSuccessful] = {
@@ -174,9 +186,15 @@ class FastSyncBranchResolverActorSpec
           )
 
           saveBlocks(blocksSaved)
-          val networkPeerManager: ActorRef = createNetworkPeerManager(handshakedPeers, blocksSentFromPeer)
+          val peerEventBus: TypedActorRef[PeerEventBusActor.Command] = createPeerEventBus()
+          val networkPeerManager: ActorRef = createNetworkPeerManager(handshakedPeers, blocksSentFromPeer, peerEventBus)
           val fastSyncBranchResolver: TypedActorRef[FastSyncBranchResolverActor.Command] =
-            creatFastSyncBranchResolver(sender.ref, networkPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
+            creatFastSyncBranchResolver(
+              sender.ref,
+              networkPeerManager,
+              CacheBasedBlacklist.empty(BlacklistMaxElements),
+              peerEventBus
+            )
 
           val expectation
               : PartialFunction[FastSyncBranchResolverActor.BranchResolverResponse, BranchResolvedSuccessful] = {
@@ -213,9 +231,15 @@ class FastSyncBranchResolverActorSpec
           )
 
           saveBlocks(blocksSaved)
-          val networkPeerManager: ActorRef = createNetworkPeerManager(handshakedPeers, blocksSentFromPeer)
+          val peerEventBus: TypedActorRef[PeerEventBusActor.Command] = createPeerEventBus()
+          val networkPeerManager: ActorRef = createNetworkPeerManager(handshakedPeers, blocksSentFromPeer, peerEventBus)
           val fastSyncBranchResolver: TypedActorRef[FastSyncBranchResolverActor.Command] =
-            creatFastSyncBranchResolver(sender.ref, networkPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
+            creatFastSyncBranchResolver(
+              sender.ref,
+              networkPeerManager,
+              CacheBasedBlacklist.empty(BlacklistMaxElements),
+              peerEventBus
+            )
 
           val expectation
               : PartialFunction[FastSyncBranchResolverActor.BranchResolverResponse, BranchResolvedSuccessful] = {
@@ -252,9 +276,15 @@ class FastSyncBranchResolverActorSpec
         )
 
         saveBlocks(blocksSaved)
-        val networkPeerManager: ActorRef = createNetworkPeerManager(handshakedPeers, blocksSentFromPeer)
+        val peerEventBus: TypedActorRef[PeerEventBusActor.Command] = createPeerEventBus()
+        val networkPeerManager: ActorRef = createNetworkPeerManager(handshakedPeers, blocksSentFromPeer, peerEventBus)
         val fastSyncBranchResolver: TypedActorRef[FastSyncBranchResolverActor.Command] =
-          creatFastSyncBranchResolver(sender.ref, networkPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
+          creatFastSyncBranchResolver(
+            sender.ref,
+            networkPeerManager,
+            CacheBasedBlacklist.empty(BlacklistMaxElements),
+            peerEventBus
+          )
 
         log.debug(s"*** peers: ${handshakedPeers.map(p => (p._1.id, p._2.maxBlockNumber))}")
         (for
@@ -302,15 +332,25 @@ class FastSyncBranchResolverActorSpec
         blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(TotalDifficulty(1)), saveAsBestBlock = true)
       )
 
-    // FIXABLE via event-bus delivery (fa16aeaf9/3b8b07f67 precedent) — deferred to MOD-09, NOT a
-    // permanent boundary; E165 stays visible, do not suppress. The NetworkPeerManagerAutoPilot below
-    // replies to SendMessageCmd via Classic sender(), but production never returns a reply on
-    // SendMessageCmd (it is fire-and-forget): FastSyncBranchResolverActor spawns the production
-    // PeerRequestHandler, which reads peer responses only from the PeerEventBus (SubscribeCmd →
-    // MessageFromPeer). The faithful fix spawns a real PeerEventBusActor and delivers via PublishCmd,
-    // the same mechanism IP-STATESYNC-01/SYNCCONTROLLERSPEC-REDO-01 used. (Typed TestProbe has no
-    // AutoPilot hook, so the fixture keeps a Classic probe only until MOD-09 lands.)
-    def createNetworkPeerManager(peers: Map[Peer, PeerInfo], blocks: Map[Int, List[Block]])(implicit
+    // Real PeerEventBusActor: the Typed PeerRequestHandler that FastSyncBranchResolverActor spawns
+    // receives peer responses only via a PeerEventBus subscription (SubscribeCmd -> MessageFromPeer),
+    // so the AutoPilot below must PUBLISH there — a bare probe cannot route SubscribeCmd. Same fix
+    // shape as the fa16aeaf9/3b8b07f67 precedent (IP-STATESYNC-01 / SYNCCONTROLLERSPEC-REDO-01).
+    def createPeerEventBus(): TypedActorRef[PeerEventBusActor.Command] =
+      self.testKit.spawn(PeerEventBusActor.behavior())
+
+    // The NetworkPeerManagerAutoPilot below replies via a real PeerEventBusActor, not
+    // `sender ! theResponse`: production's SendMessageCmd is fire-and-forget (the Typed
+    // FastSyncBranchResolverActor sends it through a Classic-adapter ActorRef, so `sender` is
+    // deadLetters), and the production PeerRequestHandler reads peer responses only from the
+    // PeerEventBus. A direct reply to `sender` is silently dropped and the resolver stalls to
+    // timeout — this is what made every test in this spec fail deterministically before the fix.
+    def createNetworkPeerManager(
+        peers: Map[Peer, PeerInfo],
+        blocks: Map[Int, List[Block]],
+        peerEventBus: TypedActorRef[PeerEventBusActor.Command]
+    )(implicit
+        system: ActorSystem,
         ioRuntime: IORuntime
     ): ActorRef =
       val networkPeerManager = TestProbe("network_peer_manager")
@@ -318,7 +358,8 @@ class FastSyncBranchResolverActorSpec
         new NetworkPeerManagerAutoPilot(
           peersConnectedDeferred,
           peers,
-          blocks
+          blocks,
+          peerEventBus
         )
       networkPeerManager.setAutoPilot(autoPilot)
       networkPeerManager.ref
@@ -326,12 +367,13 @@ class FastSyncBranchResolverActorSpec
     def creatFastSyncBranchResolver(
         fastSync: TypedActorRef[FastSyncBranchResolverActor.BranchResolverResponse],
         networkPeerManager: ActorRef,
-        blacklist: Blacklist
+        blacklist: Blacklist,
+        peerEventBus: TypedActorRef[PeerEventBusActor.Command]
     ): TypedActorRef[FastSyncBranchResolverActor.Command] =
       self.testKit.spawn(
         FastSyncBranchResolverActor(
           replyTo = fastSync,
-          peerEventBus = self.testKit.createTestProbe[PeerEventBusActor.Command]().ref,
+          peerEventBus = peerEventBus,
           networkPeerManager = networkPeerManager,
           blockchain = blockchain,
           blockchainReader = blockchainReader,
@@ -357,12 +399,23 @@ object FastSyncBranchResolverActorSpec extends Logger:
   class NetworkPeerManagerAutoPilot(
       peersConnected: Deferred[IO, Unit],
       peers: Map[Peer, PeerInfo],
-      blocks: Map[Int, List[Block]]
-  )(implicit ioRuntime: IORuntime)
+      blocks: Map[Int, List[Block]],
+      peerEventBus: TypedActorRef[PeerEventBusActor.Command]
+  )(implicit system: ActorSystem, ioRuntime: IORuntime)
       extends AutoPilot:
 
     var blockIndex = 0
     lazy val blocksSetSize = blocks.size
+
+    // The Typed PeerRequestHandler sends SendMessageCmd and *then* subscribes to the PeerEventBus.
+    // Publishing synchronously here can race ahead of that subscription and be dropped (the bus only
+    // delivers to current subscribers); a small scheduled delay reproduces the happens-before that
+    // real network latency guarantees in production. Mirrors StateSyncSpec/SyncControllerSpec.
+    given scala.concurrent.ExecutionContext = system.dispatcher
+    private def publishResponse(response: MessageFromPeer): Unit =
+      system.scheduler.scheduleOnce(20.milliseconds)(
+        peerEventBus ! PeerEventBusActor.PublishCmd(response)
+      )
 
     def run(sender: ActorRef, msg: Any): NetworkPeerManagerAutoPilot =
       msg match
@@ -376,7 +429,6 @@ object FastSyncBranchResolverActorSpec extends Logger:
               ETHBlockHeaders(req.requestId, blocks.get(blockIndex).map(_.map(_.header)).getOrElse(Nil))
             case other =>
               throw new RuntimeException(s"Unexpected message sent to NetworkPeerManagerAutoPilot: $other")
-          val theResponse = MessageFromPeer(response, peerId)
-          sender ! theResponse
+          publishResponse(MessageFromPeer(response, peerId))
           if blockIndex == blocksSetSize then ()
       this
