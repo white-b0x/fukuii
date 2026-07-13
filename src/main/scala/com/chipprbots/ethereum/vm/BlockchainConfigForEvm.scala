@@ -127,31 +127,6 @@ object BlockchainConfigForEvm:
   def isEip6049DeprecationEnabled(etcFork: EtcFork): Boolean =
     etcFork >= EtcForks.Spiral
 
-  // Olympia fork EIP enablement (ECIP-1111/1112/1121)
-  def isEip1559Enabled(etcFork: EtcFork): Boolean =
-    etcFork >= EtcForks.Olympia
-
-  def isEip1153Enabled(etcFork: EtcFork): Boolean =
-    etcFork >= EtcForks.Olympia
-
-  def isEip5656Enabled(etcFork: EtcFork): Boolean =
-    etcFork >= EtcForks.Olympia
-
-  def isEip6780Enabled(etcFork: EtcFork): Boolean =
-    etcFork >= EtcForks.Olympia
-
-  def isEip7702Enabled(etcFork: EtcFork): Boolean =
-    etcFork >= EtcForks.Olympia
-
-  def isEip2935Enabled(etcFork: EtcFork): Boolean =
-    etcFork >= EtcForks.Olympia
-
-  def isEip2537Enabled(etcFork: EtcFork): Boolean =
-    etcFork >= EtcForks.Olympia
-
-  def isEip7951Enabled(etcFork: EtcFork): Boolean =
-    etcFork >= EtcForks.Olympia
-
   def apply(blockchainConfig: BlockchainConfig): BlockchainConfigForEvm =
     import blockchainConfig.*
     val isEth = networkType == com.chipprbots.ethereum.utils.NetworkType.ETH

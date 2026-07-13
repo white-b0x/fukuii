@@ -576,28 +576,29 @@ object SignedTransactionWithSender:
       stxs: Seq[SignedTransaction]
   )(implicit blockchainConfig: BlockchainConfig): Seq[SignedTransaction] =
     import com.chipprbots.ethereum.vm.EvmConfig
-    import com.chipprbots.ethereum.utils.NetworkType
-    // For ETH chains, apply timestamp-based fork overrides so that EIP-3860 initcode metering
-    // is included in the intrinsic gas check (omitting it under-estimates cost for contract-creation
-    // txs post-Shanghai). Use the latest configured fork timestamp as a stateless proxy for "now".
-    // ETC uses the 2-arg path: timestamp forks do not exist on ETC.
+    // Always use the timestamp-aware overload so that on any timestamp-fork network EIP-3860 initcode metering
+    // is included in the intrinsic gas check (omitting it under-estimates cost for contract-creation txs
+    // post-Shanghai). Use the latest configured fork timestamp as a stateless proxy for "now".
+    //
+    // Byte-identical on networks with no timestamp forks (e.g. ETC): every EVM proposal there activates by block
+    // number (ForkActivation.ByBlock/Never, which ignore the timestamp axis) and `latestTimestamp` resolves to 0,
+    // so the 3-arg forBlock derives the exact same active-proposal set — and thus the same EvmConfig and intrinsic
+    // gas — as the 2-arg block-only overload.
+    val ft = blockchainConfig.forkTimestamps
+    val latestTimestamp: Long =
+      ft.osakaTimestamp
+        .orElse(ft.bpo2Timestamp)
+        .orElse(ft.bpo1Timestamp)
+        .orElse(ft.pragueTimestamp)
+        .orElse(ft.cancunTimestamp)
+        .orElse(ft.shanghaiTimestamp)
+        .getOrElse(0L)
     val config =
-      if blockchainConfig.networkType == NetworkType.ETH then
-        val ft = blockchainConfig.forkTimestamps
-        val latestTimestamp: Long =
-          ft.osakaTimestamp
-            .orElse(ft.bpo2Timestamp)
-            .orElse(ft.bpo1Timestamp)
-            .orElse(ft.pragueTimestamp)
-            .orElse(ft.cancunTimestamp)
-            .orElse(ft.shanghaiTimestamp)
-            .getOrElse(0L)
-        EvmConfig.forBlock(
-          blockchainConfig.forkBlockNumbers.eip1559BlockNumber,
-          Timestamp(latestTimestamp),
-          blockchainConfig
-        )
-      else EvmConfig.forBlock(blockchainConfig.forkBlockNumbers.eip1559BlockNumber, blockchainConfig)
+      EvmConfig.forBlock(
+        blockchainConfig.forkBlockNumbers.eip1559BlockNumber,
+        Timestamp(latestTimestamp),
+        blockchainConfig
+      )
 
     val eip2681NonceCap = BigInt(2).pow(64) - 2 // EIP-2681: nonces >= 2^64-1 rejected
     stxs.filter { stx =>

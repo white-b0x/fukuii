@@ -4,11 +4,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.domain.Address
-import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.ledger.BlockExecution
 import com.chipprbots.ethereum.testing.Tags.*
 
-import BlockchainConfigForEvm.EtcForks.EtcFork
 import Fixtures.blockchainConfig
 import FeeScheduleFields.fields
 
@@ -22,41 +20,6 @@ class OlympiaEipEnablementSpec extends AnyFlatSpec with Matchers:
   val configOlympia: EvmConfig = EvmConfig.OlympiaConfigBuilder(blockchainConfig)
   val configSpiral: EvmConfig = EvmConfig.SpiralConfigBuilder(blockchainConfig)
 
-  val olympiaEtcFork: EtcFork =
-    blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.OlympiaBlockNumber))
-  val spiralEtcFork: EtcFork =
-    blockchainConfig.etcForkForBlockNumber(BlockNumber(Fixtures.SpiralBlockNumber))
-
-  "Olympia EIP enablement when EIP-1559 (base fee)" should "be enabled at Olympia" taggedAs (
-    UnitTest,
-    OlympiaTest
-  ) in {
-    BlockchainConfigForEvm.isEip1559Enabled(olympiaEtcFork) shouldBe true
-  }
-  it should "be disabled pre-Olympia" taggedAs (UnitTest, OlympiaTest) in {
-    BlockchainConfigForEvm.isEip1559Enabled(spiralEtcFork) shouldBe false
-  }
-
-  "Olympia EIP enablement when EIP-1153 (transient storage)" should "be enabled at Olympia" taggedAs (
-    UnitTest,
-    OlympiaTest
-  ) in {
-    BlockchainConfigForEvm.isEip1153Enabled(olympiaEtcFork) shouldBe true
-  }
-  it should "be disabled pre-Olympia" taggedAs (UnitTest, OlympiaTest) in {
-    BlockchainConfigForEvm.isEip1153Enabled(spiralEtcFork) shouldBe false
-  }
-
-  "Olympia EIP enablement when EIP-5656 (MCOPY)" should "be enabled at Olympia" taggedAs (
-    UnitTest,
-    OlympiaTest
-  ) in {
-    BlockchainConfigForEvm.isEip5656Enabled(olympiaEtcFork) shouldBe true
-  }
-  it should "be disabled pre-Olympia" taggedAs (UnitTest, OlympiaTest) in {
-    BlockchainConfigForEvm.isEip5656Enabled(spiralEtcFork) shouldBe false
-  }
-
   "Olympia EIP enablement when EIP-6780 (SELFDESTRUCT restriction)" should "be enabled at Olympia via EvmConfig flag" taggedAs (
     UnitTest,
     OlympiaTest
@@ -65,49 +28,6 @@ class OlympiaEipEnablementSpec extends AnyFlatSpec with Matchers:
   }
   it should "be disabled pre-Olympia via EvmConfig flag" taggedAs (UnitTest, OlympiaTest) in {
     configSpiral.eip6780Enabled shouldBe false
-  }
-  it should "be enabled at Olympia via fork helper" taggedAs (UnitTest, OlympiaTest) in {
-    BlockchainConfigForEvm.isEip6780Enabled(olympiaEtcFork) shouldBe true
-  }
-
-  "Olympia EIP enablement when EIP-7702 (set code transaction)" should "be enabled at Olympia" taggedAs (
-    UnitTest,
-    OlympiaTest
-  ) in {
-    BlockchainConfigForEvm.isEip7702Enabled(olympiaEtcFork) shouldBe true
-  }
-  it should "be disabled pre-Olympia" taggedAs (UnitTest, OlympiaTest) in {
-    BlockchainConfigForEvm.isEip7702Enabled(spiralEtcFork) shouldBe false
-  }
-
-  "Olympia EIP enablement when EIP-2935 (historical block hashes)" should "be enabled at Olympia" taggedAs (
-    UnitTest,
-    OlympiaTest
-  ) in {
-    BlockchainConfigForEvm.isEip2935Enabled(olympiaEtcFork) shouldBe true
-  }
-  it should "be disabled pre-Olympia" taggedAs (UnitTest, OlympiaTest) in {
-    BlockchainConfigForEvm.isEip2935Enabled(spiralEtcFork) shouldBe false
-  }
-
-  "Olympia EIP enablement when EIP-2537 (BLS12-381 precompiles)" should "be enabled at Olympia" taggedAs (
-    UnitTest,
-    OlympiaTest
-  ) in {
-    BlockchainConfigForEvm.isEip2537Enabled(olympiaEtcFork) shouldBe true
-  }
-  it should "be disabled pre-Olympia" taggedAs (UnitTest, OlympiaTest) in {
-    BlockchainConfigForEvm.isEip2537Enabled(spiralEtcFork) shouldBe false
-  }
-
-  "Olympia EIP enablement when EIP-7951 (P256Verify precompile)" should "be enabled at Olympia" taggedAs (
-    UnitTest,
-    OlympiaTest
-  ) in {
-    BlockchainConfigForEvm.isEip7951Enabled(olympiaEtcFork) shouldBe true
-  }
-  it should "be disabled pre-Olympia" taggedAs (UnitTest, OlympiaTest) in {
-    BlockchainConfigForEvm.isEip7951Enabled(spiralEtcFork) shouldBe false
   }
 
   "ETC Olympia precompile set (ECIP-1121, etcOlympiaContracts)" should

@@ -13,7 +13,6 @@ import com.chipprbots.ethereum.rlp.encode as rlpEncode
 import com.chipprbots.ethereum.rlp.rawDecode
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.ByteStringUtils
-import com.chipprbots.ethereum.utils.NetworkType
 
 import BlockHeader.HeaderExtraFields
 import BlockHeader.HeaderExtraFields.*
@@ -155,8 +154,7 @@ object BlockHeader:
     * before the full [[com.chipprbots.ethereum.consensus.pos.PoSBlockHeaderValidator]].
     */
   def validateFieldCount(header: BlockHeader, config: BlockchainConfig): Either[String, Unit] =
-    if config.networkType != NetworkType.ETH then Right(())
-    else if config.isCancunTimestamp(header.unixTimestamp) && header.blobGasUsed.isEmpty then
+    if config.isCancunTimestamp(header.unixTimestamp) && header.blobGasUsed.isEmpty then
       Left(
         s"Cancun-era header at timestamp ${header.unixTimestamp} missing blobGasUsed " +
           s"(RLP field count below 20 — expected HefPostCancun or HefPostPrague)"
