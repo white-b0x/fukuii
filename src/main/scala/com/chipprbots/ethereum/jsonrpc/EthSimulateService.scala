@@ -1027,7 +1027,9 @@ class EthSimulateService(
     else
       val gasUsedDelta = (parentGasTarget - parentHeader.gasUsed).value
       val baseFeePerGasDelta = parentBaseFee * gasUsedDelta / parentGasTarget.value / baseFeeChangeDenominator
-      (parentBaseFee - baseFeePerGasDelta).max(0)
+      // Final decrease floor = blockchainConfig.baseFeeFloor (Big0 for ETH, 1 gwei for ETC/Mordor per
+      // ECIP-1111), matching BaseFeeCalculator.calcBaseFee and core-geth's GetBaseFeeMinValue clamp.
+      (parentBaseFee - baseFeePerGasDelta).max(blockchainConfig.baseFeeFloor)
 
   private def computeTransactionsRoot(txs: Seq[SignedTransaction]): ByteString =
     if txs.isEmpty then EmptyMpt

@@ -45,8 +45,9 @@ object BaseFeeCalculator:
       // gets max(1). Only the FINAL result is floored — to baseFeeFloor from chain config
       // (Big0 for ETH; 1 gwei for ETC/Mordor per ECIP-1111). Do NOT add .max(1) here: that
       // off-by-one over-decrements small base fees and forks the ETH chain (INVALID_BASE_FEE).
-      // NOTE: EngineApiService and EthSimulateService carry inline copies of this decrease and
-      // already omit the min-1 floor — they must stay in agreement with this method.
+      // NOTE: EngineApiService delegates to this method (no inline copy). EthSimulateService still
+      // carries an inline copy of this decrease: it omits the min-1 delta floor (as here) and floors
+      // the final result to blockchainConfig.baseFeeFloor (as here) — it must stay in agreement.
       val gasUsedDelta = parentGasTarget - parent.gasUsed
       val baseFeeDelta = parentBaseFee * gasUsedDelta.value / parentGasTarget.value / BaseFeeChangeDenominator
       BaseFeePerGas((parentBaseFee - baseFeeDelta).max(blockchainConfig.baseFeeFloor))

@@ -353,6 +353,36 @@ class EthSimulateServiceSpec
       val response: EthSimulateResponse = result.getOrElse(fail("expected Right"))
       response.blocks.head.header.baseFee shouldBe Some(BaseFeePerGas(BigInt(42)))
 
+  // Regression: ETHSIMULATE-BASEFEE-FLOOR-01. On a network with a non-zero baseFeeFloor
+  // (ETC/Mordor = 1 gwei per ECIP-1111), the EIP-1559 decrease branch must clamp the next
+  // base fee to the floor, not to 0. The same parent (1 gwei baseFee, gasUsed=0) that decays
+  // to 875_000_000 under a 0 floor (test above) must stay pinned at 1 gwei here. A revert of
+  // computeNextBaseFee's `.max(blockchainConfig.baseFeeFloor)` back to `.max(0)` fails this.
+  it should "clamp the decreasing base fee to a non-zero baseFeeFloor (ECIP-1111)" taggedAs (
+    UnitTest,
+    RPCTest
+  ) in
+    new TestSetup:
+      override def serviceBlockchainConfig: com.chipprbots.ethereum.utils.BlockchainConfig =
+        blockchainConfig.copy(baseFeeFloor = BigInt(1000000000))
+
+      val baseFeeHeader: BlockHeader = block.header.copy(
+        gasLimit = GasAmount(1000000),
+        gasUsed = GasAmount(0),
+        extraFields = HefPostEip1559(BaseFeePerGas(BigInt(1000000000)))
+      )
+      val baseFeeBlock: Block = Block(baseFeeHeader, BlockBody.empty)
+      saveAsLatest(baseFeeBlock)
+
+      val req: EthSimulateRequest =
+        EthSimulateRequest(blockStateCalls = Seq(BlockStateCall()), validation = true)
+
+      val result: Either[JsonRpcError, EthSimulateResponse] = service.ethSimulate(req).unsafeRunSync()
+
+      result.isRight shouldBe true
+      val response: EthSimulateResponse = result.getOrElse(fail("expected Right"))
+      response.blocks.head.header.baseFee shouldBe Some(BaseFeePerGas(BigInt(1000000000)))
+
   // ── Cancun / Prague system-contract injection (EIP-4788 / EIP-2935) ─────────
 
   it should "produce a Cancun-shaped header when the simulated timestamp is at or beyond the Cancun activation" taggedAs (
@@ -406,11 +436,15 @@ class EthSimulateServiceSpec
       blockchainWriter.storeBlock(b).commit()
       blockchainWriter.saveBestKnownBlocks(b.hash, b.number.value)
 
+    // Overridable so a subclass can exercise a non-zero baseFeeFloor (ECIP-1111). The
+    // "test" network never sets base-fee-floor, so the default is 0.
+    def serviceBlockchainConfig: com.chipprbots.ethereum.utils.BlockchainConfig = blockchainConfig
+
     lazy val service: EthSimulateService = new EthSimulateService(
       blockchain,
       blockchainReader,
       storagesInstance.storages.evmCodeStorage,
       mining.blockPreparator,
       mining,
-      blockchainConfig
+      serviceBlockchainConfig
     )
