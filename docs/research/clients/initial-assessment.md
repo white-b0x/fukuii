@@ -55,7 +55,7 @@ besu advertises **ETH68/69/70/71 simultaneously** via `CapabilityMultiplexer` (g
 ---
 
 ## 2. Refined authority map (per concern)
-- **ETC / PoW / ETChash / ECIP-1017/1099/1100/1111** — **core-geth** (the only *current* one; the deep review will add *historical* PoW references — §3).
+- **ETC / PoW / ETChash / ECIP** — **core-geth = the byte-authoritative ETC authority** (Go, live). **But NOT the only ETC reference (updated 2026-07-13 by the historical survey):** **besu's git history is a second, ~6-year (2019→Feb-2026), JVM ETC implementation** (`ClassicProtocolSpecs`, `Ecip1099EpochCalculator`, ECIP-1017 emission, ECIP-1049 Keccak mining, Stratum) — fukuii's closest-language STRUCTURAL reference, though besu's ECIP-1099 diverged from core-geth so it is NOT byte-authoritative. **go-ethereum's pre-merge history** = the ancestral Ethash-engine structure. **nethermind** = generic Ethash (still opt-in mining) but never shipped ETC. Net: core-geth for *values*, besu-history + geth-history for *structure* (esp. JVM/besu).
 - **ETH / PoS + the `consensus.Engine` interface + snap wire semantics** — **go-ethereum**.
 - **Multi-consensus / PoA** — **besu** (Clique *validation*+config, IBFT2/QBFT *production*); **Clique *sealing* → core-geth** (besu removed Clique block production).
 - **Sidechain / Bor / external-infra-injection** — **erigon** (NET-01 reference).
