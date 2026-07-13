@@ -23,6 +23,44 @@ enum EngineId:
   case Qbft
   case Bor
 
+object EngineId:
+
+  /** Positive per-mechanism config markers → [[EngineId]] — the shape besu keys on with
+    * `isClique()/isQbft()/getPowAlgorithm()` and core-geth with its `chain_config_configurator.go` positive keying (no
+    * `else-means-Ethash` fallthrough). Keys are the HOCON `engine-id` marker tokens; matching is case-insensitive.
+    */
+  private val byMarker: Map[String, EngineId] = Map(
+    "ethash" -> Ethash,
+    "engine-api" -> EngineApi,
+    "clique" -> Clique,
+    "qbft" -> Qbft,
+    "bor" -> Bor
+  )
+
+  /** Resolve the optional positive engine marker(s) declared by a chain config's `engine-id` key.
+    *
+    * Positive keying with NO fallthrough: an unrecognized marker fails loudly rather than silently defaulting to Ethash
+    * (the anti-pattern go-ethereum's `goethereum_configurator.go` falls into). More than one DISTINCT mechanism is
+    * rejected — the direct port of nethermind's `ChainSpecParametersProvider.CalculateSealEngineType`, which throws
+    * when a chainspec declares >1 seal engine. An empty/absent marker returns `None`, so the caller falls back to the
+    * network-type default and every existing config resolves byte-identically.
+    */
+  def fromMarkers(markers: List[String]): Option[EngineId] =
+    val resolved: List[EngineId] =
+      markers.map(_.trim.toLowerCase).filter(_.nonEmpty).distinct.map { m =>
+        byMarker.getOrElse(
+          m,
+          throw new IllegalArgumentException(
+            s"Unknown consensus engine marker '$m' (expected one of: ${byMarker.keys.toList.sorted.mkString(", ")})"
+          )
+        )
+      }
+    if resolved.sizeIs > 1 then
+      throw new IllegalArgumentException(
+        s"Ambiguous consensus engine: config declares multiple seal engines (${resolved.mkString(", ")}); specify exactly one."
+      )
+    resolved.headOption
+
 /** A narrow seam over the pieces of consensus that vary by engine: header (seal) validation, block sealing, block
   * production, and finalization rewards.
   *
@@ -74,21 +112,21 @@ object ConsensusEngine:
           s"ConsensusEngine '$id' is a reserved engine seam with no implementation in this phase (Batch 5 Stage 5.4a)."
         )
 
-  /** L3 engine-id resolution — Stage 5.4b.
+  /** L3 engine-id resolution — Stage 5.4b, positive-marker dispatch (B7.0-a).
     *
-    * Resolves the engine at NETWORK-FAMILY granularity, NOT block/timestamp granularity: a PoW (ETC-family) chain is
-    * always [[EngineId.Ethash]]; a PoS-capable (ETH-family) chain is always [[EngineId.EngineApi]]. The engine INSTANCE
+    * Resolution is driven by a POSITIVE per-mechanism marker parsed from the chain config (`BlockchainConfig.engineId`,
+    * from the HOCON `engine-id` key) — the erigon/core-geth/besu shape (presence of a typed engine marker), NOT the
+    * `NetworkType` binary. When the marker is ABSENT (as it is in every config fukuii ships today) resolution falls
+    * back to [[defaultEngineIdFor]], the verbatim pre-B7.0-a `networkType` derivation, so existing ETC/ETH configs
+    * resolve to the identical [[EngineId]] byte-for-byte. `networkType` is thus demoted to a back-compat DEFAULT
+    * source; it is no longer the primary engine selector.
+    *
+    * Resolution is at NETWORK-FAMILY granularity, NOT block/timestamp granularity: a PoW (ETC-family) chain is always
+    * [[EngineId.Ethash]]; a PoS-capable (ETH-family) chain is always [[EngineId.EngineApi]]. The engine INSTANCE
     * therefore never changes at the Merge — the [[EngineApiEngine]] handles the pre-/post-Merge split INTERNALLY (its
     * `headerValidator` is [[TransitionBlockHeaderValidator]], which routes per header on `difficulty == 0`, and its
     * `finalizeBlock` delegates to `payBlockReward`, whose `isPoS` early return flips reward/base-fee behaviour at the
     * TTD boundary). Because selection is family-stable, no block number, timestamp, or total difficulty is consulted.
-    *
-    * The family marker is the EXISTING `BlockchainConfig.networkType` — no new L3 `ForkSchedule` field is added
-    * (F9-consistent). `networkType` is the reliable signal here: `mining.protocol` does NOT encode the family (ETH/
-    * Sepolia inherit `protocol = pow` from `base/mining.conf` and never override it; Gorgoroth carries a non-standard
-    * `protocol = "ethash"`), whereas `networkType` is set explicitly per chain (`network-type = "eth"` for the PoS
-    * chains, defaulting to `ETC` for the PoW chains) and is corroborated by `terminalTotalDifficulty` / the derived
-    * `Custom("merge", 0)` schedule proposal (`ETH` ⇔ TTD defined ⇔ merge proposal ≠ `Never`).
     *
     * ECIP-1099 (ETChash) is deliberately NOT a distinct engine id. It matches core-geth's structure
     * (`consensus/ethash`: `Config.ECIP1099Block *uint64` + `calcEpochLength(block, ecip1099FBlock)` → 30000/60000
@@ -97,6 +135,14 @@ object ConsensusEngine:
     * and post-ECIP-1099 ETC without an `EtcHash` case.
     */
   def engineIdFor(blockchainConfig: BlockchainConfig): EngineId =
+    blockchainConfig.engineId.getOrElse(defaultEngineIdFor(blockchainConfig))
+
+  /** Back-compat default when no positive `engine-id` marker is present: derive from `networkType` exactly as B7.0-a
+    * inherited it. Every shipped ETC/ETH config omits the marker, so this is the path they all take — preserving
+    * byte-identity. `networkType` corroborates the other pre-B7.0-a family markers (`terminalTotalDifficulty` / derived
+    * `Custom("merge", 0)`): `ETH` ⇔ TTD defined ⇔ merge proposal ≠ `Never`, `ETC` is the negation.
+    */
+  private def defaultEngineIdFor(blockchainConfig: BlockchainConfig): EngineId =
     blockchainConfig.networkType match
       case NetworkType.ETC => EngineId.Ethash
       case NetworkType.ETH => EngineId.EngineApi

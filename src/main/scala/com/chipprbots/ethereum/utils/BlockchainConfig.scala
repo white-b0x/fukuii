@@ -8,6 +8,7 @@ import scala.util.Try
 import com.typesafe.config.Config as TypesafeConfig
 import com.typesafe.config.ConfigRenderOptions
 
+import com.chipprbots.ethereum.consensus.EngineId
 import com.chipprbots.ethereum.consensus.pos.BlobGasUtils
 import com.chipprbots.ethereum.consensus.pow.mess.MESSConfig
 import com.chipprbots.ethereum.domain.Address
@@ -75,7 +76,11 @@ case class BlockchainConfig(
     minTip: BigInt = BigInt(1000000000),
     networkType: NetworkType = NetworkType.ETC,
     terminalTotalDifficulty: Option[BigInt] = None,
-    forkTimestamps: ForkTimestamps = ForkTimestamps()
+    forkTimestamps: ForkTimestamps = ForkTimestamps(),
+    // B7.0-a positive engine marker (HOCON `engine-id`). `None` when the key is absent — which is EVERY config
+    // fukuii ships today — so `ConsensusEngine.engineIdFor` falls back to the `networkType`-derived default and
+    // resolves byte-identically. This is a per-mechanism marker (erigon/core-geth/besu shape), NOT `networkType`.
+    engineId: Option[EngineId] = None
 ):
   def isPoS(totalDifficulty: TotalDifficulty): Boolean =
     terminalTotalDifficulty.exists(ttd => totalDifficulty.value >= ttd)
@@ -515,6 +520,17 @@ object BlockchainConfig:
     val terminalTotalDifficulty: Option[BigInt] =
       Try(BigInt(blockchainConfig.getString("terminal-total-difficulty"))).toOption
 
+    // B7.0-a positive engine marker. `engine-id` may be a single string (`"clique"`) or a list
+    // (`["ethash","clique"]` — the ambiguous form the uniqueness guard rejects). Absent → None → engine falls back to
+    // the `networkType` default in `ConsensusEngine.engineIdFor`, keeping every shipped config byte-identical.
+    val engineId: Option[EngineId] =
+      if blockchainConfig.hasPath("engine-id") then
+        val markers: List[String] =
+          Try(blockchainConfig.getStringList("engine-id").asScala.toList)
+            .getOrElse(List(blockchainConfig.getString("engine-id")))
+        EngineId.fromMarkers(markers)
+      else None
+
     val forkTimestamps: ForkTimestamps = ForkTimestamps(
       shanghaiTimestamp = Try(blockchainConfig.getLong("shanghai-timestamp")).toOption,
       cancunTimestamp = Try(blockchainConfig.getLong("cancun-timestamp")).toOption,
@@ -590,7 +606,8 @@ object BlockchainConfig:
       minTip = minTip,
       networkType = networkType,
       terminalTotalDifficulty = terminalTotalDifficulty,
-      forkTimestamps = forkTimestamps
+      forkTimestamps = forkTimestamps,
+      engineId = engineId
     )
   // scalastyle:on method.length
   private def readPubKeySet(blockchainConfig: TypesafeConfig, path: String): Set[ByteString] =

@@ -2,6 +2,7 @@ package com.chipprbots.ethereum.consensus
 
 import org.apache.pekko.util.ByteString
 
+import com.typesafe.config.ConfigFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -77,6 +78,80 @@ class EngineResolutionSpec extends AnyWordSpec with Matchers:
           isEth shouldBe (cfg.forkSchedule.activationOf(Custom("merge", 0)) != ForkActivation.Never)
         }
       }
+    }
+  }
+
+  "ConsensusEngine.engineIdFor positive-marker dispatch (B7.0-a)" should {
+
+    "fall back to the networkType-derived default when no engine-id marker is set (byte-identical to pre-B7.0-a)" in {
+      // Every shipped conf omits `engine-id`, so `engineId == None` and resolution takes the unchanged
+      // `networkType` default path — this is what keeps ETC/ETH byte-identical.
+      confs.foreach { case (n, cfg) =>
+        withClue(s"[$n] ") {
+          cfg.engineId shouldBe None
+          val expected = if cfg.networkType == NetworkType.ETC then EngineId.Ethash else EngineId.EngineApi
+          ConsensusEngine.engineIdFor(cfg) shouldBe expected
+        }
+      }
+    }
+
+    "honour a positive engine-id marker OVER the networkType default (marker is authoritative, not networkType)" in {
+      // ETC conf (would default to Ethash) carrying a Clique marker resolves to Clique...
+      ConsensusEngine.engineIdFor(confs("etc").copy(engineId = Some(EngineId.Clique))) shouldBe EngineId.Clique
+      // ...and an ETH conf (would default to EngineApi) carrying an Ethash marker resolves to Ethash. Proves the
+      // engine is keyed on the positive marker, no longer on NetworkType.
+      ConsensusEngine.engineIdFor(confs("eth").copy(engineId = Some(EngineId.Ethash))) shouldBe EngineId.Ethash
+    }
+  }
+
+  "EngineId.fromMarkers (positive keying + uniqueness guard)" should {
+
+    "resolve a single recognized marker, case-insensitively" in {
+      EngineId.fromMarkers(List("clique")) shouldBe Some(EngineId.Clique)
+      EngineId.fromMarkers(List("engine-api")) shouldBe Some(EngineId.EngineApi)
+      EngineId.fromMarkers(List("ETHASH")) shouldBe Some(EngineId.Ethash)
+      EngineId.fromMarkers(List("  qbft  ")) shouldBe Some(EngineId.Qbft)
+    }
+
+    "return None for an absent/blank marker (caller falls back to the networkType default)" in {
+      EngineId.fromMarkers(Nil) shouldBe None
+      EngineId.fromMarkers(List("", "   ")) shouldBe None
+    }
+
+    "collapse a repeated single mechanism (same engine twice is not ambiguous)" in {
+      EngineId.fromMarkers(List("clique", "clique")) shouldBe Some(EngineId.Clique)
+    }
+
+    "reject more than one DISTINCT mechanism (nethermind CalculateSealEngineType guard)" in {
+      val ex = intercept[IllegalArgumentException](EngineId.fromMarkers(List("ethash", "clique")))
+      ex.getMessage should include("multiple seal engines")
+    }
+
+    "reject an unrecognized marker (positive keying, no else-means-Ethash fallthrough)" in {
+      val ex = intercept[IllegalArgumentException](EngineId.fromMarkers(List("bogus")))
+      ex.getMessage should include("Unknown consensus engine marker")
+    }
+  }
+
+  "BlockchainConfig engine-id HOCON wiring" should {
+
+    val etcRaw = ConfigFactory.load().getConfig("fukuii.blockchains.etc")
+
+    "parse a single-string engine-id key and let it override the networkType default" in {
+      val raw = ConfigFactory.parseString("""engine-id = "clique"""").withFallback(etcRaw)
+      val cfg = BlockchainConfig.fromRawConfig(raw)
+      cfg.engineId shouldBe Some(EngineId.Clique)
+      ConsensusEngine.engineIdFor(cfg) shouldBe EngineId.Clique
+    }
+
+    "leave engineId None when the key is absent (shipped confs are unaffected)" in {
+      BlockchainConfig.fromRawConfig(etcRaw).engineId shouldBe None
+    }
+
+    "throw at parse time when engine-id names multiple seal engines" in {
+      val raw = ConfigFactory.parseString("""engine-id = ["ethash", "clique"]""").withFallback(etcRaw)
+      val ex = intercept[IllegalArgumentException](BlockchainConfig.fromRawConfig(raw))
+      ex.getMessage should include("multiple seal engines")
     }
   }
 
