@@ -37,9 +37,26 @@ The NUC is resource-constrained; do NOT fan out a dozens-of-agents Workflow.
   simultaneous heavy load.
 - **Read-only w.r.t. fukuii** — Phase 1–2 never edit fukuii source; they only write under
   `docs/research/clients/`.
-- Vendored client sources: `.claude/repo-references/clients/{core-geth,besu,erigon,nethermind,reth}` +
+- **Primary EVM client sources:** `.claude/repo-references/clients/{core-geth,besu,erigon,nethermind,reth}` +
   `reference-clients-evm/go-ethereum` (see `.claude/agents/REFERENCES.md`). Record the exact commit/branch
   documented in each file's header.
+- **⚠ BRANCH DISCIPLINE (critical — operator 2026-07-13): research the `upstream` ref ONLY.** THREE repos
+  carry a **fukuii-authored ETC/Olympia OVERLAY on their `main` branch** that must NEVER be attributed to the
+  reference client: **core-geth** (`main` +65: ECIP-1111 treasury-ordering, ECIP-1122, audit docs),
+  **besu** (`main` +47: `olympia-besu`, `feat(olympia)`, `fix(classic)`), **nethermind** (`main` +24:
+  `EtcBlockTree`, `EtchashChainSpecEngineParameters`, ECIP-1111 FeeCollector — fukuii's ETC PoC). Always
+  `git -C <repo> log upstream …` / read the `upstream` ref; NEVER `git log --all` or read/checkout
+  `main`/`origin/main`; sanity-check any suspicious commit with `git merge-base --is-ancestor <sha> upstream`
+  (fails → overlay-only, ignore for the reference finding). (erigon/reth/go-ethereum: `main`==`upstream`, clean.)
+  **Known contamination to fix:** the core-geth ORIENTATION docs were documented at overlaid `main`
+  (`b28aa0a0`) — re-verify their Olympia/ECIP-1111/1122 claims against `upstream` core-geth (besu/nethermind
+  orientation docs used `upstream`, clean).
+- **Secondary NON-EVM PoW client sources (for mining-protocol + PoW-specific angles only):**
+  `/media/dev/2tb/dev/reference-clients-pow/{bitcoin,monero,zcash}` (+ monero-gui). NOT documented via the
+  14-slot EVM taxonomy — consulted for **targeted PoW questions**: the **mining-protocol layer** (getWork /
+  Stratum v1 / **Stratum v2**, `getblocktemplate`, external-miner & mining-pool integration — the
+  *mining-pool/validator* use case), PoW peer-management (Bitcoin's canonical model), and PoW mempool/relay.
+  fukuii's ETC PoW mining (internal Ethash + external-miner wiring) is the alignment target for that material.
 
 ## Common subsystem taxonomy (~14 slots — the comparability keystone)
 Every client is documented against THIS list, same slugs, so Phase-2 tables line up. Dependency-ordered

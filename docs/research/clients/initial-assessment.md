@@ -87,6 +87,15 @@ What the **git history** shows each client did for ETH68/69/70/71: how/when each
 - **storage** — the deep mechanics (compaction, caching, pruning modes, commitment computation).
 - **sync modes** — the full mode/feed/stage machinery per client + node-role mapping (archival/full/light).
 
+### 3e. Mining-protocol layer (operator 2026-07-13) — the mining-pool / validator use case
+The orientation covered *consensus* but not the **mining-protocol** surface. Survey, for the mining-pool/
+validator use case: **getWork/submitWork** (the EVM clients' remote-sealer — geth history has it, nethermind
+still ships opt-in Ethash mining), **Stratum v1 and Stratum v2** (the pool protocols — usually in pool/miner
+software, not the node; where do clients expose it?), external-miner integration, and `getblocktemplate`.
+Consult the **non-EVM PoW clients** (`reference-clients-pow/{bitcoin,monero,zcash}`) as the richer
+mining-protocol/pool reference. Target: fukuii's ETC PoW mining (internal Ethash + external-miner wiring) —
+what to offer for the mining-pool use case (default + optional per the omni-client lens).
+
 ### 3d. Full subsystem coverage (the 10 non-★ slots, per client, dependency-graph-ordered)
 `build-deps · primitives · state-trie · evm · block-execution · txpool · networking-p2p · rpc · testing · node-lifecycle` — each client traversed low→high through its OWN module/dependency graph (the "understand it from its dep graph up" discipline). This is the bulk of the deep review.
 
