@@ -3,6 +3,14 @@
 _Commit/branch documented: `b28aa0a0bbb1e3ba72ce11afb9310d9dc38c1832` (branch `main`, 2026-06-26).
 Vendored at `.claude/repo-references/clients/core-geth`. Documented 2026-07-13._
 
+_**Re-verified against `upstream` 2026-07-13** (SHA `4185df450`, deprecated Sept-2024 branch):
+**upstream-safe.** fukuii's `main` overlay (+65 commits) does not touch the sync path — `git diff
+upstream main -- eth/downloader/ eth/sync.go` shows only a single test-file change, and
+`core/blockchain_af.go` (the MESS / ECBP-1100 sync-loop toggling documented here) is **byte-identical**
+between `upstream` and `main`. The legacy PoW orchestrator, TD-driven `chainSyncer`, snap/1 semantics,
+and MESS plumbing are all genuine upstream core-geth. No Olympia/EIP-1559 content appears in this doc,
+so no re-attribution was needed._
+
 _core-geth is a **go-ethereum fork** (multi-geth lineage), pinned ~4 minor versions behind geth HEAD
 (the sibling `go-ethereum/sync.md` documents `v1.17.4-32-g59e89e81e`). This doc documents core-geth's
 sync **as a diff against that baseline** — read `go-ethereum/sync.md` first for the range-proof snap

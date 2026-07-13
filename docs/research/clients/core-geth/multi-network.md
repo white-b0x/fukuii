@@ -3,6 +3,17 @@
 _Commit/branch documented: `b28aa0a0bbb1e3ba72ce11afb9310d9dc38c1832` (branch `main`). Vendored at
 `.claude/repo-references/clients/core-geth`. Documented 2026-07-13._
 
+_**Re-verified against `upstream` 2026-07-13** (SHA `4185df450`, the **deprecated Sept-2024**
+last-independent core-geth branch). **Attribution correction:** the vendored tree is `main`, which
+carries **+65 commits of fukuii's own ETC modernization** on top of upstream. The `Configurator`
+interface, two-schema abstraction, `Crush` conversion, and closed-3-engine model documented here are
+genuine **upstream** core-geth. But the **Olympia getter methods** on `ProtocolSpecifier`
+(`GetOlympiaTreasuryAddress`, `GetSpiralGasTarget`, `GetOlympiaGasTarget`, `GetBaseFeeMinValue`,
+`GetTxPoolPriceLimit`, `GetEIP7939Transition`) are **fukuii's `main` overlay — absent from
+`upstream`** (verified via `grep upstream:params/types/ctypes/configurator_iface.go`). The claim that
+core-geth is the sole authority for "ETC config content *including* Olympia" was the contamination;
+Olympia config content is fukuii's, not upstream core-geth's. Corrected inline below._
+
 ## Architecture summary
 core-geth (a multi-geth-heritage go-ethereum fork) is the reference client where multi-network support is
 **first-class**, and it is where it diverges most sharply from upstream geth. Where geth models a network as
@@ -28,10 +39,13 @@ consensus-*family* registry that besu/nethermind offer (see Authority note): the
   (the doc comment `:29-37` documents the convention; `MustSet*` may fatally error, fork methods are
   suffixed `Transition` and take `*uint64` so nil = unset).
 - `params/types/ctypes/configurator_iface.go:55-343` — **`ProtocolSpecifier`**: the flat, per-EIP transition
-  surface — `GetEIP150Transition`…`GetEIP7939Transition`, ETC-specific `GetECIP1080Transition` /
-  `GetECBP1100Transition` (MESS) / `GetOlympiaTreasuryAddress` (ECIP-1112) / `GetSpiralGasTarget` /
-  `GetOlympiaGasTarget` (ECIP-1121) / `GetBaseFeeMinValue` (ECIP-1111) / `GetTxPoolPriceLimit` (ECIP-1122).
+  surface — `GetEIP150Transition`… and ETC-specific `GetECIP1080Transition` / `GetECBP1100Transition` (MESS).
   Each fork is an individually-addressable transition, not a named hardfork bundle — the ETC-native model.
+  **(fukuii `main` overlay, NOT upstream:** this interface is *extended on `main`* with the Olympia getters
+  `GetOlympiaTreasuryAddress` (ECIP-1112) / `GetSpiralGasTarget` / `GetOlympiaGasTarget` (ECIP-1121) /
+  `GetBaseFeeMinValue` (ECIP-1111) / `GetTxPoolPriceLimit` (ECIP-1122) / `GetEIP7939Transition` — all
+  **absent from `upstream`**. They are fukuii's own additions to the `ProtocolSpecifier` contract, not
+  core-geth reference methods.)**
 - `params/types/ctypes/configurator_iface.go:358-436` — **`ConsensusEnginator`**: `GetConsensusEngineType()`
   / `MustSetConsensusEngineType(t)` plus the per-engine sub-interfaces `EthashConfigurator`,
   `CliqueConfigurator`, `Lyra2Configurator`. This is the positive engine-selection contract geth's config
@@ -145,9 +159,13 @@ ETC-specific config content geth omits.** geth is single-family ("different test
 `ChainConfig`", per `../go-ethereum/multi-network.md`); core-geth adds the genuine family-abstraction layer —
 the `Configurator` interface, two interchangeable config schemas, and three co-equal engines — which is
 directly relevant to fukuii's own multi-network / `NetworkFamily` config model (PoW ETC + PoS ETH as
-co-equal families). It is also the sole authority for the **ETC fork/ECIP config content**: the per-EIP
-transition granularity, ECIP-1017 emission fields, ECBP-1100/MESS, and the Olympia (ECIP-1111/1112/1121/1122)
-transition/treasury/gas-target/tip-floor fields (`configurator_iface.go:144-171`, `config_classic.go:112-136`).
+co-equal families). It is also the authority for the **pre-Olympia ETC fork/ECIP config content**: the per-EIP
+transition granularity, ECIP-1017 emission fields, and ECBP-1100/MESS — all present in `upstream`.
+**The Olympia (ECIP-1111/1112/1121/1122) transition/treasury/gas-target/tip-floor fields
+(`configurator_iface.go:144-171`, `config_classic.go:112-136`) are NOT upstream core-geth — they are
+fukuii's own `main` overlay** (verified absent from `upstream`; the earlier "sole authority incl.
+Olympia" phrasing attributed fukuii's modernization to the reference client and is corrected here).
+For Olympia config content there is no core-geth reference to defer to; fukuii is authoring it.
 
 It is **not** the authority for the deepest form of the concern — a pluggable consensus-*family* registry
 where a network registers its own consensus/rules module. That is **besu / nethermind** (forward-ref, no

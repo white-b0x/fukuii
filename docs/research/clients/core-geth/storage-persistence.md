@@ -3,6 +3,14 @@
 _Commit/branch documented: `b28aa0a0bbb1e3ba72ce11afb9310d9dc38c1832` (branch `main`, version
 `params.Version = 1.13.0`). Vendored at `.claude/repo-references/clients/core-geth`. Documented 2026-07-13._
 
+_**Re-verified against `upstream` 2026-07-13** (SHA `4185df450`, deprecated Sept-2024 branch):
+**upstream-safe.** fukuii's `main` overlay (+65 commits) is consensus/docs-focused and touches no
+storage schema — `git diff upstream main -- core/rawdb/ ethdb/ triedb/` shows only a single test-file
+change. Every storage claim here reflects genuine upstream core-geth. The one edit made on this pass:
+trimmed the authority-note parenthetical below, which had over-included the Olympia ECIPs (1111/1122)
+in core-geth's consensus authority — those are fukuii's `main` overlay, not upstream, and storage
+authority does not extend to them regardless._
+
 > **Read this as a diff.** core-geth is a go-ethereum fork; its storage layer is inherited essentially
 > unchanged. The baseline is the sibling doc `docs/research/clients/go-ethereum/storage-persistence.md`
 > (geth `v1.17.4-32-g59e89e81e`). This file only expands where core-geth diverges; everywhere else it says
@@ -134,7 +142,8 @@ For **storage-persistence, go-ethereum remains the authority; core-geth inherits
 independent storage authority — its rawdb/ethdb/triedb is a lagging copy of geth's. The value of this doc is
 the confirmation itself: **fukuii may use the go-ethereum storage doc as the reference for the ETC family
 too**, because ETC introduces no storage-schema divergence. Where core-geth *is* the ETC authority
-(consensus: ETChash, ECIP-1017/1099/1111/1122) that authority does **not** extend to storage. **erigon**
+(consensus: ETChash, ECIP-1017/1099/1100 in `upstream` — the Olympia ECIPs 1111/1122 are fukuii's own
+`main` overlay, not upstream core-geth) that authority does **not** extend to storage. **erigon**
 remains the alternative authority for a deliberately different storage architecture (MDBX + real tables +
 flat "Domains" + staged sync) — see the geth doc "Where erigon diverges." fukuii's RocksDB-via-`DataSource`
 (column-family) model sits on the Besu/Nethermind side of the axis, closer to neither geth's single-keyspace

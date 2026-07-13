@@ -3,6 +3,21 @@
 _Commit/branch documented: `b28aa0a0bbb1e3ba72ce11afb9310d9dc38c1832` (branch `main`,
 2026-06-26). Vendored at `.claude/repo-references/clients/core-geth`. Documented 2026-07-13._
 
+_**Re-verified against `upstream` 2026-07-13** (SHA `4185df450`, the **deprecated Sept-2024**
+last-independent core-geth branch — the frozen ETC byte-authority). **Attribution correction:**
+the vendored working tree is checked out at `main` (`b28aa0a0`), which is **+65 commits of
+fukuii's OWN ETC modernization overlaid on top of upstream** — the entire Olympia bundle
+(ECIP-1111 base-fee floor + Treasury routing, ECIP-1112 treasury address, ECIP-1121 gas-target
+schedule / EIP set, ECIP-1122 tip floor). An earlier pass documented this tree without separating
+the overlay and so attributed fukuii's own forward work to core-geth-the-reference. **It is not
+upstream core-geth.** Every Olympia claim below is now split out under an explicit "**fukuii `main`
+overlay — NOT upstream core-geth**" banner; each was confirmed main-only via
+`git merge-base --is-ancestor <sha> upstream` returning *not-an-ancestor* (and the files/symbols
+are absent from `upstream`). What remains attributed to core-geth (ECIP-1010/1017/1041/1099/1100)
+was confirmed present in `upstream`. Line numbers throughout reflect the vendored `main` tree; for
+retained upstream material the content is upstream-verified but some line offsets differ from the
+`4185df450` tree._
+
 _core-geth is a **go-ethereum fork** (multi-geth lineage). This doc documents what core-geth
 **ADDS / CHANGES for ETC** and does **not** re-derive the shared `consensus.Engine` interface —
 read the sibling `go-ethereum/consensus-engines.md` for the interface, `ChainHeaderReader` DI seam,
@@ -16,9 +31,11 @@ first surfaced there and are cited/expanded here rather than re-derived._
 core-geth keeps go-ethereum's algorithm-agnostic `consensus.Engine` interface and its three concrete
 engines (`ethash`, `clique`, `beacon`) but **retains the entire ETC PoW ruleset that upstream geth
 deleted**: real ethash sealing/mining, the full difficulty-bomb + ECIP-1010/1041 bomb-management
-ladder, ECIP-1017 fixed-supply era emission, ECIP-1099 ("ETChash") DAG-epoch resizing, ECIP-1100
-(MESS) subjective reorg protection, and the Olympia bundle (ECIP-1111/1112/1121/1122 EIP-1559 with a
-base-fee floor routed to a Treasury). Crucially, ETChash is **not a separate engine** — it is a DAG
+ladder, ECIP-1017 fixed-supply era emission, ECIP-1099 ("ETChash") DAG-epoch resizing, and ECIP-1100
+(MESS) subjective reorg protection. **(The Olympia bundle — ECIP-1111/1112/1121/1122 EIP-1559 with
+a base-fee floor routed to a Treasury — is NOT in `upstream` core-geth. It is fukuii's own `main`
+overlay, documented in its own re-attributed section below, and must not be read as a core-geth
+reference finding.)** Crucially, ETChash is **not a separate engine** — it is a DAG
 epoch-length *parameter* (`ECIP1099Block`) on the one `ethash.Config`. All ETC fork scheduling lives
 in the `CoreGethChainConfig` fork-config object and is dispatched by **`config.IsEnabled(getter,
 blockNumber)`** — every ETC rule is block-number-keyed (ETC never merges, so there is no
@@ -113,7 +130,17 @@ present), a cleaner shape than the `else-means-ethash` fallthrough it inherited 
   (`config_classic.go:89-91`); Mordor activate 2,380,000, deactivate 10,400,000, reactivate Olympia
   (`config_mordor.go:121-123`).
 
-### Olympia — ECIP-1111/1112/1121/1122 (EIP-1559 for ETC, present in this tree)
+### Olympia — ECIP-1111/1112/1121/1122 — fukuii `main` overlay, NOT upstream core-geth (Phase 3-4 material)
+> **ATTRIBUTION BANNER.** None of the symbols/files in this section exist in `upstream`
+> (`4185df450`, deprecated Sept-2024 core-geth). `params/olympia_treasury.go`,
+> `GetBaseFeeMinValue`/`ForkGasTarget`/`OlympiaGasTarget`, the `Finalize` treasury credit, and
+> every Olympia config field were confirmed **main-only** — `git merge-base --is-ancestor <sha>
+> upstream` returns *not-an-ancestor*, and `git cat-file`/`grep upstream:` show the files/symbols
+> absent from `upstream`. This is **fukuii's own ETC modernization**, checked into core-geth's
+> `main` fork as a working overlay; read it as fukuii Phase 3-4 design of record, **not** as a
+> core-geth reference finding. Upstream core-geth (the deprecated ETC byte-authority) has **no**
+> EIP-1559 / base-fee-floor / treasury / gas-target implementation at all. Line numbers below are
+> the `main`-tree overlay's, not upstream's.
 - `consensus/misc/eip1559/eip1559.go:87-138` — **`CalcBaseFee`** with the **ECIP-1111 base-fee floor**:
   after the standard EIP-1559 up/down adjustment, `if floor := GetBaseFeeMinValue(); floor != nil &&
   baseFee < floor { return floor }` (`:133-135`). ETC sets the floor to `InitialBaseFee` = **1 gwei**;
@@ -158,20 +185,24 @@ present), a cleaner shape than the `else-means-ethash` fallthrough it inherited 
   on low peers / stale head. It changes which valid chain a node *prefers*, never whether a block is
   valid — so it never alters a state root. This is exactly why fukuii routes MESS to `banksy` (policy)
   with `forge` co-sign, not to `forge` alone.
-- **EIP-1559 base fee is redirected, not burned** (`consensus.go:620-630`). ECIP-1111 keeps the fee
-  revenue on-chain by crediting the ECIP-1112 Treasury in `Finalize`, ordered *before* block rewards.
-  This is the single largest ETC-vs-ETH divergence in the fee market and the clearest reason fukuii's
-  ETC path must not copy ETH's burn.
-- **Gas target is network-authoritative, overriding operator flags** (`eip1559.go:36-38` comment). The
-  8M→60M schedule comes from chain config, not `--miner.gaslimit`, so the throughput ramp is a
-  consensus rule rather than an operator choice — and the London 2× gas-limit doubling is suppressed
-  so the ramp stays smooth across the Olympia boundary.
+- **(fukuii `main` overlay, NOT upstream core-geth)** **EIP-1559 base fee is redirected, not burned**
+  (`consensus.go:620-630`). ECIP-1111 keeps the fee revenue on-chain by crediting the ECIP-1112
+  Treasury in `Finalize`, ordered *before* block rewards. This is the single largest ETC-vs-ETH
+  divergence in the fee market and the clearest reason fukuii's ETC path must not copy ETH's burn —
+  but the *implementation* documented here is fukuii's own (absent from `upstream`), not a core-geth
+  reference to match.
+- **(fukuii `main` overlay, NOT upstream core-geth)** **Gas target is network-authoritative,
+  overriding operator flags** (`eip1559.go:36-38` comment). The 8M→60M schedule comes from chain
+  config, not `--miner.gaslimit`, so the throughput ramp is a consensus rule rather than an operator
+  choice — and the London 2× gas-limit doubling is suppressed so the ramp stays smooth across the
+  Olympia boundary. (ECIP-1121; fukuii-authored, not in upstream core-geth.)
 
 ## Notable patterns (the reusable idea)
 1. **Parameterize, don't multiply engines.** ECIP-1099 (epoch length), ECIP-1017 (reward schedule),
-   ECIP-1010/1041 (bomb management), and Olympia (base-fee floor / gas target / treasury) are all
-   *config-gated parameters and `IsEnabled` branches on one ethash engine* — not new engine types.
-   The engine count stays at three; ETC identity lives entirely in `CoreGethChainConfig`.
+   and ECIP-1010/1041 (bomb management) are all *config-gated parameters and `IsEnabled` branches on
+   one ethash engine* — not new engine types (Olympia's base-fee floor / gas target / treasury follow
+   the same shape, but as fukuii's `main` overlay, not upstream core-geth). The engine count stays at
+   three; ETC identity lives entirely in `CoreGethChainConfig`.
 2. **Positive engine-type keying** (`GetConsensusEngineType`, `chain_config_configurator.go:967-978`):
    selection from which typed sub-object is present, with an explicit `Unknown` rather than a silent
    default — the shape B7.0 §A.1 ports (and the one geth's `CreateConsensusEngine` fallthrough lacks).
@@ -180,14 +211,17 @@ present), a cleaner shape than the `else-means-ethash` fallthrough it inherited 
    without touching consensus determinism.
 4. **Fee redirection via a `Finalize` pre-reward credit** — the same hook geth uses for rewards, reused
    to route base fee to a Treasury address, preserving ETC's fixed-supply-plus-treasury economics
-   inside the standard engine interface.
+   inside the standard engine interface. **(This pattern is realized in fukuii's `main` overlay, not
+   in upstream core-geth — it is a fukuii Phase 3-4 design, listed here as the reusable idea, not as a
+   core-geth reference.)**
 
 ## Authority note
-**core-geth is THE authority for ETC / PoW / ETChash and every ECIP consensus rule** — ECIP-1010,
-ECIP-1017, ECIP-1041, ECIP-1099, ECIP-1100 (MESS), and the Olympia bundle (ECIP-1111/1112/1121/1122).
-Per the Phase-0 authority model it is the *only* authority for ETC consensus; go-ethereum and reth
-have **dropped standalone PoW** and their ethash remnants are historical-header verifiers, so they are
-**not** ETC authorities. Where this doc gives constants, **fukuii must byte-match core-geth**:
+**core-geth `upstream` (the deprecated Sept-2024 branch, `4185df450`) is THE authority for ETC / PoW /
+ETChash and the *pre-Olympia* ECIP consensus rules** — ECIP-1010, ECIP-1017, ECIP-1041, ECIP-1099, and
+ECIP-1100 (MESS). Per the Phase-0 authority model it is the *only* authority for that ETC consensus
+surface; go-ethereum and reth have **dropped standalone PoW** and their ethash remnants are
+historical-header verifiers, so they are **not** ETC authorities. Where this doc gives constants for
+those ECIPs, **fukuii must byte-match core-geth `upstream`**:
 - **ECIP-1017**: `FrontierBlockReward` 5e18, disinflation `4/5` per era, era length 5,000,000 (mainnet)
   / 2,000,000 (Mordor), zero-indexed era `floor((n-1)/eraLen)`, and the era-0-vs-era-≥1 uncle formulas.
 - **ECIP-1099**: epoch 30000→60000 at block 11,700,000 (mainnet) / 2,520,000 (Mordor), and the
@@ -195,9 +229,16 @@ have **dropped standalone PoW** and their ethash remnants are historical-header 
 - **ECIP-1010/1041**: pause 3,000,000 / length 2,000,000 / continue 5,000,000; disposal 5,900,000
   (bomb removed via early return).
 - **ECIP-1100 (MESS)**: polynomial constants `denominator=128`, `xcap=25132`, `ampl=15`, `height=3840`;
-  activation/deactivation/reactivation blocks per config.
-- **ECIP-1111/1112/1121**: base-fee floor 1 gwei, Treasury `0x60d0A7394f9Cd5C469f9F5Ec4F9C803F5294d79b`
-  credited `gasUsed*baseFee` in `Finalize` before rewards, gas target 8M→60M, no London 2× doubling.
+  activation 11,380,000 / deactivation 19,250,000 (mainnet). **(The MESS *reactivation-at-Olympia* field
+  `ECBP1100ReactivateFBlock` is fukuii's `main` overlay, not upstream — see the Olympia banner.)**
+
+**The Olympia bundle (ECIP-1111/1112/1121/1122) is NOT part of this authority.** It does not exist in
+`upstream` core-geth (files absent; `merge-base --is-ancestor` → not-an-ancestor). The base-fee floor
+(1 gwei), Treasury address `0x60d0A7394f9Cd5C469f9F5Ec4F9C803F5294d79b`, the `gasUsed*baseFee`
+`Finalize` credit before rewards, the 8M→60M gas target with no London 2× doubling, and the 1-gwei tip
+floor are **fukuii's own `main`-overlay values** (fukuii Phase 3-4), cross-checked against the Olympia
+ECIP drafts + Besu/Nethermind — **not** inherited from core-geth. There is no core-geth reference to
+byte-match for Olympia; fukuii is authoring it.
 
 fukuii diverges from core-geth deliberately only in *architecture*, not in *values*: fukuii uses a
 **conditional** merge wrap (skipped for permanently-PoW ETC) whereas core-geth wraps `beacon.New`
