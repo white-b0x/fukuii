@@ -117,6 +117,12 @@ i18n, cross-platform packaging. A Phase-4 deliverable seed, not a comparison inp
 
 ## 4. fukuii Phase-4 seeds accumulated so far (NOT acted on — for the post-comparison backlog)
 
+**Product family (operator 2026-07-13):** fukuii = a lean node + separate specialized components, NOT a
+monolith — **(1) client/node** (exposes clean seams: `getWork`/IPC block-template for PoW, Engine API/
+payload-build for PoS; does NOT speak pool/validator protocols), **(2) mining-pool software** (PoW, separate),
+**(3) validator software** (PoS, separate), **(4) GUI/wallet** (separate). So the node's SR/modernization must
+prioritize CLEAN, well-factored SEAMS the other components consume. See memory `fukuii-mission-strategic-context`.
+
 **Governing principle (operator 2026-07-13) — fukuii is an OMNI-CLIENT: default = best practice, + optional
 approaches per use-case.** Each seed below is therefore not "adopt X instead of Y" but "make the best-practice
 the default AND offer the alternative as a mode/flag where a use-case (enterprise · CEX/custody ·
