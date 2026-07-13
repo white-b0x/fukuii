@@ -123,7 +123,7 @@ Status legend: ` ` = not started · `~` = in progress · `✓` = done. Update as
 | go-ethereum |  |  | ✓ |  | ✓ |  |  |  | ✓ |  |  | ✓ |  |  |
 | core-geth |  |  | ✓ |  | ✓ |  |  |  | ✓ |  |  | ✓ |  |  |
 | besu |  |  | ✓ |  | ✓ |  |  |  | ✓ | ✓ |  | ✓ |  |  |
-| erigon |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| erigon |  |  | ✓ |  | ✓ |  |  |  | ✓ |  |  |  |  |  |
 | nethermind |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | reth |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 
