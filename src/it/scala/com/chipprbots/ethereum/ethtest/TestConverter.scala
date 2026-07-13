@@ -395,9 +395,17 @@ object TestConverter:
     // do NOT fire pre-Prague just because eip1559BlockNumber is mapped to 0 here.
     // Without this, the EIP-2935 ETC path writes HistoryStorage slots at Cancun and
     // throws "Account not found" when persisting that contract's storage.
+    //
+    // baseFeeFloor must also be reset to the ETH value (0). The ETC-family base config
+    // carries a 1 gwei base-fee floor (ECIP-1111); on ETH EIP-1559 burns to 0 with no
+    // floor. BaseFeeCalculator.calcBaseFee clamps its result to baseFeeFloor, so an
+    // inherited 1 gwei floor over-clamps every post-merge child's computed base fee up
+    // to 1 gwei and fails validateBaseFee (INVALID_BASE_FEE_PER_GAS). A real ETH/Sepolia
+    // config leaves this at 0; the synthetic import config must match.
     val configWithForks = baseConfig.copy(
       forkBlockNumbers = forks,
-      networkType = com.chipprbots.ethereum.utils.NetworkType.ETH
+      networkType = com.chipprbots.ethereum.utils.NetworkType.ETH,
+      baseFeeFloor = BigInt(0)
     )
     network.toLowerCase match
       case "shanghai" =>

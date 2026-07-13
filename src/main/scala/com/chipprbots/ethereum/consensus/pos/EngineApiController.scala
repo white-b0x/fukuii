@@ -594,8 +594,22 @@ class EngineApiController(
     IO.pure(JsonRpcResponse("2.0", Some(clientVersion), None, reqId(request)))
 
   private def handleGetBlobs(request: JsonRpcRequest): IO[JsonRpcResponse] =
-    // engine_getBlobsV1: return null for each requested versioned hash (we don't store blobs)
-    // Lighthouse will fall back to fetching blobs from CL peers
+    // engine_getBlobsV1 is Cancun/Prague-only; the CL switches to V2/V3 once Osaka activates.
+    // go-ethereum rejects V1 at Osaka with -38005 (catalyst api.go GetBlobsV1; osaka.md#cancun-api).
+    if engineApiService.isOsakaActiveAtHead then
+      IO.pure(
+        JsonRpcResponse(
+          "2.0",
+          None,
+          Some(JsonRpcError(UnsupportedFork, "engine_getBlobsV1 is only available at Cancun/Prague fork", None)),
+          reqId(request)
+        )
+      )
+    else handleGetBlobsV1Response(request)
+
+  private def handleGetBlobsV1Response(request: JsonRpcRequest): IO[JsonRpcResponse] =
+    // Return null for each requested versioned hash (we don't store blobs); the CL falls back to
+    // fetching blobs from its peers.
     val hashes = request.params
       .map(_.arr)
       .getOrElse(Nil)

@@ -131,6 +131,15 @@ class EngineApiService(
   def getLatestBlockNumber: BlockNumber =
     BlockNumber(blockchainReader.getBestBlockNumber)
 
+  /** True when Osaka is active at the current chain head. engine_getBlobsV1 is Cancun/Prague-only and must be rejected
+    * once Osaka activates (go-ethereum catalyst GetBlobsV1; execution-apis osaka.md#cancun-api). Mirrors go-ethereum
+    * keying the check on the current head timestamp.
+    */
+  def isOsakaActiveAtHead: Boolean =
+    blockchainReader
+      .getBlockHeaderByNumber(getLatestBlockNumber)
+      .exists(h => blockchainConfig.isOsakaTimestamp(h.unixTimestamp))
+
   /** engine_newPayloadV1/V2/V3/V4 — Validate and execute a new payload from the CL.
     *
     * Import strategy:
@@ -595,20 +604,14 @@ class EngineApiService(
                         )
                       )
                     case Some(parent) =>
-                      // Compute EIP-1559 base fee from parent
-                      val parentBaseFee = parent.header.baseFee.map(_.value).getOrElse(BigInt("1000000000"))
-                      val parentGasTarget = parent.header.gasLimit / 2
+                      // EIP-1559 base fee for the block being built. Delegates to the single
+                      // BaseFeeCalculator authority so this stays consistent with header validation and
+                      // honours blockchainConfig.baseFeeFloor, rather than an inline copy hardcoding a 0 floor.
                       val baseFee: BaseFeePerGas =
-                        if parent.header.number == BlockNumber.Zero then BaseFeePerGas(parentBaseFee)
-                        else if parent.header.gasUsed == parentGasTarget then BaseFeePerGas(parentBaseFee)
-                        else if parent.header.gasUsed > parentGasTarget then
-                          val delta =
-                            parentBaseFee * (parent.header.gasUsed - parentGasTarget).value / parentGasTarget.value / 8
-                          BaseFeePerGas(parentBaseFee + (if delta == BigInt(0) then BigInt(1) else delta))
-                        else
-                          val delta =
-                            parentBaseFee * (parentGasTarget - parent.header.gasUsed).value / parentGasTarget.value / 8
-                          if parentBaseFee - delta < 0 then BaseFeePerGas.Zero else BaseFeePerGas(parentBaseFee - delta)
+                        com.chipprbots.ethereum.consensus.eip1559.BaseFeeCalculator.calcBaseFee(
+                          parent.header,
+                          blockchainConfig
+                        )
 
                       // Fetch pending transactions from the tx pool using IO.fromFuture so the
                       // CE3 compute thread is not blocked waiting for the actor response.
@@ -1030,8 +1033,9 @@ class EngineApiService(
       "engine_getBlobsV2",
       "engine_getPayloadBodiesByHashV1",
       "engine_getPayloadBodiesByRangeV1",
-      "engine_getClientVersionV1",
-      "engine_exchangeCapabilities"
+      "engine_getClientVersionV1"
+      // engine_exchangeCapabilities MUST NOT appear in its own response (execution-apis
+      // common.md; go-ethereum catalyst api.go excludes it reflectively).
     )
     log.info("exchangeCapabilities: clMethods={} supported={}", clCapabilities.size, supported.size)
     supported

@@ -85,4 +85,12 @@ class EngineApiGetBlobsV2Spec extends AnyWordSpec with Matchers:
       capabilities should contain("engine_getBlobsV1")
       capabilities should contain("engine_getBlobsV2")
     }
+
+    "not include engine_exchangeCapabilities in its own response (execution-apis common.md)" taggedAs UnitTest in {
+      val response = controller.handleRequest(capabilitiesRequest).unsafeRunSync()
+
+      response.error shouldBe None
+      val capabilities = response.result.get.asInstanceOf[JArray].arr.collect { case JString(s) => s }
+      capabilities should not contain "engine_exchangeCapabilities"
+    }
   }
