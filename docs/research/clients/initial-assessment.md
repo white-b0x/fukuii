@@ -88,10 +88,14 @@ What the **git history** shows each client did for ETH68/69/70/71: how/when each
 - **sync modes** — the full mode/feed/stage machinery per client + node-role mapping (archival/full/light).
 
 ### 3e. Mining-protocol layer (operator 2026-07-13) — the mining-pool / validator use case
-The orientation covered *consensus* but not the **mining-protocol** surface. Survey, for the mining-pool/
-validator use case: **getWork/submitWork** (the EVM clients' remote-sealer — geth history has it, nethermind
-still ships opt-in Ethash mining), **Stratum v1 and Stratum v2** (the pool protocols — usually in pool/miner
-software, not the node; where do clients expose it?), external-miner integration, and `getblocktemplate`.
+The orientation covered *consensus* but not the **mining-protocol** surface. **Two layers — keep them
+distinct:** (1) **node-side `getWork`/`submitWork`** — the battle-tested, miner-adopted interfaces:
+**go-ethereum was THE dominant ETH PoW-mining client** (until the Merge — the whole ETH mining ecosystem ran
+geth), and **core-geth is the sole ETC one**; both are real-world-proven and authoritative. nethermind still
+ships opt-in Ethash mining. (2) **pool-layer Stratum v1/v2** — lived in pool/miner software (ethminer, pools),
+*between miner↔pool*, NOT in geth; reference sources are besu's server-side Stratum impl (implemented, never
+miner-adopted → cautionary), external pool software, and the non-EVM clients. Plus external-miner integration
+and `getblocktemplate`.
 Consult the **non-EVM PoW clients** (`reference-clients-pow/{bitcoin,monero,zcash}`) as the richer
 mining-protocol/pool reference. **Authority for the ETC mining/production path = core-geth** (the ONLY
 miner-adopted production ETC client); besu's Stratum/getWork is a secondary *structural* reference that was
