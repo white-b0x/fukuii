@@ -55,7 +55,7 @@ besu advertises **ETH68/69/70/71 simultaneously** via `CapabilityMultiplexer` (g
 ---
 
 ## 2. Refined authority map (per concern)
-- **ETC / PoW / ETChash / ECIP** — **core-geth = the byte-authoritative ETC authority** (Go, live). **But NOT the only ETC reference (updated 2026-07-13 by the historical survey):** **besu's git history is a second, ~6-year (2019→Feb-2026), JVM ETC implementation** (`ClassicProtocolSpecs`, `Ecip1099EpochCalculator`, ECIP-1017 emission, ECIP-1049 Keccak mining, Stratum) — fukuii's closest-language STRUCTURAL reference, though besu's ECIP-1099 diverged from core-geth so it is NOT byte-authoritative. **go-ethereum's pre-merge history** = the ancestral Ethash-engine structure. **nethermind** = generic Ethash (still opt-in mining) but never shipped ETC. Net: core-geth for *values*, besu-history + geth-history for *structure* (esp. JVM/besu).
+- **ETC / PoW / ETChash / ECIP** — **core-geth = the byte-authority AND the ONLY production / PoW-miner-adopted ETC client** (Go; deprecated Sept-2024 but still the frozen authority; the only client ETC miners actually run, then and now). **A second ETC reference exists but was never miner-adopted:** **besu's git history is a ~6-year (2019→Feb-2026), JVM, complete & accurate ETC implementation** (`ClassicProtocolSpecs`, `Ecip1099EpochCalculator`, ECIP-1017 emission, ECIP-1049 Keccak mining, Stratum) — fukuii's closest-language STRUCTURAL reference — **BUT it had NO PoW-miner adoption** (besu wasn't run by ETC miners) and its ECIP-1099 diverged from core-geth → NOT byte-authoritative, and its **MINING path specifically is cautionary** (validate against core-geth, the miner-adopted one). **go-ethereum pre-merge** = ancestral Ethash structure. **nethermind** = generic Ethash (still opt-in mining) but never shipped ETC. **NET: core-geth for *values* + the *mining/production* path (sole miner-adopted client); besu-history + geth-history for *structure* (esp. JVM/besu), with mining paths cross-validated against core-geth.**
 - **ETH / PoS + the `consensus.Engine` interface + snap wire semantics** — **go-ethereum**.
 - **Multi-consensus / PoA** — **besu** (Clique *validation*+config, IBFT2/QBFT *production*); **Clique *sealing* → core-geth** (besu removed Clique block production).
 - **Sidechain / Bor / external-infra-injection** — **erigon** (NET-01 reference).
@@ -93,8 +93,11 @@ validator use case: **getWork/submitWork** (the EVM clients' remote-sealer — g
 still ships opt-in Ethash mining), **Stratum v1 and Stratum v2** (the pool protocols — usually in pool/miner
 software, not the node; where do clients expose it?), external-miner integration, and `getblocktemplate`.
 Consult the **non-EVM PoW clients** (`reference-clients-pow/{bitcoin,monero,zcash}`) as the richer
-mining-protocol/pool reference. Target: fukuii's ETC PoW mining (internal Ethash + external-miner wiring) —
-what to offer for the mining-pool use case (default + optional per the omni-client lens).
+mining-protocol/pool reference. **Authority for the ETC mining/production path = core-geth** (the ONLY
+miner-adopted production ETC client); besu's Stratum/getWork is a secondary *structural* reference that was
+never miner-adopted → cross-validate, don't treat as battle-tested. Target: fukuii's ETC PoW mining (internal
+Ethash + external-miner wiring) must match what ETC miners actually run — what to offer for the mining-pool
+use case (default + optional per the omni-client lens).
 
 ### 3d. Full subsystem coverage (the 10 non-★ slots, per client, dependency-graph-ordered)
 `build-deps · primitives · state-trie · evm · block-execution · txpool · networking-p2p · rpc · testing · node-lifecycle` — each client traversed low→high through its OWN module/dependency graph (the "understand it from its dep graph up" discipline). This is the bulk of the deep review.
