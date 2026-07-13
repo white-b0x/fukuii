@@ -7,7 +7,7 @@ import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.domain.Account
-import com.chipprbots.ethereum.mpt.*
+import com.chipprbots.ethereum.mpt.{given, *}
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.testing.TestMptStorage
 

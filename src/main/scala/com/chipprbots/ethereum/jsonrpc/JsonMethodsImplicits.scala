@@ -33,6 +33,7 @@ import com.chipprbots.ethereum.utils.BigIntExtensionMethods.*
 import com.chipprbots.ethereum.utils.ByteUtils
 
 trait JsonMethodsImplicits:
+  // implicit val (not given): overridden in subclasses — Scala 3 given is final
   implicit val formats: Formats = JsonSerializers.formats
 
   def encodeAsHex(input: ByteString): JString =

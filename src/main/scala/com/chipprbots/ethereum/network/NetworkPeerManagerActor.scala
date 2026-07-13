@@ -12,7 +12,7 @@ import org.apache.pekko.util.ByteString
 import scala.concurrent.duration.*
 
 import com.chipprbots.ethereum.db.storage.AppStateStorage
-import com.chipprbots.ethereum.domain.Account.*
+import com.chipprbots.ethereum.domain.Account.given
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.ChainWeight
 import com.chipprbots.ethereum.domain.TotalDifficulty

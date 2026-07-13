@@ -274,7 +274,7 @@ object SyncStateScheduler:
 
   case object StorageNode extends NodeRequest
 
-  implicit object ByteStringFunnel extends Funnel[ByteString]:
+  given ByteStringFunnel: Funnel[ByteString] with
     override def funnel(from: ByteString, into: PrimitiveSink): Unit =
       into.putBytes(from.toArray)
 

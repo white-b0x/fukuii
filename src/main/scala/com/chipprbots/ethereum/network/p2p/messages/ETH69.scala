@@ -86,7 +86,6 @@ object ETH69:
         * position (`RLPList` vs `RLPValue`).
         */
       def toETH69Status: Status =
-        import com.chipprbots.ethereum.forkid.ForkId.*
         rawDecode(bytes) match
           // (1) Canonical 7-field EIP-7642 shape — geth/besu/reth.
           case RLPList(

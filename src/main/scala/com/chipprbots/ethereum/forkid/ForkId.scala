@@ -101,7 +101,7 @@ object ForkId:
       val next: Array[Byte] = bigIntToUnsignedByteArray(forkId.next.getOrElse(BigInt(0))).takeRight(8)
       RLPList(hash, next)
 
-  implicit val forkIdEnc: RLPDecoder[ForkId] = new RLPDecoder[ForkId]:
+  given forkIdEnc: RLPDecoder[ForkId] = new RLPDecoder[ForkId]:
 
     def decode(rlp: RLPEncodeable): ForkId = rlp match
       case RLPList(hash, next) =>

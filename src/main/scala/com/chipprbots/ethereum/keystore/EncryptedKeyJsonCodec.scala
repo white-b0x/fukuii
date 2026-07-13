@@ -26,7 +26,7 @@ object EncryptedKeyJsonCodec:
     )
   )
 
-  implicit private val formats: Formats = DefaultFormats + byteStringSerializer
+  private given formats: Formats = DefaultFormats + byteStringSerializer
 
   private def asHex(bs: ByteString): String =
     Hex.toHexString(bs.toArray)

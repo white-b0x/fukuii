@@ -17,7 +17,7 @@ import com.chipprbots.ethereum.utils.ByteUtils.matchingLength
 
 object MerklePatriciaTrie:
 
-  implicit val defaultByteArraySerializable: ByteArraySerializable[Array[Byte]] =
+  given defaultByteArraySerializable: ByteArraySerializable[Array[Byte]] =
     new ByteArraySerializable[Array[Byte]]:
       override def toBytes(input: Array[Byte]): Array[Byte] = input
 
@@ -73,22 +73,21 @@ object MerklePatriciaTrie:
 
   def apply[K, V](
       source: MptStorage
-  )(implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V]): MerklePatriciaTrie[K, V] =
-    new MerklePatriciaTrie[K, V](None, source)(kSerializer, vSerializer)
+  )(using kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V]): MerklePatriciaTrie[K, V] =
+    new MerklePatriciaTrie[K, V](None, source)(using kSerializer, vSerializer)
 
-  def apply[K, V](rootHash: Array[Byte], source: MptStorage)(implicit
+  def apply[K, V](rootHash: Array[Byte], source: MptStorage)(using
       kSerializer: ByteArrayEncoder[K],
       vSerializer: ByteArraySerializable[V]
   ): MerklePatriciaTrie[K, V] =
     if EmptyRootHash.sameElements(rootHash) then MerklePatriciaTrie(source)
-    else new MerklePatriciaTrie[K, V](Some(mpt.HashNode(rootHash)), source)(kSerializer, vSerializer)
+    else new MerklePatriciaTrie[K, V](Some(mpt.HashNode(rootHash)), source)(using kSerializer, vSerializer)
 
 trait NodesKeyValueStorage extends SimpleMap[NodeHash, NodeEncoded, NodesKeyValueStorage]:
   def persist(): Unit
   def multiGet(keys: Seq[NodeHash]): Seq[Option[NodeEncoded]] = keys.map(get)
 
-class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNode], val nodeStorage: MptStorage)(
-    implicit
+class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNode], val nodeStorage: MptStorage)(using
     kSerializer: ByteArrayEncoder[K],
     vSerializer: ByteArraySerializable[V]
 ) extends SimpleMap[K, V, MerklePatriciaTrie[K, V]]:
@@ -256,7 +255,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
       .map { root =>
         val NodeInsertResult(newRoot, nodesToRemoveFromStorage) = put(root, keyNibbles, vSerializer.toBytes(value))
         val newRootNode = nodeStorage.updateNodesInStorage(newRoot = Some(newRoot), toRemove = nodesToRemoveFromStorage)
-        new MerklePatriciaTrie(newRootNode, nodeStorage)(kSerializer, vSerializer)
+        new MerklePatriciaTrie(newRootNode, nodeStorage)(using kSerializer, vSerializer)
       }
       .getOrElse {
         val newRoot = LeafNode(ByteString(keyNibbles), ByteString(vSerializer.toBytes(value)))
@@ -281,10 +280,10 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
           case NodeRemoveResult(true, Some(newRoot), nodesToRemoveFromStorage) =>
             val newRootNode =
               nodeStorage.updateNodesInStorage(newRoot = Some(newRoot), toRemove = nodesToRemoveFromStorage)
-            new MerklePatriciaTrie(newRootNode, nodeStorage)(kSerializer, vSerializer)
+            new MerklePatriciaTrie(newRootNode, nodeStorage)(using kSerializer, vSerializer)
           case NodeRemoveResult(true, None, nodesToRemoveFromStorage) =>
             nodeStorage.updateNodesInStorage(newRoot = None, toRemove = nodesToRemoveFromStorage)
-            new MerklePatriciaTrie(None, nodeStorage)(kSerializer, vSerializer)
+            new MerklePatriciaTrie(None, nodeStorage)(using kSerializer, vSerializer)
           case NodeRemoveResult(false, _, _) => this
       }
       .getOrElse {

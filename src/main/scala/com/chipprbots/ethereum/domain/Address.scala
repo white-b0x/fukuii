@@ -15,7 +15,7 @@ object Address:
 
   val Length = 20
 
-  implicit val hashedAddressEncoder: ByteArrayEncoder[Address] = new ByteArrayEncoder[Address]:
+  given hashedAddressEncoder: ByteArrayEncoder[Address] = new ByteArrayEncoder[Address]:
     override def toBytes(addr: Address): Array[Byte] = crypto.kec256(addr.toArray)
 
   def apply(bytes: ByteString): Address =

@@ -338,7 +338,7 @@ object RegularSyncItSpecUtils:
 
     private def buildFixtureMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString =
       val storage = StateStorage.getReadOnlyStorage(EphemDataSource())
-      val mpt = MerklePatriciaTrie[Int, K](storage)(intByteArraySerializable, vSerializable)
+      val mpt = MerklePatriciaTrie[Int, K](storage)(using intByteArraySerializable, vSerializable)
       ByteString(entities.zipWithIndex.foldLeft(mpt) { case (trie, (value, key)) => trie.put(key, value) }.getRootHash)
 
     private def executeChildBlock(

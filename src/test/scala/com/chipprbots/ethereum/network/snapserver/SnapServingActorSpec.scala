@@ -20,7 +20,7 @@ import com.chipprbots.ethereum.db.storage.AppStateStorage
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.TrieRoot
-import com.chipprbots.ethereum.mpt.*
+import com.chipprbots.ethereum.mpt.{given, *}
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor
 import com.chipprbots.ethereum.network.NetworkPeerManagerActor.PeerEventCmd
 import com.chipprbots.ethereum.network.PeerEventBusActor

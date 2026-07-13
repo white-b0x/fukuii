@@ -6,7 +6,7 @@ import org.bouncycastle.util.encoders.Hex
 import org.scalatest.matchers.should.*
 import org.scalatest.wordspec.AnyWordSpec
 
-import com.chipprbots.ethereum.forkid.ForkId.*
+import com.chipprbots.ethereum.forkid.ForkId.{given, *}
 import com.chipprbots.ethereum.rlp.*
 import com.chipprbots.ethereum.utils.Config.*
 

@@ -6,7 +6,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import com.chipprbots.ethereum.domain.Account
-import com.chipprbots.ethereum.domain.Account.*
+import com.chipprbots.ethereum.domain.Account.given
 import com.chipprbots.ethereum.domain.CodeHash
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.rlp

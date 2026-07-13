@@ -8,7 +8,7 @@ import com.chipprbots.ethereum.jsonrpc.EthBlocksService.*
 import com.chipprbots.ethereum.jsonrpc.EthTxJsonMethodsImplicits.transactionResponseJsonEncoder
 import com.chipprbots.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonEncoder
-import com.chipprbots.ethereum.jsonrpc.serialization.JsonEncoder.OptionToNull.*
+import com.chipprbots.ethereum.jsonrpc.serialization.JsonEncoder.OptionToNull.given
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonMethodDecoder
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
 

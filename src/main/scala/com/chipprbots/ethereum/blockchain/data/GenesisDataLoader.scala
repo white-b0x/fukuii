@@ -45,8 +45,6 @@ class GenesisDataLoader(
   private val hashLength = 64
   private val addressLength = 40
 
-  import Account.*
-
   private val emptyTrieRootHash = ByteString(crypto.kec256(rlp.encode(Array.empty[Byte])))
 
   def loadGenesisData()(implicit blockchainConfig: BlockchainConfig): Unit =

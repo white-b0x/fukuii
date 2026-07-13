@@ -12,7 +12,6 @@ import scodec.bits.ByteVector
 
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.forkid.ForkId
-import com.chipprbots.ethereum.forkid.ForkId.*
 import com.chipprbots.ethereum.rlp.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config.*

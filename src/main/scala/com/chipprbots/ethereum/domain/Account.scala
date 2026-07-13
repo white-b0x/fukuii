@@ -53,7 +53,7 @@ object Account:
         )
       case _ => throw new RuntimeException("Cannot decode Account")
 
-  implicit val accountSerializer: ByteArraySerializable[Account] = new ByteArraySerializable[Account]:
+  given accountSerializer: ByteArraySerializable[Account] = new ByteArraySerializable[Account]:
     override def fromBytes(bytes: Array[Byte]): Account = bytes.toAccount
     override def toBytes(input: Account): Array[Byte] = input.toBytes
 

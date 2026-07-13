@@ -18,7 +18,7 @@ import com.chipprbots.ethereum.jsonrpc.serialization.JsonMethodDecoder
 import com.chipprbots.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
 import com.chipprbots.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 
-import JsonEncoder.OptionToNull.*
+import JsonEncoder.OptionToNull.given
 
 object FukuiiJsonMethodImplicits extends JsonMethodsImplicits:
   given extendedTransactionDataJsonEncoder: JsonEncoder[ExtendedTransactionData] = extendedTxData =>

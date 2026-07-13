@@ -9,7 +9,7 @@ import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.BlockBody.BlockBodyRLPEncodableDec
 import com.chipprbots.ethereum.domain.BlockHeaderImplicits.*
 import com.chipprbots.ethereum.forkid.ForkId
-import com.chipprbots.ethereum.forkid.ForkId.*
+import com.chipprbots.ethereum.forkid.ForkId.{given, *}
 import com.chipprbots.ethereum.network.p2p.Message
 import com.chipprbots.ethereum.network.p2p.MessageSerializableImplicit
 import com.chipprbots.ethereum.rlp.*

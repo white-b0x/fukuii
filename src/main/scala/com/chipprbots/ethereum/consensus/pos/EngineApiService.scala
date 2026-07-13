@@ -824,7 +824,7 @@ class EngineApiService(
                                 )
                               )
                               val trie = items.zipWithIndex.foldLeft(
-                                MerklePatriciaTrie[Int, T](storage)(intByteArraySerializable, ser)
+                                MerklePatriciaTrie[Int, T](storage)(using intByteArraySerializable, ser)
                               ) { case (t, (item, idx)) =>
                                 t.put(idx, item)
                               }
@@ -1184,7 +1184,7 @@ class EngineApiService(
       )
       val trie = com.chipprbots.ethereum.mpt.MerklePatriciaTrie[Int, Withdrawal](
         source = stateStorage
-      )(MptListValidator.intByteArraySerializable, serializable)
+      )(using MptListValidator.intByteArraySerializable, serializable)
       val root = withdrawals.zipWithIndex.foldLeft(trie)((t, r) => t.put(r._2, r._1)).getRootHash
       ByteString(root)
 
@@ -1197,7 +1197,7 @@ class EngineApiService(
       )
       val trie = com.chipprbots.ethereum.mpt.MerklePatriciaTrie[Int, SignedTransaction](
         source = stateStorage
-      )(MptListValidator.intByteArraySerializable, SignedTransaction.byteArraySerializable)
+      )(using MptListValidator.intByteArraySerializable, SignedTransaction.byteArraySerializable)
       val root = txs.zipWithIndex.foldLeft(trie)((t, r) => t.put(r._2, r._1)).getRootHash
       ByteString(root)
 

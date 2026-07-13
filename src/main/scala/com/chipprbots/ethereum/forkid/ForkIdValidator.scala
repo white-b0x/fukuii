@@ -24,8 +24,8 @@ object ForkIdValidator:
 
   import ForkIdValidationResult.*
 
-  implicit val ioLogger: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]
-  implicit val syncIoLogger: SelfAwareStructuredLogger[SyncIO] = Slf4jLogger.getLogger[SyncIO]
+  given ioLogger: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]
+  given syncIoLogger: SelfAwareStructuredLogger[SyncIO] = Slf4jLogger.getLogger[SyncIO]
 
   val maxUInt64: BigInt = (BigInt(0x7fffffffffffffffL) << 1) + 1 // scalastyle:ignore magic.number
 

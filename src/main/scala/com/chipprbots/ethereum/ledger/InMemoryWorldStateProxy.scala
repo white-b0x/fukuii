@@ -19,7 +19,7 @@ import com.chipprbots.ethereum.vm.WorldStateProxy
 
 object InMemoryWorldStateProxy:
 
-  import Account.*
+  import Account.given
 
   def apply(
       evmCodeStorage: EvmCodeStorage,
@@ -129,7 +129,7 @@ object InMemoryWorldStateProxy:
       MerklePatriciaTrie[Address, Account](
         stateRootHash.toArray[Byte],
         accountsStorage
-      )(Address.hashedAddressEncoder, accountSerializer)
+      )(using Address.hashedAddressEncoder, accountSerializer)
     )
 
 class InMemoryWorldStateProxyStorage(

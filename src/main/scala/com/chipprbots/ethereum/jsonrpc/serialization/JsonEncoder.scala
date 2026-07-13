@@ -14,12 +14,12 @@ import com.chipprbots.ethereum.jsonrpc.JsonMethodsImplicits
 trait JsonEncoder[T]:
   def encodeJson(t: T): JValue
 object JsonEncoder:
-  def apply[T](implicit encoder: JsonEncoder[T]): JsonEncoder[T] = encoder
+  def apply[T](using encoder: JsonEncoder[T]): JsonEncoder[T] = encoder
 
-  def encode[T](value: T)(implicit encoder: JsonEncoder[T]): JValue = encoder.encodeJson(value)
+  def encode[T](value: T)(using encoder: JsonEncoder[T]): JValue = encoder.encodeJson(value)
 
   object Ops:
-    extension [T](item: T) def jsonEncoded(implicit encoder: JsonEncoder[T]): JValue = encoder.encodeJson(item)
+    extension [T](item: T) def jsonEncoded(using encoder: JsonEncoder[T]): JValue = encoder.encodeJson(item)
 
   given stringEncoder: JsonEncoder[String] = JString(_)
   given intEncoder: JsonEncoder[Int] = JInt(_)
@@ -28,11 +28,11 @@ object JsonEncoder:
   given jvalueEncoder: JsonEncoder[JValue] = identity
   given bigIntEncoder: JsonEncoder[BigInt] = JsonMethodsImplicits.encodeAsHex(_)
 
-  implicit def listEncoder[T](implicit itemEncoder: JsonEncoder[T]): JsonEncoder[List[T]] = list =>
+  given listEncoder[T](using itemEncoder: JsonEncoder[T]): JsonEncoder[List[T]] = list =>
     JArray(list.map(itemEncoder.encodeJson))
 
   trait OptionToNull:
-    implicit def optionToNullEncoder[T](implicit valueEncoder: JsonEncoder[T]): JsonEncoder[Option[T]] = {
+    given optionToNullEncoder[T](using valueEncoder: JsonEncoder[T]): JsonEncoder[Option[T]] = {
       case Some(value) => valueEncoder.encodeJson(value)
       case None        => JNull
     }
