@@ -188,7 +188,7 @@ Status legend: ` ` = not started · `~` = in progress · `✓` = done. Update as
 | Client | build-deps | primitives | storage★ | state-trie | consensus★ | evm | block-exec | txpool | sync★ | net-p2p | rpc | multi-net★ | testing | node-life |
 |--------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | go-ethereum | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| core-geth |  |  | ✓ |  | ✓ |  |  |  | ✓ |  |  | ✓ |  |  |
+| core-geth | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | besu |  |  | ✓ |  | ✓ |  |  |  | ✓ | ✓ |  | ✓ |  |  |
 | erigon |  |  | ✓ |  | ✓ |  |  |  | ✓ |  |  | ✓ |  |  |
 | nethermind |  |  | ✓ |  | ✓ |  |  |  | ✓ |  |  | ✓ |  |  |
