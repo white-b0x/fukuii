@@ -40,7 +40,7 @@ import com.chipprbots.ethereum.utils.BlockchainConfig
   * elsewhere.
   *
   * The Olympia vectors (`olympia_consensus_vectors.json`) are vendored alongside but are largely for a fork that is not
-  * yet scheduled on ETC (`olympia-block-number` = 10^18 placeholder); see the Olympia section below for what maps today
+  * yet scheduled on ETC (`eip1559-block-number` = 10^18 placeholder); see the Olympia section below for what maps today
   * and the recorded treasury-address disagreement.
   */
 class EtcConsensusVectorsSpec extends AnyFlatSpec with Matchers:
@@ -299,7 +299,7 @@ class EtcConsensusVectorsSpec extends AnyFlatSpec with Matchers:
   //     active precompile addresses. Deferred to ETC-VECTORS-VENDOR-01.
 
   // -----------------------------------------------------------------------
-  // Olympia vectors (unscheduled fork — olympia-block-number = 10^18 placeholder)
+  // Olympia vectors (unscheduled fork — eip1559-block-number = 10^18 placeholder)
   // -----------------------------------------------------------------------
 
   private val olympiaVectors: Json = loadVectors("consensus-vectors/olympia_consensus_vectors.json")
@@ -309,7 +309,7 @@ class EtcConsensusVectorsSpec extends AnyFlatSpec with Matchers:
     EthereumTest,
     OlympiaTest
   ) in {
-    // Olympia is unscheduled on ETC (olympia-block-number = 10^18), so the treasury address is not
+    // Olympia is unscheduled on ETC (eip1559-block-number = 10^18), so the treasury address is not
     // yet consensus-active. The core-geth vector lists a placeholder (0xCfE1..bEe2) that disagrees
     // with fukuii's ECIP-1112 address (0x60d0..d79b, blockchains.conf `fukuii.olympia.treasury-address`).
     // We pin fukuii's own value and assert the divergence is still present, rather than asserting

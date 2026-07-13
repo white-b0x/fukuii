@@ -56,7 +56,7 @@ class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[S
   given headerExtraFieldsPickler: CompositePickler[HeaderExtraFields] =
     compositePickler[HeaderExtraFields]
       .addConcreteType[HefEmpty.type]
-      .addConcreteType[HefPostOlympia]
+      .addConcreteType[HefPostEip1559]
       .addConcreteType[HefPostShanghai]
       .addConcreteType[HefPostCancun]
       .addConcreteType[HefPostPrague]

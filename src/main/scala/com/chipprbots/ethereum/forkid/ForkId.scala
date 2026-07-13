@@ -54,11 +54,11 @@ object ForkId:
     new ForkId(crc.getValue(), next.map(_._1))
 
   // 10^18 is the genesis JSON "not yet scheduled" sentinel. Olympia is re-appended
-  // explicitly below when olympiaBlockNumber itself is still the sentinel, ensuring
+  // explicitly below when eip1559BlockNumber itself is still the sentinel, ensuring
   // ETC/Mordor advertise Olympia as the next fork. This one purpose cannot be
   // schedule-derived: ForkSchedule's `byBlockIfReal` collapses "pending at 10^18" and
   // "never scheduled" to the same `Never`, so the sentinel-vs-absent distinction
-  // Olympia needs is only recoverable by reading `forkBlockNumbers.olympiaBlockNumber`
+  // Olympia needs is only recoverable by reading `forkBlockNumbers.eip1559BlockNumber`
   // directly (Row 5.8b F1 caveat).
   private val olympiaSentinel: BigInt = BigInt("1000000000000000000")
 
@@ -80,7 +80,7 @@ object ForkId:
       .sorted
     // Advertise Olympia sentinel as the next fork when not yet scheduled
     val olympiaNext =
-      if config.forkBlockNumbers.olympiaBlockNumber.value == olympiaSentinel then List(olympiaSentinel) else Nil
+      if config.forkBlockNumbers.eip1559BlockNumber.value == olympiaSentinel then List(olympiaSentinel) else Nil
     realForks ++ olympiaNext
 
   /** EIP-6122: Timestamp-based forks for post-Merge chains. */

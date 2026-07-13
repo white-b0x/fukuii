@@ -740,12 +740,12 @@ class EngineApiService(
                                 )
                               else if isShanghai then HefPostShanghai(baseFee, computedWithdrawalsRoot)
                               else
-                                // Paris (post-merge, pre-Shanghai): HefPostOlympia holds only baseFee.
+                                // Paris (post-merge, pre-Shanghai): HefPostEip1559 holds only baseFee.
                                 // Using HefPostShanghai here breaks the blockHash round-trip: getPayloadV1
                                 // returns a payload with no withdrawals field, and newPayloadV1 reconstructs
-                                // the header as HefPostOlympia — different RLP, different hash, so every
+                                // the header as HefPostEip1559 — different RLP, different hash, so every
                                 // Paris payload we build fails its own newPayload round-trip.
-                                HefPostOlympia(baseFee)
+                                HefPostEip1559(baseFee)
 
                             // Build post-merge header with skeleton (difficulty=0 so payBlockReward skips PoW rewards)
                             val blockNumber = parent.header.number + 1
@@ -1127,7 +1127,7 @@ class EngineApiService(
             withdrawalsRoot = withdrawalsRoot
           )
         case _ =>
-          HefPostOlympia(baseFee = payload.baseFeePerGas)
+          HefPostEip1559(baseFee = payload.baseFeePerGas)
 
     val header = BlockHeader(
       parentHash = BlockHash(payload.parentHash),

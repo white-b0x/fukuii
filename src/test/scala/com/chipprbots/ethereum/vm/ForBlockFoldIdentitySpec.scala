@@ -89,7 +89,7 @@ class ForBlockFoldIdentitySpec extends AnyFlatSpec with Matchers:
     berlinBlockNumber = BlockNumber(Long.MaxValue),
     mystiqueBlockNumber = BlockNumber(8),
     spiralBlockNumber = BlockNumber(9),
-    olympiaBlockNumber = BlockNumber(10),
+    eip1559BlockNumber = BlockNumber(10),
     chainId = ChainId(0x3d),
     isEthereum = false
   )

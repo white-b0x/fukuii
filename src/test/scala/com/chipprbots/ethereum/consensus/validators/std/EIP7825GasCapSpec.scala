@@ -28,7 +28,7 @@ class EIP7825GasCapSpec
 
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
     _.copy(
-      olympiaBlockNumber = BlockNumber(olympiaBlock),
+      eip1559BlockNumber = BlockNumber(olympiaBlock),
       homesteadBlockNumber = BlockNumber(0),
       eip155BlockNumber = BlockNumber(0)
     )
@@ -51,7 +51,7 @@ class EIP7825GasCapSpec
     SignedTransaction.sign(tx, senderKeys, Some(config.chainId))
 
   def makeHeader(number: BigInt): BlockHeader =
-    val extraFields = if number >= olympiaBlock then HefPostOlympia(BaseFeePerGas(BigInt(1000000000))) else HefEmpty
+    val extraFields = if number >= olympiaBlock then HefPostEip1559(BaseFeePerGas(BigInt(1000000000))) else HefEmpty
     Fixtures.Blocks.ValidBlock.header.copy(
       number = BlockNumber(number),
       gasLimit = GasAmount(BigInt(100_000_000)),

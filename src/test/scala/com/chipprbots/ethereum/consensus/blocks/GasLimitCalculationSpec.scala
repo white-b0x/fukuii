@@ -35,7 +35,7 @@ class GasLimitCalculationSpec
     with BlockchainConfigBuilder
     with com.chipprbots.ethereum.TestInstanceConfigProvider:
 
-  // Use sentinel olympiaBlockNumber (1e18) from test-chain.conf so all block-0 calls are pre-Olympia.
+  // Use sentinel eip1559BlockNumber (1e18) from test-chain.conf so all block-0 calls are pre-Olympia.
   implicit val config: BlockchainConfig = blockchainConfig
 
   private val GasLimitBoundDivisor = BlockHeaderValidator.GasLimitBoundDivisor

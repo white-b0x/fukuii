@@ -89,7 +89,7 @@ class ForkIdSpec extends AnyWordSpec with Matchers:
       create(5520000) shouldBe ForkId(0x8c9b1797L, Some(9957000)) // First Mystique block
       create(9957000 - 1) shouldBe ForkId(0x8c9b1797L, Some(9957000))
       // Spiral is the latest activated fork on Mordor. Olympia is not yet
-      // scheduled (mordor-chain.conf leaves olympia-block-number at sentinel
+      // scheduled (mordor-chain.conf leaves eip1559-block-number at sentinel
       // 10^18), so next=Some(1000000000000000000) is advertised per EIP-2124.
       // Update this assertion to `ForkId(0x3a6b00d7L, Some(<olympia-block>))`
       // when Olympia's real Mordor block is set.

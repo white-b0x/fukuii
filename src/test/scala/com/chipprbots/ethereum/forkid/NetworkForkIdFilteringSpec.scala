@@ -111,12 +111,12 @@ class NetworkForkIdFilteringSpec extends AnyWordSpec with Matchers:
   }
 
   private val olympiaConf = etcConf.copy(
-    forkBlockNumbers = etcConf.forkBlockNumbers.copy(olympiaBlockNumber = BlockNumber(30000000))
+    forkBlockNumbers = etcConf.forkBlockNumbers.copy(eip1559BlockNumber = BlockNumber(30000000))
   )
 
   "Olympia fork signal state machine" must {
 
-    // State 1: Olympia not yet scheduled (olympiaBlockNumber = sentinel 10^18).
+    // State 1: Olympia not yet scheduled (eip1559BlockNumber = sentinel 10^18).
     // ForkId = Spiral hash, next=Some(10^18). This is the current production state —
     // all three ETC clients advertise Olympia as the next fork per EIP-2124.
     "emit Spiral/next=Olympia sentinel when Olympia block is not yet scheduled" in {

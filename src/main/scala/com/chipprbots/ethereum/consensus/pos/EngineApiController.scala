@@ -490,7 +490,7 @@ class EngineApiController(
       SetCodeTransaction
     }
     val baseFeeValue: BigInt = block.header.extraFields match
-      case BlockHeader.HeaderExtraFields.HefPostOlympia(bf)               => bf.value
+      case BlockHeader.HeaderExtraFields.HefPostEip1559(bf)               => bf.value
       case BlockHeader.HeaderExtraFields.HefPostShanghai(bf, _)           => bf.value
       case BlockHeader.HeaderExtraFields.HefPostCancun(bf, _, _, _, _)    => bf.value
       case BlockHeader.HeaderExtraFields.HefPostPrague(bf, _, _, _, _, _) => bf.value
@@ -543,7 +543,7 @@ class EngineApiController(
       }.toList)
     }
     val (baseFee, blobGasUsed, excessBlobGas) = header.extraFields match
-      case BlockHeader.HeaderExtraFields.HefPostOlympia(bf)                   => (Some(bf.value), None, None)
+      case BlockHeader.HeaderExtraFields.HefPostEip1559(bf)                   => (Some(bf.value), None, None)
       case BlockHeader.HeaderExtraFields.HefPostShanghai(bf, _)               => (Some(bf.value), None, None)
       case BlockHeader.HeaderExtraFields.HefPostCancun(bf, _, bgu, ebg, _)    => (Some(bf.value), Some(bgu), Some(ebg))
       case BlockHeader.HeaderExtraFields.HefPostPrague(bf, _, bgu, ebg, _, _) => (Some(bf.value), Some(bgu), Some(ebg))

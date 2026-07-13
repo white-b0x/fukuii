@@ -134,10 +134,10 @@ abstract class BlockGeneratorSkeleton(
     // calcBaseFee returns the 1 gwei floor even before Olympia, so an un-gated filter would
     // (a) drop legitimate sub-(floor+minTip) legacy txs and (b) in block production, desync the
     // tx list from a pre-sealed header (→ HeaderPoWError). Gate on the Olympia activation block.
-    // MIN_MINER_TIP (ECIP-1122) is ETC-only: on ETH/Sepolia olympiaBlockNumber holds London's
+    // MIN_MINER_TIP (ECIP-1122) is ETC-only: on ETH/Sepolia eip1559BlockNumber holds London's
     // block (or 0), so also gate on ETC-family networks to avoid enforcing the floor there.
     val isOlympia = blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETC &&
-      blockNumber >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
+      blockNumber >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber
     val eligibleTransactions =
       if !isOlympia then transactions
       else
@@ -194,9 +194,14 @@ abstract class BlockGeneratorSkeleton(
   protected def calculateGasLimit(parentGas: BigInt, blockNumber: BlockNumber)(implicit
       blockchainConfig: BlockchainConfig
   ): BigInt =
-    val target = blockchainConfig.forkBlockNumbers
-      .gasLimitAdjustmentStartAt(blockNumber)
-      .getOrElse(miningConfig.gasLimitTarget)
+    // The fork-embedded gas schedule (spiral/olympia gas targets) is an ECIP-1121 ETC-only mechanism.
+    // Its target values are None on ETH chains, so consulting it there is already a no-op; the explicit
+    // networkType guard is defense-in-depth so a future ETH-side gas target can never trip the ETC schedule.
+    val target =
+      (if blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETC then
+         blockchainConfig.forkBlockNumbers.gasLimitAdjustmentStartAt(blockNumber)
+       else None)
+        .getOrElse(miningConfig.gasLimitTarget)
     val delta = parentGas / BlockHeaderValidator.GasLimitBoundDivisor - 1
     if parentGas < target then
       val n = parentGas + delta; if n > target then target else n

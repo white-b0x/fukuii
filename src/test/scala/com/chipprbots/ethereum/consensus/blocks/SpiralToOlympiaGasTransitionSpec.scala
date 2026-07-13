@@ -23,7 +23,7 @@ import com.chipprbots.ethereum.domain.BlockBody
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.domain.SignedTransaction
 import com.chipprbots.ethereum.domain.BlockHash
 import com.chipprbots.ethereum.domain.BlockNumber
@@ -57,7 +57,7 @@ class SpiralToOlympiaGasTransitionSpec
   // olympiaGasTarget = Some(60M) is required so gasLimitAdjustmentStartAt(olympiaBlock)
   // returns Some(60M) rather than falling back to miningConfig.gasLimitTarget.
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
-    _.copy(olympiaBlockNumber = BlockNumber(olympiaBlock), olympiaGasTarget = Some(BigInt(60_000_000)))
+    _.copy(eip1559BlockNumber = BlockNumber(olympiaBlock), olympiaGasTarget = Some(BigInt(60_000_000)))
   )
 
   private val SpiralGasLimit: BigInt = BigInt(8_000_000)
@@ -100,7 +100,7 @@ class SpiralToOlympiaGasTransitionSpec
       unixTimestamp = Timestamp(timestamp),
       difficulty = Difficulty.Zero,
       extraData = baseExtraData,
-      extraFields = HefPostOlympia(BaseFeePerGas(baseFee))
+      extraFields = HefPostEip1559(BaseFeePerGas(baseFee))
     )
 
   private class TestableGen(target: BigInt)
@@ -279,7 +279,7 @@ class SpiralToOlympiaGasTransitionSpec
         val configWithSpiralSchedule = blockchainConfig.withUpdatedForkBlocks(
           _.copy(
             spiralBlockNumber = BlockNumber(0),
-            olympiaBlockNumber = BlockNumber(olympiaBlock),
+            eip1559BlockNumber = BlockNumber(olympiaBlock),
             olympiaGasTarget = Some(BigInt(60_000_000)),
             spiralGasTarget = Some(BigInt(8_000_000))
           )
@@ -297,7 +297,7 @@ class SpiralToOlympiaGasTransitionSpec
       ) in {
         val configNoSchedule = blockchainConfig.withUpdatedForkBlocks(
           _.copy(
-            olympiaBlockNumber = BlockNumber(olympiaBlock),
+            eip1559BlockNumber = BlockNumber(olympiaBlock),
             olympiaGasTarget = None,
             spiralGasTarget = None
           )

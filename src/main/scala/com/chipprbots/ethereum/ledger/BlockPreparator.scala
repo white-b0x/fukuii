@@ -91,8 +91,8 @@ class BlockPreparator(
       treasuryAddress: Address,
       world: InMemoryWorldStateProxy
   )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
-    val isOlympiaActivated = blockHeader.number >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
-    if !isOlympiaActivated then world
+    val isEip1559Activated = blockHeader.number >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber
+    if !isEip1559Activated then world
     else
       if treasuryAddress == Address(0) && blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETC
       then
@@ -276,8 +276,8 @@ class BlockPreparator(
         val blockchainConfigForEvm = BlockchainConfigForEvm(blockchainConfig)
         val etcFork = blockchainConfigForEvm.etcForkForBlockNumber(blockNumber)
         // EIP-3529: post-London refund cap is gasUsed/5 (not gasUsed/2)
-        val isPostLondon = blockNumber >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
-        val maxRefundQuotient = if BlockchainConfigForEvm.isEip3529Enabled(etcFork) || isPostLondon then 5 else 2
+        val isEip1559Active = blockNumber >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber
+        val maxRefundQuotient = if BlockchainConfigForEvm.isEip3529Enabled(etcFork) || isEip1559Active then 5 else 2
         result.gasRemaining + (gasUsed / maxRefundQuotient).min(result.gasRefund)
 
   private[ledger] def increaseAccountBalance(address: Address, value: UInt256)(
@@ -424,12 +424,12 @@ class BlockPreparator(
     // EIP-7623 activation:
     //   - ETH: Prague timestamp
     //   - ETC: Olympia block (ECIP-1121)
-    // Do NOT use `blockHeader.number >= olympiaBlockNumber` alone — hive maps London→olympiaBlockNumber
+    // Do NOT use `blockHeader.number >= eip1559BlockNumber` alone — hive maps London→eip1559BlockNumber
     // on ETH test chains, which would apply the floor pre-Prague.
     val eip7623Active =
       blockchainConfig.isPragueTimestamp(blockHeader.unixTimestamp) ||
         (blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETC &&
-          blockHeader.number >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber)
+          blockHeader.number >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber)
     val executionGasToPayToMiner =
       if eip7623Active then executionGasBase.max(GasAmount(BlockPreparator.calcFloorDataGas(stx.tx.payload)))
       else executionGasBase

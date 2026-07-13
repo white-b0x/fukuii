@@ -10,7 +10,7 @@ import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.consensus.validators.SignedTransactionError.TransactionSyntaxError
 import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.domain.*
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 import com.chipprbots.ethereum.utils.Config
@@ -55,7 +55,7 @@ class BlobTransactionRejectionSpec extends AnyFlatSpec with Matchers:
   private val etcBlockHeader = Fixtures.Blocks.Block3125369.header.copy(
     number = BlockNumber(BigInt(21_000_000)),
     gasLimit = GasAmount(8_000_000),
-    extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000")))
+    extraFields = HefPostEip1559(BaseFeePerGas(BigInt("1000000000")))
   )
 
   private val senderAccount = Account.empty(UInt256(0)).copy(balance = UInt256(BigInt("1000000000000000000")))

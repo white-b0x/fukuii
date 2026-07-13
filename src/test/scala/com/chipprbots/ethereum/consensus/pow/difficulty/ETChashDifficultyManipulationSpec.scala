@@ -68,7 +68,7 @@ class ETChashDifficultyManipulationSpec extends AnyFlatSpec with Matchers with S
     berlinBlockNumber = BlockNumber(13189133),
     mystiqueBlockNumber = BlockNumber(14525000),
     spiralBlockNumber = BlockNumber(19250000),
-    olympiaBlockNumber = BlockNumber(Long.MaxValue)
+    eip1559BlockNumber = BlockNumber(Long.MaxValue)
   )
 
   implicit private val blockchainConfig: BlockchainConfig = BlockchainConfig(

@@ -70,7 +70,7 @@ class ForkIdTagSpec extends AnyWordSpec with Matchers:
 
     // *** THE CRITICAL BUG REGRESSION ***
     //
-    // When olympiaBlockNumber is set to a real block (not the noFork sentinel), local.next becomes
+    // When eip1559BlockNumber is set to a real block (not the noFork sentinel), local.next becomes
     // Some(olympiaBlock). The old validateForkId had:
     //
     //   local.next match {
@@ -82,7 +82,7 @@ class ForkIdTagSpec extends AnyWordSpec with Matchers:
     // Olympia's block number was announced. ForkIdValidator.validatePeer must reject them.
     "reject a peer on an incompatible chain even when local has a future fork pending (Olympia scheduled)" in {
       val olympiaConf = etcConf.copy(
-        forkBlockNumbers = etcConf.forkBlockNumbers.copy(olympiaBlockNumber = BlockNumber(30000000))
+        forkBlockNumbers = etcConf.forkBlockNumbers.copy(eip1559BlockNumber = BlockNumber(30000000))
       )
       // Local: past Spiral (20M), Olympia pending at 30M → local.next = Some(30000000).
       val tag = makeTag(20000000, olympiaConf)

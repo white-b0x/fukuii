@@ -154,7 +154,7 @@ object PrecompiledContracts:
       // ETC Olympia (ECIP-1121) adds BLS12-381 (EIP-2537, 0x0b-0x11) + P256VERIFY (EIP-7951, 0x100) on top of
       // the Phoenix-era set. It does NOT include the Cancun 0x0a KZG precompile — ETC never adopts EIP-4844/blobs
       // (no EIP4844FBlock in core-geth config_classic.go/config_mordor.go). The `!isEthereum` guard mirrors ModExp:
-      // hive maps ETH London→olympiaBlockNumber, so etcFork can read >= Olympia on ETH chains where this set is
+      // hive maps ETH London→eip1559BlockNumber, so etcFork can read >= Olympia on ETH chains where this set is
       // wrong — those must fall through to the ETH timestamp/block branches below.
       etcOlympiaContracts
     else if isPrague then
@@ -263,7 +263,7 @@ object PrecompiledContracts:
       // EIP-7823 (MODEXP input bounds, 1024-byte max) activates at:
       //   - ETH Osaka timestamp (per execution-specs prague → EIP-2565, osaka → EIP-7823/7883)
       //   - ETC Olympia (ECIP-1121) on actual ETC chains
-      // On ETH chains we MUST NOT use etcFork as a proxy — hive maps London→olympiaBlockNumber,
+      // On ETH chains we MUST NOT use etcFork as a proxy — hive maps London→eip1559BlockNumber,
       // so etcFork >= Olympia is true but EIP-7823 is not yet active pre-Osaka.
       val useEip7823 = isOsaka || (etcFork >= EtcForks.Olympia && !isEthereum)
 
@@ -292,7 +292,7 @@ object PrecompiledContracts:
 
       // EIP-7883: gas cost routing. On ETH chains, EIP-7883 activates at Osaka timestamp
       // (Prague keeps EIP-2565 per execution-specs); on ETC, it activates at Olympia.
-      // Hive maps London→olympiaBlockNumber, which we must ignore on ETH to avoid firing
+      // Hive maps London→eip1559BlockNumber, which we must ignore on ETH to avoid firing
       // EIP-7883 pre-Osaka.
       val g = gasWithOsaka(context.inputData, etcFork, ethFork, isOsaka, isEthereum)
       val (result, error, gasRemaining): (ByteString, Option[ProgramError], GasAmount) =
@@ -337,9 +337,9 @@ object PrecompiledContracts:
       gasWithOsaka(inputData, etcFork, ethFork, eip7883Active = false, isEthereum = false)
 
     /** Variant that takes an explicit EIP-7883 activation flag AND distinguishes ETC Olympia from ETH London (both
-      * mapped to `olympiaBlockNumber` by hive). EIP-7883 activates on ETC Olympia (ECIP-1121) OR ETH Osaka+ (per
+      * mapped to `eip1559BlockNumber` by hive). EIP-7883 activates on ETC Olympia (ECIP-1121) OR ETH Osaka+ (per
       * execution-specs). Prague keeps EIP-2565. Never fires on plain ETH London just because hive sets
-      * olympiaBlockNumber there.
+      * eip1559BlockNumber there.
       */
     def gasWithOsaka(
         inputData: ByteString,

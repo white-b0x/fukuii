@@ -136,7 +136,7 @@ class AdminService(
     */
   private def activeForkName(blockNumber: BlockNumber, forks: ForkBlockNumbers): String =
     List(
-      forks.olympiaBlockNumber -> "Olympia",
+      forks.eip1559BlockNumber -> "Olympia",
       forks.spiralBlockNumber -> "Spiral",
       forks.mystiqueBlockNumber -> "Mystique",
       forks.magnetoBlockNumber -> "Magneto",

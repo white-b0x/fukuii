@@ -191,7 +191,7 @@ class EthInfoService(
       ("Magneto", fbn.magnetoBlockNumber.value, istanbulPrecompiles, noSystemContracts),
       ("Mystique", fbn.mystiqueBlockNumber.value, istanbulPrecompiles, noSystemContracts),
       ("Spiral", fbn.spiralBlockNumber.value, istanbulPrecompiles, noSystemContracts),
-      ("Olympia", fbn.olympiaBlockNumber.value, olympiaPrecompiles, olympiaSystemContracts)
+      ("Olympia", fbn.eip1559BlockNumber.value, olympiaPrecompiles, olympiaSystemContracts)
     ).filter(f => f._2 < Long.MaxValue && !ForkId.knownSentinels.contains(f._2)) // exclude unscheduled/pending forks
       .sortBy(_._2)
       .distinctBy(_._2) // deduplicate by block number
@@ -285,7 +285,7 @@ class EthInfoService(
     val header = if !req.tx.gasPriceExplicit && block.block.header.baseFee.isDefined then
       import BlockHeader.HeaderExtraFields.*
       val zeroBaseFeeExtra = block.block.header.extraFields match
-        case HefPostOlympia(_)                    => HefPostOlympia(BaseFeePerGas.Zero)
+        case HefPostEip1559(_)                    => HefPostEip1559(BaseFeePerGas.Zero)
         case HefPostShanghai(_, wr)               => HefPostShanghai(BaseFeePerGas.Zero, wr)
         case HefPostCancun(_, wr, bg, eb, pb)     => HefPostCancun(BaseFeePerGas.Zero, wr, bg, eb, pb)
         case HefPostPrague(_, wr, bg, eb, pb, rh) => HefPostPrague(BaseFeePerGas.Zero, wr, bg, eb, pb, rh)

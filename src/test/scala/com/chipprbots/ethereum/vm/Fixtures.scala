@@ -35,6 +35,6 @@ object Fixtures:
     berlinBlockNumber = BlockNumber(BerlinBlockNumber),
     mystiqueBlockNumber = BlockNumber(MystiqueBlockNumber),
     spiralBlockNumber = BlockNumber(SpiralBlockNumber),
-    olympiaBlockNumber = BlockNumber(OlympiaBlockNumber),
+    eip1559BlockNumber = BlockNumber(OlympiaBlockNumber),
     chainId = ChainId(0x3d)
   )

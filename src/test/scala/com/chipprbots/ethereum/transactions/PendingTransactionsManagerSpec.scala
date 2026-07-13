@@ -29,7 +29,7 @@ import com.chipprbots.ethereum.domain.GasPrice
 import com.chipprbots.ethereum.domain.MaxFeePerGas
 import com.chipprbots.ethereum.domain.PriorityFeePerGas
 import com.chipprbots.ethereum.domain.BlockBody
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.domain.BlockchainReader
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.domain.Nonce
@@ -538,7 +538,7 @@ class PendingTransactionsManagerSpec
   trait TestSetupWithBaseFee extends TestSetup:
     private val blockWithBaseFee: Block = Block(
       header = com.chipprbots.ethereum.Fixtures.Blocks.ValidBlock.header.copy(
-        extraFields = HefPostOlympia(BaseFeePerGas(BaseFeeCalculator.InitialBaseFee))
+        extraFields = HefPostEip1559(BaseFeePerGas(BaseFeeCalculator.InitialBaseFee))
       ),
       body = BlockBody(transactionList = Nil, uncleNodesList = Nil)
     )

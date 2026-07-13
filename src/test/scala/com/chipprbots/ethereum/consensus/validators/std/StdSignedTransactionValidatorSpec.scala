@@ -75,7 +75,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers:
         magnetoBlockNumber = BlockNumber(13_189_133),
         mystiqueBlockNumber = BlockNumber(14_525_000),
         spiralBlockNumber = BlockNumber(BigInt("1000000000000000000")),
-        olympiaBlockNumber = BlockNumber(BigInt("1000000000000000000"))
+        eip1559BlockNumber = BlockNumber(BigInt("1000000000000000000"))
       )
     )
     .copy(networkType = NetworkType.ETC)

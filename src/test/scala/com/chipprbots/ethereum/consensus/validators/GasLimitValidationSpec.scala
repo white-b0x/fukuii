@@ -12,7 +12,7 @@ import com.chipprbots.ethereum.domain.ChainId
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.Timestamp
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.domain.BloomFilter
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.GasAmount
@@ -220,7 +220,7 @@ class GasLimitValidationSpec extends AnyFlatSpec with Matchers:
     eip106BlockNumber = BlockNumber(0),
     difficultyBombRemovalBlockNumber = BlockNumber(0),
     spiralBlockNumber = BlockNumber(0),
-    olympiaBlockNumber = BlockNumber(500),
+    eip1559BlockNumber = BlockNumber(500),
     spiralGasTarget = Some(BigInt(8_000_000)),
     olympiaGasTarget = Some(BigInt(60_000_000))
   )
@@ -266,13 +266,13 @@ class GasLimitValidationSpec extends AnyFlatSpec with Matchers:
   }
 
   // Parent at 60M for Olympia-epoch tests — bound = 60M/1024 = 58593.
-  // Block 600 > olympiaBlockNumber(500): extraFields = HefPostOlympia required.
+  // Block 600 > eip1559BlockNumber(500): extraFields = HefPostEip1559 required.
   // gasUsed = gasLimit/2 (= gas target) so EIP-1559 baseFee stays constant across parent→child.
   private val olympiaParent = parentHeader.copy(
     gasLimit = GasAmount(60_000_000),
     number = BlockNumber(600),
     gasUsed = GasAmount(30_000_000),
-    extraFields = HefPostOlympia(BaseFeePerGas(BigInt(1_000_000_000)))
+    extraFields = HefPostEip1559(BaseFeePerGas(BigInt(1_000_000_000)))
   )
 
   private def validateEtcOlympia(child: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =

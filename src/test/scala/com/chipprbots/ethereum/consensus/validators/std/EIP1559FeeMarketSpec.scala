@@ -11,7 +11,7 @@ import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.consensus.validators.SignedTransactionError.TransactionSyntaxError
 import com.chipprbots.ethereum.crypto
 import com.chipprbots.ethereum.domain.*
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -31,7 +31,7 @@ class EIP1559FeeMarketSpec
     _.copy(
       homesteadBlockNumber = BlockNumber(0),
       eip155BlockNumber = BlockNumber(0),
-      olympiaBlockNumber = BlockNumber(0)
+      eip1559BlockNumber = BlockNumber(0)
     )
   )
 
@@ -47,7 +47,7 @@ class EIP1559FeeMarketSpec
     number = BlockNumber(BigInt(20_000_000)),
     gasLimit = GasAmount(BigInt(8_000_000)),
     gasUsed = GasAmount.Zero,
-    extraFields = HefPostOlympia(BaseFeePerGas(baseFee))
+    extraFields = HefPostEip1559(BaseFeePerGas(baseFee))
   )
 
   private def validate(stx: SignedTransaction, header: BlockHeader = postMystiqueHeader) =

@@ -33,19 +33,19 @@ case class BlockchainConfigForEvm(
     eip161BlockNumber: BlockNumber,
     byzantiumBlockNumber: BlockNumber,
     constantinopleBlockNumber: BlockNumber,
+    petersburgBlockNumber: BlockNumber,
     istanbulBlockNumber: BlockNumber,
     maxCodeSize: Option[BigInt],
     accountStartNonce: UInt256,
     // ETC forks
     atlantisBlockNumber: BlockNumber,
     aghartaBlockNumber: BlockNumber,
-    petersburgBlockNumber: BlockNumber,
     phoenixBlockNumber: BlockNumber,
     magnetoBlockNumber: BlockNumber,
     berlinBlockNumber: BlockNumber,
     mystiqueBlockNumber: BlockNumber,
     spiralBlockNumber: BlockNumber,
-    olympiaBlockNumber: BlockNumber,
+    eip1559BlockNumber: BlockNumber,
     chainId: ChainId,
     // Timestamp-based ETH forks (post-merge)
     pragueTimestamp: Option[Long] = None,
@@ -54,7 +54,7 @@ case class BlockchainConfigForEvm(
     bpo2Timestamp: Option[Long] = None,
     // Network type — true for Ethereum chains, false for Ethereum Classic.
     // Needed to distinguish ECIP Olympia (enables EIP-7883 MODEXP gas) from ETH London
-    // which hive also maps to olympiaBlockNumber but must NOT enable EIP-7883 before Osaka.
+    // which hive also maps to eip1559BlockNumber but must NOT enable EIP-7883 before Osaka.
     isEthereum: Boolean = false
 ):
 
@@ -85,8 +85,8 @@ case class BlockchainConfigForEvm(
     case _ if blockNumber < magnetoBlockNumber  => Phoenix
     case _ if blockNumber < mystiqueBlockNumber => Magneto
     case _ if blockNumber < spiralBlockNumber   => Mystique
-    case _ if blockNumber < olympiaBlockNumber  => Spiral
-    case _ if blockNumber >= olympiaBlockNumber => Olympia
+    case _ if blockNumber < eip1559BlockNumber  => Spiral
+    case _ if blockNumber >= eip1559BlockNumber => Olympia
 
   def ethForkForBlockNumber(blockNumber: BlockNumber): BlockchainConfigForEvm.EthForks.Value = blockNumber match
     case _ if blockNumber < byzantiumBlockNumber      => BeforeByzantium
@@ -174,7 +174,7 @@ object BlockchainConfigForEvm:
       berlinBlockNumber = forkBlockNumbers.berlinBlockNumber,
       mystiqueBlockNumber = forkBlockNumbers.mystiqueBlockNumber,
       spiralBlockNumber = forkBlockNumbers.spiralBlockNumber,
-      olympiaBlockNumber = forkBlockNumbers.olympiaBlockNumber,
+      eip1559BlockNumber = forkBlockNumbers.eip1559BlockNumber,
       chainId = chainId,
       pragueTimestamp = forkTimestamps.pragueTimestamp,
       osakaTimestamp = forkTimestamps.osakaTimestamp,

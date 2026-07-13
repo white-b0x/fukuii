@@ -73,7 +73,7 @@ class VMTracerSpec extends AnyFreeSpec with Matchers:
       berlinBlockNumber = BlockNumber(Long.MaxValue),
       mystiqueBlockNumber = BlockNumber(Long.MaxValue),
       spiralBlockNumber = BlockNumber(Long.MaxValue),
-      olympiaBlockNumber = BlockNumber(Long.MaxValue),
+      eip1559BlockNumber = BlockNumber(Long.MaxValue),
       chainId = ChainId(0x3d)
     )
   )

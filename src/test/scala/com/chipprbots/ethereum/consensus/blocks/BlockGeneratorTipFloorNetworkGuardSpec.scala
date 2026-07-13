@@ -35,7 +35,7 @@ import com.chipprbots.ethereum.utils.NetworkType
 /** EIP1559-DEALIAS-01 W1 regression guard for the ECIP-1122 MIN_MINER_TIP network guard on the block-production side
   * (BlockGeneratorSkeleton.prepareTransactions).
   *
-  * `olympiaBlockNumber` is populated on every network (Olympia on ETC; London's block on ETH; 0 on Sepolia), so an
+  * `eip1559BlockNumber` is populated on every network (Olympia on ETC; London's block on ETH; 0 on Sepolia), so an
   * un-gated tip filter silently enforced the ETC-only 1-gwei floor on ETH/Sepolia. The floor must apply ONLY on
   * ETC-family networks. This spec pins that boundary: same sub-1-gwei-tip tx, same post-Olympia block number — dropped
   * on ETC, kept on ETH.
@@ -55,7 +55,7 @@ class BlockGeneratorTipFloorNetworkGuardSpec
   // the assertions do not depend on the test chain conf's default.
   private def configFor(networkType: NetworkType): BlockchainConfig =
     blockchainConfig
-      .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = BlockNumber(0)))
+      .withUpdatedForkBlocks(_.copy(eip1559BlockNumber = BlockNumber(0)))
       .copy(networkType = networkType, minTip = OneGwei)
 
   private val etcConfig: BlockchainConfig = configFor(NetworkType.ETC)
@@ -125,7 +125,7 @@ class BlockGeneratorTipFloorNetworkGuardSpec
 
   "BlockGeneratorSkeleton.prepareTransactions ECIP-1122 tip floor (network guard)" when {
 
-    "network is ETH (olympiaBlockNumber holds London's block)" should {
+    "network is ETH (eip1559BlockNumber holds London's block)" should {
       "select a sub-1-gwei-tip tx — no ECIP-1122 floor applies" taggedAs (UnitTest, OlympiaTest) in {
         miner.selectTxs(Seq(subFloorTx))(ethConfig).map(_.hash) shouldBe Seq(subFloorTx.hash)
       }

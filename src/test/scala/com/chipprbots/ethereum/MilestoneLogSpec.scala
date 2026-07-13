@@ -29,7 +29,7 @@ class MilestoneLogSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "include Olympia when activated" taggedAs UnitTest in {
-    val forks = ForkBlockNumbers.Empty.copy(olympiaBlockNumber = BlockNumber(30_000_000))
+    val forks = ForkBlockNumbers.Empty.copy(eip1559BlockNumber = BlockNumber(30_000_000))
     val result = MilestoneLog.formatMilestones(forks)
     result should include("Olympia:30000000")
   }
@@ -45,7 +45,7 @@ class MilestoneLogSpec extends AnyFlatSpec with Matchers:
     val forks = ForkBlockNumbers.Empty.copy(
       homesteadBlockNumber = BlockNumber(1_150_000),
       spiralBlockNumber = BlockNumber(19_250_000),
-      olympiaBlockNumber = BlockNumber(30_000_000)
+      eip1559BlockNumber = BlockNumber(30_000_000)
     )
     val result = MilestoneLog.formatMilestones(forks)
     val homesteadIdx = result.indexOf("Homestead")
@@ -84,7 +84,7 @@ class MilestoneLogSpec extends AnyFlatSpec with Matchers:
       berlinBlockNumber = BlockNumber(Long.MaxValue),
       mystiqueBlockNumber = BlockNumber(14_525_000),
       spiralBlockNumber = BlockNumber(19_250_000),
-      olympiaBlockNumber = BlockNumber(Long.MaxValue) // not yet scheduled on ETC mainnet
+      eip1559BlockNumber = BlockNumber(Long.MaxValue) // not yet scheduled on ETC mainnet
     )
     val result = MilestoneLog.formatMilestones(forks)
     result should include("Frontier:0")
@@ -136,7 +136,7 @@ class MilestoneLogSpec extends AnyFlatSpec with Matchers:
       berlinBlockNumber = BlockNumber(Long.MaxValue),
       mystiqueBlockNumber = BlockNumber(5_520_000),
       spiralBlockNumber = BlockNumber(9_957_000),
-      olympiaBlockNumber = BlockNumber(Long.MaxValue) // not yet activated on Mordor
+      eip1559BlockNumber = BlockNumber(Long.MaxValue) // not yet activated on Mordor
     )
     val result = MilestoneLog.formatMilestones(forks)
     result should include("Frontier:0")
@@ -180,7 +180,7 @@ class MilestoneLogSpec extends AnyFlatSpec with Matchers:
       berlinBlockNumber = BlockNumber(13_189_133),
       mystiqueBlockNumber = BlockNumber(14_525_000),
       spiralBlockNumber = BlockNumber(19_250_000),
-      olympiaBlockNumber = BlockNumber(Long.MaxValue) // pending
+      eip1559BlockNumber = BlockNumber(Long.MaxValue) // pending
     )
     val result = MilestoneLog.formatMilestones(forks)
     result should include("Frontier:0")

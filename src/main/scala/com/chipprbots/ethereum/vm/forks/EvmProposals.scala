@@ -419,7 +419,7 @@ object EvmProposals:
   ).map(p => p.id -> p).toMap
 
   // The two "not scheduled" sentinels a fork-block field parks at (mirrors `BlockchainConfig`/`ForkId`): 10^18 is the
-  // genesis-JSON "pending" marker (ETC parks olympia-block-number here until Olympia is dated) and Long.MaxValue is the
+  // genesis-JSON "pending" marker (ETC parks eip1559-block-number here until Olympia is dated) and Long.MaxValue is the
   // in-code missing-key fallback. A field at either derives to `ForkActivation.Never`.
   private val OlympiaPendingSentinel: BigInt = BigInt("1000000000000000000")
   private val MaxBlockSentinel: BigInt = BigInt(Long.MaxValue)
@@ -466,11 +466,11 @@ object EvmProposals:
         Eip(2028) -> byBlockIfReal(c.istanbulBlockNumber),
         Eip(2929) -> byBlockIfReal(c.berlinBlockNumber),
         Eip(2930) -> byBlockIfReal(c.berlinBlockNumber),
-        // London EIPs gate on the olympia block field on ETH (olympia-block-number == London height).
-        Eip(3198) -> byBlockIfReal(c.olympiaBlockNumber),
-        Eip(3529) -> byBlockIfReal(c.olympiaBlockNumber),
-        Eip(3541) -> byBlockIfReal(c.olympiaBlockNumber),
-        Eip(3860) -> byBlockIfReal(c.olympiaBlockNumber)
+        // London EIPs gate on the olympia block field on ETH (eip1559-block-number == London height).
+        Eip(3198) -> byBlockIfReal(c.eip1559BlockNumber),
+        Eip(3529) -> byBlockIfReal(c.eip1559BlockNumber),
+        Eip(3541) -> byBlockIfReal(c.eip1559BlockNumber),
+        Eip(3860) -> byBlockIfReal(c.eip1559BlockNumber)
       )
     else
       shared ++ Map(
@@ -492,12 +492,12 @@ object EvmProposals:
         Eip(3651) -> byBlockIfReal(c.spiralBlockNumber),
         Custom("eip3860-metering", 0) -> byBlockIfReal(c.spiralBlockNumber),
         Eip(6049) -> byBlockIfReal(c.spiralBlockNumber),
-        Eip(3198) -> byBlockIfReal(c.olympiaBlockNumber),
-        Eip(1153) -> byBlockIfReal(c.olympiaBlockNumber),
-        Eip(5656) -> byBlockIfReal(c.olympiaBlockNumber),
-        Eip(6780) -> byBlockIfReal(c.olympiaBlockNumber),
-        Eip(7939) -> byBlockIfReal(c.olympiaBlockNumber),
-        Ecip(1121) -> byBlockIfReal(c.olympiaBlockNumber)
+        Eip(3198) -> byBlockIfReal(c.eip1559BlockNumber),
+        Eip(1153) -> byBlockIfReal(c.eip1559BlockNumber),
+        Eip(5656) -> byBlockIfReal(c.eip1559BlockNumber),
+        Eip(6780) -> byBlockIfReal(c.eip1559BlockNumber),
+        Eip(7939) -> byBlockIfReal(c.eip1559BlockNumber),
+        Ecip(1121) -> byBlockIfReal(c.eip1559BlockNumber)
       )
 
   /** The block-based active proposal set at `block` on the given chain (Row 5.3b) — the input to `deriveEvm` / the

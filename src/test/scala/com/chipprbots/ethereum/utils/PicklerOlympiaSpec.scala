@@ -60,14 +60,14 @@ class PicklerOlympiaSpec extends AnyFlatSpec with Matchers:
     result shouldBe tx
   }
 
-  "HefPostOlympia" should "roundtrip through boopickle" taggedAs (OlympiaTest, UnitTest) in {
-    val hef: HeaderExtraFields = HefPostOlympia(BaseFeePerGas(BigInt(1000000000)))
+  "HefPostEip1559" should "roundtrip through boopickle" taggedAs (OlympiaTest, UnitTest) in {
+    val hef: HeaderExtraFields = HefPostEip1559(BaseFeePerGas(BigInt(1000000000)))
     val result = roundtrip(hef)
     result shouldBe hef
   }
 
   it should "roundtrip with different baseFee values" taggedAs (OlympiaTest, UnitTest) in {
-    val hef: HeaderExtraFields = HefPostOlympia(BaseFeePerGas(BigInt(7)))
+    val hef: HeaderExtraFields = HefPostEip1559(BaseFeePerGas(BigInt(7)))
     val result = roundtrip(hef)
     result shouldBe hef
   }

@@ -13,7 +13,7 @@ import com.chipprbots.ethereum.crypto.ECDSASignature
 import com.chipprbots.ethereum.crypto.generateKeyPair
 import com.chipprbots.ethereum.crypto.kec256
 import com.chipprbots.ethereum.domain.*
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.domain.SetCodeTransaction.addressToDelegation
 import com.chipprbots.ethereum.rlp.PrefixedRLPEncodable
 import com.chipprbots.ethereum.rlp.RLPImplicitConversions.toEncodeable
@@ -37,7 +37,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
 
   private val olympiaConfig: BlockchainConfig = setup.blockchainConfig.withUpdatedForkBlocks(
     _.copy(
-      olympiaBlockNumber = BlockNumber(1),
+      eip1559BlockNumber = BlockNumber(1),
       homesteadBlockNumber = BlockNumber(0),
       eip155BlockNumber = BlockNumber(0)
     )
@@ -47,7 +47,7 @@ class SetCodeAuthorizationSpec extends AnyFlatSpec with Matchers:
     number = BlockNumber(2),
     gasLimit = GasAmount(30_000_000),
     gasUsed = GasAmount.Zero,
-    extraFields = HefPostOlympia(BaseFeePerGas(BigInt(1_000_000_000)))
+    extraFields = HefPostEip1559(BaseFeePerGas(BigInt(1_000_000_000)))
   )
 
   private val targetAddress: Address = Address(0x42)

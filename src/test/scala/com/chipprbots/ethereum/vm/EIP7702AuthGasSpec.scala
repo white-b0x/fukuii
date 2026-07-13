@@ -39,7 +39,7 @@ class EIP7702AuthGasSpec
       magnetoBlockNumber = BlockNumber(0),
       mystiqueBlockNumber = BlockNumber(0),
       spiralBlockNumber = BlockNumber(0),
-      olympiaBlockNumber = olympiaBlock
+      eip1559BlockNumber = olympiaBlock
     )
   )
 

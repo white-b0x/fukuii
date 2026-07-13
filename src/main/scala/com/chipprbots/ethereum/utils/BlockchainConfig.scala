@@ -138,7 +138,7 @@ case class ForkBlockNumbers(
     berlinBlockNumber: BlockNumber,
     mystiqueBlockNumber: BlockNumber,
     spiralBlockNumber: BlockNumber,
-    olympiaBlockNumber: BlockNumber,
+    eip1559BlockNumber: BlockNumber,
     // EIP-4345 / EIP-5133 bomb-delay blocks: no EVM effect, but go-ethereum's params/config.go
     // (mainnet only) treats them as EIP-2124 fork-id checksum points. Default Long.MaxValue is
     // the sentinel ForkId.gatherBlockForks filters out — only eth-chain.conf sets real values.
@@ -186,7 +186,7 @@ case class ForkBlockNumbers(
     berlinBlockNumber,
     mystiqueBlockNumber,
     spiralBlockNumber,
-    olympiaBlockNumber,
+    eip1559BlockNumber,
     arrowGlacierBlockNumber,
     grayGlacierBlockNumber,
     mergeNetsplitBlockNumber
@@ -198,7 +198,7 @@ case class ForkBlockNumbers(
     * falls back to miningConfig.gasLimitTarget.
     */
   def gasLimitAdjustmentStartAt(blockNumber: BlockNumber): Option[BigInt] =
-    if blockNumber >= olympiaBlockNumber then olympiaGasTarget
+    if blockNumber >= eip1559BlockNumber then olympiaGasTarget
     else if blockNumber >= spiralBlockNumber then spiralGasTarget
     else None
 
@@ -227,14 +227,14 @@ object ForkBlockNumbers:
     berlinBlockNumber = BlockNumber(Long.MaxValue),
     mystiqueBlockNumber = BlockNumber(Long.MaxValue),
     spiralBlockNumber = BlockNumber(Long.MaxValue),
-    olympiaBlockNumber = BlockNumber(Long.MaxValue),
+    eip1559BlockNumber = BlockNumber(Long.MaxValue),
     mergeNetsplitBlockNumber = BlockNumber(Long.MaxValue)
   )
 
 object BlockchainConfig:
 
   // The two "not scheduled" sentinels the fork fields park at (mirrors ForkId.scala): 10^18 is the genesis-JSON
-  // "pending" marker (ETC parks olympia-block-number here until Olympia is dated) and Long.MaxValue is the in-code
+  // "pending" marker (ETC parks eip1559-block-number here until Olympia is dated) and Long.MaxValue is the in-code
   // missing-key fallback. Both derive to `ForkActivation.Never`.
   private val OlympiaPendingSentinel: BigInt = BigInt("1000000000000000000")
   private val MaxBlockSentinel: BigInt = BigInt(Long.MaxValue)
@@ -249,8 +249,8 @@ object BlockchainConfig:
     * Registered proposals (each exercises one activation axis so the derivation is provably faithful across all axes):
     *   - `Ecip(1017)` — always `ByBlock(0)` (emission applies from genesis; the per-network schedule differs only by
     *     the `MonetaryPolicy` param, not the activation height — F6).
-    *   - `Ecip(1111/1112/1122)` — the ETC-family Olympia bundle, co-activated at `olympiaBlockNumber`. On ETH/Sepolia
-    *     the `olympia-block-number` field carries London/EIP-1559 (base-fee BURN), NOT ECIP-1111 Treasury routing, so
+    *   - `Ecip(1111/1112/1122)` — the ETC-family Olympia bundle, co-activated at `eip1559BlockNumber`. On ETH/Sepolia
+    *     the `eip1559-block-number` field carries London/EIP-1559 (base-fee BURN), NOT ECIP-1111 Treasury routing, so
     *     the ECIP bundle is `Never` there (networkType gate); a pending/absent sentinel also derives to `Never`.
     *   - `Eip(4844)` — ETH-only blob fork, `ByTimestamp(cancunTimestamp)` (no ETC block-fork collision).
     *   - `Custom("bpo", 1/2)` — EIP-7892 Blob-Parameter-Only forks, `ByTimestamp(bpo{1,2}Timestamp)` (beacon F1). Their
@@ -263,8 +263,8 @@ object BlockchainConfig:
     val ft = cfg.forkTimestamps
 
     val olympiaActivation: ForkActivation =
-      if cfg.networkType == NetworkType.ETC && !isPending(fb.olympiaBlockNumber) then
-        ForkActivation.ByBlock(fb.olympiaBlockNumber)
+      if cfg.networkType == NetworkType.ETC && !isPending(fb.eip1559BlockNumber) then
+        ForkActivation.ByBlock(fb.eip1559BlockNumber)
       else ForkActivation.Never
 
     def tsActivation(o: Option[Long]): ForkActivation =
@@ -482,8 +482,8 @@ object BlockchainConfig:
       Try(BigInt(blockchainConfig.getString("mystique-block-number"))).getOrElse(OlympiaPendingSentinel)
     val spiralBlockNumber: BigInt =
       Try(BigInt(blockchainConfig.getString("spiral-block-number"))).getOrElse(OlympiaPendingSentinel)
-    val olympiaBlockNumber: BigInt =
-      Try(BigInt(blockchainConfig.getString("olympia-block-number"))).getOrElse(BigInt(Long.MaxValue))
+    val eip1559BlockNumber: BigInt =
+      Try(BigInt(blockchainConfig.getString("eip1559-block-number"))).getOrElse(BigInt(Long.MaxValue))
     val arrowGlacierBlockNumber: BigInt =
       Try(BigInt(blockchainConfig.getString("arrow-glacier-block-number"))).getOrElse(BigInt(Long.MaxValue))
     val grayGlacierBlockNumber: BigInt =
@@ -532,7 +532,7 @@ object BlockchainConfig:
         deactivationBlock =
           Try(BigInt(messConf.getString("ecbp1100-deactivate-block-number"))).toOption.map(BlockNumber.apply),
         reactivationBlock = Try(BigInt(messConf.getString("ecbp1100-reactivate-block-number"))).toOption
-          .orElse(Try(BigInt(blockchainConfig.getString("olympia-block-number"))).toOption)
+          .orElse(Try(BigInt(blockchainConfig.getString("eip1559-block-number"))).toOption)
           .map(BlockNumber.apply)
       )
     }.getOrElse(MESSConfig())
@@ -563,7 +563,7 @@ object BlockchainConfig:
         berlinBlockNumber = BlockNumber(berlinBlockNumber),
         mystiqueBlockNumber = BlockNumber(mystiqueBlockNumber),
         spiralBlockNumber = BlockNumber(spiralBlockNumber),
-        olympiaBlockNumber = BlockNumber(olympiaBlockNumber),
+        eip1559BlockNumber = BlockNumber(eip1559BlockNumber),
         arrowGlacierBlockNumber = BlockNumber(arrowGlacierBlockNumber),
         grayGlacierBlockNumber = BlockNumber(grayGlacierBlockNumber),
         mergeNetsplitBlockNumber = BlockNumber(mergeNetsplitBlockNumber),

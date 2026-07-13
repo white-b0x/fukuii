@@ -9,7 +9,7 @@ import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostCancun
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostPrague
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostShanghai
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -243,19 +243,20 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
     if blockHeader.number == parentHeader.number + 1 then Right(BlockHeaderValid)
     else Left(HeaderNumberError)
 
-  /** Validates [[com.chipprbots.ethereum.domain.BlockHeader.extraFields]] match the Olympia fork activation.
+  /** Validates [[com.chipprbots.ethereum.domain.BlockHeader.extraFields]] match the EIP-1559 fork activation (Olympia
+    * on ETC, London on ETH).
     */
   private def validateExtraFields(
       blockHeader: BlockHeader
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
-    val isOlympiaActivated = blockHeader.number >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
+    val isEip1559Activated = blockHeader.number >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber
 
     blockHeader.extraFields match
-      case HefPostPrague(_, _, _, _, _, _) if isOlympiaActivated => Right(BlockHeaderValid)
-      case HefPostCancun(_, _, _, _, _) if isOlympiaActivated    => Right(BlockHeaderValid)
-      case HefPostShanghai(_, _) if isOlympiaActivated           => Right(BlockHeaderValid)
-      case HefPostOlympia(_) if isOlympiaActivated               => Right(BlockHeaderValid)
-      case HefEmpty if !isOlympiaActivated                       => Right(BlockHeaderValid)
+      case HefPostPrague(_, _, _, _, _, _) if isEip1559Activated => Right(BlockHeaderValid)
+      case HefPostCancun(_, _, _, _, _) if isEip1559Activated    => Right(BlockHeaderValid)
+      case HefPostShanghai(_, _) if isEip1559Activated           => Right(BlockHeaderValid)
+      case HefPostEip1559(_) if isEip1559Activated               => Right(BlockHeaderValid)
+      case HefEmpty if !isEip1559Activated                       => Right(BlockHeaderValid)
       case _ =>
         Left(HeaderExtraFieldsError(blockHeader.extraFields))
 
@@ -266,12 +267,12 @@ trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator:
       blockHeader: BlockHeader,
       parentHeader: BlockHeader
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
-    val isOlympiaActivated = blockHeader.number >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
-    if !isOlympiaActivated then Right(BlockHeaderValid)
+    val isEip1559Activated = blockHeader.number >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber
+    if !isEip1559Activated then Right(BlockHeaderValid)
     else
       blockHeader.baseFee match
         case None =>
-          Left(HeaderBaseFeeError("missing baseFee after Olympia activation"))
+          Left(HeaderBaseFeeError("missing baseFee after EIP-1559 activation"))
         case Some(actualBaseFee) =>
           val expectedBaseFee = BaseFeeCalculator.calcBaseFee(parentHeader, blockchainConfig)
           if actualBaseFee == expectedBaseFee then Right(BlockHeaderValid)

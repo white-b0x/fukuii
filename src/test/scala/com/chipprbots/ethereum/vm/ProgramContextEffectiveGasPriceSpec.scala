@@ -50,12 +50,12 @@ class ProgramContextEffectiveGasPriceSpec extends AnyFlatSpec with Matchers:
     )
     SignedTransaction(raw, ECDSASignature(BigInt(0), BigInt(0), BigInt(0)))
 
-  // HefPostOlympia carries just the baseFee, which is all `Transaction.effectiveGasPrice`
+  // HefPostEip1559 carries just the baseFee, which is all `Transaction.effectiveGasPrice`
   // looks at. For Cancun-era txs the same baseFee plumbing applies through HefPostShanghai/
   // HefPostCancun; testing the simpler branch is sufficient here.
   private def newHeader(baseFee: BigInt): BlockHeader =
     CommonFixtures.Blocks.ValidBlock.header.copy(
-      extraFields = BlockHeader.HeaderExtraFields.HefPostOlympia(BaseFeePerGas(baseFee))
+      extraFields = BlockHeader.HeaderExtraFields.HefPostEip1559(BaseFeePerGas(baseFee))
     )
 
   // EvmConfig isn't read by ProgramContext.apply for `gasPrice`, so any config works.

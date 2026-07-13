@@ -45,7 +45,7 @@ case class BlockHeader(
     copy(extraData = extraData.dropRight(n))
 
   val baseFee: Option[BaseFeePerGas] = extraFields match
-    case HefPostOlympia(fee)               => Some(fee)
+    case HefPostEip1559(fee)               => Some(fee)
     case HefPostShanghai(fee, _)           => Some(fee)
     case HefPostCancun(fee, _, _, _, _)    => Some(fee)
     case HefPostPrague(fee, _, _, _, _, _) => Some(fee)
@@ -141,7 +141,7 @@ object BlockHeader:
       case HefPostPrague(_, _, _, _, _, _) => 6
       case HefPostCancun(_, _, _, _, _)    => 5
       case HefPostShanghai(_, _)           => 2
-      case HefPostOlympia(_)               => 1
+      case HefPostEip1559(_)               => 1
       case HefEmpty                        => 0
 
     val baseFields = rlpList.items.dropRight(numberOfPowFields + numberOfExtraFields)
@@ -171,7 +171,7 @@ object BlockHeader:
   sealed trait HeaderExtraFields
   object HeaderExtraFields:
     case object HefEmpty extends HeaderExtraFields
-    case class HefPostOlympia(baseFee: BaseFeePerGas) extends HeaderExtraFields
+    case class HefPostEip1559(baseFee: BaseFeePerGas) extends HeaderExtraFields
 
     /** Shanghai: adds withdrawalsRoot to the header (EIP-4895). RLP = 17 items. */
     case class HefPostShanghai(baseFee: BaseFeePerGas, withdrawalsRoot: ByteString) extends HeaderExtraFields
@@ -248,7 +248,7 @@ object BlockHeaderImplicits:
             RLPValue(ByteUtils.bigIntToUnsignedByteArray(bf.value)),
             RLPValue(wr.toArray)
           )
-        case HefPostOlympia(bf) =>
+        case HefPostEip1559(bf) =>
           Seq(RLPValue(ByteUtils.bigIntToUnsignedByteArray(bf.value)))
         case HefEmpty =>
           Seq.empty
@@ -286,7 +286,7 @@ object BlockHeaderImplicits:
 
           items.length match
             case 15 => base // HefEmpty
-            case 16 => base.copy(extraFields = HefPostOlympia(BaseFeePerGas(bigIntFromEncodeable(items(15)))))
+            case 16 => base.copy(extraFields = HefPostEip1559(BaseFeePerGas(bigIntFromEncodeable(items(15)))))
             case 17 =>
               base.copy(extraFields =
                 HefPostShanghai(

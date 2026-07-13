@@ -336,7 +336,7 @@ class EthSimulateService(
     // reward — execution layer pays nothing, withdrawals come from the CL.
     val isPoW = simHeader.extraFields match
       case HefEmpty                                                                     => true
-      case _: HefPostOlympia | _: HefPostShanghai | _: HefPostCancun | _: HefPostPrague => false
+      case _: HefPostEip1559 | _: HefPostShanghai | _: HefPostCancun | _: HefPostPrague => false
     if isPoW then
       val reward = blockchainConfig.monetaryPolicyConfig.firstEraBlockReward
       val byzantiumReward = blockchainConfig.monetaryPolicyConfig.firstEraReducedBlockReward
@@ -512,7 +512,7 @@ class EthSimulateService(
         )
       else if blockchainConfig.isShanghaiTimestamp(ts) then
         HefPostShanghai(BaseFeePerGas(baseFee), EmptyWithdrawalsRoot)
-      else if parentHeader.baseFee.isDefined then HefPostOlympia(BaseFeePerGas(baseFee)) // Post-London but pre-Shanghai
+      else if parentHeader.baseFee.isDefined then HefPostEip1559(BaseFeePerGas(baseFee)) // Post-London but pre-Shanghai
       else HefEmpty // Pre-London
 
     // Pre-merge blocks have non-zero difficulty

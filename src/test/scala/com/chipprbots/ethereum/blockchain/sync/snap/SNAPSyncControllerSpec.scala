@@ -260,7 +260,7 @@ class SNAPSyncControllerSpec extends AnyFlatSpec with Matchers:
       extraData = ByteString.empty,
       mixHash = BlockHash(ByteString(new Array[Byte](32))),
       nonce = ByteString(new Array[Byte](8)),
-      extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000")))
+      extraFields = HefPostEip1559(BaseFeePerGas(BigInt("1000000000")))
     )
     val withHeader = CLPivotHint(headHash, Some(header))
     withHeader.knownHeader.map(_.number) shouldBe Some(BigInt(9876543))

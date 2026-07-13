@@ -216,12 +216,12 @@ object PendingTransactionsManager:
       val bestBlockOpt = Option(blockchainReader).flatMap(_.getBestBlock)
       val currentBaseFee =
         bestBlockOpt.flatMap(_.header.baseFee).getOrElse(BaseFeePerGas(blockchainConfig.baseFeeFloor))
-      // ECIP-1122 MIN_MINER_TIP is an ETC-only rule. On ETH/Sepolia, olympiaBlockNumber holds
+      // ECIP-1122 MIN_MINER_TIP is an ETC-only rule. On ETH/Sepolia, eip1559BlockNumber holds
       // London's block (or 0), so an un-gated check would silently enforce the 1-gwei tip floor
       // there — go-ethereum has no such hardcoded protocol tip floor. Gate on ETC-family networks.
       val isOlympiaActive =
         blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETC &&
-          bestBlockOpt.exists(_.header.number >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber)
+          bestBlockOpt.exists(_.header.number >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber)
       val effectiveMinTip = if isOlympiaActive then blockchainConfig.minTip else BigInt(1)
       val afterTipCheck = afterPendingNonceCheck.filter { stx =>
         val effectiveTip =

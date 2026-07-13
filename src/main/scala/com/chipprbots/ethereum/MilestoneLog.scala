@@ -43,5 +43,5 @@ object MilestoneLog extends Logger:
     "Berlin" -> f.berlinBlockNumber.value,
     "Mystique" -> f.mystiqueBlockNumber.value,
     "Spiral" -> f.spiralBlockNumber.value,
-    "Olympia" -> f.olympiaBlockNumber.value
+    "Olympia" -> f.eip1559BlockNumber.value
   )

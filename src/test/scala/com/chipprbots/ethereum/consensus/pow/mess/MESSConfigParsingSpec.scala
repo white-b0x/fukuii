@@ -9,15 +9,15 @@ import org.scalatest.matchers.should.Matchers
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
 
-/** L8 — MESSConfig.reactivationBlock parsing: olympia-block-number fallback.
+/** L8 — MESSConfig.reactivationBlock parsing: eip1559-block-number fallback.
   *
   * BlockchainConfig.fromRawConfig derives reactivationBlock from (in priority order):
-  *   1. mess.ecbp1100-reactivate-block-number (explicit, optional) 2. olympia-block-number from the parent chain config
+  *   1. mess.ecbp1100-reactivate-block-number (explicit, optional) 2. eip1559-block-number from the parent chain config
   *      (fallback)
   *
   * This means neither the ETC mainnet config nor the Mordor config needs a separate reactivation key — MESS
   * reactivation tracks the Olympia fork block automatically. When the real Olympia block is chosen, only
-  * olympia-block-number needs updating.
+  * eip1559-block-number needs updating.
   */
 // scalastyle:off magic.number
 class MESSConfigParsingSpec extends AnyFlatSpec with Matchers with ParallelTestExecution:
@@ -28,10 +28,10 @@ class MESSConfigParsingSpec extends AnyFlatSpec with Matchers with ParallelTestE
 
   private val OlympiaSentinel: BigInt = BigInt("1000000000000000000")
 
-  // ── fallback from olympia-block-number ──────────────────────────────────
+  // ── fallback from eip1559-block-number ──────────────────────────────────
 
   "MESSConfig.reactivationBlock for ETC mainnet" should
-    "be derived from olympia-block-number when ecbp1100-reactivate-block-number is absent" taggedAs (
+    "be derived from eip1559-block-number when ecbp1100-reactivate-block-number is absent" taggedAs (
       UnitTest,
       OlympiaTest
     ) in {
@@ -40,7 +40,7 @@ class MESSConfigParsingSpec extends AnyFlatSpec with Matchers with ParallelTestE
     }
 
   "MESSConfig.reactivationBlock for Mordor" should
-    "be derived from olympia-block-number when ecbp1100-reactivate-block-number is absent" taggedAs (
+    "be derived from eip1559-block-number when ecbp1100-reactivate-block-number is absent" taggedAs (
       UnitTest,
       OlympiaTest
     ) in {
@@ -51,7 +51,7 @@ class MESSConfigParsingSpec extends AnyFlatSpec with Matchers with ParallelTestE
   // ── explicit key takes priority ─────────────────────────────────────────
 
   "MESSConfig.reactivationBlock" should
-    "use ecbp1100-reactivate-block-number when both explicit key and olympia-block-number are present" taggedAs (
+    "use ecbp1100-reactivate-block-number when both explicit key and eip1559-block-number are present" taggedAs (
       UnitTest,
       OlympiaTest
     ) in {
@@ -63,12 +63,12 @@ class MESSConfigParsingSpec extends AnyFlatSpec with Matchers with ParallelTestE
 
   // ── None when neither key is present ────────────────────────────────────
 
-  it should "be None when both ecbp1100-reactivate-block-number and olympia-block-number are absent" taggedAs (
+  it should "be None when both ecbp1100-reactivate-block-number and eip1559-block-number are absent" taggedAs (
     UnitTest,
     OlympiaTest
   ) in {
     val rawNoOlympia = etcRaw
-      .withoutPath("olympia-block-number")
+      .withoutPath("eip1559-block-number")
       .withoutPath("mess.ecbp1100-reactivate-block-number")
     val config = BlockchainConfig.fromRawConfig(rawNoOlympia)
     config.messConfig.reactivationBlock shouldBe None

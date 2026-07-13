@@ -12,7 +12,7 @@ import com.chipprbots.ethereum.consensus.mining.Protocol
 import com.chipprbots.ethereum.consensus.pow.EthashUtils
 import com.chipprbots.ethereum.consensus.ValidatorsExecutor
 import com.chipprbots.ethereum.domain.*
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.forks.ForkActivation
 import com.chipprbots.ethereum.forks.ProposalId.*
 import com.chipprbots.ethereum.ledger.InMemoryWorldStateProxy
@@ -206,14 +206,14 @@ class EngineResolutionSpec extends AnyWordSpec with Matchers:
         )
       )
 
-    // isPoS = difficulty == Zero && baseFee.isDefined — HefPostOlympia supplies the base fee.
+    // isPoS = difficulty == Zero && baseFee.isDefined — HefPostEip1559 supplies the base fee.
     def posBlock(minerAddress: Address): Block =
       Block(
         header = Fixtures.Blocks.Genesis.header.copy(
           beneficiary = minerAddress.bytes,
           number = BlockNumber(sampleBlockNumber),
           difficulty = Difficulty.Zero,
-          extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000")))
+          extraFields = HefPostEip1559(BaseFeePerGas(BigInt("1000000000")))
         ),
         body = Fixtures.Blocks.Genesis.body
       )

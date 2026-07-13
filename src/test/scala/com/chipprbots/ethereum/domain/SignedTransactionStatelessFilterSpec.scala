@@ -17,12 +17,12 @@ import com.chipprbots.ethereum.utils.NetworkType
   *
   * The stateless pre-filter uses `EvmConfig.forBlock` to compute intrinsic gas. On ETH chains the correct overload is
   * the 3-arg form that applies timestamp-based fork overrides (including EIP-3860 initcode metering, active at
-  * Shanghai). The 2-arg form resolves to `LondonConfigBuilder` on ETH (where `spiralBlockNumber > olympiaBlockNumber`)
+  * Shanghai). The 2-arg form resolves to `LondonConfigBuilder` on ETH (where `spiralBlockNumber > eip1559BlockNumber`)
   * and therefore sets `eip3860Enabled = false`, under-estimating intrinsic gas for contract-creation txs by
   * `ceil(initcode.length / 32) * 2` gas.
   *
   * Test structure:
-  *   - Uses a config where `spiralBlockNumber > olympiaBlockNumber` (i.e., `etcForksDisabled = true`), which is the
+  *   - Uses a config where `spiralBlockNumber > eip1559BlockNumber` (i.e., `etcForksDisabled = true`), which is the
   *     ETH-style fork schedule where the 2-arg path resolves to LondonConfigBuilder.
   *   - Constructs a contract-creation tx whose `gasLimit` is exactly the London intrinsic gas (no EIP-3860 cost):
   *     sufficient to pass a London-only check but insufficient to pass a Shanghai check.
@@ -50,7 +50,7 @@ class SignedTransactionStatelessFilterSpec extends AnyFlatSpec with Matchers:
         petersburgBlockNumber = BlockNumber(4_500_000),
         istanbulBlockNumber = BlockNumber(5_000_000),
         berlinBlockNumber = BlockNumber(5_500_000),
-        olympiaBlockNumber = BlockNumber(6_000_000),
+        eip1559BlockNumber = BlockNumber(6_000_000),
         spiralBlockNumber = BlockNumber(BigInt("1000000000000000000"))
       )
     )

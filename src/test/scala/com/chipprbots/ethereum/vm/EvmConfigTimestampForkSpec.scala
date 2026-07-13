@@ -50,7 +50,7 @@ class EvmConfigTimestampForkSpec extends AnyFlatSpec with Matchers:
   // block 0 is LondonConfigBuilder (the ETH London base), not ETC's Olympia path. This isolates the ETH London
   // opcode set (EthLondonOpCodes) so the BASEFEE-at-London assertion cannot accidentally pass via the ETC config
   // (which also carries BASEFEE, but at ETC Olympia via EtcOlympiaOpCodes). Mirrors eth/sepolia-chain.conf where
-  // olympia-block-number = London height and spiral-block-number = 1e18.
+  // eip1559-block-number = London height and spiral-block-number = 1e18.
   private val ethLondonBaseCfg: BlockchainConfigForEvm = BlockchainConfigForEvm(
     frontierBlockNumber = BlockNumber(0),
     homesteadBlockNumber = BlockNumber(0),
@@ -70,7 +70,7 @@ class EvmConfigTimestampForkSpec extends AnyFlatSpec with Matchers:
     berlinBlockNumber = BlockNumber(0),
     mystiqueBlockNumber = BlockNumber(Long.MaxValue),
     spiralBlockNumber = BlockNumber(Long.MaxValue),
-    olympiaBlockNumber = BlockNumber(0),
+    eip1559BlockNumber = BlockNumber(0),
     chainId = ChainId(0x01),
     isEthereum = true
   )

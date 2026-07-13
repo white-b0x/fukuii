@@ -34,12 +34,12 @@ class EvmConfigEtcForkSelectionSpec extends AnyFunSuite:
     berlinBlockNumber = BlockNumber(Long.MaxValue),
     mystiqueBlockNumber = BlockNumber(Long.MaxValue),
     spiralBlockNumber = BlockNumber(Long.MaxValue),
-    olympiaBlockNumber = BlockNumber(Long.MaxValue),
+    eip1559BlockNumber = BlockNumber(Long.MaxValue),
     chainId = ChainId(0x3f)
   )
 
   // A monotonic ETC ladder with the pre-Atlantis forks reached (so DELEGATECALL/G_txcreate etc. are present) and every
-  // post-Atlantis fork co-activated at block 0 up to `olympiaBlockNumber`. byzantium stays at the sentinel — on the ETC
+  // post-Atlantis fork co-activated at block 0 up to `eip1559BlockNumber`. byzantium stays at the sentinel — on the ETC
   // (non-Ethereum) path the fold never reads it, so "Atlantis over Byzantium" is structural.
   private def etcLadderTo(olympiaBlock: BlockNumber): BlockchainConfigForEvm = allMaxCfg.copy(
     frontierBlockNumber = BlockNumber(0),
@@ -52,7 +52,7 @@ class EvmConfigEtcForkSelectionSpec extends AnyFunSuite:
     magnetoBlockNumber = BlockNumber(0),
     mystiqueBlockNumber = BlockNumber(0),
     spiralBlockNumber = BlockNumber(0),
-    olympiaBlockNumber = olympiaBlock
+    eip1559BlockNumber = olympiaBlock
   )
 
   test("EvmConfig.forBlock applies the Atlantis config (and ignores byzantium on the ETC path)", UnitTest, VMTest) {

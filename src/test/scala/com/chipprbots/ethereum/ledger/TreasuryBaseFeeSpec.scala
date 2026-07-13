@@ -31,7 +31,7 @@ class TreasuryBaseFeeSpec extends AnyFlatSpec with Matchers with MockFactory:
       .copy(
         treasuryAddress = treasuryAddr,
         forkBlockNumbers = baseConfig.forkBlockNumbers.copy(
-          olympiaBlockNumber = BlockNumber(olympiaBlock)
+          eip1559BlockNumber = BlockNumber(olympiaBlock)
         )
       )
 
@@ -54,7 +54,7 @@ class TreasuryBaseFeeSpec extends AnyFlatSpec with Matchers with MockFactory:
         miner: Address = minerAddr
     ): Block =
       val extraFields = baseFee match
-        case Some(fee) => HefPostOlympia(BaseFeePerGas(fee))
+        case Some(fee) => HefPostEip1559(BaseFeePerGas(fee))
         case None      => HefEmpty
       Block(
         header = Fixtures.Blocks.Genesis.header.copy(
@@ -113,7 +113,7 @@ class TreasuryBaseFeeSpec extends AnyFlatSpec with Matchers with MockFactory:
       .copy(
         treasuryAddress = treasuryAddr,
         forkBlockNumbers = baseConfig.forkBlockNumbers.copy(
-          olympiaBlockNumber = BlockNumber(olympiaBlock)
+          eip1559BlockNumber = BlockNumber(olympiaBlock)
         )
       )
 

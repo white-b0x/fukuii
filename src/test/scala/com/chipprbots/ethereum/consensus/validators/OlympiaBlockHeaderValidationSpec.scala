@@ -16,7 +16,7 @@ import com.chipprbots.ethereum.domain.Difficulty
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.Timestamp
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
@@ -41,13 +41,13 @@ class OlympiaBlockHeaderValidationSpec
   private val olympiaBlock: BigInt = BigInt(100)
 
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
-    _.copy(olympiaBlockNumber = BlockNumber(olympiaBlock))
+    _.copy(eip1559BlockNumber = BlockNumber(olympiaBlock))
   )
 
   // ETH / Hive regime: baseFeeFloor = 0 (Big0). Under this floor the EIP-1559 decrease-branch
   // off-by-one becomes observable end-to-end through header validation.
   private val configFloorZero: BlockchainConfig = blockchainConfig
-    .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = BlockNumber(olympiaBlock)))
+    .withUpdatedForkBlocks(_.copy(eip1559BlockNumber = BlockNumber(olympiaBlock)))
     .copy(baseFeeFloor = BigInt(0))
 
   private val InitialBaseFee: BigInt = BaseFeeCalculator.InitialBaseFee
@@ -78,7 +78,7 @@ class OlympiaBlockHeaderValidationSpec
       unixTimestamp = Timestamp(timestamp),
       difficulty = Difficulty.Zero,
       extraData = baseExtraData,
-      extraFields = HefPostOlympia(BaseFeePerGas(baseFee))
+      extraFields = HefPostEip1559(BaseFeePerGas(baseFee))
     )
 
   private def validate(header: BlockHeader, parent: BlockHeader) =
@@ -96,12 +96,12 @@ class OlympiaBlockHeaderValidationSpec
         validate(child, parent) shouldBe Right(BlockHeaderValid)
       }
 
-      "reject a header with HefPostOlympia (extraFields mismatch)" taggedAs (UnitTest, OlympiaTest, ConsensusTest) in {
+      "reject a header with HefPostEip1559 (extraFields mismatch)" taggedAs (UnitTest, OlympiaTest, ConsensusTest) in {
         val parent = preOlympiaHeader(olympiaBlock - 2, timestamp = 1000L)
         val wrongChild = preOlympiaHeader(olympiaBlock - 1, timestamp = 2000L).copy(
           parentHash = parent.hash,
           gasLimit = GasAmount(BigInt(8_000_000)),
-          extraFields = HefPostOlympia(BaseFeePerGas(InitialBaseFee))
+          extraFields = HefPostEip1559(BaseFeePerGas(InitialBaseFee))
         )
         val result = validate(wrongChild, parent)
         result shouldBe a[Left[?, ?]]
@@ -110,7 +110,7 @@ class OlympiaBlockHeaderValidationSpec
     }
 
     "block is the first Olympia block" should {
-      "accept HefPostOlympia with correct InitialBaseFee and 1/1024 gas step" taggedAs (
+      "accept HefPostEip1559 with correct InitialBaseFee and 1/1024 gas step" taggedAs (
         UnitTest,
         OlympiaTest,
         ConsensusTest
@@ -120,7 +120,7 @@ class OlympiaBlockHeaderValidationSpec
         validate(firstBlock, parent) shouldBe Right(BlockHeaderValid)
       }
 
-      "reject HefPostOlympia with wrong baseFee" taggedAs (UnitTest, OlympiaTest, ConsensusTest) in {
+      "reject HefPostEip1559 with wrong baseFee" taggedAs (UnitTest, OlympiaTest, ConsensusTest) in {
         val parent = preOlympiaHeader(olympiaBlock - 1, timestamp = 1000L)
         val wrongFee = firstOlympiaHeader(timestamp = 2000L, baseFee = InitialBaseFee + 1)
         val result = validate(wrongFee, parent)
@@ -155,7 +155,7 @@ class OlympiaBlockHeaderValidationSpec
     }
 
     "block is post-Olympia (Olympia→Olympia transition)" should {
-      "accept HefPostOlympia with correctly derived baseFee and 1/1024 gas step" taggedAs (
+      "accept HefPostEip1559 with correctly derived baseFee and 1/1024 gas step" taggedAs (
         UnitTest,
         OlympiaTest,
         ConsensusTest
@@ -170,7 +170,7 @@ class OlympiaBlockHeaderValidationSpec
           unixTimestamp = Timestamp(2000L),
           difficulty = Difficulty.Zero,
           extraData = baseExtraData,
-          extraFields = HefPostOlympia(expectedBaseFee)
+          extraFields = HefPostEip1559(expectedBaseFee)
         )
         validate(secondBlock, firstBlock) shouldBe Right(BlockHeaderValid)
       }
@@ -212,7 +212,7 @@ class OlympiaBlockHeaderValidationSpec
           unixTimestamp = Timestamp(1000L),
           difficulty = Difficulty.Zero,
           extraData = baseExtraData,
-          extraFields = HefPostOlympia(BaseFeePerGas(BigInt(7)))
+          extraFields = HefPostEip1559(BaseFeePerGas(BigInt(7)))
         )
         // Sanity: the held base fee the calculator derives for the child is exactly 7 (not 6).
         BaseFeeCalculator.calcBaseFee(emptyParent, configFloorZero) shouldBe BaseFeePerGas(BigInt(7))
@@ -225,7 +225,7 @@ class OlympiaBlockHeaderValidationSpec
           unixTimestamp = Timestamp(2000L),
           difficulty = Difficulty.Zero,
           extraData = baseExtraData,
-          extraFields = HefPostOlympia(BaseFeePerGas(BigInt(7)))
+          extraFields = HefPostEip1559(BaseFeePerGas(BigInt(7)))
         )
         MockedPowBlockHeaderValidator.validate(child, emptyParent)(configFloorZero) shouldBe Right(BlockHeaderValid)
       }

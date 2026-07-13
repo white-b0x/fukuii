@@ -11,7 +11,7 @@ import com.chipprbots.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import com.chipprbots.ethereum.consensus.ConsensusEngine
 import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.ledger.BlockExecution.HistoryServeWindow
 import com.chipprbots.ethereum.ledger.BlockExecution.HistoryStorageAddress
 import com.chipprbots.ethereum.ledger.BlockExecution.HistoryStorageCode
@@ -38,7 +38,7 @@ class BlockHashHistorySpec extends AnyFlatSpec with Matchers:
     val olympiaBlock: BigInt = 10
 
     implicit override lazy val blockchainConfig: BlockchainConfig = blockchainConfig0
-      .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = BlockNumber(olympiaBlock)))
+      .withUpdatedForkBlocks(_.copy(eip1559BlockNumber = BlockNumber(olympiaBlock)))
 
     private lazy val blockchainConfig0: BlockchainConfig = Config.blockchains.blockchainConfig
 
@@ -79,7 +79,7 @@ class BlockHashHistorySpec extends AnyFlatSpec with Matchers:
         parentHash = BlockHash(parentHash),
         gasLimit = GasAmount(8_000_000),
         gasUsed = GasAmount.Zero,
-        extraFields = if isOlympia then HefPostOlympia(BaseFeePerGas(BigInt(0))) else HefEmpty
+        extraFields = if isOlympia then HefPostEip1559(BaseFeePerGas(BigInt(0))) else HefEmpty
       ),
       body = BlockBody(Nil, Nil)
     )

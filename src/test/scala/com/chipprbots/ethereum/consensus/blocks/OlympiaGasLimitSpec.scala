@@ -40,7 +40,7 @@ class OlympiaGasLimitSpec
   private val OlympiaTestBlock: BigInt = BigInt(100)
 
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
-    _.copy(olympiaBlockNumber = BlockNumber(OlympiaTestBlock), olympiaGasTarget = Some(BigInt(60_000_000)))
+    _.copy(eip1559BlockNumber = BlockNumber(OlympiaTestBlock), olympiaGasTarget = Some(BigInt(60_000_000)))
   )
 
   private val OlympiaGasTarget = BigInt(60_000_000)

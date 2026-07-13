@@ -8,7 +8,7 @@ import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.domain.BaseFeePerGas
 import com.chipprbots.ethereum.domain.BlockHeader
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.GasAmount
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
@@ -30,7 +30,7 @@ class OlympiaBaseFeeSpec
   private val olympiaBlock: BigInt = BigInt(100)
 
   implicit val config: BlockchainConfig = blockchainConfig
-    .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = BlockNumber(olympiaBlock)))
+    .withUpdatedForkBlocks(_.copy(eip1559BlockNumber = BlockNumber(olympiaBlock)))
     .copy(baseFeeFloor = BaseFeeCalculator.InitialBaseFee)
 
   private val InitialBaseFee: BigInt = BaseFeeCalculator.InitialBaseFee
@@ -79,7 +79,7 @@ class OlympiaBaseFeeSpec
             olympiaBlock,
             gasLimit = BigInt(16_000_000),
             gasUsed = 0,
-            HefPostOlympia(BaseFeePerGas(InitialBaseFee))
+            HefPostEip1559(BaseFeePerGas(InitialBaseFee))
           )
         val result = BaseFeeCalculator.calcBaseFee(firstOlympiaBlock, config)
         // gasTarget = 16M / 2 = 8M; gasUsed = 0 < 8M → would decrease by
@@ -94,7 +94,7 @@ class OlympiaBaseFeeSpec
         val target = BigInt(30_000_000)
         val baseFee = BigInt(2_000_000_000)
         val stableParent =
-          header(olympiaBlock, gasLimit = target * 2, gasUsed = target, HefPostOlympia(BaseFeePerGas(baseFee)))
+          header(olympiaBlock, gasLimit = target * 2, gasUsed = target, HefPostEip1559(BaseFeePerGas(baseFee)))
         BaseFeeCalculator.calcBaseFee(stableParent, config) shouldBe BaseFeePerGas(baseFee)
       }
     }
@@ -104,7 +104,7 @@ class OlympiaBaseFeeSpec
         val gasLimit = BigInt(30_000_000)
         val baseFee = BigInt(1_000_000_000)
         val fullParent =
-          header(olympiaBlock, gasLimit = gasLimit, gasUsed = gasLimit, HefPostOlympia(BaseFeePerGas(baseFee)))
+          header(olympiaBlock, gasLimit = gasLimit, gasUsed = gasLimit, HefPostEip1559(BaseFeePerGas(baseFee)))
         val next = BaseFeeCalculator.calcBaseFee(fullParent, config)
         next should be > BaseFeePerGas(baseFee)
         // delta = baseFee * (gasUsed - gasTarget) / gasTarget / 8 = baseFee * gasTarget / gasTarget / 8 = baseFee / 8
@@ -118,7 +118,7 @@ class OlympiaBaseFeeSpec
         // 2 gwei — above the 1-gwei ECIP-1111 floor — so the 1/8 decrease to 1.75 gwei is
         // observable rather than being clamped back up to the floor.
         val baseFee = BigInt(2_000_000_000)
-        val emptyParent = header(olympiaBlock, gasLimit = gasLimit, gasUsed = 0, HefPostOlympia(BaseFeePerGas(baseFee)))
+        val emptyParent = header(olympiaBlock, gasLimit = gasLimit, gasUsed = 0, HefPostEip1559(BaseFeePerGas(baseFee)))
         val next = BaseFeeCalculator.calcBaseFee(emptyParent, config)
         next should be < BaseFeePerGas(baseFee)
         next should be >= BaseFeePerGas(InitialBaseFee)
@@ -130,7 +130,7 @@ class OlympiaBaseFeeSpec
         val gasLimit = BigInt(30_000_000)
         val tinyBaseFee = BigInt(1) // 1 wei — would decay to 0 without floor
         val emptyParent =
-          header(olympiaBlock, gasLimit = gasLimit, gasUsed = 0, HefPostOlympia(BaseFeePerGas(tinyBaseFee)))
+          header(olympiaBlock, gasLimit = gasLimit, gasUsed = 0, HefPostEip1559(BaseFeePerGas(tinyBaseFee)))
         val next = BaseFeeCalculator.calcBaseFee(emptyParent, config)
         next should be >= BaseFeePerGas(InitialBaseFee)
         next shouldBe BaseFeePerGas(InitialBaseFee)

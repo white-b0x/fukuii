@@ -76,7 +76,7 @@ object TestConverter:
       else if testHeader.blobGasUsed.isDefined || testHeader.parentBeaconBlockRoot.isDefined then
         HefPostCancun(BaseFeePerGas(baseFee), withdrawalsRoot, blobGasUsed, excessBlobGas, parentBeaconBlockRoot)
       else if testHeader.withdrawalsRoot.isDefined then HefPostShanghai(BaseFeePerGas(baseFee), withdrawalsRoot)
-      else if testHeader.baseFeePerGas.isDefined then HefPostOlympia(BaseFeePerGas(baseFee))
+      else if testHeader.baseFeePerGas.isDefined then HefPostEip1559(BaseFeePerGas(baseFee))
       else HefEmpty
 
     BlockHeader(
@@ -306,7 +306,7 @@ object TestConverter:
           petersburgBlockNumber = BlockNumber(0),
           istanbulBlockNumber = BlockNumber(0),
           berlinBlockNumber = BlockNumber(0),
-          olympiaBlockNumber = BlockNumber(0) // London = EIP-1559, mapped to Olympia in Fukuii
+          eip1559BlockNumber = BlockNumber(0) // London = EIP-1559, mapped to Olympia in Fukuii
         )
       case "merge" | "paris" | "themerge" =>
         ForkBlockNumbers.Empty.copy(
@@ -321,7 +321,7 @@ object TestConverter:
           petersburgBlockNumber = BlockNumber(0),
           istanbulBlockNumber = BlockNumber(0),
           berlinBlockNumber = BlockNumber(0),
-          olympiaBlockNumber = BlockNumber(0)
+          eip1559BlockNumber = BlockNumber(0)
         )
       case "shanghai" =>
         ForkBlockNumbers.Empty.copy(
@@ -336,7 +336,7 @@ object TestConverter:
           petersburgBlockNumber = BlockNumber(0),
           istanbulBlockNumber = BlockNumber(0),
           berlinBlockNumber = BlockNumber(0),
-          olympiaBlockNumber = BlockNumber(0)
+          eip1559BlockNumber = BlockNumber(0)
         )
       case "cancun" =>
         ForkBlockNumbers.Empty.copy(
@@ -351,7 +351,7 @@ object TestConverter:
           petersburgBlockNumber = BlockNumber(0),
           istanbulBlockNumber = BlockNumber(0),
           berlinBlockNumber = BlockNumber(0),
-          olympiaBlockNumber = BlockNumber(0)
+          eip1559BlockNumber = BlockNumber(0)
         )
       case "prague" =>
         ForkBlockNumbers.Empty.copy(
@@ -366,7 +366,7 @@ object TestConverter:
           petersburgBlockNumber = BlockNumber(0),
           istanbulBlockNumber = BlockNumber(0),
           berlinBlockNumber = BlockNumber(0),
-          olympiaBlockNumber = BlockNumber(0)
+          eip1559BlockNumber = BlockNumber(0)
         )
       case "osaka" =>
         // Osaka (Sepolia active) — post-Prague, timestamp-gated. Same fork-block
@@ -383,7 +383,7 @@ object TestConverter:
           petersburgBlockNumber = BlockNumber(0),
           istanbulBlockNumber = BlockNumber(0),
           berlinBlockNumber = BlockNumber(0),
-          olympiaBlockNumber = BlockNumber(0)
+          eip1559BlockNumber = BlockNumber(0)
         )
       case _ =>
         // Default to Frontier for unknown networks
@@ -392,7 +392,7 @@ object TestConverter:
     // These vectors target the ETH execution path (chainId=1, timestamp fork dispatch).
     // The base config defaults to networkType=ETC; force ETH so the ETC-Olympia
     // block-number guards (e.g. EIP-2935 history contract, EIP-7623 calldata floor)
-    // do NOT fire pre-Prague just because olympiaBlockNumber is mapped to 0 here.
+    // do NOT fire pre-Prague just because eip1559BlockNumber is mapped to 0 here.
     // Without this, the EIP-2935 ETC path writes HistoryStorage slots at Cancun and
     // throws "Account not found" when persisting that contract's storage.
     val configWithForks = baseConfig.copy(

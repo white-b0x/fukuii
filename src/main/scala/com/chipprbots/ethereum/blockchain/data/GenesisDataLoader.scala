@@ -208,8 +208,8 @@ class GenesisDataLoader(
       )
     else if blockchainConfig.isShanghaiTimestamp(genesisTimestamp) then
       BlockHeader.HeaderExtraFields.HefPostShanghai(baseFee, emptyWithdrawalsRoot)
-    else if blockchainConfig.forkBlockNumbers.olympiaBlockNumber.value == 0 then
-      BlockHeader.HeaderExtraFields.HefPostOlympia(baseFee)
+    else if blockchainConfig.forkBlockNumbers.eip1559BlockNumber.value == 0 then
+      BlockHeader.HeaderExtraFields.HefPostEip1559(baseFee)
     else BlockHeader.HeaderExtraFields.HefEmpty
 
     BlockHeader(

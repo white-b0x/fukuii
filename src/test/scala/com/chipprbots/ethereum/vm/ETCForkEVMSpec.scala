@@ -9,7 +9,7 @@ import com.chipprbots.ethereum.Fixtures.Blocks as BlockFixtures
 import com.chipprbots.ethereum.domain.Account
 import com.chipprbots.ethereum.domain.Address
 import com.chipprbots.ethereum.domain.BlockHeader
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.domain.BlockNumber
 import com.chipprbots.ethereum.domain.UInt256
 import com.chipprbots.ethereum.domain.BaseFeePerGas
@@ -47,7 +47,7 @@ class ETCForkEVMSpec extends AnyFlatSpec with Matchers:
   val hdrOlympia: BlockHeader =
     BlockFixtures.ValidBlock.header.copy(
       number = BlockNumber(Fixtures.OlympiaBlockNumber),
-      extraFields = HefPostOlympia(BaseFeePerGas(BigInt("1000000000"))) // 1 Gwei base fee
+      extraFields = HefPostEip1559(BaseFeePerGas(BigInt("1000000000"))) // 1 Gwei base fee
     )
 
   // ── Helpers ───────────────────────────────────────────────────────────────

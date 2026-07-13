@@ -318,7 +318,7 @@ class EthSimulateServiceSpec
       val baseFeeHeader: BlockHeader = block.header.copy(
         gasLimit = GasAmount(1000000),
         gasUsed = GasAmount(0),
-        extraFields = HefPostOlympia(BaseFeePerGas(BigInt(1000000000)))
+        extraFields = HefPostEip1559(BaseFeePerGas(BigInt(1000000000)))
       )
       val baseFeeBlock: Block = Block(baseFeeHeader, BlockBody.empty)
       saveAsLatest(baseFeeBlock)
@@ -337,7 +337,7 @@ class EthSimulateServiceSpec
       val baseFeeHeader: BlockHeader = block.header.copy(
         gasLimit = GasAmount(1000000),
         gasUsed = GasAmount(0),
-        extraFields = HefPostOlympia(BaseFeePerGas(BigInt(1000000000)))
+        extraFields = HefPostEip1559(BaseFeePerGas(BigInt(1000000000)))
       )
       val baseFeeBlock: Block = Block(baseFeeHeader, BlockBody.empty)
       saveAsLatest(baseFeeBlock)

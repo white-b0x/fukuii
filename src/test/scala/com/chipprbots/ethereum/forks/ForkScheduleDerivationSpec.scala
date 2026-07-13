@@ -36,10 +36,10 @@ class ForkScheduleDerivationSpec extends AnyWordSpec with Matchers:
   private val MaxBlockSentinel = BigInt(Long.MaxValue)
 
   /** The independent reference for the ETC-family Olympia bundle (ECIP-1111/1112/1122): active only on an ETC network,
-    * at a real (non-sentinel) `olympiaBlockNumber`, from that height onward.
+    * at a real (non-sentinel) `eip1559BlockNumber`, from that height onward.
     */
   private def olympiaRef(cfg: BlockchainConfig, block: BigInt): Boolean =
-    val olympia = cfg.forkBlockNumbers.olympiaBlockNumber.value
+    val olympia = cfg.forkBlockNumbers.eip1559BlockNumber.value
     cfg.networkType == NetworkType.ETC &&
     olympia != OlympiaPendingSentinel &&
     olympia != MaxBlockSentinel &&
@@ -52,7 +52,7 @@ class ForkScheduleDerivationSpec extends AnyWordSpec with Matchers:
     ttd.toList.flatMap(t => List(t - 1, t, t + 1)) ::: List(BigInt(0), BigInt(1))
 
   private def blockPoints(cfg: BlockchainConfig): List[BigInt] =
-    val olympia = cfg.forkBlockNumbers.olympiaBlockNumber.value
+    val olympia = cfg.forkBlockNumbers.eip1559BlockNumber.value
     List(BigInt(0), BigInt(1), BigInt(1000000), olympia - 1, olympia, olympia + 1, MaxBlockSentinel)
 
   "BlockchainConfig.forkSchedule (derived L3 view)" should {
@@ -315,7 +315,7 @@ class ForkScheduleDerivationSpec extends AnyWordSpec with Matchers:
       // withUpdatedForkBlocks keeps the load-from-conf provenance while flipping the pending sentinel to a real height,
       // so the derived schedule's active branch is exercised (all 5 shipped confs currently park Olympia as pending).
       val real = BigInt(25000000)
-      val cfg = confs("etc").withUpdatedForkBlocks(_.copy(olympiaBlockNumber = BlockNumber(real)))
+      val cfg = confs("etc").withUpdatedForkBlocks(_.copy(eip1559BlockNumber = BlockNumber(real)))
       cfg.networkType shouldBe NetworkType.ETC
       cfg.forkSchedule.activationOf(Ecip(1111)) shouldBe ForkActivation.ByBlock(BlockNumber(real))
       List(Ecip(1111), Ecip(1112), Ecip(1122)).foreach { id =>

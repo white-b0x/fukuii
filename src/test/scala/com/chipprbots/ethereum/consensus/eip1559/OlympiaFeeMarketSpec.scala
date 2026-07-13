@@ -7,7 +7,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import com.chipprbots.ethereum.Fixtures
 import com.chipprbots.ethereum.domain.*
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.domain.LegacyTransaction
 import com.chipprbots.ethereum.domain.TransactionWithDynamicFee
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
@@ -36,7 +36,7 @@ class OlympiaFeeMarketSpec
 
   implicit val config: BlockchainConfig = blockchainConfig
     .withUpdatedForkBlocks(
-      _.copy(olympiaBlockNumber = BlockNumber(olympiaBlock), olympiaGasTarget = Some(BigInt(60_000_000)))
+      _.copy(eip1559BlockNumber = BlockNumber(olympiaBlock), olympiaGasTarget = Some(BigInt(60_000_000)))
     )
     .copy(baseFeeFloor = BaseFeeCalculator.InitialBaseFee, minTip = BaseFeeCalculator.InitialBaseFee)
 
@@ -47,7 +47,7 @@ class OlympiaFeeMarketSpec
       number = BlockNumber(olympiaBlock),
       gasLimit = GasAmount(gasLimit),
       gasUsed = GasAmount(gasUsed),
-      extraFields = HefPostOlympia(BaseFeePerGas(baseFee))
+      extraFields = HefPostEip1559(BaseFeePerGas(baseFee))
     )
 
   "Olympia EIP-1559 fee market" when {

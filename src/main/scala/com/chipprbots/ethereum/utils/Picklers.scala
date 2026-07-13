@@ -53,14 +53,14 @@ object Picklers:
     transformPickler[BaseFeePerGas, BigInt](BaseFeePerGas(_))(_.value)
   given ecdsaSignaturePickler: Pickler[ECDSASignature] = generatePickler[ECDSASignature]
   given hefEmptyPickler: Pickler[HefEmpty.type] = generatePickler[HefEmpty.type]
-  given hefPostOlympiaPickler: Pickler[HefPostOlympia] = generatePickler[HefPostOlympia]
+  given hefPostEip1559Pickler: Pickler[HefPostEip1559] = generatePickler[HefPostEip1559]
   given hefPostShanghaiPickler: Pickler[HefPostShanghai] = generatePickler[HefPostShanghai]
   given hefPostCancunPickler: Pickler[HefPostCancun] = generatePickler[HefPostCancun]
   given hefPostPraguePickler: Pickler[HefPostPrague] = generatePickler[HefPostPrague]
 
   given extraFieldsPickler: Pickler[HeaderExtraFields] = compositePickler[HeaderExtraFields]
     .addConcreteType[HefEmpty.type]
-    .addConcreteType[HefPostOlympia]
+    .addConcreteType[HefPostEip1559]
     .addConcreteType[HefPostShanghai]
     .addConcreteType[HefPostCancun]
     .addConcreteType[HefPostPrague]

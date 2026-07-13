@@ -12,7 +12,7 @@ import com.chipprbots.ethereum.consensus.validators.SignedTransactionError.Trans
 import com.chipprbots.ethereum.crypto
 import com.chipprbots.ethereum.domain.*
 import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostOlympia
+import com.chipprbots.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEip1559
 import com.chipprbots.ethereum.nodebuilder.BlockchainConfigBuilder
 import com.chipprbots.ethereum.testing.Tags.*
 import com.chipprbots.ethereum.utils.BlockchainConfig
@@ -30,7 +30,7 @@ class OlympiaTxTypeAdmissionSpec
 
   implicit val config: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(
     _.copy(
-      olympiaBlockNumber = BlockNumber(olympiaBlock),
+      eip1559BlockNumber = BlockNumber(olympiaBlock),
       homesteadBlockNumber = BlockNumber(0),
       eip155BlockNumber = BlockNumber(0)
     )
@@ -53,7 +53,7 @@ class OlympiaTxTypeAdmissionSpec
       number = BlockNumber(olympiaBlock),
       gasLimit = GasAmount(BigInt(30_000_000)),
       gasUsed = GasAmount.Zero,
-      extraFields = HefPostOlympia(BaseFeePerGas(BigInt(1_000_000_000)))
+      extraFields = HefPostEip1559(BaseFeePerGas(BigInt(1_000_000_000)))
     )
 
   private def signType2(): SignedTransaction =

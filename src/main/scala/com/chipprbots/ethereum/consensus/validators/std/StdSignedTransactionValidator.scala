@@ -65,7 +65,7 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
   )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     // ETH gates these tx types via London/Prague, not Olympia; from Olympia onwards ETC accepts them.
     if blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETH then Right(SignedTransactionValid)
-    else if blockHeader.number >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber then
+    else if blockHeader.number >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber then
       Right(SignedTransactionValid)
     else
       stx.tx match
@@ -318,8 +318,8 @@ object StdSignedTransactionValidator extends SignedTransactionValidator:
     val isEth = blockchainConfig.networkType == com.chipprbots.ethereum.utils.NetworkType.ETH
     // EIP-7825 gas cap: ETC enables at Olympia (ECIP-1121 block-based). ETH enables at Osaka
     // timestamp (per execution-specs — Prague does NOT include EIP-7825). On ETH chains hive
-    // maps London→olympiaBlockNumber, so we must NOT trip the Olympia gate there.
-    val isOlympiaActivated = !isEth && blockHeaderNumber >= blockchainConfig.forkBlockNumbers.olympiaBlockNumber
+    // maps London→eip1559BlockNumber, so we must NOT trip the Olympia gate there.
+    val isOlympiaActivated = !isEth && blockHeaderNumber >= blockchainConfig.forkBlockNumbers.eip1559BlockNumber
     val isOsakaActivated = blockchainConfig.isOsakaTimestamp(blockHeaderTimestamp)
     if (isOlympiaActivated || isOsakaActivated) && stx.tx.gasLimit > GasAmount(TxGasLimitCap) then
       Left(TransactionGasLimitExceedsCap(stx.tx.gasLimit.value, TxGasLimitCap))

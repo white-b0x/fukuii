@@ -24,7 +24,7 @@ class BaseFeeCalculatorSpec
   val olympiaBlock: BigInt = 10
 
   val config: BlockchainConfig = blockchainConfig
-    .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = BlockNumber(olympiaBlock)))
+    .withUpdatedForkBlocks(_.copy(eip1559BlockNumber = BlockNumber(olympiaBlock)))
     .copy(baseFeeFloor = BaseFeeCalculator.InitialBaseFee)
 
   // ETH / Hive config: baseFeeFloor = 0 (Big0). This is the regime where the EIP-1559
@@ -33,7 +33,7 @@ class BaseFeeCalculatorSpec
   // bug shows, masking it. With floor = 0 the raw 1/8 delta can integer-floor to 0 and
   // must HOLD the base fee, exactly as go-ethereum CalcBaseFee does.
   val configFloorZero: BlockchainConfig = blockchainConfig
-    .withUpdatedForkBlocks(_.copy(olympiaBlockNumber = BlockNumber(olympiaBlock)))
+    .withUpdatedForkBlocks(_.copy(eip1559BlockNumber = BlockNumber(olympiaBlock)))
     .copy(baseFeeFloor = BigInt(0))
 
   def makeHeader(
@@ -43,7 +43,7 @@ class BaseFeeCalculatorSpec
       baseFee: Option[BigInt] = None
   ): BlockHeader =
     val extraFields = baseFee match
-      case Some(fee) => HefPostOlympia(BaseFeePerGas(fee))
+      case Some(fee) => HefPostEip1559(BaseFeePerGas(fee))
       case None      => HefEmpty
     Fixtures.Blocks.ValidBlock.header.copy(
       number = BlockNumber(number),

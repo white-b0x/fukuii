@@ -85,7 +85,7 @@ class GasPriceOracleSpec
     fixtureHeader.copy(
       number = BlockNumber(number),
       beneficiary = coinbase,
-      extraFields = baseFeeOpt.fold[HeaderExtraFields](HefEmpty)(b => HefPostOlympia(BaseFeePerGas(b)))
+      extraFields = baseFeeOpt.fold[HeaderExtraFields](HefEmpty)(b => HefPostEip1559(BaseFeePerGas(b)))
     )
 
   /** Create a Block with the given transactions. */
