@@ -62,6 +62,27 @@ Every client is documented against THIS list, same slugs, so Phase-2 tables line
 | 13 | `testing` | test structure, groupings/tiers, fixtures (ethereum/tests, hive), simulators, determinism |
 | 14 | `node-lifecycle` | startup/shutdown, DI/plugins, config, metrics/logging/observability |
 
+## Use-case / node-role lens (operator 2026-07-13) — characterize approaches, DON'T just rank them
+fukuii is an **omni-client**: it does NOT have to pick one approach. The design principle is **best-practice
+as the DEFAULT + optional feature-enabling for other approaches per use case.** So the research must, for
+every notable approach/pattern, record **what it's GOOD FOR** (which node-role / use case), not just whether
+it "won." Clients diverge because they optimize for different users — that divergence is the signal, not noise.
+
+**Use-case / node-role taxonomy** (tag approaches against these):
+- **enterprise** — private/consortium infra, single-binary multi-network (fukuii's core goal), permissioning, stability.
+- **CEX / custody** — high-security, high-reliability, prune-without-downtime, deterministic ops.
+- **mining-pool / validator** — block production/sealing, low-latency, mempool/tip-of-branch focus.
+- **light / end-user** — minimal resources, fast bootstrap, pruned state.
+- **archival / data-serving + RPC** — full history, trace/debug, high-read throughput, static/frozen historical serving.
+- **multi-network** — one binary, many families/networks concurrently.
+
+**Three-way verdict per approach** (used in Phase-2 observations, NOT binary "best"):
+- **DEFAULT** — the best-practice; fukuii's default.
+- **OPTIONAL(use-case)** — not the default, but valuable for a specific role → a fukuii feature flag / mode. State which role and why.
+- **OBSOLETE** — genuinely crappy/superseded → skip. Only after understanding *why* it existed.
+
+Every `{subsystem}.md` "Notable patterns" + "Authority note" should note use-case fitness; the Phase-2 tables carry an explicit verdict column. The end goal: fukuii as the most complete/versatile omni-client, offering the right approach for each user, defaulting to the best.
+
 ## Per-client doc template (`{client}/{subsystem}.md`)
 ```markdown
 # {client} — {subsystem}
@@ -96,11 +117,19 @@ Known bad shapes, deprecations, or things they got wrong then fixed (e.g. geth d
 |---|---|---|---|---|---|---|---|
 | {dimension} | … | … | … | … | … | … | {client(s)} |
 
+## Approach catalog (use-case-aware — the point of the whole exercise)
+For each distinct approach found for this subsystem, one row:
+| Approach | Clients using it | Good for (use-case/node-role) | Verdict: DEFAULT / OPTIONAL(role) / OBSOLETE | Why |
+|---|---|---|---|---|
+| {approach} | … | {enterprise/custody/validator/light/archival/multi-network} | {verdict} | {rationale — incl. why it exists / when to reach for it} |
+
 ## Best-practice synthesis
-Per dimension: what the evidence says the right pattern is, and which client is the authority for it.
+The DEFAULT fukuii should adopt per dimension + the OPTIONAL approaches worth offering as modes/flags for
+specific use cases (with the role each serves). Not "one winner" — a default + an options menu.
 
 ## fukuii implications (forward-ref to Phase 3–4, do NOT act here)
-Where fukuii likely aligns / diverges — a seed for the Phase-3 snapshot, not a verdict.
+Where fukuii likely aligns / diverges, and which optional approaches map to which fukuii use-case — seeds
+for the Phase-3 snapshot, not verdicts.
 ```
 
 ## Authority model (which client is authoritative for which concern)

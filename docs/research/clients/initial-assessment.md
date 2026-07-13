@@ -93,6 +93,16 @@ What the **git history** shows each client did for ETH68/69/70/71: how/when each
 ---
 
 ## 4. fukuii Phase-4 seeds accumulated so far (NOT acted on — for the post-comparison backlog)
+
+**Governing principle (operator 2026-07-13) — fukuii is an OMNI-CLIENT: default = best practice, + optional
+approaches per use-case.** Each seed below is therefore not "adopt X instead of Y" but "make the best-practice
+the default AND offer the alternative as a mode/flag where a use-case (enterprise · CEX/custody ·
+mining/validator · light/end-user · archival/data-serving+RPC · multi-network) benefits." The research
+characterizes approaches by what they're GOOD FOR (see README "Use-case / node-role lens"), verdict =
+DEFAULT / OPTIONAL(role) / OBSOLETE — we only discard the genuinely obsolete, and only after understanding why
+it existed. Storage (Forest/archival vs Bonsai/pruned vs full-pruning/custody) and sync (full/snap/checkpoint/
+PoW-from-genesis, parallel-feed) are already use-case menus, not single winners.
+
 1. **`given`-based typeclass family registry** for consensus/family selection (B7.0.5) — reth-safety + nethermind-single-binary.
 2. **`CapabilityMultiplexer`-style wire-version multiplexer** (replace `best()`-collapse + SNAP-bolt-on).
 3. **On-disk schema-version check** (besu `DATABASE_METADATA` pattern) — fukuii has none.
