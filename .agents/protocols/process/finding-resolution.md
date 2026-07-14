@@ -1,0 +1,230 @@
+# Finding Resolution Protocol
+
+Every audit, review, or research pass produces findings. This protocol governs what
+happens to a finding the moment it's written down — it must never end its life as a
+bare note in a doc with no owner and no scheduled fix.
+
+Used by: ALL agents that produce audit/research/review output (straggler audits, parity
+research, dead-code reviews, code-quality sweeps, PP-series survey prompts)
+Referenced by: `inline-cleanup.md` (narrower, incidental-find scope — see distinction below)
+
+---
+
+## Core principle
+
+> A finding is not done being handled when it's written down. It's done being handled
+> when it has a resolution owner: either an existing IP's known-site-list absorbs it
+> (with an explicit cross-reference), or a new IP is created and scheduled into the
+> current sprint plan. "Flagged, not fixed, out of scope" is a valid statement about a
+> single audit *pass* — it is never a valid final state for a *finding*.
+
+The failure mode this protocol exists to prevent: an audit agent (correctly) declines to
+fix something outside its current task boundary, writes "flagged, not fixed, out of this
+round's scope" in its output doc, and the finding is then never looked at again because
+no downstream step was ever pointed at it. The finding is technically documented but
+practically forgotten. This happened during the July sprint's opaque-type cleanup —
+round 2 of the straggler audit found `jsonrpc/TransactionRequest.scala` and
+`jsonrpc/EthSimulateService.scala` contradicted round 1's "GasPrice — CLEAN" verdict,
+correctly declined to fix it mid-audit, and correctly flagged it — but the flag alone is
+not the fix. The orchestrator's job (whoever reads the audit output next) is to convert
+every such flag into a scheduled prompt in the same pass that reads the audit, not to
+carry it forward as a mental note.
+
+---
+
+## Audit findings vs. incidental finds — these are DIFFERENT things
+
+`inline-cleanup.md` governs incidental finds: a mechanical/idiom issue an agent notices
+in a file it opened for unrelated primary work. Deferral to the Chase & Deferred Items
+section of `.claude/sprints/QUEUE.md` is correct there — the agent has no mandate to fix
+something outside its task, and the pattern needs a critical mass (N=5+) before it's
+worth a dedicated sprint slot.
+
+This protocol governs a different case: a **dedicated audit/review pass** whose entire
+job is to find issues (straggler audits, parity research, `dead-code-review.md`
+verdicts, PP-series consensus surveys, `/code-review` output). For these:
+
+| | Incidental find (inline-cleanup.md) | Audit finding (this protocol) |
+|---|---|---|
+| Origin | Noticed while doing unrelated primary work | The output of a task whose PURPOSE was to find this |
+| Default disposition | Log to Chase & Deferred Items, batch when N=5+ | Schedule a resolution IMMEDIATELY, in the same session that reads the audit |
+| Acceptable to leave unscheduled? | Yes, until critical mass | No — every finding gets a resolution owner before the audit is considered closed |
+
+If you are the orchestrator reading an audit's output (not the audit agent itself),
+you own converting every finding into a scheduled resolution before moving on to
+anything else the audit's output was meant to unblock.
+
+---
+
+## Rule 0: Triage first — fast-track or normal disposition
+
+Before applying Rule 1's three dispositions, ask one question: does this finding meet the
+`QUEUE.md` "Critical & Security Fast-Track" section's bar? That bar is deliberately narrow —
+an actively exploitable/triggerable security issue (a real trigger path today, not a
+hypothetical future one), a live data-loss or consensus-correctness bug, or credential/key
+exposure with a real trigger path, not a latent one. See that section's own header for the
+full inclusion/exclusion text.
+
+If yes: add it there directly, skip the batch/defer machinery below entirely — no waiting for
+scout's research pass, no waiting for a batch's turn in the run order.
+
+If no (the common case — most findings, including most security-adjacent ones like a latent
+cleartext-logging risk with no current trigger): proceed to Rule 1's three dispositions as
+normal. Most findings are not fast-track-critical; don't inflate a routine hardening item into
+one just because it touches security-sensitive code.
+
+## Rule 1: Every finding gets one of three dispositions — no fourth option
+
+1. **Absorbed into an existing scheduled IP.** The finding fits the scope of a prompt
+   already being drafted or already in the sprint — add it to that prompt's known-site-list
+   with an explicit note: `**newly surfaced by <audit-name>, not in <prior-audit>'s tables**`
+   or `**correction to <prior-audit>'s <verdict> — resolved here**`. This is the common case.
+2. **A new IP is created and scheduled.** The finding doesn't fit any in-flight prompt's
+   scope (different gate, different subsystem, genuinely new work). Create the IP, give it
+   an ID, and place it at its correct position in the sprint's run order — not appended
+   to the bottom of the doc as an afterthought.
+3. **Explicitly deferred to a named future batch, with a tracking entry.** Genuinely
+   out-of-scope-for-this-sprint work (e.g. a different subsystem entirely, or blocked on
+   an external dependency) gets a real entry in a future batch section — not a bare
+   comment. It must be visible in the sprint doc's batch list, not just mentioned in
+   passing inside another IP's CONTEXT.
+
+"Flagged in the audit doc, not otherwise scheduled" is not disposition 1, 2, or 3 — it's
+the failure mode. If you catch yourself about to leave a finding in that state, stop and
+pick one of the three.
+
+---
+
+## Rule 1a: A designed deliverable is a floor, not a finding to soften
+
+This extends Rule 1 to a specific, recurring shape of the same failure mode: a research/review
+pass finds a batch's own **designed deliverable** risky or effortful, and reflexively recommends
+"optional," "may defer," or "may stay as-is" — none of which is one of Rule 1's three
+dispositions. **The design of record and the batch/row's stated deliverable are the scope floor,
+not a target for an agent's own risk caution.** Staging or sequencing a risky deliverable safely
+(additive-first, riskiest step last, each stage gated) is fine and often the right call; not
+doing it, or leaving a new abstraction wired up but never actually consumed by production code
+("scaffolding without occupancy"), is not staging — it is descoping, and a descope is a finding
+that needs Rule 1's same disposition discipline, not a bare adjective slipped into a prompt.
+
+Two situations look similar but are opposite dispositions — do not collapse them:
+
+- **Necessity, or a genuinely better way, found during research → propose the plan change WITH
+  its reasoning, as disposition 2 or 3 above, surfaced as an explicit operator-visible
+  decision.** This is legitimate research output, not a scope violation — say plainly why the
+  original design doesn't hold, not just that an alternative exists.
+- **Risk or effort alone, with no claim the deliverable is unnecessary or that a better path
+  exists → stage and gate it under disposition 1 or 2; it does not get a fourth, Rule-1-violating
+  disposition of "optional" or "quietly dropped."** The tell: the only justification offered for
+  softening a deliverable is that it's risky, large, or inconvenient — never that it's unneeded
+  or that research found something better.
+
+A real deferral of a designed deliverable is still disposition 3 — a concrete, scheduled future
+batch entry with a hard gate, decided by the operator — never a parenthetical inside another
+prompt's CONTEXT and never any agent's silent default. See `batch-research-protocol.md`'s "Scope
+floor" section for the incident that surfaced this rule (a scout research pass nearly descoped
+two hard multi-network requirements by marking them "optional"/deferring their cutover) and for
+`scout`'s specific staging/gating discipline built on top of this rule.
+
+---
+
+## Rule 1b: PLACEMENT — where "scheduled" physically lives
+
+Rule 1's three dispositions each name a **placement home** — a physical location a `scout` (or
+any agent picking up a batch) actually reads when it drafts or executes that batch. "Scheduled"
+is not a claim about intent; it names one of these homes, mirroring which disposition applies:
+
+1. **Absorbed into an existing scheduled IP** → the site lives in that IP's own known-site-list,
+   inside its Thread's kickoff prompt.
+2. **A new IP is created** → the IP lives at its correct run-order position inside its owning
+   container — a `### Batch N` section in `QUEUE.md`, or the matching `queue/persistent/*.md`
+   file for a Persistent-Section Item.
+3. **Deferred to a named future batch** → the finding is written as a concrete line-item
+   **inside that `### Batch N` section's own body in `QUEUE.md`** — not merely
+   cross-referenced from `queue/chase-deferred.md`.
+
+**`queue/chase-deferred.md` is the INDEX, never the sole home of a batched finding.** A one-line
+`→ Batch N` cross-reference there is a pointer, not a placement — the finding still needs its own
+line-item inside Batch N's section body before it counts as resolved under disposition 3.
+`chase-deferred.md` remains the full, standalone home ONLY for genuinely un-batched / standing
+items gated on something other than a batch (an external event — e.g. a pre-fork gate like
+`OLYMPIA-TREASURY-VECTOR-RECONCILE-01`): those have no `### Batch N` section to be placed inside,
+so the index entry IS the content, by construction rather than by exception.
+
+**The failure mode this closes, stated once so it's felt:** a `→ Batch N` disposition with no
+matching line-item in Batch N's own section body is an unscheduled finding wearing a scheduled
+costume. Logged != scheduled.
+
+**Mechanical shortcut:** `scripts/agent-tooling/lib/finding-placement-check.sh` catches this
+drift before a batch closes — it scans `chase-deferred.md` (both its prose routing bullets and
+its inline `` `ID` → Batch N `` shorthand) and `QUEUE.md`'s own close-out rows for every
+`→ Batch N` / `→ B<n>` routing, and asserts each routed ID also appears inside that batch's own
+`### Batch N` section body. Exits nonzero on any orphan — see `sprint-lifecycle.md` Rule 5 for
+where this is wired into the batch close-out gate.
+
+---
+
+## Rule 2: Findings Resolution Log
+
+Every sprint tracking doc with an active audit/cleanup batch keeps a **Findings
+Resolution Log** — a short table near the top of the batch section:
+
+```markdown
+## Findings Resolution Log
+
+| Finding | Source | Resolution | Status |
+|---------|--------|-----------|--------|
+| GasPrice not clean — TransactionRequest.scala/EthSimulateService.scala | round-2 straggler audit | IP-CL-A (folded in) | SCHEDULED |
+```
+
+This is not a duplicate of Chase & Deferred Items — that section is for incidental finds
+pending critical mass. This log is specifically for dedicated-audit output, and every row must
+have a non-empty Resolution column before the log entry is considered closed. An entry
+with an empty or "TBD" Resolution column is a signal the orchestrator hasn't finished
+processing the audit yet — not a legitimate final state.
+
+**Upstream of this log: the finding must exist somewhere durable, not just in this table's
+source session's transcript.** `scout`/`eye`/`prism` are fully read-only — no `Edit`, no `Write`
+of any kind (per-agent `Write` cannot be scoped to a subtree like `.local/**` in current Claude
+Code, so they don't hold an unscoped grant either; see `testing-protocol.md`'s "Permission-grant
+scope boundary" section). They return their full finding/report **inline** as their final
+message; the **orchestrator** (the calling session) is the one that persists it to
+`.local/docs/research-july/<slug>.md` before treating a finding above this log as vetted — never
+merely quoted inline with nothing durable behind it. See `batch-research-protocol.md`'s Rule (h)
+addendum for `scout`'s mandatory version of this handoff.
+
+---
+
+## Rule 3: An audit is not "done" until its findings log is fully resolved
+
+When an audit-producing agent (or the orchestrator synthesizing its output) reports
+"audit complete," that report must be followed — in the same session, before moving to
+unrelated work — by populating or updating the Findings Resolution Log for every new
+finding the audit surfaced. A correction to a prior verdict (like round 2's GasPrice
+correction) is itself a finding and gets its own log row, even though the underlying
+sites end up inside another IP's table rather than a standalone prompt.
+
+---
+
+## Rule 4: Corrections to prior audit verdicts must be visible, not silent
+
+If audit round N contradicts or corrects a verdict from round N-1 (e.g. "type X is not
+actually CLEAN"), that correction must be stated explicitly in whatever downstream
+artifact resolves it — not just fixed silently. A future reader comparing round N-1's
+summary table against round N's should not have to reconstruct the correction from
+context; the resolving IP's CONTEXT section states it directly:
+`**Corrects round 1's "GasPrice — CLEAN (main)" verdict** — see round 2 finding, resolved
+by this prompt's <field list>.`
+
+---
+
+## Anti-pattern reference
+
+| Don't | Do instead |
+|-------|-----------|
+| "Flagged, not fixed, out of this round's scope" as the final word on a finding | Immediately schedule it (Rule 1) and log it (Rule 2) in the same pass that reads the finding |
+| "Optional" / "may defer" / "may stay as-is" on a batch's own designed deliverable, justified only by risk or effort | Stage and gate it under disposition 1 or 2 (Rule 1a); if genuinely unnecessary or superseded, propose that WITH reasoning as disposition 2 or 3, as an explicit operator decision |
+| Leaving a correction to a prior verdict as a paragraph buried in a new audit's prose | State it explicitly in the resolving IP's CONTEXT (Rule 4) and in the Findings Resolution Log |
+| Assuming "someone will pick this up later" | There is no implicit owner in this workflow — an unscheduled finding has no owner |
+| Treating audit-pass findings the same as incidental cleanup finds | Audit findings get scheduled immediately; Chase & Deferred Items/critical-mass batching is for incidental finds only (see the comparison table above) |
+| A `→ Batch N` routing in `chase-deferred.md` with no matching line-item inside Batch N's own section body | Write the concrete line-item inside that batch's section (Rule 1b's PLACEMENT rule); verify with `finding-placement-check.sh` before closing the batch |

@@ -9,7 +9,7 @@ description: >-
   to prism, consensus impact to forge/beacon. Does NOT auto-invoke — call
   explicitly per actor migration thread. For Scala 3 idiom modernization
   (given/using, enums, opaque types) use mithril instead.
-tools: Read, Grep, Glob, Edit, Bash
+tools: Read, Grep, Glob, Edit, Bash, Write
 model: opus
 color: violet
 ---
@@ -24,7 +24,19 @@ failures across the actor system.
 and network/sync actors (`network/`, `blockchain/sync/`) per the migration plan in
 `.local/docs/moderization-review-june/network-sync-pekko-migration-plan.md`.
 The sacred modules (`consensus/`, `vm/`, `crypto/`, `domain/`) are out of scope — if you
-touch them, stop and invoke `forge` (ETC) or `beacon` (ETH) before proceeding.
+touch them, stop and invoke `forge` (PoW) or `beacon` (PoS) before proceeding.
+
+## Shared protocols
+
+- Logging standards, including the debug-instrumentation ban on `src/main` (no
+  `println`/`System.err.println`/`printStackTrace`, no temp `logback-test.xml`
+  DEBUG loggers left in the tree): `~/.claude/agent-protocols/logging-standards.md`
+- Test cadence and the test-only task scope boundary (STOP-and-report — the
+  "Delegation rules (hard stops)" table below is this same discipline applied to
+  the consensus/eventStream/compile boundaries specifically): `~/.claude/agent-protocols/testing-protocol.md`
+- Conformance target is the named best-practice form in
+  [`coding-standards/README.md`](../../docs/development/coding-standards/README.md) —
+  churn/risk/scope are sizing inputs, never conformance excuses.
 
 ## Reference repos
 
@@ -56,7 +68,7 @@ You are called once per actor migration thread. Your deliverables per session:
    where `sender()` was used. Show the new types, get confirmation.
 3. **Implementation** — migrate the actor, update all callers, adapt spawning
    sites. One file at a time; compile after each file.
-4. **Verify** — `sbt compile-all` after every file; `sbt scalafmtAll` after formatting phases; `testOnly *<Actor>*` after logic phases; full `./local/scripts/fukuii-test` once at thread end only. See Verification section.
+4. **Verify** — `sbt compile-all` after every file; `sbt scalafmtAll` after formatting phases; `testOnly *<Actor>*` after logic phases; full `testEssential` via `sbt-run.sh` (backgrounded) once at thread end only. See Verification section.
 
 **At session start:**
 1. Check `.local/docs/continuations/` for a loom continuation file — if one exists for this actor, read it before anything else.
@@ -259,23 +271,16 @@ spawning Typed children while remaining Classic themselves.
 
 ### 11. Behavior[Any] — when sender() cannot be replaced
 
-When a Classic actor hardcodes `context.parent` as a reply target with no way to inject
-`replyTo` (e.g. `PeerRequestHandler`), the enclosing Typed actor cannot receive a sealed
-`Command` — responses arrive as raw `Any`. Use `Behavior[Any]` and match directly:
+Standard (sealed `Command`, the sanctioned bridging mechanisms, and when `Behavior[Any]`
+is still correct): [`coding-standards/pekko/actor-message-typing.md`](../../docs/development/coding-standards/pekko/actor-message-typing.md).
+Apply it; if a case isn't covered, research `.claude/repo-references/pekko/` and document
+it there before acting.
 
-```scala
-// Established pattern: BytecodeRecoveryActor, StorageRecoveryActor,
-//                      FastSyncBranchResolverActor, ChainDownloader
-def downloading(): Behavior[Any] = Behaviors.receiveMessage {
-  case ResponseReceived(msg) => ...  // Classic actor sent this via context.parent
-  case RequestFailed(peer)   => ...
-  case WrappedPeerDisconnected(ev) => ...  // from messageAdapter
-  case _                     => Behaviors.same
-}
-```
-
-Messages from `messageAdapter` still arrive typed via the adapter; only the legacy
-Classic responses are matched as `Any`.
+**Operational:** a Classic actor that hardcodes `context.parent` with no `replyTo` to
+inject (e.g. `PeerRequestHandler`) forces the enclosing Typed actor to receive raw `Any` —
+the sanctioned-exception case. Established fukuii sites: `BytecodeRecoveryActor`,
+`StorageRecoveryActor`, `FastSyncBranchResolverActor`, `ChainDownloader`. Messages from
+`messageAdapter` still arrive typed; only the legacy Classic responses match as `Any`.
 
 ### 12. PeerListSupportNg → PeerListHelper
 
@@ -305,45 +310,20 @@ case WrappedPeerDisconnected(ev)   => peerListHelper.handlePeerDisconnected(ev);
 Do NOT delete `PeerListSupportNg` — other unmigrated actors still mix it.
 `peerEventBus` stays as Classic `ActorRef` — it updates to Typed when Group NET migrates.
 
-### 13. Scala 3 union types for mixed-message actors
+### 13. Behavior[Command | InternalAdapter] vs Behavior[Any] — decision and narrowing
 
-When an actor receives both a public `Command` and a fixed set of internal adapter-wrapped
-messages, prefer a Scala 3 union type over `Behavior[Any]`:
+Standard (when to prefer a Scala 3 union type; the two-step CAPSTONE narrowing path):
+[`coding-standards/pekko/actor-message-typing.md`](../../docs/development/coding-standards/pekko/actor-message-typing.md).
+Apply it; if a case isn't covered, research `.claude/repo-references/pekko/` and document it there.
 
-```scala
-// ❌ Behavior[Any] — underspecifies; any message passes type check
-def behavior(): Behavior[Any] = Behaviors.receiveMessage {
-  case cmd: Command => ...
-  case internal: InternalAdapter => ...
-  case _ => Behaviors.same  // required to absorb Classic noise
-}
-
-// ✅ Behavior[Command | InternalAdapter] — documents exact expected message set
-//   Use only when ALL callers are Typed and there is no Classic noise to absorb
-sealed trait InternalAdapter
-private case class WrappedResponse(r: SomeTypedResponse) extends InternalAdapter
-
-def behavior(): Behavior[Command | InternalAdapter] = Behaviors.receiveMessage {
-  case cmd: Command => ...
-  case WrappedResponse(r) => ...
-  // No catch-all needed — compiler rejects unknown message types
-}
-```
-
-**When to use `Behavior[Command | InternalAdapter]`:**
-- All callers are Typed (no `.toClassic` adapter in use)
-- The internal set is closed and finite (messageAdapter wrappers only)
-- No Classic noise expected (no migrating callers still sending arbitrary messages)
-
-**When `Behavior[Any]` is still correct:**
-- Actor exposes `.toClassic` for unmigrated Classic callers
-- Actor uses the `GetStatus`-style self-forward pattern (`ctx.self ! InternalCmd(ctx.toClassic.sender())`)
-- Any `case _ => Behaviors.same` catch-all is load-bearing
-
-**Post-CAPSTONE migration path:** Once all callers of a `Behavior[Any]` actor are Typed,
-narrow in two steps:
-1. Replace `Behavior[Any]` with `Behavior[Command | InternalMsg]` (remove `case _ => Behaviors.same`)
-2. Then merge `InternalMsg` into `Command` (sealed) if all cases belong to the same ADT
+**Operational note for this migration:** once a `Behavior[Any]` actor's callers are
+confirmed all-Typed with a closed, finite internal message set, apply the standard's
+narrowing path: (1) `Behavior[Any]` → `Behavior[Command | InternalMsg]`, dropping the
+`case _ => Behaviors.same` catch-all; (2) fold `InternalMsg` into `Command` if all cases
+belong to the same ADT. `GetStatus`-style self-forward patterns
+(`ctx.self ! InternalCmd(ctx.toClassic.sender())`) and actors still exposing `.toClassic`
+for unmigrated Classic callers are not narrowing candidates yet — see the standard's
+sanctioned-exception list.
 
 ---
 
@@ -352,8 +332,8 @@ narrow in two steps:
 > Full pre-flight protocol: `~/.claude/agent-protocols/pre-migration-checklist.md`
 > Pekko Typed API preferences: `~/.claude/agent-protocols/pekko-typed-api.md` (P1–P25 + TL1/TL2)
 > Inline cleanup rules: `~/.claude/agent-protocols/inline-cleanup.md`
-> Pekko Typed patterns catalogue (P17–P25 detail + grep patterns): `.local/best-practices/pekko/typed-patterns.md`
-> Codebase audit (P17-P25 and TL1/TL2 violations with file:line): `.local/best-practices/codebase-audit.md`
+> Pekko Typed patterns catalogue (P17–P25 detail + grep patterns): `docs/research/best-practices/pekko/typed-patterns.md`
+> Codebase audit (P17-P25 and TL1/TL2 violations with file:line): `docs/research/best-practices/codebase-audit.md`
 > Worktree discipline (sprint vs task patterns, naming, lifecycle, agent rules): `~/.claude/agent-protocols/worktree-protocol.md`
 
 ```bash
@@ -381,45 +361,26 @@ sbt compile-all   # must be green before starting
 
 | Situation | Action |
 |-----------|--------|
-| File under `consensus/`, `vm/`, `crypto/`, `domain/` would be modified | **STOP** — invoke `forge` (ETC) or `beacon` (ETH) first |
+| File under `consensus/`, `vm/`, `crypto/`, `domain/` would be modified | **STOP** — invoke `forge` (PoW) or `beacon` (PoS) first |
 | eventStream types cross network boundary | **STOP** — run `@SerializabilityTrait` pre-flight |
 | Compile fails after 2 targeted fix attempts | **STOP** — delegate to `wraith` |
-| `sbt testEssential` drops below 3,519 tests | **STOP** — surface to user before continuing |
+| `sbt testEssential` test count drops below the last recorded baseline in `.local/docs/test-quality-log.md` | **STOP** — surface to user before continuing |
 | More than one actor is being migrated without explicit user instruction | **STOP** — scope to one actor unless the handoff prompt explicitly authorizes a helper + proof-of-concept pair (as in PLN + FastSyncBranchResolverActor) |
+| A task needs a tool your `tools:` line doesn't grant | **STOP** — report a `PERMISSION-BLOCK:` (see `testing-protocol.md`'s "Permission-grant scope boundary" section); never improvise a workaround |
 
 After implementation:
 - Compile errors → `wraith`
 - Code quality review → `prism` (non-consensus actors)
 - Test validation → `eye`
 
-## Actor migration order
+## Actor migration status
 
-**Wave 2 (infrastructure actors) — COMPLETE.** All 7 actors done. See SPRINT-QUEUE.md.
-
-**Network/sync sprint — IN PROGRESS.** 35 Classic actors in `network/` and
-`blockchain/sync/`. Full plan and group order in:
-`.local/docs/moderization-review-june/network-sync-pekko-migration-plan.md`
-
-Current group status (read SPRINT-QUEUE.md Part 6 table for full state):
-
-| Group | Status | Key actors |
-|-------|--------|-----------|
-| W1 | ✅ DONE | SNAP workers ×4 |
-| W2 | ✅ DONE | KnownNodesManager, PeerStatisticsActor, ServerActor |
-| S1 | ✅ DONE | Sync recovery atoms ×3 |
-| S2 | ✅ DONE | StateStorageActor, FastSyncBranchResolverActor |
-| PLN | ✅ DONE | PeerListHelper (shared infrastructure) |
-| S6 | ✅ DONE | ChainDownloader |
-| S5 | ✅ DONE `5d29511d4` | BlockBroadcasterActor (Behavior[BroadcasterMsg]), BlockImporter + RegularSync (Behavior[Any] — mixed Classic/Typed sources); PeerListHelper replaces PeerListSupportNg. 69 jsonrpc failures fixed `92584a07b`. |
-| NET | ✅ DONE | RLPxCH ✅ `f8a127870`. PeerActor ✅ `e6ccc5ac1`. PEA ✅ `59f7a1f11`. PDM ✅ `81eb751f3`. PMA ✅ `05e0c003b`+`0e9952f06` (shell+core; 8 sender→replyTo; PDM self-post timer). **BlockchainHostActor** ✅ `8ef6a4601` — pure Behavior[Command], no shell; 1-case ADT (PeerEventReceived); messageAdapter+tell subscription; 4 helpers→local defs; 3 spawn sites (NodeBuilder+CommonFakePeer+Spec); test required PeerEventReceived wrapping for 12 direct tells; 3,621/0. |
-| S3 | 🔄 IN PROGRESS | SNAP coordinators ×4. HERALD-5 ✅ CONDITIONAL. **ByteCodeCoordinator** ✅ `4f214db16`+`86930f9b1` — 4 returns removed (not 1 — lines 482/503/523/533; broader grep needed); Command non-sealed (multi-file ADT, same as other S-series); BytecodeRecoveryActor already Typed (spawn via PropsAdapter); dead PeerAvailable handler dropped; SSC ask → AskPattern(.toTyped); 21/21 BCC tests + 263/263 SNAP suite; 3,621/0. **StorageRangeCoordinator** ✅ `368c03560`+`0b43de007` — 21 returns removed (Phase 0); no child workers (dispatches GetStorageRanges directly to NPMA Classic); 1 sender() → replyTo on StorageGetProgress; SSC stagnation ask → AskPattern(.toTyped) mirrors BCC; 3 scheduler calls converted (preStart recurring → startTimerWithFixedDelay, 2× scheduleOnce → context.scheduleOnce); log.warning → log.warn (15 sites, SLF4J); files: SRC.scala + Messages.scala + SSC.scala + StorageRecoveryActor.scala + Spec; 28/28 SRC tests; 3,621/0. **AccountRangeCoordinator** ⬜ NEXT (2 Typed behaviors: receive→initial + finalizing; 6 sender() paths; 9 replyTo fields in Messages.scala). TNHC: pre-migration fix needed (10 returns) + drop @volatile. HealingStagnated outbound to SSC — not in TNHC Command ADT. |
-| S4/S7 | ⬜ post-NET | SyncStateSchedulerActor + PivotBlockSelector (S4), PeersClient + PeerRequestHandler (S7) |
-| NET2 | ⬜ post-NET+S3 | NetworkPeerManagerActor. HERALD-3 ✅ CONDITIONAL. 1 state (handleMessages), 8 var fields on Impl class, 2 sender() paths, Classic shell required (SSC uses Classic ask), SNAP ref stays Option[ActorRef], 3 scheduler calls → withTimers. |
-| SNAP1/SNAP2/ROOT/CAPSTONE | ⬜ post-W1+S3+S4/S7+NET+NET2 | HERALD-4 ✅ CONDITIONAL. SSC: 5,178 LOC, 6 named behaviors, 11 sender() → replyTo (pure status queries), ~58 var→Impl fields, 13 timers (1 untracked raw scheduler at L4058 → keyed timer), 2 .orElse partials → explicit helpers, 1 aroundReceive (stagnation dispatcher L3191 → inline in syncing), 4 hard constraints. See `.local/docs/moderization-review-june/HERALD-4-SSC-preflight.md`. Requires SPECKIT specify session to define ADT before LOOM starts. |
-
-SNAP1 (SNAPSyncController, 5,178 LOC, 6 behaviors) — HERALD-4 ✅ CONDITIONAL.
-Gates: W1 (serialization) + S3 (coordinators Typed) + S4/S7 + NET + NET2 (NPMA Typed, ConnectToPeer+SendMessage in Command ADT).
-Requires SPECKIT specify session before LOOM starts. Do not begin without it.
+The Pekko Classic→Typed migration of `network/` and `blockchain/sync/` actor definitions is
+complete. For the authoritative current state, see
+`src/main/scala/com/chipprbots/ethereum/blockchain/sync/AGENTS.md` § Actor migration status.
+Do not restate migration progress here — check `.claude/sprints/QUEUE.md` for any in-flight
+follow-on work. Historical group-by-group commit detail (which actor moved in which commit)
+lives in `.claude/sprints/log/legacy-modernization-log/`, not in this file.
 
 ## Concrete example: ResourceHealthMonitor (completed — commit c77c2ebf7)
 
@@ -477,19 +438,21 @@ sbt scalafmtAll    # formatting check only — no tests needed, no logic changed
                    # use scalafmtAll NOT formatAll (see CLAUDE.md build commands)
 
 # After Phase 2 (main migration) and Phase 3 (callers) — targeted, seconds:
-./local/scripts/fukuii-test <ActorName>Spec
-./local/scripts/fukuii-test SNAPSuite    # if SSC or SNAP callers were touched
+sbt "testOnly *<ActorName>Spec*"
+sbt "testOnly *SNAPSuite*"    # if SSC or SNAP callers were touched
 
-# END OF THREAD ONLY — once, after all phases complete (~24 min):
-./local/scripts/fukuii-test             # full testEssential baseline
+# END OF THREAD ONLY — once, after all phases complete (long-running, pre-push only):
+scripts/agent-tooling/sbt-run.sh <log-name> testEssential   # full testEssential baseline
+# invoke with run_in_background: true — see background-script-execution.md
 ```
 
-Do not run `testEssential` (or `./local/scripts/fukuii-test` without arguments) between phases
-— 24 minutes of stall per run compounds across a multi-phase thread.
+Do not run `testEssential` between phases — a long stall per run compounds across
+a multi-phase thread (current wall-clock figure: `.local/docs/test-quality-log.md`'s
+`Tier baselines` table).
 
-**E003 vs E165:** Track `E003` (Classic actor deprecation — `extends Actor`) to measure
-migration progress. `E165` is "unmatchable type in pattern match on Any" — it rises
-when migrating to `Behavior[Any]` and is NOT a signal of Classic actor count.
+**Migration-progress metric:** `grep -rn "extends Actor"` — not `E003`/`E165` (see
+[`coding-standards/scala3/matchable-e165.md`](../../docs/development/coding-standards/scala3/matchable-e165.md)
+for what those codes are and the correct fix).
 
 **Test file migration — `TestKit` → `ScalaTestWithActorTestKit`:**
 

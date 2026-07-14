@@ -38,7 +38,7 @@ looping/
   verify/
     compile.sh          sbt compile-all
     warnings.sh         no new @nowarn/@SuppressWarnings vs HEAD
-    tests.sh            fukuii-test tier or targeted suite
+    tests.sh            sbt-run.sh tier or targeted suite (background-safe)
     format.sh           sbt scalafmtCheck
     conformance.sh      diff vs spec repos + upstream client branches
   recipes/
@@ -184,7 +184,7 @@ Upstream-only (no overlay yet): go-ethereum, reth, erigon
 ## Build Report (Self-Verification)
 
 **Date:** 2026-06-24
-**Self-verify recipe:** self-verify (compile + format gates; tests gate excluded — 24 min)
+**Self-verify recipe:** self-verify (compile + format gates; tests gate excluded — long-running full suite, see `.local/docs/test-quality-log.md`)
 
 ### Verified
 
@@ -209,9 +209,10 @@ eye checker: CONFIRM:DONE
 ### Build commands confirmed against build.sbt
 
 - `sbt compile-all` — aggregate compile (confirmed; exits 0 on clean tree)
-- `sbt testEssential` — Tier 1 test task (3,595+ tests; 24 min warm JVM)
+- `sbt testEssential` — Tier 1 test task (long-running full suite; see `.local/docs/test-quality-log.md`'s `Tier baselines` table for the current test count/runtime)
 - `sbt scalafmtCheck` — format verify (confirmed; scalafmt plugin task)
-- `.local/scripts/fukuii-test` — wrapper script (confirmed at path)
+- `scripts/agent-tooling/sbt-run.sh` — background-safe sbt wrapper (confirmed at path; supersedes the
+  retired `fukuii-test`)
 
 ### Agent role map
 

@@ -45,11 +45,10 @@ done
 # 4. If refresh_refs: true, verify at least one ref repo is reachable
 REFRESH=$(grep '^refresh_refs:' "$RECIPE_FILE" | awk '{print $2}')
 if [ "$REFRESH" = "true" ]; then
-    # Check that the ECIPs repo exists as a basic proxy
-    ECIP_PATH="$(dirname "$LOOPING_DIR")/../.."
-    # Use the first client path from registry as a probe
-    if ! git -C /media/dev/2tb/dev/reference-clients-evm/besu rev-parse HEAD >/dev/null 2>&1; then
-        fail "ref-repos-unreachable:reference-clients-evm/besu"
+    # Use besu (first client path in registry.yaml's clients: list) as a reachability probe
+    BESU_PATH="$(dirname "$LOOPING_DIR")/repo-references/clients/besu"
+    if ! git -C "$BESU_PATH" rev-parse HEAD >/dev/null 2>&1; then
+        fail "ref-repos-unreachable:repo-references/clients/besu"
     fi
 fi
 

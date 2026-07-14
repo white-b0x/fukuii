@@ -66,17 +66,30 @@ refresh_repo "$REPO_ROOT/.claude/repo-references/hive"    upstream upstream
 refresh_repo "$REPO_ROOT/.claude/repo-references/pekko"   upstream upstream
 refresh_repo "$REPO_ROOT/.claude/repo-references/scala3"  upstream upstream
 
-# Reference EVM clients
-# Only the `upstream` branch is updated here.
-# main branches (ETC overlays for besu/core-geth/nethermind) are never touched.
-for client in besu core-geth nethermind go-ethereum reth erigon; do
-    CLIENT_PATH="/media/dev/2tb/dev/reference-clients-evm/$client"
+# Reference EVM clients — portable repo-relative copies, see agents/REFERENCES.md
+# "Reference EVM Clients" section for the clone convention.
+# Only the `upstream` branch is updated here (main branches / ETC overlays for
+# besu/nethermind are never touched by this script) — EXCEPT core-geth, see below.
+CLIENTS_DIR="$REPO_ROOT/.claude/repo-references/clients"
+for client in besu nethermind go-ethereum reth erigon; do
+    CLIENT_PATH="$CLIENTS_DIR/$client"
     if [ -d "$CLIENT_PATH" ]; then
         refresh_repo "$CLIENT_PATH" upstream upstream
     else
         printf 'WARN: skipping %s (not checked out)\n' "$CLIENT_PATH"
     fi
 done
+
+# core-geth SPECIAL CASE: its upstream (ethereumclassic/core-geth) is deprecated, no
+# changes since 2024 — refreshing it would be pointless. Refresh origin's main instead,
+# which is the actively maintained go1.26 Olympia modernization and the real ECIP
+# reference. This pulls YOUR OWN pushed changes to white-b0x/core-geth main.
+CORE_GETH_PATH="$CLIENTS_DIR/core-geth"
+if [ -d "$CORE_GETH_PATH" ]; then
+    refresh_repo "$CORE_GETH_PATH" origin main
+else
+    printf 'WARN: skipping %s (not checked out)\n' "$CORE_GETH_PATH"
+fi
 
 if [ "$FAILED" -eq 1 ]; then
     printf '\nERROR: one or more repos failed to refresh; do not run conformance gate\n' >&2

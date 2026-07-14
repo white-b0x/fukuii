@@ -1,0 +1,1 @@
+../../.agents/protocols/process/finding-resolution.md

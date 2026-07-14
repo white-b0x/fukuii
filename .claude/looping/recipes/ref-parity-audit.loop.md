@@ -2,8 +2,9 @@
 
 Pull all reference client upstream branches, compare Fukuii's implementation
 against current upstream behavior, and produce a drift report. Read-only. No code
-changes. Drift findings are recorded in SPRINT-QUEUE or DEFERRED-BACKLOG for
-follow-up via spec-conformance recipe instances.
+changes. Drift findings are recorded in `.claude/sprints/QUEUE.md` — as a new
+batch item if ready for the next sprint, or in its Chase & Deferred Items
+section if long-horizon — for follow-up via spec-conformance recipe instances.
 
 **When to reach for it:** Schedule weekly via `/loop 1w .claude/looping/bin/run-loop.sh ref-parity-audit`
 or run ad-hoc after an upstream reference client release. This is a poll recipe —
@@ -20,7 +21,7 @@ gates: [conformance]
 refresh_refs: true
 constraints:
   - read-only; no source code changes in this recipe
-  - audit findings must be written to DEFERRED-BACKLOG or SPRINT-QUEUE, not fixed inline
+  - audit findings must be written to .claude/sprints/QUEUE.md, not fixed inline
   - if drift is found, open a spec-conformance recipe instance to track and fix it
   - do not upgrade any dependency as part of this audit
 budget:
@@ -75,12 +76,10 @@ Orchestrator reads the conformance report and routes to each checker:
 ## Output
 
 Each checker produces a domain drift report in the ledger. The orchestrator
-consolidates into a single finding list and writes to:
-
-```
-working-docs/DEFERRED-BACKLOG.md   # for long-horizon items
-working-docs/SPRINT-QUEUE.md       # for items ready for next sprint
-```
+consolidates into a single finding list and writes to `.claude/sprints/QUEUE.md`:
+a new batch item if ready for the next sprint, or its Chase & Deferred Items
+section for long-horizon items — per `sprint-lifecycle.md` Rule 1, at the
+correct logical position, not appended blind.
 
 Per finding, record: surface, drift description, severity (CRITICAL/MEDIUM/LOW),
 and which spec-conformance recipe instance to create.

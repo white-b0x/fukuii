@@ -4,7 +4,7 @@ Migrate one Pekko Classic actor to Pekko Typed (Behaviors.receive, sealed Comman
 explicit replyTo, no sender()), clean compile, and passing tests.
 
 **When to reach for it:** For each remaining untyped actor in the migration queue.
-Consult `working-docs/SPRINT-QUEUE.md` for the ordered list of next migration targets.
+Consult `.claude/sprints/QUEUE.md` for the ordered list of next migration targets.
 Run one actor per loop invocation — loom is designed for single-actor sessions.
 
 ---
