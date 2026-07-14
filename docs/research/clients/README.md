@@ -21,7 +21,7 @@ clients + full git history). Do NOT rush to Phase 2.
 - **Phase 1c — second-wave deep questions** ✅ DONE (woven into 1b): **historical PoW/ETC** (`{client}/history-pow-etc.md` for geth/besu/erigon/nethermind; core-geth=baseline, reth=never-PoW) + **ETH68→72 wire commit-log evolution** (`topics/wire-protocol-evolution.md`, incl. the cross-client adoption matrix + ETH68 preservation for fukuii) + mining-protocol survey (`topics/mining-protocol-{evm,nonevm}.md`). Third-wave targeted follow-ups can still surface during Phase 2 — that's expected.
 - **Phase 1c-third-wave — extended slots 15–20** ✅ DONE (2026-07-13, the module-list gap audit): all 6 gap subsystems (block-production, accounts-signer, cl-engine, exec-extensions, historical-distribution, observability) documented across all 6 clients (36 docs; extended grid below full). **Phase 1 is now COMPLETE: 20 slots × 6 clients = 120 per-client docs + the topic surveys (§3a history, §3b wire, mining-protocol, consensus-methods catalog).**
 - **Phase 1c-third-wave — consensus-methods & network-types survey** ✅ DONE (operator 2026-07-13, "review for PoW/PoS/PoA/L2 + all network types, current + deprecated via git — all in scope for fukuii"): `topics/consensus-methods-catalog.md` (MASTER: 16 methods × 6 clients + fukuii DEFAULT/OPTIONAL/OBSOLETE verdicts) backed by `topics/consensus-poa-and-etc-testnets.md` (Clique/IBFT2/QBFT/AuRa + ETC Kotti dead PoA testnet), `topics/consensus-l2-rollup-sidechain.md` (Bor/OP/Taiko/Xdc/Gnosis), `topics/consensus-pow-cpu-dev-and-deprecated.md` (CPU-Ethash/dev-seal/faker + deprecated-PoW), `topics/pos-networks-and-testnets.md` (Sepolia/Hoodi/Holesky + deprecated testnets). Complements the ★`consensus-engines` + `multi-network` slots + §3a `history-pow-etc` with mechanism depth + full network inventory.
-- **Phase 2 — cross-client observations/comparison** (after 15–20) → `observations/{subsystem}.md` (durable, public), now 20 subsystems. align → best-practice; differ → *why* (language/runtime, performance, legacy-vs-modernized). Also crystallize the two cross-cutting themes noted below (Classic→Typed target; gRPC-seam = product-family + dRPC bridge).
+- **Phase 2 — cross-client observations/comparison** ✅ DONE (2026-07-13): all 20 `observations/{subsystem}.md` written + `observations/cross-cutting-themes.md` (the two crystallized themes: CSP/JVM→Pekko-Typed target; gRPC-seam = product-family + dRPC bridge). Each = comparison table + use-case-aware approach catalog (DEFAULT/OPTIONAL(role)/OBSOLETE) + best-practice synthesis + fukuii implications. ← **Phase 3 is next.**
 - **Phase 3 — fukuii snapshot** → `.local/docs/…` (fukuii evolves; snapshot goes stale).
 - **Phase 4 — alignment audit → modernization backlog** → `.local/docs/…` → new QUEUE items.
 
@@ -237,22 +237,25 @@ Status legend: ` ` = not started · `~` = in progress · `✓` = done. Update as
 | nethermind | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | reth | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-## Progress — Phase 2 (observations, per subsystem) — 6/20 done
-Status: ` ` = not started · `✓` = done (`observations/{slug}.md`).
+## Progress — Phase 2 (observations, per subsystem) — ✅ 20/20 COMPLETE (2026-07-13)
+All `observations/{slug}.md` written + the two cross-cutting-theme capstones. Ready for Phase 3.
 
 | Subsystem | Status | | Subsystem | Status |
 |-----------|:--:|---|-----------|:--:|
-| storage-persistence ★ | ✓ | | txpool |  |
-| consensus-engines ★ | ✓ | | networking-p2p |  |
-| sync ★ | ✓ | | rpc-api |  |
-| multi-network ★ | ✓ | | testing |  |
-| build-deps | ✓ | | node-lifecycle |  |
-| primitives | ✓ | | block-production (15) |  |
-| state-trie |  | | accounts-signer (16) |  |
-| evm |  | | cl-engine (17) |  |
-| block-execution |  | | exec-extensions (18) |  |
-| | | | historical-distribution (19) |  |
-| | | | observability (20) |  |
+| storage-persistence ★ | ✓ | | txpool | ✓ |
+| consensus-engines ★ | ✓ | | networking-p2p | ✓ |
+| sync ★ | ✓ | | rpc-api | ✓ |
+| multi-network ★ | ✓ | | testing | ✓ |
+| build-deps | ✓ | | node-lifecycle | ✓ |
+| primitives | ✓ | | block-production (15) | ✓ |
+| state-trie | ✓ | | accounts-signer (16) | ✓ |
+| evm | ✓ | | cl-engine (17) | ✓ |
+| block-execution | ✓ | | exec-extensions (18) | ✓ |
+| | | | historical-distribution (19) | ✓ |
+| | | | observability (20) | ✓ |
+
+**Cross-cutting theme capstones:** `observations/cross-cutting-themes.md` — (1) CSP/JVM structure →
+Pekko-Typed migration target; (2) the gRPC-seam = product-family + dRPC bridge.
 
 _Partial credit already banked (fold into the relevant cells when Phase 1 formally documents them): the B7.0
 engine-axis research already covers `consensus-engines` engine-selection for core-geth/besu/geth/erigon/
