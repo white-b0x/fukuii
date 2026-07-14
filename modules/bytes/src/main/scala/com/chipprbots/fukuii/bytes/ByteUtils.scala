@@ -4,11 +4,10 @@ import org.apache.pekko.util.ByteString
 
 /** Big-endian ↔ `BigInt` conversion, fixed-width padding, and bitwise byte-array plumbing.
   *
-  * These are the genuinely-generic byte operations the layers above depend on (the fixed-width value
-  * types here, plus `crypto`/`rlp`/`trie`). Ethereum treats all multi-byte integer material as
-  * unsigned big-endian, so every conversion below is unsigned — matching go-ethereum's
-  * `common.BigToBytes`/`common.BytesToBig` and `math/big` usage. Hot paths keep `while`/`var` for
-  * allocation and bounds-check economy; that is a performance idiom, not a Scala-2 idiom.
+  * These are the genuinely-generic byte operations the layers above depend on (the fixed-width value types here, plus
+  * `crypto`/`rlp`/`trie`). Ethereum treats all multi-byte integer material as unsigned big-endian, so every conversion
+  * below is unsigned — matching go-ethereum's `common.BigToBytes`/`common.BytesToBig` and `math/big` usage. Hot paths
+  * keep `while`/`var` for allocation and bounds-check economy; that is a performance idiom, not a Scala-2 idiom.
   */
 object ByteUtils:
 
@@ -28,9 +27,9 @@ object ByteUtils:
 
   /** Fixed-width, right-aligned big-endian bytes of a non-negative `BigInt`.
     *
-    * The value is placed in the low-order end of a `numBytes`-length array (zero-padded on the left);
-    * a value wider than `numBytes` keeps its least-significant `numBytes` bytes. Mirrors go-ethereum
-    * `math.PaddedBigBytes` / `common.LeftPadBytes`.
+    * The value is placed in the low-order end of a `numBytes`-length array (zero-padded on the left); a value wider
+    * than `numBytes` keeps its least-significant `numBytes` bytes. Mirrors go-ethereum `math.PaddedBigBytes` /
+    * `common.LeftPadBytes`.
     */
   def bigIntToBytes(b: BigInt, numBytes: Int): Array[Byte] =
     require(b >= 0, s"Cannot big-endian-encode a negative BigInt: $b")
@@ -42,8 +41,8 @@ object ByteUtils:
     System.arraycopy(src, src.length - len, out, numBytes - len, len)
     out
 
-  /** Minimal-length unsigned big-endian bytes (no leading zero / sign byte). `0` ⇒ empty array —
-    * the canonical RLP scalar form. Mirrors go-ethereum `math/big.Int.Bytes`.
+  /** Minimal-length unsigned big-endian bytes (no leading zero / sign byte). `0` ⇒ empty array — the canonical RLP
+    * scalar form. Mirrors go-ethereum `math/big.Int.Bytes`.
     */
   def bigIntToUnsignedBytes(b: BigInt): Array[Byte] =
     require(b >= 0, s"Cannot big-endian-encode a negative BigInt: $b")

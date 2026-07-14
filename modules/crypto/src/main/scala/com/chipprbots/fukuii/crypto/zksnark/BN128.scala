@@ -7,9 +7,9 @@ import com.chipprbots.fukuii.crypto.zksnark.FiniteField.*
 
 /** Barreto–Naehrig curve `Y² = X³ + b` over a finite field `T`, in Jacobian coordinates.
   *
-  * Curve arithmetic ported (for byte-behaviour) from libff's `alt_bn128_g1.cpp` and ethereumj's
-  * `BN128.java`. The EIP-196 (`ECADD`/`ECMUL`, address `0x06`/`0x07`) and EIP-197 (`ECPAIRING`,
-  * address `0x08`) precompiles are specified against this exact curve.
+  * Curve arithmetic ported (for byte-behaviour) from libff's `alt_bn128_g1.cpp` and ethereumj's `BN128.java`. The
+  * EIP-196 (`ECADD`/`ECMUL`, address `0x06`/`0x07`) and EIP-197 (`ECPAIRING`, address `0x08`) precompiles are specified
+  * against this exact curve.
   */
 sealed abstract class BN128[T: FiniteField]:
   val zero: Point[T] = Point(FiniteField[T].zero, FiniteField[T].zero, FiniteField[T].zero)
@@ -131,18 +131,17 @@ object BN128:
 
     /** Prime-order-`r` subgroup membership for a G2 twist point.
       *
-      * The twist `E'(Fp2)` has cofactor `> 1`, so being on-curve does not imply being in the
-      * order-`r` pairing subgroup. An on-curve-but-off-subgroup input would make `ECPAIRING`
-      * (`0x08`) return a pairing result differing from the reference client — a state-root split.
-      * A point is in the subgroup iff `[r]·P = ∞`. Byte-for-byte the check core-geth performs in
-      * `bn256/cloudflare/twist.go:60-62` (`cneg.Mul(c, Order); return cneg.z.IsZero()`) and gnark's
-      * `IsInSubGroup` (`bn256/gnark/g2.go:59`). G1 (cofactor 1) needs no such check.
+      * The twist `E'(Fp2)` has cofactor `> 1`, so being on-curve does not imply being in the order-`r` pairing
+      * subgroup. An on-curve-but-off-subgroup input would make `ECPAIRING` (`0x08`) return a pairing result differing
+      * from the reference client — a state-root split. A point is in the subgroup iff `[r]·P = ∞`. Byte-for-byte the
+      * check core-geth performs in `bn256/cloudflare/twist.go:60-62` (`cneg.Mul(c, Order); return cneg.z.IsZero()`) and
+      * gnark's `IsInSubGroup` (`bn256/gnark/g2.go:59`). G1 (cofactor 1) needs no such check.
       */
     def isInSubGroup(p: Point[Fp2]): Boolean =
       mul(p, R).isZero
 
-    /** A valid element of subgroup `G2`: a valid on-curve point over `Fp2` that additionally lies in
-      * the order-`r` subgroup. `None` if the point is invalid, off-curve, or off-subgroup.
+    /** A valid element of subgroup `G2`: a valid on-curve point over `Fp2` that additionally lies in the order-`r`
+      * subgroup. `None` if the point is invalid, off-curve, or off-subgroup.
       */
     def apply(a: ByteString, b: ByteString, c: ByteString, d: ByteString): Option[BN128G2] =
       createPoint(a, b, c, d).filter(isInSubGroup).map(BN128G2(_))

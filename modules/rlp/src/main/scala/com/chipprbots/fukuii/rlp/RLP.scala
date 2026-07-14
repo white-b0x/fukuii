@@ -25,8 +25,8 @@ private[rlp] object RLP:
   /** Upper bound on a single item's length (`256^8`). */
   private val MaxItemLength: Double = math.pow(256, 8)
 
-  /** Widest length-of-length the JVM can address: a payload length wider than 4 bytes overflows an `Int`
-    * array index, so a long-form header declaring a longer length field is rejected (besu
+  /** Widest length-of-length the JVM can address: a payload length wider than 4 bytes overflows an `Int` array index,
+    * so a long-form header declaring a longer length field is rejected (besu
     * `RLPDecodingHelpers.extractSizeFromLongItem`, geth `rlp/raw.go` `ErrValueTooLarge`).
     */
   private val MaxLengthOfLength: Int = Integer.BYTES
@@ -118,10 +118,10 @@ private[rlp] object RLP:
           ((data(offset + 2) & 0xff) << 8) + (data(offset + 3) & 0xff)
       case _ => throw RLPException("Bytes don't represent an int")
 
-  /** Read a big-endian item-header length field spanning `len` bytes (`len <= MaxLengthOfLength`) as an
-    * unsigned `Long`. Carrying the length in `Long` keeps a 4-byte length with the high bit set positive
-    * (a signed `Int` read would wrap negative, J-RLP-3) and lets the caller range-check the payload end in
-    * a non-overflowing type before any `Int` truncation (J-RLP-1) — the besu `Math.toIntExact` gate.
+  /** Read a big-endian item-header length field spanning `len` bytes (`len <= MaxLengthOfLength`) as an unsigned
+    * `Long`. Carrying the length in `Long` keeps a 4-byte length with the high bit set positive (a signed `Int` read
+    * would wrap negative, J-RLP-3) and lets the caller range-check the payload end in a non-overflowing type before any
+    * `Int` truncation (J-RLP-1) — the besu `Math.toIntExact` gate.
     */
   private def bigEndianLengthToLong(data: Array[Byte], offset: Int, len: Int): Long =
     var result = 0L

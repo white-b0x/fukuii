@@ -61,8 +61,16 @@ class ByteUtilsSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     intercept[IllegalArgumentException](ByteUtils.xor(Array[Byte](1), Array[Byte](1, 2)))
 
   test("or / and combine equal-length arrays"):
-    assert(ByteUtils.or(Array(0x01, 0x00).map(_.toByte), Array(0x00, 0x02).map(_.toByte)).sameElements(Array[Byte](0x01, 0x02)))
-    assert(ByteUtils.and(Array(0x0f, 0xff).map(_.toByte), Array(0x01, 0x0f).map(_.toByte)).sameElements(Array[Byte](0x01, 0x0f)))
+    assert(
+      ByteUtils
+        .or(Array(0x01, 0x00).map(_.toByte), Array(0x00, 0x02).map(_.toByte))
+        .sameElements(Array[Byte](0x01, 0x02))
+    )
+    assert(
+      ByteUtils
+        .and(Array(0x0f, 0xff).map(_.toByte), Array(0x01, 0x0f).map(_.toByte))
+        .sameElements(Array[Byte](0x01, 0x0f))
+    )
 
   test("or / and reject a length mismatch and an empty varargs"):
     intercept[IllegalArgumentException](ByteUtils.or(Array[Byte](1), Array[Byte](1, 2)))

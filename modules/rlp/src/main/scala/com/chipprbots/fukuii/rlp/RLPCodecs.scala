@@ -21,11 +21,10 @@ import com.chipprbots.fukuii.rlp.RLP.*
   */
 object RLPCodecs:
 
-  /** Enforce the RLP canonical-integer rule on a scalar's decoded bytes: a minimal-length big-endian
-    * scalar has no leading zero byte (and `0` is the empty string, never `0x00`). Byte-for-byte the
-    * `ErrCanonInt` rejection go-ethereum applies in `rlp/decode.go:750` (single `0x00` byte) and
-    * `rlp/decode.go:883,923` (`len(buffer) > 0 && buffer[0] == 0`). Encode is already minimal; this
-    * closes the lenient decode path.
+  /** Enforce the RLP canonical-integer rule on a scalar's decoded bytes: a minimal-length big-endian scalar has no
+    * leading zero byte (and `0` is the empty string, never `0x00`). Byte-for-byte the `ErrCanonInt` rejection
+    * go-ethereum applies in `rlp/decode.go:750` (single `0x00` byte) and `rlp/decode.go:883,923` (`len(buffer) > 0 &&
+    * buffer[0] == 0`). Encode is already minimal; this closes the lenient decode path.
     */
   private def requireMinimalScalar(bytes: Array[Byte], rlp: RLPEncodeable): Unit =
     if bytes.length > 0 && bytes(0) == (0: Byte) then

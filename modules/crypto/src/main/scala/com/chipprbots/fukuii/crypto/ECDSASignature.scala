@@ -56,10 +56,10 @@ object ECDSASignature:
 
   /** Sign a 32-byte message hash with a key pair.
     *
-    * Deterministic-`k` (RFC-6979) via `HMacDSAKCalculator(SHA256Digest)` — identical `k`, and thus
-    * identical `(r, s)`, to go-ethereum's decred/libsecp256k1 signer for the same key and hash. `s`
-    * is canonicalised to the low half (EIP-2, [[toCanonicalS]]) to reject signature malleability,
-    * and the recovery id `v` is computed as the point sign (27/28) that recovers this key.
+    * Deterministic-`k` (RFC-6979) via `HMacDSAKCalculator(SHA256Digest)` — identical `k`, and thus identical `(r, s)`,
+    * to go-ethereum's decred/libsecp256k1 signer for the same key and hash. `s` is canonicalised to the low half
+    * (EIP-2, [[toCanonicalS]]) to reject signature malleability, and the recovery id `v` is computed as the point sign
+    * (27/28) that recovers this key.
     */
   def sign(messageHash: Array[Byte], keyPair: AsymmetricCipherKeyPair): ECDSASignature =
     require(
@@ -77,10 +77,10 @@ object ECDSASignature:
     )
     ECDSASignature(r, s, v)
 
-  /** Canonicalise `s` to the low half of the curve order (EIP-2 malleability rejection). For every
-    * valid signature `(r, s)`, `(r, N - s)` is also valid; consensus accepts only the one with
-    * `s <= N/2`. Mirrors go-ethereum's `s.IsOverHalfOrder()` reject in `crypto/signature_nocgo.go`
-    * and the `ValidateSignatureValues` low-S check in `crypto/crypto.go:246`.
+  /** Canonicalise `s` to the low half of the curve order (EIP-2 malleability rejection). For every valid signature `(r,
+    * s)`, `(r, N - s)` is also valid; consensus accepts only the one with `s <= N/2`. Mirrors go-ethereum's
+    * `s.IsOverHalfOrder()` reject in `crypto/signature_nocgo.go` and the `ValidateSignatureValues` low-S check in
+    * `crypto/crypto.go:246`.
     */
   def toCanonicalS(s: BigInt): BigInt =
     if s > halfCurveOrder then BigInt(curve.getN) - s else s
@@ -101,11 +101,10 @@ object ECDSASignature:
 
   /** Recover the 64-byte (prefix-dropped) public key from a signature and message hash.
     *
-    * `recId` is the ECDSA point sign (27 or 28). Returns `None` when the recovery id is out of
-    * range, when `r` is not a valid x-coordinate, or when the reconstructed point fails the order
-    * check — never throws. This is also the verification path: a signature verifies iff it recovers
-    * the expected public key. EIP-155 chain-id encoding of `v` is unwound by the caller (the
-    * `domain` transaction layer) back to a 27/28 point sign before this is called.
+    * `recId` is the ECDSA point sign (27 or 28). Returns `None` when the recovery id is out of range, when `r` is not a
+    * valid x-coordinate, or when the reconstructed point fails the order check — never throws. This is also the
+    * verification path: a signature verifies iff it recovers the expected public key. EIP-155 chain-id encoding of `v`
+    * is unwound by the caller (the `domain` transaction layer) back to a 27/28 point sign before this is called.
     */
   def recoverPubBytes(r: BigInt, s: BigInt, recId: Byte, messageHash: Array[Byte]): Option[Array[Byte]] =
     Try {
@@ -149,14 +148,13 @@ object ECDSASignature:
   * @param s
   *   the signature proper; canonicalised low-S for signatures this client produces.
   * @param v
-  *   recovery value — either a bare point sign (27/28), a typed-tx yParity (0/1), or an EIP-155
-  *   protected value `chainId*2 + 35 + {0,1}`. The `domain` layer unwinds the EIP-155 form to a
-  *   27/28 point sign before recovery.
+  *   recovery value — either a bare point sign (27/28), a typed-tx yParity (0/1), or an EIP-155 protected value
+  *   `chainId*2 + 35 + {0,1}`. The `domain` layer unwinds the EIP-155 form to a 27/28 point sign before recovery.
   */
 case class ECDSASignature(r: BigInt, s: BigInt, v: BigInt):
 
-  /** Recover the signer's 64-byte public key (also the verification path). `v` must be a bare point
-    * sign (27/28) here — EIP-155 unwinding happens one layer up.
+  /** Recover the signer's 64-byte public key (also the verification path). `v` must be a bare point sign (27/28) here —
+    * EIP-155 unwinding happens one layer up.
     */
   def publicKey(messageHash: Array[Byte]): Option[Array[Byte]] =
     ECDSASignature.recoverPubBytes(r, s, v.toByte, messageHash)
@@ -165,8 +163,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: BigInt):
   def publicKey(messageHash: ByteString): Option[ByteString] =
     ECDSASignature.recoverPubBytes(r, s, v.toByte, messageHash.toArray).map(ByteString(_))
 
-  /** The 65-byte `r || s || v` encoding: each of `r`/`s` as fixed-width 32-byte big-endian, then
-    * the low byte of `v`.
+  /** The 65-byte `r || s || v` encoding: each of `r`/`s` as fixed-width 32-byte big-endian, then the low byte of `v`.
     */
   def toBytes: ByteString =
     ByteString(ByteUtils.bigIntToBytes(r, ECDSASignature.RLength)) ++

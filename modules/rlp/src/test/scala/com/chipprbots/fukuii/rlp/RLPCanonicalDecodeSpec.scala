@@ -6,10 +6,10 @@ import com.chipprbots.fukuii.bytes.Hex
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
 
-/** Canonical-decode enforcement — the strict-decode rules go-ethereum applies in `rlp/raw.go` and
-  * `rlp/decode.go`. Old fukuii inherited Mantis's lenient decoder, which accepted these non-canonical
-  * encodings; a lenient decoder is a network-partition / consensus-divergence vector, so each of these
-  * must be rejected. Vectors are named after `ethereum/tests/RLPTests/invalidRLPTest.json`.
+/** Canonical-decode enforcement — the strict-decode rules go-ethereum applies in `rlp/raw.go` and `rlp/decode.go`. Old
+  * fukuii inherited Mantis's lenient decoder, which accepted these non-canonical encodings; a lenient decoder is a
+  * network-partition / consensus-divergence vector, so each of these must be rejected. Vectors are named after
+  * `ethereum/tests/RLPTests/invalidRLPTest.json`.
   */
 class RLPCanonicalDecodeSpec extends AnyFunSuite:
 

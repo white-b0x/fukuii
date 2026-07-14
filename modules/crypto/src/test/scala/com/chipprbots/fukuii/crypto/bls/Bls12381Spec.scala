@@ -50,8 +50,8 @@ class Bls12381Spec extends AnyFunSuite:
         case Left(err)  => fail(s"vector ${v.name} unexpectedly failed: $err")
     }
 
-  /** Assert the native backend rejects every malformed vector in a `fail-*.json` set (wrong length,
-    * off-curve, non-canonical field element, off-subgroup) instead of returning a wrong answer.
+  /** Assert the native backend rejects every malformed vector in a `fail-*.json` set (wrong length, off-curve,
+    * non-canonical field element, off-subgroup) instead of returning a wrong answer.
     */
   private def checkFailure(resource: String, run: Array[Byte] => Either[String, Array[Byte]]): Unit =
     val vecs = loadVectors(resource)

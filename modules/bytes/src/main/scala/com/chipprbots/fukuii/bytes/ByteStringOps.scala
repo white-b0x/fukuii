@@ -4,9 +4,9 @@ import org.apache.pekko.util.ByteString
 
 /** Scala 3 `extension`-based helpers over Pekko `ByteString`, plus its canonical unsigned ordering.
   *
-  * Replaces the old fukuii `implicit class` forms (`ByteStringOps`/`Padding`) with `extension`
-  * methods and a named `given`. `import ByteStringOps.given` brings the ordering into scope;
-  * `import ByteStringOps.*` brings the extension methods in.
+  * Replaces the old fukuii `implicit class` forms (`ByteStringOps`/`Padding`) with `extension` methods and a named
+  * `given`. `import ByteStringOps.given` brings the ordering into scope; `import ByteStringOps.*` brings the extension
+  * methods in.
   */
 object ByteStringOps:
 
@@ -29,9 +29,9 @@ object ByteStringOps:
 
   /** Lexicographic ordering treating each byte as **unsigned** (0..255).
     *
-    * Ethereum orders byte material unsigned (address sorting in access lists, trie key nibbles,
-    * withdrawal ordering), so `0xff` sorts after `0x01`. Scala's default `Ordering[Seq[Byte]]`
-    * compares bytes *signed* (`0xff` = -1 sorts first) — a latent consensus footgun this avoids.
+    * Ethereum orders byte material unsigned (address sorting in access lists, trie key nibbles, withdrawal ordering),
+    * so `0xff` sorts after `0x01`. Scala's default `Ordering[Seq[Byte]]` compares bytes *signed* (`0xff` = -1 sorts
+    * first) — a latent consensus footgun this avoids.
     */
   given byteStringOrdering: Ordering[ByteString] with
     def compare(a: ByteString, b: ByteString): Int =

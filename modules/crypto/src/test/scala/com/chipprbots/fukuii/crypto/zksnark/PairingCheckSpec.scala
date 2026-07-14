@@ -12,9 +12,8 @@ import com.chipprbots.fukuii.crypto.zksnark.PairingCheck.G1G2Pair
 
 /** Optimal ate pairing over BN128 — the EIP-197 `ECPAIRING` predicate.
   *
-  * Uses the standard alt-bn128 generators: G1 = (1, 2), G2 the canonical twist generator. The core
-  * bilinearity property `e(P, Q) · e(-P, Q) = 1` gives a self-checking pairing vector without a
-  * hard-coded `Fp12` target value.
+  * Uses the standard alt-bn128 generators: G1 = (1, 2), G2 the canonical twist generator. The core bilinearity property
+  * `e(P, Q) · e(-P, Q) = 1` gives a self-checking pairing vector without a hard-coded `Fp12` target value.
   */
 class PairingCheckSpec extends AnyFunSuite:
 
