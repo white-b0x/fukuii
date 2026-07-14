@@ -35,10 +35,12 @@ Seven pieces:
 
 ## Design decisions & empirical logic
 
-### 1. Pure BouncyCastle is the default backend; the native fast-path is a deferred OPTIONAL(role)
+### 1. The `CryptoBackend` seam is built, pure BouncyCastle its sole impl; the native fast-path is a deferred OPTIONAL(role) occupancy
 
-The whole module is a single **pure-JVM BouncyCastle** implementation. No native JNI dependency is
-added at L0.
+The crypto is a **pure-JVM BouncyCastle** implementation reached through a built `CryptoBackend` seam
+(`CryptoBackend.scala`) — one API (`keccak256`/`sign`/`recoverPublicKey`/`pairingCheck`) with the pure
+path as the sole, immutable-`given` default impl. No native JNI dependency is added at L0 for the
+classic primitives.
 
 **Empirical logic:** `observations/primitives.md` records the native+pure dual backend as
 **OPTIONAL(role: validator/archival/mining-pool throughput vs enterprise single-binary
@@ -47,12 +49,19 @@ observation is explicit that the native path is a role-sized optimization whose 
 divergent-code correctness surface (the two paths must be output-identical — e.g. the pure path
 must re-add the low-S malleability check the native libsecp256k1 does for free). For an L0
 foundation whose first job is *correctness* and *"the enterprise single-binary builds and runs
-everywhere"*, pure BouncyCastle is the right default. The native seam is left as a documented future
-option (see Deferred), sized to fukuii's mining-pool/archival roles when those land — added behind
-one API with the pure path as the guaranteed fallback, never as a silent divergence.
+everywhere"*, pure BouncyCastle is the right default. Per the operator decision on RX-L0-19
+(2026-07-14), the **seam is built now** (`CryptoBackend` trait, pure-BouncyCastle sole impl) rather
+than left as a documented future option — because retrofitting it later would touch every
+sign/hash/pair call site (a rewrite), whereas a native fast-path *occupancy* sized to fukuii's
+mining-pool/archival roles is cheap to add behind the existing API when those roles land, with the
+pure path as the guaranteed byte-identical fallback (a differential native-vs-pure KAT gates it),
+never a silent divergence. `CryptoBackendSpec` proves the pure path is a transparent pass-through
+today (the same KAT shape that will prove `native == pure` later); forge co-signed the byte-identity.
 
 This matches old fukuii's actual shape (single pure-JVM hot path; native JNI only for BLS/KZG),
-which the observation already classified as consistent with the OPTIONAL(role) reading.
+which the observation already classified as consistent with the OPTIONAL(role) reading — now with the
+selection seam made explicit and R2-safe (immutable `given` default, no global-mutable-static
+`switchInstance` anti-pattern).
 
 ### 2. Thread-local Keccak digest reuse, documented byte-identical
 
@@ -132,8 +141,12 @@ Three guard classes are retained from old fukuii, each tied to its CVE:
 - **ECIES truncation reject** (CVE-2026-22862) — a ciphertext shorter than `ephemeralKey(65) +
   IV(16) + MAC(32) + 1` is rejected before parsing; the MAC-length lower bound is checked in
   `decryptBlock`.
-- **Constant-time MAC comparison** — `Arrays.constantTimeAreEqual` on the ECIES MAC, no timing
-  oracle.
+- **Constant-time MAC comparison** — the ECIES MAC compare routes through the exposed L0
+  `constantTimeEquals` primitive (`ConstantTime.scala`, wrapping BouncyCastle
+  `Arrays.constantTimeAreEqual`), no timing oracle. Exposing it as a callable L0 symbol (RX-L0-16) —
+  rather than an inline call — gives the future L8 keystore-MAC and L9 JWT/auth consumers **one
+  audited constant-time surface** to import and a single lint target (no `==`/`sameElements` at
+  secret sites); the L6 per-frame integrity MAC stays a plain compare by design (non-secret).
 
 **Empirical logic:** these are not new work — they are the security surface of the RLPx handshake
 and the EVM precompiles, and dropping any of them in a "clean rewrite" would be a silent
@@ -207,7 +220,8 @@ byte-for-byte check per operation, including the pairing-identity `e(0,0) → 0�
 | `package object crypto` holding ~30 defs | Top-level defs across focused files (`Keccak`, `Hashes`, `Secp256k1`, …) | No god-object package; each primitive discoverable in its own file |
 | `com.chipprbots.ethereum.utils.ByteUtils` (old grab-bag) | `com.chipprbots.fukuii.bytes.ByteUtils` (L0 leaf) | Clean L0→L0 edge; no dependency on a higher `utils` package |
 | Raw `Array[Byte]` address derivation, ad hoc | `pubKeyToAddress → bytes.Address` (typed) | Type-distinct `Address`, byte-exact to `crypto.PubkeyToAddress` |
-| Native/pure backend split implicit (BLS/KZG native, rest pure), undocumented as a decision | Pure default **stated** as the OPTIONAL(role) choice; native seam a documented deferral | The backend strategy is now a recorded decision, not an accident |
+| Native/pure backend split implicit (BLS/KZG native, rest pure), no seam, undocumented as a decision | `CryptoBackend` seam **built** (one API, pure-BC sole impl, immutable `given`/R2-safe); native fast-path occupancy OPTIONAL(role) behind it | Adding a native backend later is a config swap, not a call-site rewrite; the strategy is a recorded, byte-identity-gated decision |
+| Constant-time MAC compare inline (`Arrays.constantTimeAreEqual` at the call site only) | Exposed L0 `constantTimeEquals` primitive; ECIES MAC re-pointed to it | One audited constant-time surface + a single lint target for the L8/L9 secret-compare consumers (RX-L0-16) |
 | CVE guards present but scattered | Same guards, each with its CVE cited at the guard site | Auditable security surface |
 | alt-bn128 G2 input validated **on-curve only** — no order-`r` subgroup check | `BN128G2` enforces `[r]·P = ∞` (G2 path only), byte-exact to core-geth `twist.go` / geth gnark `IsInSubGroup` | Closes an `ECPAIRING` state-root split on an on-curve-off-subgroup G2 point |
 | **BLS12-381 native calls inlined at the precompile site** (`vm/PrecompiledContracts.scala`) | `bls.Bls12381` — a first-class L0 primitive, peer of BN128/KZG; only the precompile wrapper is `evm` L3 | Cryptographic primitive no longer entangled with EVM gas/dispatch — correct layering |
@@ -242,9 +256,11 @@ _Durable placement decisions — not build-status (see the README index for what
 
 ## Verification
 
-`sbt "crypto/compile" "crypto/Test/compile" "crypto/testOnly com.chipprbots.fukuii.crypto.*"` —
-**63 tests green** (43 core + 20 KZG/BLS), **zero compiler warnings on main sources** under the
-strict flags (`-Wunused:all`, `-Wconf:id=E198:error`, `-Wconf:cat=unchecked:error`). Core coverage:
+`sbt "crypto/Test/testOnly *"` — the full `crypto` suite green (core + KZG/BLS + the
+`ConstantTimeSpec` and `CryptoBackendSpec` added for RX-L0-16/19: `constantTimeEquals`
+equal/unequal/length-mismatch, and the property-based `CryptoBackend` pure-pass-through byte-identity
+across keccak/sign/recover/pairing), **zero compiler warnings on main sources** under the strict
+flags (`-Wunused:all`, `-Wconf:id=E198:error`, `-Wconf:cat=unchecked:error`). Core coverage:
 keccak256/512 byte vectors + per-call-oracle parity + reset-after-abort + concurrency/
 thread-confinement; sha256/ripemd160 known-answer vectors; ECDSA sign→verify→recover round-trip,
 low-S canonical, RFC-6979 determinism, the go-ethereum recovery vectors, and `r||s||v` encode
@@ -258,5 +274,7 @@ map-to-curve), the pairing-identity word, and `fail-*` malformed-input rejection
 
 _(The test specs carry the same `-Wnonunit-statement` "unused Assertion" warnings the `bytes`/`rlp`
 specs do — the documented multiple-`assert`-per-test ScalaTest pattern, warning-level only, not
-applied to main sources; see `build.sbt`. Test discovery note: plain `sbt crypto/test` reports 0
-tests under sbt 2.0.2, a repo-wide quirk; `testOnly` with a wildcard is the working path.)_
+applied to main sources; see `build.sbt`. Test discovery note: under sbt 2.0.2 `<module>/Test/test`
+delegates to `testQuick` and can report a false 0-test pass on a warm `target/`; the push-gate
+aliases were rewritten to `testOnly *` to force real execution (commit `735b0607a`), so
+`sbt "crypto/Test/testOnly *"` is the reliable path.)_

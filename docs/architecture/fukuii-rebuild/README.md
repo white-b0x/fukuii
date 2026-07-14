@@ -74,12 +74,20 @@ lives in `.local/docs/phase4/target-architecture.md` and `_phase3-findings-rollu
 
 | Doc | Covers | Commit |
 |---|---|---|
-| [`00-repo-setup.md`](00-repo-setup.md) | Clean-slate: layering, build config, dep floor, sbt-2, keep/clear | `7d2d2ae72` |
-| [`01-L0-primitives.md`](01-L0-primitives.md) | `bytes`, `common` — value types + byte utils | `b8c064ef6` |
-| [`02-L0-rlp.md`](02-L0-rlp.md) | `rlp` — working `derives` codecs + byte engine | `fd29ca578` |
-| [`03-L0-crypto.md`](03-L0-crypto.md) | `crypto` — keccak, secp256k1 ECDSA, alt-bn128, ECIES | — |
+| [`00-repo-setup.md`](00-repo-setup.md) | Clean-slate: layering, build config, dep floor, sbt-2, keep/clear | `dc7e32c61`…`39e8fd6ed` |
+| [`01-L0-primitives.md`](01-L0-primitives.md) | `bytes`, `common` — value types + byte utils | `77da1da62` |
+| [`02-L0-rlp.md`](02-L0-rlp.md) | `rlp` — working `derives` codecs + byte engine | `77da1da62` |
+| [`03-L0-crypto.md`](03-L0-crypto.md) | `crypto` — keccak, secp256k1 ECDSA, alt-bn128, ECIES, KZG/BLS, `CryptoBackend` seam, `constantTimeEquals` | `77da1da62`, `6f922f0aa` |
 | `04-L1-domain.md` | `domain` — (pending) | — |
 | … | L2→L10 as built | — |
+
+**Note — commit SHAs are the `fukuii-rebuild` curated foundation series.** L0 was first built on the
+`july-mod-sprint` planning branch, then the clean cut off `upstream/staging` collapsed that granular
+history into an ordered foundation series (see [`plan/migration-runbook.md`](plan/migration-runbook.md)),
+so the per-doc SHAs above are coarser than the original per-file commits (all L0 modules land in the
+foundation `77da1da62`). L0 close-out also carries `735b0607a` (sbt-2 test-gate fix) and `b8c4040a8`
+(scalafmt reflow to current config). The pre-cut SHAs are preserved on `july-mod-sprint` /
+`backup/july-mod-sprint-pre-rebuild`.
 
 Each doc records: **scope**, **design decisions** with **empirical logic** (which observation
 DEFAULT / which reference client), **improvements over old fukuii**, and a **Layer boundaries**

@@ -151,5 +151,7 @@ lists, integer scalars), round-trips for every base type and the `bytes` value t
 minimal-length scalar encoding, `Address`/`Hash` full-width encoding, EIP-2718 `PrefixedRLPEncodable`
 serialization, and strict-decode rejection of trailing bytes.
 
-_(Test discovery note: plain `sbt rlp/test` reports 0 tests — a repo-wide sbt-2.0.2 quirk affecting
-every module, including `bytes`; `testOnly` with a wildcard is the working discovery path.)_
+_(Test discovery note: under sbt 2.0.2 `<module>/Test/test` delegates to `testQuick` and can report a
+false 0-test pass on a warm `target/`, a repo-wide quirk; the push-gate aliases were rewritten to
+`testOnly *` to force real execution (commit `735b0607a`), so `sbt "rlp/Test/testOnly *"` is the
+reliable path.)_

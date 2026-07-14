@@ -89,8 +89,12 @@ Two **false-green build regressions** were caught and fixed at the cutover (sbt-
 resolution): `IntegrationTest/` → `It/`, and — more seriously — a bare `<module>/test` was silently
 resolving to a **0-test no-op**, which would have made `testEssential`/`testAll` report success
 while running nothing (the same class of bug the Systemic Review flagged as REPO-06). Every alias
-now scopes through `Test /` explicitly. Full per-dependency audit + the drop-audit table:
-`.local/docs/phase4/dep-build-floor-proposal.md`.
+now scopes through `Test /` explicitly — **but that alone was not sufficient**: under sbt 2.0.2
+`<module>/Test/test` itself delegates to `testQuick`, which skips suites whose sources are unchanged
+against a warm `target/` skip-cache, so the push-gate aliases could still report a 0-test false pass.
+The L0 validation gate caught this residual; the aliases (`testEssential`/`testAll`/`testStandard`)
+were rewritten to `testOnly *` to force real execution (commit `735b0607a`). Full per-dependency
+audit + the drop-audit table: `.local/docs/phase4/dep-build-floor-proposal.md`.
 
 ## Kept vs cleared
 

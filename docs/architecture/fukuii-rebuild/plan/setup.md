@@ -134,8 +134,10 @@ Setup is done when:
 - **Dependency changes are sentinel-gated** — no unilateral bumps; evidence-based, CVE-safe versions only.
 - **The supply-chain gate has no sbt-native equivalent** — it needs design (a custom sbt task snapshotting +
   verifying resolved-artifact SHA-256, or a vetted Coursier plugin); sentinel owns it.
-- **sbt-2 cutover risk** — plugin compatibility (the `<module>/test` false-green quirk is a live sbt-2 gotcha;
-  warden's BUILD-1 fix); stage it, don't rush the GA cut.
+- **sbt-2 cutover risk** — plugin compatibility (the `<module>/test` false-green quirk; the cutover's
+  `Test /` scoping was necessary but **not sufficient** — a residual `test`≡`testQuick` skip-cache
+  false-green survived it and was caught by the L0 gate, fixed by rewriting the push-gate aliases to
+  `testOnly *` in `735b0607a`); stage it, don't rush the GA cut.
 
 ## 10. Agentic alignment (F13 — the initial full reconciliation; step 5 for setup)
 
