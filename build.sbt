@@ -69,7 +69,20 @@ val scala3Options = Seq(
   "-Xmax-inlines:64" // Increase inline depth limit for complex boopickle/circe derivations
 )
 
-def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
+// Scapegoat-successor warnings (sbt-2 cutover dropped sbt-scapegoat, no sbt-2 artifact exists —
+// see project/plugins.sbt). Compile-only, not applied to Test: empirically verified against
+// modules/bytes + modules/common — zero warnings on main code, but 46 warnings on ScalaTest specs
+// where a mid-block `assert(...)`/`intercept[...](...)` call's non-Unit result is idiomatically
+// discarded (multiple assertions per test body is normal ScalaTest style, not a bug) — the same
+// "too many false positives on this specific pattern" tradeoff that led this project to disable
+// scapegoat's UnsafeTraversableMethods inspection. Warning-level only, not yet promoted to error
+// via -Wconf — that's a future warning-ratchet decision, not part of this build-tool cutover.
+val scala3CompileOnlyOptions = Seq(
+  "-Wvalue-discard", // flags discarded non-Unit expression results ~ scapegoat-class "ignored computation" bugs
+  "-Wnonunit-statement" // flags non-Unit statements whose value is silently dropped in a block
+)
+
+def commonSettings(projectName: String): Seq[sbt.Def.Setting[?]] = Seq(
   name := projectName,
   organization := "com.chipprbots",
   scalaVersion := `scala-3`,
@@ -95,6 +108,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     val optimizations = if (fukuiiDev) Seq.empty else scala3OptimizationsForProd
     base ++ scala3Options ++ optimizations
   },
+  (Compile / scalacOptions) ++= scala3CompileOnlyOptions,
   (Compile / console / scalacOptions) ~= (_.filterNot(
     Set(
       "-Xfatal-warnings"
@@ -117,7 +131,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   // Ensure JUnit XML report directory exists after `sbt clean` deletes it (forked JVM writes there)
   (Test / testOptions) += {
     val reportsDir = (Test / target).value / "test-reports"
-    Tests.Setup(_ => IO.createDirectory(reportsDir))
+    Tests.Setup(() => IO.createDirectory(reportsDir))
   },
   // Only publish selected libraries.
   (publish / skip) := true
@@ -320,9 +334,9 @@ lazy val rpc = project
     libraryDependencies ++=
       Dependencies.pekko ++
         Dependencies.pekkoHttp ++
-        Dependencies.circe ++
-        Dependencies.json4s ++
-        Dependencies.sangria ++
+        Dependencies.circe ++ // sole JSON codec — json4s consolidated out, see Dependencies.scala
+        // GraphQL: Caliban + caliban-pekko-http (successor to Sangria, removed) — dep-add
+        // deferred to when this module is actually built, see Dependencies.scala
         Dependencies.cats ++
         Dependencies.testing
   )
@@ -354,13 +368,11 @@ lazy val node = {
       Dependencies.enumeratum,
       Dependencies.fs2,
       Dependencies.guava,
-      Dependencies.json4s,
       Dependencies.logging,
       Dependencies.micrometer,
       Dependencies.network,
       Dependencies.prometheus,
       Dependencies.rocksDb,
-      Dependencies.sangria,
       Dependencies.scaffeine,
       Dependencies.scopt,
       Dependencies.testing
@@ -388,7 +400,10 @@ lazy val node = {
         BuildInfoKey.action("gitCurrentTags")(git.gitCurrentTags.?.value.getOrElse(Seq.empty).mkString(",")),
         BuildInfoKey.action("gitDescribedVersion")(git.gitDescribedVersion.?.value.flatten.getOrElse("unknown")),
         BuildInfoKey.action("gitUncommittedChanges")(git.gitUncommittedChanges.?.value.getOrElse(false)),
-        (Compile / libraryDependencies)
+        // Under sbt 2 / Scala 3.8.4, a scoped `SettingKey` (`Compile / libraryDependencies`) no
+        // longer picks up sbt-buildinfo's implicit SettingKey->BuildInfoKey conversion the way a
+        // bare key does — made explicit via BuildInfoKey.action, matching the other custom keys above.
+        BuildInfoKey.action("libraryDependencies")((Compile / libraryDependencies).value)
       ),
       buildInfoPackage := "com.chipprbots.fukuii",
       (Test / fork) := true,
@@ -401,7 +416,7 @@ lazy val node = {
       (Compile / unmanagedSourceDirectories) := Seq(baseDirectory.value / "modules" / "node" / "src" / "main" / "scala"),
       (Test / unmanagedSourceDirectories) := Seq(baseDirectory.value / "modules" / "node" / "src" / "test" / "scala")
     )
-    .settings(commonSettings("fukuii"): _*)
+    .settings(commonSettings("fukuii")*)
     .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
     .settings(inConfig(Evm)(scalafixConfigSettings(Evm)))
     .settings(inConfig(Rpc)(scalafixConfigSettings(Rpc)))
@@ -411,10 +426,10 @@ lazy val node = {
     .settings(
       executableScriptName := name.value
     )
-    .settings(inConfig(Integration)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
-    .settings(inConfig(Benchmark)(Defaults.testSettings :+ (Test / parallelExecution := true)): _*)
-    .settings(inConfig(Evm)(Defaults.testSettings :+ (Test / parallelExecution := true)): _*)
-    .settings(inConfig(Rpc)(Defaults.testSettings :+ (Test / parallelExecution := true)): _*)
+    .settings(inConfig(Integration)(Defaults.testSettings :+ (Test / parallelExecution := false))*)
+    .settings(inConfig(Benchmark)(Defaults.testSettings :+ (Test / parallelExecution := true))*)
+    .settings(inConfig(Evm)(Defaults.testSettings :+ (Test / parallelExecution := true))*)
+    .settings(inConfig(Rpc)(Defaults.testSettings :+ (Test / parallelExecution := true))*)
     .settings(
       // Packaging
       maintainer := "chippr-robotics@github.com",
@@ -498,7 +513,7 @@ addCommandAlias(
     |; compile
     |; Test / compile
     |; Evm / compile
-    |; IntegrationTest / compile
+    |; It / compile
     |; RpcTest / compile
     |; Benchmark / compile
     |""".stripMargin
@@ -571,32 +586,28 @@ addCommandAlias(
 )
 
 // testAll
+// NOTE (sbt-2 gotcha, verified empirically): a bare `<project> / test` (no explicit `Test /`
+// config segment) silently resolves to a `testQuick`-like 0-test no-op under sbt 2.0.2 instead of
+// running the Test-config `test` task the way it did under sbt 1 — every project reference below
+// is scoped through `Test /` explicitly to avoid that silent false-green regression.
 addCommandAlias(
   "testAll",
   """; compile-all
-    |; bytes / test
-    |; common / test
-    |; crypto / test
-    |; rlp / test
-    |; domain / test
-    |; storage / test
-    |; trie / test
-    |; evm / test
-    |; execution / test
-    |; consensus / test
-    |; network / test
-    |; sync / test
-    |; rpc / test
-    |; test
-    |; IntegrationTest / test
-    |""".stripMargin
-)
-
-// runScapegoat - Run scapegoat analysis on all modules
-addCommandAlias(
-  "runScapegoat",
-  """; compile-all
-    |; scapegoat
+    |; bytes / Test / test
+    |; common / Test / test
+    |; crypto / Test / test
+    |; rlp / Test / test
+    |; domain / Test / test
+    |; storage / Test / test
+    |; trie / Test / test
+    |; evm / Test / test
+    |; execution / Test / test
+    |; consensus / Test / test
+    |; network / Test / test
+    |; sync / Test / test
+    |; rpc / Test / test
+    |; Test / test
+    |; It / test
     |""".stripMargin
 )
 
@@ -624,11 +635,11 @@ addCommandAlias(
 addCommandAlias(
   "testEssential",
   """; compile-all
-    |; testOnly -- -l SlowTest -l IntegrationTest -l SyncTest -l DisabledTest
-    |; bytes / test
-    |; common / test
-    |; crypto / test
-    |; rlp / test
+    |; Test / testOnly -- -l SlowTest -l IntegrationTest -l SyncTest -l DisabledTest
+    |; bytes / Test / test
+    |; common / Test / test
+    |; crypto / Test / test
+    |; rlp / Test / test
     |""".stripMargin
 )
 
@@ -636,7 +647,7 @@ addCommandAlias(
 addCommandAlias(
   "testStandard",
   """; compile-all
-    |; testOnly -- -l BenchmarkTest -l EthereumTest -l SyncTest -l DisabledTest
+    |; Test / testOnly -- -l BenchmarkTest -l EthereumTest -l SyncTest -l DisabledTest
     |""".stripMargin
 )
 
@@ -645,16 +656,11 @@ addCommandAlias(
   "testComprehensive",
   """; compile-all
     |; testAll
-    |; IntegrationTest / testOnly
+    |; It / testOnly
     |""".stripMargin
 )
 
-// Scapegoat configuration for Scala 3
-(ThisBuild / scapegoatVersion) := "3.3.6" // first cross-build for Scala 3.3.8
-scapegoatReports := Seq("xml", "html")
-scapegoatConsoleOutput := false
-scapegoatDisabledInspections := Seq("UnsafeTraversableMethods")
-scapegoatIgnoredFiles := Seq(
-  ".*/src_managed/.*",
-  ".*/BuildInfo\\.scala"
-)
+// Scapegoat is DROPPED for the sbt-2 cutover: sbt-scapegoat (com.sksamuel.scapegoat) has no
+// sbt-2-compatible plugin artifact, so its settings would fail meta-build resolution. See the
+// dropped-plugin note in project/plugins.sbt. Re-add scapegoatVersion/scapegoatReports/etc. once
+// upstream ships an sbt-2 port.
