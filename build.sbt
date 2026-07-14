@@ -586,28 +586,38 @@ addCommandAlias(
 )
 
 // testAll
-// NOTE (sbt-2 gotcha, verified empirically): a bare `<project> / test` (no explicit `Test /`
-// config segment) silently resolves to a `testQuick`-like 0-test no-op under sbt 2.0.2 instead of
-// running the Test-config `test` task the way it did under sbt 1 — every project reference below
-// is scoped through `Test /` explicitly to avoid that silent false-green regression.
+// NOTE (sbt-2 gotcha, verified empirically via `sbt inspect bytes/Test/test`): in sbt 2.0.2 the
+// `test` task ITSELF is redefined to delegate to `testQuick` — its "Provided by" is `<scope> /
+// test`, but `Dependencies:` shows only `<scope> / testQuick`, and its description reads "Executes
+// the tests that ... were not run or whose transitive dependencies changed" — i.e. `test` IS
+// `testQuick` now, for every scope (`Test /`, `Integration /`, etc). Explicit `Test /` scoping (the
+// previous fix attempt here) does NOT help — the delegation happens at the task-key level, not the
+// scope level. Once `target/streams/` has on-disk tracking that a suite last succeeded against its
+// current sources (the normal state on a warm dev machine or CI cache), `test` silently reports
+// exit 0 with ZERO tests executed ("No tests to run for .../testQuick") in ~1 second — a false
+// green, not a real pass. `testOnly *` does NOT delegate to `testQuick` (its own `inspect` shows
+// "Executes the tests provided as arguments or all tests if no arguments are provided", with no
+// `testQuick` in its Dependencies) — it always executes matched tests for real, so every task below
+// is `Test / testOnly *` (or `<config> / testOnly` with no pattern, which also means "all tests")
+// instead of bare `test`.
 addCommandAlias(
   "testAll",
   """; compile-all
-    |; bytes / Test / test
-    |; common / Test / test
-    |; crypto / Test / test
-    |; rlp / Test / test
-    |; domain / Test / test
-    |; storage / Test / test
-    |; trie / Test / test
-    |; evm / Test / test
-    |; execution / Test / test
-    |; consensus / Test / test
-    |; network / Test / test
-    |; sync / Test / test
-    |; rpc / Test / test
-    |; Test / test
-    |; It / test
+    |; bytes / Test / testOnly *
+    |; common / Test / testOnly *
+    |; crypto / Test / testOnly *
+    |; rlp / Test / testOnly *
+    |; domain / Test / testOnly *
+    |; storage / Test / testOnly *
+    |; trie / Test / testOnly *
+    |; evm / Test / testOnly *
+    |; execution / Test / testOnly *
+    |; consensus / Test / testOnly *
+    |; network / Test / testOnly *
+    |; sync / Test / testOnly *
+    |; rpc / Test / testOnly *
+    |; Test / testOnly *
+    |; It / testOnly *
     |""".stripMargin
 )
 
@@ -632,22 +642,33 @@ addCommandAlias(
 // ===== Test Tagging Commands (ADR-017) =====
 
 // testEssential - Tier 1: Essential tests (< 5 minutes)
+// See the testAll NOTE above re: `test` ≡ `testQuick` in sbt 2 — the module-level runs below use
+// `testOnly *` to force real execution instead of the bare `Test / test` false-green no-op.
+//
+// SECOND false-green, distinct from the test≡testQuick bug (verified empirically): `testOnly --
+// -l SomeTag` (an EMPTY test-selector list before `--`, only framework args after it) silently
+// matches ZERO tests — "No tests to run" — even though the sbt `inspect` description for `testOnly`
+// promises "all tests if no arguments provided." That promise only holds for a *fully* bare
+// `testOnly` (no `--` at all); once a `--` is present, ScalaTest's runner requires an explicit
+// selector before it. A bare `*` wildcard before `--` restores "all tests, minus these tags."
 addCommandAlias(
   "testEssential",
   """; compile-all
-    |; Test / testOnly -- -l SlowTest -l IntegrationTest -l SyncTest -l DisabledTest
-    |; bytes / Test / test
-    |; common / Test / test
-    |; crypto / Test / test
-    |; rlp / Test / test
+    |; Test / testOnly * -- -l SlowTest -l IntegrationTest -l SyncTest -l DisabledTest
+    |; bytes / Test / testOnly *
+    |; common / Test / testOnly *
+    |; crypto / Test / testOnly *
+    |; rlp / Test / testOnly *
     |""".stripMargin
 )
 
 // testStandard - Tier 2: Standard tests (< 30 minutes)
+// See the testEssential NOTE above re: `testOnly -- -l Tag` needing an explicit `*` wildcard
+// before `--` — otherwise it silently matches zero tests instead of "all tests minus these tags."
 addCommandAlias(
   "testStandard",
   """; compile-all
-    |; Test / testOnly -- -l BenchmarkTest -l EthereumTest -l SyncTest -l DisabledTest
+    |; Test / testOnly * -- -l BenchmarkTest -l EthereumTest -l SyncTest -l DisabledTest
     |""".stripMargin
 )
 
