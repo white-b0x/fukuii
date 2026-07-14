@@ -2,6 +2,9 @@ package com.chipprbots.fukuii.domain
 
 import org.scalatest.funsuite.AnyFunSuite
 
+import com.chipprbots.fukuii.rlp.decode
+import com.chipprbots.fukuii.rlp.encode
+
 class ChainIdSpec extends AnyFunSuite:
 
   test("ETC mainnet chainId is 61, Mordor is 63 (core-geth config_classic.go/config_mordor.go)"):
@@ -21,3 +24,11 @@ class ChainIdSpec extends AnyFunSuite:
 
   test("ChainId is type-distinct from a raw BigInt"):
     assertDoesNotCompile("val c: ChainId = BigInt(61)")
+
+  test("RLP round-trips ETC mainnet (61) and Mordor (63)"):
+    assert(decode[ChainId](encode(ChainId(61))) == ChainId(61))
+    assert(decode[ChainId](encode(ChainId(63))) == ChainId(63))
+
+  test("RLP round-trips ETH mainnet (1) and Sepolia (11155111)"):
+    assert(decode[ChainId](encode(ChainId(1))) == ChainId(1))
+    assert(decode[ChainId](encode(ChainId(11155111L))) == ChainId(11155111L))

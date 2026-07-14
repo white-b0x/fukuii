@@ -1,5 +1,8 @@
 package com.chipprbots.fukuii.domain
 
+import com.chipprbots.fukuii.rlp.RLPCodec
+import com.chipprbots.fukuii.rlp.RLPCodecs.bigIntCodec
+
 /** An EIP-155 chain identifier — opaque *data*, never a type-level network family. Whether a node is running ETC,
   * Mordor, ETH mainnet, or Sepolia is a **runtime** configuration value carried in this type, not a compile-time type
   * parameter (R2: a single binary hosts N possibly-different-family instances at runtime; the reth
@@ -24,5 +27,11 @@ object ChainId:
   def apply(id: Long): ChainId = apply(BigInt(id))
 
   given Ordering[ChainId] = math.Ordering.BigInt
+
+  /** RLP scalar codec, delegating to `BigInt`'s minimal-length big-endian scalar encoding — the same rule the EIP-155
+    * sighash and the typed-tx envelope's `chainId` field both use. Built via `xmap` over the named `bigIntCodec` (not
+    * `summon`) for the same reason [[Wei]]'s given is: opaque transparency would otherwise loop the implicit search.
+    */
+  given RLPCodec[ChainId] = bigIntCodec.xmap(ChainId.apply, _.toBigInt)
 
   extension (c: ChainId) def toBigInt: BigInt = c
