@@ -227,22 +227,25 @@ justification in `723aae2b4`), not a timer. Note the **momentary collapse to a s
 advertised version** after `723aae2b4` (only eth/69) before eth/70 was added a month later —
 so the window occasionally shrinks to one.
 
-## Other clients — adoption timeline (to be appended per networking-p2p slot)
+## Other clients — adoption timeline (COMPLETE — filled per networking-p2p slot, SR Phase 1b 2026-07-13)
 
-Per-client wire-version adoption will be filled in as each client's networking-p2p SR slot is
-documented. Stub roster:
+All six clients' networking-p2p slots documented. Cross-client advertised-vs-implemented wire matrix
+(each client's own networking-p2p doc has the file:line citations):
 
-- **besu** — **documented.** Advertises **ETH68/69/70/71 simultaneously** via a generic
-  `CapabilityMultiplexer` (name → disjoint message-code RangeMap): adding a version = 1 constant
-  + 1 message list + 1 switch arm. Per-connection, per-protocol-name highest-version pinning —
-  the version range lives in the `SubProtocol`, not the transport. See
-  `docs/research/clients/besu/networking-p2p.md` (esp. `CapabilityMultiplexer.java:32-49,118-145`)
-  and `initial-assessment.md:52-53` (§1f).
-- **core-geth** — TBD (PoW/ETC authority; ETC wire may lag geth's PoS-era versions — ETC does
-  not need blob/BAL messaging).
-- **erigon** — TBD.
-- **nethermind** — TBD.
-- **reth** — TBD.
+| Client | Advertised (HEAD) | Implemented but not default-advertised | Mechanism / notes |
+|--------|-------------------|----------------------------------------|-------------------|
+| **go-ethereum** | **eth/71, 70, 69** | — | ETH68 removed `723aae2b4` (2026-02); ETH71 added `a484a8506` (2026-05, serve-only). The wire authority. |
+| **core-geth** | **eth/68** (frozen) | — (constants ETH67/68) | Deprecated 2025-01 vintage; ETC needs no blob/BAL messaging. Lags geth ~3 versions — the concrete mission-thesis datapoint. |
+| **besu** | **eth/68, 69, 70, 71** (simultaneous) | — | Generic `CapabilityMultiplexer` (name→disjoint message-code RangeMap): add a version = 1 constant + 1 message list + 1 switch arm; range lives in the `SubProtocol`, not transport. The cleanest range-advertiser (initial-assessment §1f). |
+| **erigon** | **eth/68, 69, 70, 71** + `wit/0` | — | Plus erigon-specific witness protocol `wit/0`. Advertised via Sentry gRPC capability list. |
+| **nethermind** | **eth/68** default; **69/70/71** post-merge; snap/1 while syncing | eth/66, 67 (registered/speakable) | `IP2PCapabilityResolver` **chain** decouples exists/advertised/why: `DefaultP2PCapabilityResolver`=eth/68, `MergeP2PCapabilityResolver` layers 69/70/71 post-merge, `SnapP2PCapabilityResolver` adds snap/1 during sync. Distinct "advertised set ≠ implemented set" design. |
+| **reth** | **eth/66, 67, 68, 69** (LATEST=Eth69) | **eth/70, 71, 72** (EIP-7975/8159/**8070**) in codec | Conservative default set; version-gated **type-safe codec** — negotiated `EthVersion` threaded through `decode_message(version, buf)`, same message-ID → different struct per version (`Receipts69` vs `Receipts70`). reth's codec is the only one carrying **eth/72** (EIP-8070). |
+
+**Cross-client observations:**
+1. **The advertised set is NOT monotonic across clients.** geth (71/70/69), besu/erigon (68→71), nethermind (68 default + post-merge layering), reth (66–69 default, 70–72 dormant), core-geth (68 frozen). No two clients advertise the identical set — negotiation's `min(local,remote)` is what keeps them interoperable.
+2. **"Advertised ≠ implemented" is a first-class design in nethermind and reth** — both carry more versions in code than they advertise, gated by fork-activation (nethermind) or config (reth). This is the CapabilityMultiplexer idea generalized: separate *which versions exist* from *which are offered*.
+3. **eth/72 (EIP-8070) exists in reth's codec** — the leading edge; not yet advertised anywhere by default. A forward datapoint for fukuii's roadmap.
+4. **fukuii intentionally retains eth/68** (peers still speak it) — aligned with besu/erigon (who still advertise it) and nethermind (default). geth/reth-dropping-from-default is NOT the signal to follow; the ETH68 impl detail is preserved in the `### ETH68` block above.
 
 ## fukuii relevance / Phase-4 seed
 
