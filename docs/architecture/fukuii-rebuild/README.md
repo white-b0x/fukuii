@@ -29,12 +29,16 @@ get behavior and byte-values right), then left behind. It is preserved on branch
 
 ## Method
 
-Three sources drive every design decision, kept distinct:
+Authority is **per-network and per-concern, not per-client** — fukuii is a **multi-network framework**
+(many networks across consensus families PoW/PoS/PoA…; ETC/Mordor and ETH/Sepolia are today's
+instances, not the ceiling — "not if/else"), so each design decision draws on the source that owns
+*that concern for that network*. Canonical statement: the `reference-client-authority` memory +
+`systemic-review-protocol.md`'s authority model.
 
 | Source | Answers | Where |
 |---|---|---|
-| **JVM reference clients (esp. besu)** | *"how should this be shaped?"* — the structural mirror (ProtocolSpec, ServiceManager DI, Lifecycle FSM) | `docs/research/clients/{client}/` |
-| **go-ethereum / core-geth** | *"what is the correct byte-value?"* — EIP behavior (geth) / ECIP behavior (core-geth) | authority model in the SR |
+| **besu** — the **ETC/ETH JVM implementation guide** (maintained JVM client, 9 yrs of ETC + current ETH) | *"how do I build this correctly on the JVM?"* — besu's **Java transfers to fukuii's Scala/JVM constraints** (BouncyCastle, JNI native libs, big-int towers, no native `uint256`) where go-ethereum's Go idioms often don't. **Read besu's Java alongside geth's Go, from line one.** Also the structural mirror (ProtocolSpec, ServiceManager DI, Lifecycle FSM) and a second *maintained* behavioral cross-check | `.claude/repo-references/clients/besu/`, `docs/research/clients/besu/` |
+| **go-ethereum + besu** (shared behavior) · **core-geth** (ETC-frozen only) | *"what is the correct byte-value?"* — **shared EVM/RLP/crypto → go-ethereum + besu together** (both maintained, must agree); **ETC-specific frozen values + fork level → core-geth** (FROZEN/deprecated Sept-2024, only ECIP-1017/1099/1100 & the fork schedule); **ETH-family → go-ethereum** | authority model in the SR / memory `reference-client-authority` |
 | **`observations/{slot}.md`** | *"which approach is DEFAULT vs OPTIONAL(role) vs OBSOLETE?"* | `docs/research/clients/observations/` |
 
 The **idiom** is native to us: **Scala 3** (opaque types, `given`/`using`, `extension`, enums —
@@ -77,6 +81,11 @@ lives in `.local/docs/phase4/target-architecture.md` and `_phase3-findings-rollu
 | `04-L1-domain.md` | `domain` — (pending) | — |
 | … | L2→L10 as built | — |
 
-Each doc records: **scope**, the **design decisions** with the **empirical logic** (which
-observation DEFAULT / which reference client), the **improvements over old fukuii** (the specific
-AS-IS issue each fixes), and what was **deferred** to a higher layer and why.
+Each doc records: **scope**, **design decisions** with **empirical logic** (which observation
+DEFAULT / which reference client), **improvements over old fukuii**, and a **Layer boundaries**
+section — durable placement decisions (what lives at a *different* layer and why).
+
+**Build status lives ONLY in the index table above (the commit-sha column).** Per-layer docs must
+never carry "what's built / not-yet-built / deferred" status — that goes stale within a commit (a
+sibling module lands and the note is instantly wrong). Design and layer-boundaries are durable;
+build-status is single-sourced. (See the `docs-future-proof` rule.)
