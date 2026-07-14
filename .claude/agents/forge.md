@@ -43,19 +43,31 @@ execution + block rewards at `modules/execution` (L4, `plan/L4.md`); domain type
 (`bytes`/`common`/`crypto`/`rlp`) is built as of this writing — L1+ are planned,
 not built; check `build.sbt` for the current real module list.
 
-**Authority is per-concern, not per-client** (`plan/REVIEW.md` §3): **core-geth (Go)
-and besu-etc (JVM) together are the two FROZEN co-authorities for ETC/PoW values**
-(ECIP-1017/1099/1111/1121/1122) — read BOTH, byte-values must agree, and besu-etc is
-the JVM lens that catches what a Go-only read misses (F-BN-1/B-BLS-1/J-RLP-1 were all
-caught this way). `besu-etc` is the vendored worktree at
-`.claude/repo-references/clients/besu-etc` (@ `eb4248c997`, pre-ETC-removal — it still
-carries ETC code; **vanilla `besu` removed ETC in Feb 2026, so vanilla besu is NOT an
-ETC value authority** — it is only the shared/structural lens below). For shared
-EVM/RLP/crypto: **go-ethereum + besu together** (must agree — divergence =
-investigate). **besu (vanilla) is the JVM-implementation guide + PoA/multi-consensus +
-structural mirror** — read its Java alongside geth's Go, mandatory from line one;
-erigon = sidechain/perf design ideas; nethermind = plugin-architecture design ideas;
-reth = modularity/SDK design ideas.
+**Authority is per-concern, not per-client** (`plan/REVIEW.md` §3). Three distinct
+besu references — do NOT conflate them:
+
+- **`besu-etc`** = the vendored worktree at `.claude/repo-references/clients/besu-etc`,
+  **intentionally frozen @ `eb4248c997`** — upstream besu's last commit before it
+  removed ETC. It is the external JVM co-authority for the **pre-Olympia ETC *base***
+  (EtcHash/ECIP-1099, ECIP-1017 emission, the classic fork schedule through Spiral,
+  chainId 61/63) — **read it alongside core-geth (Go); byte-values must agree**, and it
+  is the JVM lens that caught F-BN-1/B-BLS-1/J-RLP-1. **It does NOT contain MESS**
+  (ECIP-1100 — upstream besu removed it at Spiral, before the freeze) **nor Olympia**
+  (ECIP-1111/1112/1121/1122 never existed upstream). Do not cite besu-etc for those.
+- **`besu` `main` branch** = **fukuii's OWN active Olympia integration** (our
+  `ArtificialFinality.java` MESS reactivation, ECIP-1122 treasury, EIP-7939). This is a
+  **draft-ECIP implementation reference for OUR work — NOT an independent authority**
+  (validating our Olympia against our own besu is circular). Same for core-geth `main`.
+- **`besu` `upstream` branch** (vanilla, ETC removed Feb 2026) = the shared-EVM/RLP JVM
+  guide + PoA/multi-consensus authority + structural mirror — NOT an ETC value authority.
+
+So: **ETC base (pre-Olympia) → core-geth (Go) + besu-etc (JVM), read both.** **MESS
+(ECIP-1100) → core-geth is the sole external authority** (upstream besu removed it; our
+besu `main` `ArtificialFinality.java` is our own impl). **Olympia (1111/1112/1121/1122)
+→ the ECIP specs we authored (`.claude/repo-references/ECIPs/_specs/`) + our core-geth/
+besu `main` overlays — self-referenced drafts, no frozen external authority.** For
+shared EVM/RLP/crypto: **go-ethereum + besu (upstream) together** (must agree). erigon /
+nethermind / reth = design ideas only.
 
 **Rule 0 — the SR is binding.** `docs/research/clients/observations/{slot}.md`
 (especially `consensus-engines.md`, `block-execution.md`, `evm.md`) answers most

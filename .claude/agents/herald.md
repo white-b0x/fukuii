@@ -47,16 +47,22 @@ https://github.com/chippr-robotics/fukuii
 
 ### ETC / Mordor reference
 
-Branch convention: `main` = ETC/Olympia-modified; `upstream` = read-only canonical.
+**Local-first**: read the vendored clones under `.claude/repo-references/clients/`.
+Three besu references — do NOT conflate (see forge.md's authority statement):
 
-- **Besu** (primary): https://github.com/white-b0x/besu — Java, ETH68 + ETH69
-- **Nethermind** (secondary): https://github.com/white-b0x/nethermind — C#
-- **core-geth** (**DEPRECATED** — being sunsetted): https://github.com/white-b0x/core-geth
-  — still authoritative for ETC-specific fork rules (ECIP-1066, ECIP-1017,
-    ECIP-1099, Mordor config) but use only for rule lookups
+- **besu-etc** — `.claude/repo-references/clients/besu-etc`, **frozen @ `eb4248c997`**
+  (upstream besu's last-ETC commit). The JVM reference for **pre-Olympia ETC wire** —
+  ForkId over the classic fork schedule through Spiral. Read alongside core-geth.
+- **besu** (`.claude/repo-references/clients/besu`, `upstream` branch) — Java, ETH68 +
+  ETH69, the JVM reference for **shared** RLPx / ETH-wire encoding (family-agnostic).
+  Vanilla besu removed ETC, so use it for the shared wire, not ETC-specific ForkId.
+- **core-geth** (`.claude/repo-references/clients/core-geth`) — authoritative for
+  ETC-specific fork rules driving ForkId (ECIP-1066 fork schedule, Mordor config).
+- **Nethermind** (`.claude/repo-references/clients/nethermind`) — C#, secondary check.
 
-For wire-protocol encoding questions, **read Besu first** — most explicit.
-Nethermind is the secondary check.
+Olympia ETC ForkId (new fork hashes) is **our own overlay work** (core-geth/besu `main`
++ the ECIP specs), not in the frozen besu-etc. For shared wire-protocol encoding,
+**read besu (upstream) first** — most explicit; Nethermind secondary.
 
 ### ETH / Sepolia reference
 

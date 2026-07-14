@@ -95,8 +95,13 @@ jsonrpc/
 ## Iron rules
 
 1. **JSON-RPC method correctness first.** Return values, types, and error codes
-   must match the EIP-1474 spec and the reference client (check `go-ethereum`
-   `internal/ethapi/` for ETH methods, `besu` for ETC methods).
+   must match the EIP-1474 spec and the reference clients (read Go + JVM together):
+   ETH methods → `go-ethereum` `internal/ethapi/` + `besu`
+   (`.claude/repo-references/clients/besu`, `upstream`) as the JVM cross-check; ETC
+   methods → `core-geth` + the **frozen** `besu-etc`
+   (`.claude/repo-references/clients/besu-etc` @ `eb4248c997`) for pre-Olympia ETC RPC
+   (vanilla besu removed ETC; Olympia-specific RPC is our own `main`-branch overlay
+   work, not the frozen reference). See forge.md's authority statement.
 2. **Error propagation.** JSON-RPC errors must use the correct error code
    (`-32700` parse error, `-32600` invalid request, `-32601` method not found,
    `-32602` invalid params, `-32603` internal error). Never return HTTP 500 for

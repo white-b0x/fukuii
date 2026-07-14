@@ -485,16 +485,33 @@ find "$REFS" -maxdepth 3 -name .git -exec dirname {} \; \
 
 ---
 
-### Reference EVM Clients — Besu
+### Reference EVM Clients — Besu (three distinct references — do not conflate)
+
+> ⚠️ **`besu`, `besu-etc`, and besu `main` are three different things.** See forge.md's
+> authority statement + the `besu-three-references` memory. `besu` `upstream` = vanilla
+> (ETH/shared, no ETC); `besu` `main` = **our** Olympia integration (draft, not an
+> authority); **`besu-etc`** (its own entry below) = the frozen pre-Olympia ETC-base
+> external authority.
 
 | | |
 |---|---|
-| **GitHub** | https://github.com/hyperledger/besu |
+| **GitHub** | https://github.com/hyperledger/besu (fork: white-b0x/besu) |
 | **Clone as** | `repo-references/clients/besu` |
-| **Used by** | `forge`, `beacon` |
+| **Used by** | `beacon` (ETH JVM authority), `forge` (shared EVM/RLP + structural mirror), `herald`, `conduit` |
 | **Key paths** | `evm/src/main/java/org/hyperledger/besu/evm/` — opcodes, gas, precompiles · `consensus/` — PoW/PoS engine modules |
-| **Branch convention** | `upstream` (checked out) = mirror of `hyperledger/besu`, kept in sync by push · `main` = ETC overlay, written and syncing — check out on demand to read it |
-| **Why** | Secondary EIP reference (cross-check confirms go-ethereum is not silently wrong) per this project's reference-client authority model. Has a full ETC overlay (Olympia complete, per `besu-etc.md`). Also the **architectural-mirror** consult — closest codebase kinship of the 6 vendored clients (JVM, object-structured protocol schedules/validator factories) — for *how to structure* Scala, orthogonal to the byte-authority consult for *what the values are*; see `systemic-review-protocol.md`'s "Authority vs. architectural mirror." |
+| **Branch convention** | `upstream` (checked out) = mirror of `hyperledger/besu` (vanilla — **ETC removed Feb 2026**; the ETH/shared JVM authority + structural mirror) · `main` = **fukuii's OWN Olympia integration** (our `ArtificialFinality.java` MESS reactivation, ECIP-1122, EIP-7939) — a **draft-ECIP implementation reference, NOT an independent authority** (validating our Olympia against our own besu is circular) |
+| **Why** | On `upstream`: the ETH JVM byte co-authority (with go-ethereum) + the JVM-implementation lens (caught F-BN-1/B-BLS-1/J-RLP-1) + the **architectural mirror** (closest kinship of the vendored clients — JVM, object-structured `ProtocolSchedule`/validator factories — for *how to structure* Scala). NOT an ETC value authority (no ETC). For pre-Olympia ETC values use `besu-etc` (below); for our Olympia work, `main` is our own draft. |
+
+### Reference EVM Clients — besu-etc (FROZEN pre-Olympia ETC base)
+
+| | |
+|---|---|
+| **GitHub** | white-b0x/besu, **frozen worktree @ `eb4248c997`** (upstream besu's last commit before it removed ETC) |
+| **Clone as** | `repo-references/clients/besu-etc` |
+| **Used by** | `forge` (ETC base JVM co-authority), `banksy`/`herald`/`conduit` (pre-Olympia ETC lookups) |
+| **Key paths** | `ethereum/core/.../mainnet/ClassicProtocolSpecs.java` · `EpochCalculator.Ecip1099EpochCalculator` · `config/src/main/resources/{classic,mordor}.json` |
+| **Branch convention** | **Detached, intentionally frozen @ `eb4248c997`** — do **NOT** re-point it or "update to main"; being 534 commits behind `origin/main` is correct (main is our Olympia overlay). |
+| **Why** | The external **JVM co-authority for the pre-Olympia ETC *base*** — read alongside core-geth (Go), byte-values must agree: EtcHash/ECIP-1099, ECIP-1017 emission, classic fork schedule through Spiral, chainId 61/63. **Does NOT contain MESS** (ECIP-1100 — upstream besu removed it at Spiral; grep `ArtificialFinality`, not core-geth's `ecbp1100`) **nor Olympia** (1111/1112/1121/1122 never existed upstream). For MESS → core-geth is the sole external authority; for Olympia → the ECIP specs + our own `main` overlays (self-referenced drafts). |
 
 ### Reference EVM Clients — core-geth
 

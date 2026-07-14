@@ -275,7 +275,15 @@ diff removes that property, treat it as a scope escalation, not a banksy change.
   reference-client precedent for banksy's admission-gate concern; core-geth's
   `ecbp1100`/`ecbp1100PolynomialV` (`core/blockchain.go`) is the reference
   implementation ECIP-1100's own spec quotes verbatim — fukuii's
-  `ArtificialFinality.polynomialV` must match it bit-for-bit.
+  `ArtificialFinality.polynomialV` must match it bit-for-bit. **core-geth is the SOLE
+  external authority for MESS** — the frozen `besu-etc` worktree (@ `eb4248c997`) does
+  **NOT** contain MESS (upstream besu removed it at Spiral; don't hunt for it there).
+- **besu `main` (our overlay, `.claude/repo-references/clients/besu` — check out `main`)**:
+  our OWN JVM MESS impl `ethereum/core/.../mainnet/ArtificialFinality.java` (ECBP-1100
+  reactivation at Olympia) — a useful **JVM/Scala-adjacent implementation cross-reference**
+  for fukuii's `consensus/pow/mess/ArtificialFinality.scala`, but it is **our draft work,
+  NOT an authority** (core-geth `ecbp1100` remains the bit-for-bit byte-authority). See the
+  `besu-three-references` memory.
 - Batch 5 design doc: `.local/docs/research-july/batch5-framework-design.md`
   §1 (layered model), §3 (consensus-engine abstraction — note the `finalizeBlock`
   hook forge/beacon own is adjacent to but distinct from banksy's
