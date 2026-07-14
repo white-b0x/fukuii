@@ -73,7 +73,7 @@ lives in `.local/docs/phase4/target-architecture.md` and `_phase3-findings-rollu
 | [`00-repo-setup.md`](00-repo-setup.md) | Clean-slate: layering, build config, dep floor, sbt-2, keep/clear | `7d2d2ae72` |
 | [`01-L0-primitives.md`](01-L0-primitives.md) | `bytes`, `common` — value types + byte utils | `b8c064ef6` |
 | [`02-L0-rlp.md`](02-L0-rlp.md) | `rlp` — working `derives` codecs + byte engine | `fd29ca578` |
-| `03-L0-crypto.md` | `crypto` — (in progress) | — |
+| [`03-L0-crypto.md`](03-L0-crypto.md) | `crypto` — keccak, secp256k1 ECDSA, alt-bn128, ECIES | — |
 | `04-L1-domain.md` | `domain` — (pending) | — |
 | … | L2→L10 as built | — |
 
