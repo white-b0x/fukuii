@@ -46,6 +46,20 @@ sbt "testOnly *<SubsystemSuite>*"                    # subsystem if callers touc
 Run targeted tests only. Do not run testEssential here. These finish in seconds with
 small output — run directly, no wrapper needed.
 
+### Format gate — before `git commit` of a phase (MANDATORY)
+```bash
+sbt "<module>/scalafmtCheck" "<module>/Test/scalafmtCheck"   # scoped to the module you touched
+```
+`scalafmtCheck` **verifies** formatting without writing — it is the gate, run it before
+every phase commit (not just `scalafmtAll`, which writes silently and can be forgotten).
+If it fails, `sbt "<module>/scalafmt" "<module>/Test/scalafmt"` to fix, re-check, then commit.
+**Why this gate exists:** a phase's build agent can finish (or die mid-run — a stalled agent
+once left two consensus files unformatted) with formatCheck-dirty output; committing it
+defers the failure to CI `formatCheck`. Catch it at the phase boundary — one cheap check —
+so formatting is never a downstream catch. The code itself is written Scala-3-idiomatic from
+the start (`scala3-style.md` S1–S11); this gate is purely about whitespace/wrap conformance
+to `.scalafmt.conf` (`runner.dialect = scala3`), not idiom conversion.
+
 ### Pre-push gate — before `git push origin`
 ```bash
 scripts/agent-tooling/sbt-run.sh <log-name> testEssential  # full testEssential — see test-quality-log.md
