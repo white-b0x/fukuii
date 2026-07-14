@@ -74,6 +74,41 @@ from-scratch effort every time.
 
 ---
 
+## Dependency-ordered dispatch (across items)
+
+Items run in **dependency order** — a subsystem is reviewed only after the subsystems it
+structurally depends on, so a higher-layer review never has to cite unverified assumptions
+about a lower layer it hasn't reached yet. The concrete order for a cycle is *derived, not
+guessed*: build the directed dependency graph from `build.sbt` `.dependsOn` edges (sibling sbt
+modules) plus representative cross-package `import` sampling (main-module packages), then
+topologically sort it by dominant edge weight. The graph is **research** — it lives as its own
+cycle artifact (e.g. `docs/research/systemic-review-<cycle>/dependency-graph.md`), cited from the
+cycle's `00-methodology.md`; `QUEUE.md` carries only its actionable projection (a `Dispatch #`
+column), not the graph itself. None of this lives here (this protocol is cycle-agnostic). Keep the
+graph file updated as the code's module/import structure evolves and re-derive the order from it.
+
+**Cycles are expected, not exceptional.** Real EVM-client package graphs are not clean DAGs.
+Where two subsystems depend on each other:
+
+- Dispatch the pair in **dominant-edge-weight** order — review the more-depended-upon one first
+  (the one carrying the heavier inbound edge).
+- Log the lighter **back-edge** itself as a `01-structural-comparison.md` coupling finding and
+  route it to the extensibility/coupling audit (`SR-EXT-01` in a cycle that has one). A
+  back-edge from a low layer up into a high one (e.g. a core-types package importing a
+  storage/wire package) is a design smell worth a finding, not something to silently pick an
+  order around.
+- The later item, when it reaches the cyclic dependency, **cites** the earlier item's findings
+  and flags any residual coupling, rather than blocking on it. A back-edge to a not-yet-reviewed
+  parallel/higher layer is a logged finding, never a dispatch blocker.
+
+**Gate overlays are orthogonal to the graph.** External gates (e.g. an in-flight unrelated test
+migration blocking a subsystem's test files) are an overlay *on top of* the dependency order,
+not a reordering of it — an item can be simultaneously "next in dependency order" and "blocked
+on gate X." Keep the underlying topological order intact and let gated items wait their turn
+within it.
+
+---
+
 ## Verdict taxonomy
 
 Tags, not mutually exclusive — a single finding may carry more than one (e.g. a finding can be
@@ -105,6 +140,74 @@ dead-code candidate must run through that protocol's assessment questions before
 assigned. A bare zero-callers grep result is evidence, not proof — attempt a scratch
 removal-plus-compile check for any strong dead-code claim, or explicitly phrase the finding as
 "grep shows zero references — verify by removal+compile" if that check was not performed.
+
+## Definition of done — GREEN / NOT-YET-GREEN flags
+
+The verdict and test-classification taxonomies above say what is *wrong* with a unit; they do
+not say when a unit is *done*. This section closes that gap. It exists because a subsystem-level
+"looks good" can average over uneven internals — the standard being enforced, in the operator's
+own words, is *"I can move on from `SnapSyncController` — it is aligned with reference-client
+behavior, coded to Scala 3 / Pekko / our other deps' best practice, and fully aligned with EVM
+implementation in the reference clients,"* assessed **per named unit**, so that "snap sync is
+good, but fast sync sucks" can never be reported as a subsystem-level GREEN.
+
+### Granularity
+
+A green flag is assessed at the **module (finding-level)** rung of the Granularity ladder — an
+individual file/class (`SNAPSyncController.scala`, `FastSync`), never only at subsystem
+granularity. Subsystem-level GREEN is *derived* from per-unit flags (below), never asserted
+directly.
+
+### Per-unit criteria
+
+A named unit is **GREEN** iff, simultaneously, for that specific unit and its tests:
+
+1. **Structural** — no open `NEEDS-REWRITE` verdict against it.
+2. **Currency** — no open Scala3/Pekko-currency finding specific to it. (A repo-wide S-rule
+   ratchet separately tracked as its own IP, that does not specifically implicate this unit,
+   does not block it — cite the tracked ratchet; do not hold a unit hostage to a subsystem-wide
+   sweep it is not individually part of.)
+3. **Tests** — no open `COVERAGE-GAP` for a behavior this unit owns, and no pending `REWRITE`
+   or `DELETE` classification on its tests. (`MODERNIZE`-only test debt does not block GREEN — a
+   dated-but-correct harness idiom is `POLISH-ONLY`-equivalent — but it must be logged.)
+4. **Dead code** — no unresolved `WIRE` or `DELETE` dead-code candidate involving it. A `DEFER`
+   is permitted only if the defer is itself scheduled under a named future-batch ID.
+5. **Residual** — every remaining finding against it is `POLISH-ONLY` and/or a documented
+   `FUKUII-DIFFERENTIATOR`. An un-taken `PERFORMANCE-OPPORTUNITY` is above-the-bar upside, not a
+   defect — it does **not** hold a unit NOT-YET-GREEN — but it must be logged so it is not lost.
+6. **Security** — no open `SECURITY-AUTOMATION-GAP` *specific to this unit's own surface* (e.g.
+   a fund-moving faucet endpoint). A subsystem/repo-wide automation gap tracked separately does
+   not block an individual unit.
+
+A unit is **NOT-YET-GREEN** if any of criteria 1–4 or 6 has an open blocking finding. The flag
+must name *which*, by finding ID — e.g. `FastSync: NOT-YET-GREEN — 2 open NEEDS-REWRITE (F-01,
+F-03), 1 COVERAGE-GAP (F-07)`. A bare `NOT-YET-GREEN` with no cited blocker is not an acceptable
+report. This bar must not be weakened to make a flag easier to earn — it is a real, uniform,
+falsifiable gate, not a rubber stamp.
+
+### Subsystem-level derivation
+
+A subsystem is **GREEN** iff **every** named unit in its KNOWN FILE LIST is either GREEN or
+explicitly **OUT-OF-SCOPE**. A single NOT-YET-GREEN unit makes the whole subsystem
+NOT-YET-GREEN — there is no averaging. OUT-OF-SCOPE requires a documented rationale (vendored,
+test-only fixture, superseded); if a unit is out-of-scope *because* it is slated for
+removal/rewrite, the rationale must cite the named scheduled item — a bad unit cannot be waved
+out of scope to inflate the subsystem flag.
+
+### Re-assessability
+
+A green flag is **cycle-relative**: it records the cycle and the commit SHA it was assessed at.
+A unit GREEN this cycle can regress (new commits, a new fork activation); the recurring-cycle
+efficiency rule (see Cadence) governs when a prior-cycle GREEN is re-verified vs. carried
+forward as still-valid cited evidence.
+
+### Reporting
+
+Per-unit flags are reported in each subsystem's `06-verdicts-followups.md` per-unit green-flag
+rollup (see the per-subsystem doc template) and rolled up to the subsystem-level flag in that
+subsystem's `00-overview.md` summary table. The central `01-findings-index.md` stays
+finding-indexed and needs no per-unit column, but a subsystem's own docs must carry the full
+per-unit rollup.
 
 ## Reference-client authority model
 
@@ -214,7 +317,9 @@ collapsed into one file as `##` headers. A Tier B doc may be promoted to Tier A 
 research finds more material than expected — a reversible judgment call, not a rigid rule.
 
 - `00-overview.md` — scope (files covered, src/test counts, link to any existing subsystem
-  `AGENTS.md` breadcrumb), dispatched agent(s), summary verdict table, cross-references.
+  `AGENTS.md` breadcrumb), dispatched agent(s), summary verdict table, cross-references, and the
+  **subsystem-level GREEN / NOT-YET-GREEN flag** derived from `06`'s per-unit rollup (with the
+  cycle + commit SHA it was assessed at, per "Definition of done").
 - `01-structural-comparison.md` — design-decision inventory stated up front (so the
   comparison table's row selection is traceable to a decision, not an arbitrary grep hit), then
   a matrix: rows = design decisions, columns = fukuii + 6 reference clients, cells = brief
@@ -236,10 +341,16 @@ research finds more material than expected — a reversible judgment call, not a
 - `05-opportunities.md` — performance-opportunity table, differentiator table,
   security-automation-gap table, each row meeting the falsifiability bar from the verdict
   taxonomy above.
-- `06-verdicts-followups.md` — closing table: Finding ID | Verdict(s) | Test class. |
-  Proposed QUEUE.md destination | Priority | Disposition. Disposition is always one of
-  `finding-resolution.md`'s three: absorbed into an existing IP/rule, new IP scheduled, or
-  deferred to a named future batch — never a bare "flagged, TBD."
+- `06-verdicts-followups.md` — two tables. **(a) Findings closing table:** Finding ID |
+  Verdict(s) | Test class. | Proposed QUEUE.md destination | Priority | Disposition. Disposition
+  is always one of `finding-resolution.md`'s three: absorbed into an existing IP/rule, new IP
+  scheduled, or deferred to a named future batch — never a bare "flagged, TBD." **(b) Per-unit
+  green-flag rollup** (required, per "Definition of done"): one row per named unit in the
+  subsystem's KNOWN FILE LIST — Unit | GREEN / NOT-YET-GREEN / OUT-OF-SCOPE | Blocking finding
+  IDs (must be non-empty for any NOT-YET-GREEN; scheduled-item citation for any OUT-OF-SCOPE) |
+  Notes. The subsystem-level flag in `00-overview.md` is derived from this table — every unit
+  GREEN-or-OUT-OF-SCOPE → subsystem GREEN; any single NOT-YET-GREEN → subsystem NOT-YET-GREEN.
+  A subsystem doc set may not report a blanket GREEN without this per-unit table backing it.
 
 ## Findings-Resolution Log interplay
 

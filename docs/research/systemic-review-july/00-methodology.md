@@ -31,3 +31,18 @@ Mirrors the src tree. Tier A (full 6-doc split): `blockchain-sync/`, `consensus/
 `ledger/`, `mpt/`, `foundational-modules/`, `small-modules/`, `test-infrastructure/`.
 Dedicated deep phase: `extensibility-architecture/`. Root: `01-findings-index.md` (living
 rollup), `02-root-synthesis.md` (written last, once every item lands).
+
+## Dependency-ordered dispatch (SR-00 output)
+
+`SR-00` added two durable methodology sections to
+`.agents/protocols/process/systemic-review-protocol.md` — "Dependency-ordered dispatch (across
+items)" and "Definition of done — GREEN / NOT-YET-GREEN flags" — and produced this cycle's
+concrete dependency map, which replaces the earlier ad-hoc "Provisional dispatch order."
+
+**The map is research and lives on its own** — see
+[`dependency-graph.md`](dependency-graph.md): the `build.sbt` + import-derived graph, dominant
+edge weights, the four cited cross-layer cycle findings (`domain` upward-coupling, `db↔mpt`,
+`db→blockchain`, `network→blockchain`), the derived layering, the two-band dispatch order, and
+the `SR-EXT-01` (early) / `SR-12` (independent) placement decisions. `QUEUE.md`'s `Dispatch #`
+column is the actionable projection of that map; keep the map updated as the code's module/
+import structure evolves and re-derive the column from it.
