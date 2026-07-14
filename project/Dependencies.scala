@@ -74,7 +74,7 @@ object Dependencies {
 
   val cats: Seq[ModuleID] = {
     val catsVersion = "2.13.0"
-    val catsEffectVersion = "3.6.3"
+    val catsEffectVersion = "3.7.0"
     Seq(
       "org.typelevel" %% "mouse" % "1.4.0",
       "org.typelevel" %% "cats-core" % catsVersion,
@@ -86,7 +86,7 @@ object Dependencies {
   val monix = Seq.empty[ModuleID]
 
   val fs2: Seq[ModuleID] = {
-    val fs2Version = "3.12.2" // requires cats-effect 3.6+
+    val fs2Version = "3.13.0" // requires cats-effect 3.6+ (satisfied — cats-effect pinned to 3.7.0 above)
     Seq(
       "co.fs2" %% "fs2-core" % fs2Version,
       "co.fs2" %% "fs2-io" % fs2Version,
@@ -105,7 +105,7 @@ object Dependencies {
   )
 
   val netty: Seq[ModuleID] = {
-    val nettyVersion = "4.1.131.Final" // Updated for security (CVE-2024-29025, CVE-2024-47535 fixed)
+    val nettyVersion = "4.1.136.Final" // Security: CVE-2026-42578 (HttpProxyHandler CRLF/header injection, fixed 4.1.133.Final) + CVE-2026-44249 (IpSubnetFilterRule IPv6 subnet-filter bypass, fixed 4.1.135.Final)
     Seq(
       "io.netty" % "netty-handler" % nettyVersion,
       "io.netty" % "netty-handler-proxy" % nettyVersion, // For Socks5ProxyHandler

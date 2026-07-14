@@ -1,6 +1,4 @@
-enablePlugins(JavaAppPackaging, SolidityPlugin, JavaAgent)
-
-javaAgents += "io.kamon" % "kanela-agent" % "1.0.18"
+enablePlugins(JavaAppPackaging)
 
 import scala.sys.process.Process
 import NativePackagerHelper._
@@ -77,8 +75,6 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   scalaVersion := `scala-3`,
   // Override Scala library version to prevent SIP-51 errors with mixed Scala patch versions
   scalaModuleInfo ~= (_.map(_.withOverrideScalaVersion(true))),
-  // organize-imports removed — built-in to Scalafix 0.11.0+
-  // Scalanet snapshots are published to Sonatype after each build (now defined in inThisBuild resolvers).
   (Test / testOptions) += Tests
     .Argument(TestFrameworks.ScalaTest, "-l", "IntegrationTest"), // network-dependent tests excluded by default
   (Test / testOptions) += Tests
@@ -136,121 +132,205 @@ val publishSettings = Seq(
 // which would fail if the project didn't have configuration to add to.
 val Integration = config("it").extend(Test)
 
-// Vendored scalanet modules (from IOHK's scalanet library)
-lazy val scalanet = {
-  val scalanet = project
-    .in(file("scalanet"))
-    .configs(Integration)
-    .settings(commonSettings("fukuii-scalanet"))
-    .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
-    .settings(publishSettings)
-    .settings(
-      Compile / unmanagedSourceDirectories += baseDirectory.value / "src",
-      Test / unmanagedSourceDirectories += baseDirectory.value / "ut" / "src",
-      libraryDependencies ++=
-        Dependencies.pekko ++
-          Dependencies.cats ++
-          Dependencies.fs2 ++
-          Dependencies.monix ++
-          Dependencies.scodec ++
-          Dependencies.netty ++
-          Dependencies.crypto ++
-          Dependencies.jodaTime ++
-          Dependencies.ipmath ++
-          Dependencies.scaffeine ++
-          Dependencies.logging ++
-          Dependencies.testing
-    )
+// ===========================================================================
+// The module DAG (bottom → top). Each `.dependsOn` edge points DOWN a layer;
+// an upward edge is a compile error. See .local/docs/phase4/target-architecture.md.
+// ===========================================================================
 
-  scalanet
-}
+// L0 FOUNDATION (leaves)
+lazy val bytes = project
+  .in(file("modules/bytes"))
+  .configs(Integration)
+  .settings(commonSettings("fukuii-bytes"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.pekkoUtil ++
+        Dependencies.testing
+  )
 
-lazy val scalanetDiscovery = {
-  val scalanetDiscovery = project
-    .in(file("scalanet/discovery"))
-    .configs(Integration)
-    .dependsOn(scalanet)
-    .settings(commonSettings("fukuii-scalanet-discovery"))
-    .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
-    .settings(publishSettings)
-    .settings(
-      Compile / unmanagedSourceDirectories += baseDirectory.value / "src",
-      Integration / unmanagedSourceDirectories += baseDirectory.value / "it" / "src",
-      Test / unmanagedSourceDirectories += baseDirectory.value / "ut" / "src",
-      libraryDependencies ++=
-        Dependencies.pekko ++
-          Dependencies.cats ++
-          Dependencies.fs2 ++
-          Dependencies.monix ++
-          Dependencies.scodec ++
-          Dependencies.netty ++
-          Dependencies.crypto ++
-          Dependencies.jodaTime ++
-          Dependencies.ipmath ++
-          Dependencies.scaffeine ++
-          Dependencies.logging ++
-          Dependencies.testing
-    )
+lazy val common = project
+  .in(file("modules/common"))
+  .configs(Integration)
+  .settings(commonSettings("fukuii-common"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.cats ++
+        Dependencies.logging ++
+        Dependencies.testing
+  )
 
-  scalanetDiscovery
-}
+lazy val crypto = project
+  .in(file("modules/crypto"))
+  .configs(Integration)
+  .dependsOn(bytes)
+  .settings(commonSettings("fukuii-crypto"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.pekkoUtil ++
+        Dependencies.crypto ++
+        Dependencies.testing
+  )
 
-lazy val bytes = {
-  val bytes = project
-    .in(file("bytes"))
-    .configs(Integration)
-    .settings(commonSettings("fukuii-bytes"))
-    .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
-    .settings(publishSettings)
-    .settings(
-      libraryDependencies ++=
-        Dependencies.pekkoUtil ++
-          Dependencies.testing
-    )
+lazy val rlp = project
+  .in(file("modules/rlp"))
+  .configs(Integration)
+  .dependsOn(bytes)
+  .settings(commonSettings("fukuii-rlp"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.pekkoUtil ++
+        Dependencies.testing
+  )
 
-  bytes
-}
+// L1 DOMAIN (pure value types)
+lazy val domain = project
+  .in(file("modules/domain"))
+  .configs(Integration)
+  .dependsOn(bytes, crypto, rlp, common)
+  .settings(commonSettings("fukuii-domain"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.cats ++
+        Dependencies.enumeratum ++
+        Dependencies.testing
+  )
 
-lazy val crypto = {
-  val crypto = project
-    .in(file("crypto"))
-    .configs(Integration)
-    .dependsOn(bytes)
-    .settings(commonSettings("fukuii-crypto"))
-    .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
-    .settings(publishSettings)
-    .settings(
-      libraryDependencies ++=
-        Dependencies.pekkoUtil ++
-          Dependencies.crypto ++
-          Dependencies.testing
-    )
+// L2 STORAGE & STATE
+lazy val storage = project
+  .in(file("modules/storage"))
+  .configs(Integration)
+  .dependsOn(domain, common)
+  .settings(commonSettings("fukuii-storage"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.cats ++
+        Dependencies.rocksDb ++
+        Dependencies.scaffeine ++
+        Dependencies.testing
+  )
 
-  crypto
-}
+lazy val trie = project
+  .in(file("modules/trie"))
+  .configs(Integration)
+  .dependsOn(domain, crypto, storage)
+  .settings(commonSettings("fukuii-trie"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.cats ++
+        Dependencies.testing
+  )
 
-lazy val rlp = {
-  val rlp = project
-    .in(file("rlp"))
-    .configs(Integration)
-    .dependsOn(bytes)
-    .settings(commonSettings("fukuii-rlp"))
-    .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
-    .settings(publishSettings)
-    .settings(
-      libraryDependencies ++=
-        Dependencies.pekkoUtil ++
-          Dependencies.testing
-    )
+// L3 EVM
+lazy val evm = project
+  .in(file("modules/evm"))
+  .configs(Integration)
+  .dependsOn(domain, crypto, rlp)
+  .settings(commonSettings("fukuii-evm"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.cats ++
+        Dependencies.testing
+  )
 
-  rlp
-}
+// L4 EXECUTION
+lazy val execution = project
+  .in(file("modules/execution"))
+  .configs(Integration)
+  .dependsOn(evm, trie, storage, domain)
+  .settings(commonSettings("fukuii-execution"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.cats ++
+        Dependencies.testing
+  )
 
+// L5 CONSENSUS (pow/pos as internal packages for now)
+lazy val consensus = project
+  .in(file("modules/consensus"))
+  .configs(Integration)
+  .dependsOn(execution, evm, domain)
+  .settings(commonSettings("fukuii-consensus"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.cats ++
+        Dependencies.testing
+  )
+
+// L6 NETWORKING
+lazy val network = project
+  .in(file("modules/network"))
+  .configs(Integration)
+  .dependsOn(domain, crypto, rlp, common)
+  .settings(commonSettings("fukuii-network"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.pekko ++
+        Dependencies.cats ++
+        Dependencies.scodec ++
+        Dependencies.netty ++
+        Dependencies.testing
+  )
+
+// L7 SYNC
+lazy val sync = project
+  .in(file("modules/sync"))
+  .configs(Integration)
+  .dependsOn(network, consensus, execution, storage, trie)
+  .settings(commonSettings("fukuii-sync"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.pekko ++
+        Dependencies.cats ++
+        Dependencies.testing
+  )
+
+// L9 RPC
+lazy val rpc = project
+  .in(file("modules/rpc"))
+  .configs(Integration)
+  .dependsOn(domain, execution, consensus, sync, network, storage)
+  .settings(commonSettings("fukuii-rpc"))
+  .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+  .settings(publishSettings)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.pekko ++
+        Dependencies.pekkoHttp ++
+        Dependencies.circe ++
+        Dependencies.json4s ++
+        Dependencies.sangria ++
+        Dependencies.cats ++
+        Dependencies.testing
+  )
+
+// L10 NODE ASSEMBLY (composition root — aggregates and depends on everything)
 lazy val node = {
   val Benchmark = config("benchmark").extend(Test)
-
   val Evm = config("evm").extend(Test)
-
   val Rpc = config("rpcTest").extend(Test)
 
   val malletDeps = Seq(
@@ -270,16 +350,13 @@ lazy val node = {
       Dependencies.cats,
       Dependencies.circe,
       Dependencies.cli,
-      Dependencies.crypto,
       Dependencies.dependencies,
       Dependencies.enumeratum,
       Dependencies.fs2,
       Dependencies.guava,
       Dependencies.json4s,
-      Dependencies.kamon,
       Dependencies.logging,
       Dependencies.micrometer,
-      Dependencies.monix,
       Dependencies.network,
       Dependencies.prometheus,
       Dependencies.rocksDb,
@@ -289,14 +366,12 @@ lazy val node = {
       Dependencies.testing
     ).flatten ++ malletDeps
 
-  (Evm / test) := (Evm / test).dependsOn(solidityCompile).value
-  (Evm / sourceDirectory) := baseDirectory.value / "src" / "evmTest"
-
   val node = project
     .in(file("."))
     .configs(Integration, Benchmark, Evm, Rpc)
     .enablePlugins(BuildInfoPlugin)
-    .dependsOn(bytes, crypto, rlp, scalanet, scalanetDiscovery)
+    .aggregate(bytes, common, crypto, rlp, domain, storage, trie, evm, execution, consensus, network, sync, rpc)
+    .dependsOn(bytes, common, crypto, rlp, domain, storage, trie, evm, execution, consensus, network, sync, rpc)
     .settings(
       buildInfoKeys ++= Seq[BuildInfoKey](
         name,
@@ -315,9 +390,16 @@ lazy val node = {
         BuildInfoKey.action("gitUncommittedChanges")(git.gitUncommittedChanges.?.value.getOrElse(false)),
         (Compile / libraryDependencies)
       ),
-      buildInfoPackage := "com.chipprbots.ethereum.utils",
+      buildInfoPackage := "com.chipprbots.fukuii",
       (Test / fork) := true,
       (Compile / buildInfoOptions) += BuildInfoOption.ToMap
+    )
+    .settings(
+      // node is the composition root at `.in(file("."))`, but its own sources live under
+      // modules/node/ alongside every other module. Point the source dirs there rather than
+      // at the default ./src/main so the repo root stays free of a bare src/ tree.
+      (Compile / unmanagedSourceDirectories) := Seq(baseDirectory.value / "modules" / "node" / "src" / "main" / "scala"),
+      (Test / unmanagedSourceDirectories) := Seq(baseDirectory.value / "modules" / "node" / "src" / "test" / "scala")
     )
     .settings(commonSettings("fukuii"): _*)
     .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
@@ -329,84 +411,22 @@ lazy val node = {
     .settings(
       executableScriptName := name.value
     )
-    .settings(
-      inConfig(Integration)(
-        Defaults.testSettings
-          ++ org.scalafmt.sbt.ScalafmtPlugin.scalafmtConfigSettings
-          :+ (parallelExecution := false)
-          // sbt config-axis delegation gotcha: `val Integration = config("it").extend(Test)`
-          // (see above) means any key left unset on the Integration axis silently falls back
-          // to the Test axis's value. commonSettings' `(Test / testOptions) += ... "-l
-          // IntegrationTest"` (added to keep network-dependent tests out of plain `sbt test`)
-          // was therefore ALSO silently excluding every test tagged IntegrationTest from
-          // `IntegrationTest / test` itself — which is exactly the tag every ethtest spec
-          // class carries (`taggedAs (IntegrationTest, EthereumTest, SlowTest)`), so 8 of the
-          // 9 ethtest spec classes ran zero tests every night while still reporting a green
-          // "Suites: completed" summary (only EthSmokeSpec, tagged EthSmoke only, survived).
-          // This `:=` (not `+=`) fully replaces the inherited value instead of appending to
-          // it, so Integration/testOptions carries ONLY what this config actually needs.
-          :+ (testOptions := Seq(Tests.Argument("-oDG")))
-          // Future-proofing: no src/it test currently carries ResourceHeavy or FlakyTest (zero
-          // behavior change today), but mirror the Test-axis exclusions here so an IT-side test
-          // tagged either in the future is excluded from IntegrationTest / test too, instead of
-          // silently running because this axis's testOptions was fully replaced above.
-          :+ (testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-l", "ResourceHeavy"))
-          :+ (testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-l", "FlakyTest"))
-          :+ (testOptions += {
-            val reportsDir = (Test / target).value / "test-reports"
-            Tests.Setup(_ => IO.createDirectory(reportsDir))
-          })
-          :+ (testGrouping := {
-            val tests = (definedTests).value
-            tests.map { test =>
-              val idOpt = s"-DFUKUII_TEST_ID=${System.currentTimeMillis()}-${test.name.hashCode.abs}"
-              // ethtest fixtures carry fake Ethash seals (fixed nonce/mixHash); the ETH-mainnet
-              // config they load resolves TransitionBlockHeaderValidator -> real PoW seal check,
-              // so scope the hive-adapter seal-skip flag to only the ethtest sub-JVMs.
-              // ETHTEST-EXEC-REGRESSIONS-01.
-              val skipPowOpt =
-                if (test.name.startsWith("com.chipprbots.ethereum.ethtest."))
-                  Vector("-Dfukuii.mining.skip-pow-validation=true")
-                else Vector.empty
-              Tests.Group(
-                name = test.name,
-                tests = Seq(test),
-                runPolicy = Tests.SubProcess(
-                  ForkOptions().withRunJVMOptions(Vector(idOpt) ++ skipPowOpt)
-                )
-              )
-            }
-          })
-      ): _*
-    )
+    .settings(inConfig(Integration)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings :+ (Test / parallelExecution := true)): _*)
     .settings(inConfig(Evm)(Defaults.testSettings :+ (Test / parallelExecution := true)): _*)
     .settings(inConfig(Rpc)(Defaults.testSettings :+ (Test / parallelExecution := true)): _*)
     .settings(
       // Packaging
       maintainer := "chippr-robotics@github.com",
-      (Compile / mainClass) := Some("com.chipprbots.ethereum.App"),
+      (Compile / mainClass) := Some("com.chipprbots.fukuii.node.Main"),
       (Compile / discoveredMainClasses) := Seq(),
-      (Universal / mappings) ++= directory((Compile / resourceDirectory).value / "conf"),
-      (Universal / mappings) += (Compile / resourceDirectory).value / "logback.xml" -> "conf/logback.xml",
-      bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/app.conf"""",
-      bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.xml"""",
-      batScriptExtraDefines += """call :add_java "-Dconfig.file=%APP_HOME%\conf\app.conf"""",
-      batScriptExtraDefines += """call :add_java "-Dlogback.configurationFile=%APP_HOME%\conf\logback.xml"""",
       // Keep sbt-native-packager Docker builds on the same supported runtime as the hand-written Dockerfiles.
-      // Without this, the plugin default generated `FROM openjdk:8`, which Docker Hub no longer serves.
       dockerBaseImage := "eclipse-temurin:25-jre-noble",
-      // Use a wildcard classpath ("lib/*") instead of enumerating every
-      // jar by name. The default sbt-native-packager behaviour wrote
-      // ~12KB of `-cp lib/jar1;lib/jar2;...` into bin/fukuii.bat (147
-      // jars), exceeding cmd.exe's ~8KB command-line limit on Windows
-      // so users got "input line is too long / syntax of the command is
-      // incorrect" before the JVM even launched. Java accepts `*` as a
-      // classpath glob on every supported platform, so this also keeps
-      // bin/fukuii (bash) working.
+      // Use a wildcard classpath ("lib/*") instead of enumerating every jar by name to stay
+      // under cmd.exe's ~8KB command-line limit on Windows.
       scriptClasspath := Seq("*"),
       // Assembly configuration
-      (assembly / mainClass) := Some("com.chipprbots.ethereum.App"),
+      (assembly / mainClass) := Some("com.chipprbots.fukuii.node.Main"),
       (assembly / assemblyJarName) := s"fukuii-assembly-${version.value}.jar",
       (assembly / assemblyMergeStrategy) := {
         case PathList("META-INF", "MANIFEST.MF")                                       => MergeStrategy.discard
@@ -428,7 +448,6 @@ lazy val node = {
     )
 
   node
-
 }
 
 // Scoverage configuration
@@ -437,21 +456,45 @@ coverageMinimumStmtTotal := 70
 coverageFailOnMinimum := true
 coverageHighlighting := true
 coverageExcludedPackages := Seq(
-  "com\\.chipprbots\\.ethereum\\.utils\\.BuildInfo" // BuildInfo generated code
+  "com\\.chipprbots\\.fukuii\\.BuildInfo" // BuildInfo generated code
 ).mkString(";")
 coverageExcludedFiles := Seq(
   ".*/src_managed/.*", // All managed sources
   ".*/target/.*/src_managed/.*" // Target managed sources
 ).mkString(";")
 
+// ===========================================================================
+// Command aliases (rewritten for the new module DAG)
+// ===========================================================================
+
 addCommandAlias(
   "compile-all",
   """; bytes / compile
     |; bytes / Test / compile
+    |; common / compile
+    |; common / Test / compile
     |; crypto / compile
     |; crypto / Test / compile
     |; rlp / compile
     |; rlp / Test / compile
+    |; domain / compile
+    |; domain / Test / compile
+    |; storage / compile
+    |; storage / Test / compile
+    |; trie / compile
+    |; trie / Test / compile
+    |; evm / compile
+    |; evm / Test / compile
+    |; execution / compile
+    |; execution / Test / compile
+    |; consensus / compile
+    |; consensus / Test / compile
+    |; network / compile
+    |; network / Test / compile
+    |; sync / compile
+    |; sync / Test / compile
+    |; rpc / compile
+    |; rpc / Test / compile
     |; compile
     |; Test / compile
     |; Evm / compile
@@ -466,12 +509,20 @@ addCommandAlias(
   "pp",
   """; compile-all
     |; bytes / scalafmtAll
+    |; common / scalafmtAll
     |; crypto / scalafmtAll
     |; rlp / scalafmtAll
+    |; domain / scalafmtAll
+    |; storage / scalafmtAll
+    |; trie / scalafmtAll
+    |; evm / scalafmtAll
+    |; execution / scalafmtAll
+    |; consensus / scalafmtAll
+    |; network / scalafmtAll
+    |; sync / scalafmtAll
+    |; rpc / scalafmtAll
     |; scalafmtAll
-    |; rlp / test
     |; testQuick
-    |; IntegrationTest / test
     |""".stripMargin
 )
 
@@ -481,10 +532,30 @@ addCommandAlias(
   """; compile-all
     |; bytes / scalafixAll
     |; bytes / scalafmtAll
+    |; common / scalafixAll
+    |; common / scalafmtAll
     |; crypto / scalafixAll
     |; crypto / scalafmtAll
     |; rlp / scalafixAll
     |; rlp / scalafmtAll
+    |; domain / scalafixAll
+    |; domain / scalafmtAll
+    |; storage / scalafixAll
+    |; storage / scalafmtAll
+    |; trie / scalafixAll
+    |; trie / scalafmtAll
+    |; evm / scalafixAll
+    |; evm / scalafmtAll
+    |; execution / scalafixAll
+    |; execution / scalafmtAll
+    |; consensus / scalafixAll
+    |; consensus / scalafmtAll
+    |; network / scalafixAll
+    |; network / scalafmtAll
+    |; sync / scalafixAll
+    |; sync / scalafmtAll
+    |; rpc / scalafixAll
+    |; rpc / scalafmtAll
     |; scalafixAll
     |; scalafmtAll
     |""".stripMargin
@@ -494,14 +565,8 @@ addCommandAlias(
 addCommandAlias(
   "formatCheck",
   """; compile-all
-    |; bytes / scalafixAll --check
-    |; bytes / scalafmtCheckAll
-    |; crypto / scalafixAll --check
-    |; crypto / scalafmtCheckAll
-    |; rlp / scalafixAll --check
-    |; rlp / scalafmtCheckAll
-    |; scalafixAll --check
     |; scalafmtCheckAll
+    |; scalafixAll --check
     |""".stripMargin
 )
 
@@ -509,22 +574,28 @@ addCommandAlias(
 addCommandAlias(
   "testAll",
   """; compile-all
-    |; rlp / test
     |; bytes / test
+    |; common / test
     |; crypto / test
+    |; rlp / test
+    |; domain / test
+    |; storage / test
+    |; trie / test
+    |; evm / test
+    |; execution / test
+    |; consensus / test
+    |; network / test
+    |; sync / test
+    |; rpc / test
     |; test
     |; IntegrationTest / test
     |""".stripMargin
 )
 
 // runScapegoat - Run scapegoat analysis on all modules
-// Re-enabled with Scala 3 compatible version 2.x/3.x
 addCommandAlias(
   "runScapegoat",
   """; compile-all
-    |; bytes / scapegoat
-    |; crypto / scapegoat
-    |; rlp / scapegoat
     |; scapegoat
     |""".stripMargin
 )
@@ -548,30 +619,20 @@ addCommandAlias(
 )
 
 // ===== Test Tagging Commands (ADR-017) =====
-// These commands enable selective test execution based on ScalaTest tags
 
 // testEssential - Tier 1: Essential tests (< 5 minutes)
-// Runs fast unit tests, excludes integration and slow tests.
-// SlowTest: legitimately too slow for the daily commit gate (runs in testStandard).
-// IntegrationTest: network-dependent or actor-choreography tests that belong in Tier 2+.
-// SyncTest: complex actor choreography (ADR-017) that times out under CI load.
-// DisabledTest: tests explicitly turned off (timing-flaky / WIP) — the tag exists to keep
-//   them out of the gate; see the silenced-test inventory before un-silencing.
 addCommandAlias(
   "testEssential",
   """; compile-all
     |; testOnly -- -l SlowTest -l IntegrationTest -l SyncTest -l DisabledTest
-    |; rlp / test
     |; bytes / test
+    |; common / test
     |; crypto / test
+    |; rlp / test
     |""".stripMargin
 )
 
 // testStandard - Tier 2: Standard tests (< 30 minutes)
-// Runs unit tests only (`testOnly` on the Test config) — despite the historical name, this
-// alias never runs `IntegrationTest / testOnly`; the IntegrationTest config only runs in
-// testComprehensive (Tier 3). Excludes only Tier 3-flavored Test-config tags:
-// BenchmarkTest/EthereumTest: the 3-hour compliance suite — belongs in testComprehensive only.
 addCommandAlias(
   "testStandard",
   """; compile-all
@@ -580,79 +641,13 @@ addCommandAlias(
 )
 
 // testComprehensive - Tier 3: Comprehensive tests (< 3 hours)
-// Runs all tests including the ethereum/tests compliance suite. `test`/`testOnly` (Test
-// config) still exclude IntegrationTest/ResourceHeavy per commonSettings — ResourceHeavy
-// tests (equipment-dependent, e.g. cold Ethash DAG builds) are excluded from every standard
-// tier, including this one; run them deliberately via `sbt testResourceHeavy`. Meanwhile
-// `IntegrationTest / testOnly` now genuinely runs its full suite — including every
-// IntegrationTest-tagged ethtest spec class — since the Integration-axis testOptions
-// override above stopped it from silently inheriting those same Test-scoped exclusions.
 addCommandAlias(
   "testComprehensive",
   """; compile-all
-    |; rlp / test
-    |; bytes / test
-    |; crypto / test
-    |; testOnly
+    |; testAll
     |; IntegrationTest / testOnly
     |""".stripMargin
 )
-
-// testEthSmoke - Fast ETH-path smoke target (< 60s)
-// Runs only EthSmoke-tagged vectors in the IntegrationTest config to exercise the ETH
-// execution path (chainId=1, forTimestamp dispatch) below testComprehensive.
-// Mirrors the testEssential pattern (compile-all + filtered testOnly), but scoped to
-// IntegrationTest and using an inclusion filter (-n EthSmoke) instead of exclusions.
-addCommandAlias(
-  "testEthSmoke",
-  """; compile-all
-    |; IntegrationTest / testOnly -- -n EthSmoke
-    |""".stripMargin
-)
-
-// testResourceHeavy - Opt-in target for compute/memory-bound tests (equipment-dependent
-// runtime, e.g. cold Ethash DAG builds). Excluded from every standard tier via the global
-// `-l ResourceHeavy` in commonSettings; run this alias deliberately on capable hardware.
-addCommandAlias(
-  "testResourceHeavy",
-  """; compile-all
-    |; testOnly -- -n ResourceHeavy
-    |; IntegrationTest / testOnly -- -n ResourceHeavy
-    |""".stripMargin
-)
-
-// Module-specific test commands
-addCommandAlias("testCrypto", "testOnly -- -n CryptoTest")
-addCommandAlias("testVM", "testOnly -- -n VMTest")
-addCommandAlias("testNetwork", "testOnly -- -n NetworkTest")
-addCommandAlias("testDatabase", "testOnly -- -n DatabaseTest")
-addCommandAlias("testRLP", "testOnly -- -n RLPTest")
-addCommandAlias("testMPT", "testOnly -- -n MPTTest")
-// testEthereum - real ETC/ETH conformance selection (honestly green, with visible tracked skips).
-// Selects every EthereumTest-tagged spec in BOTH the Test config (the field-identity + cross-client
-// oracles: EtcConsensusVectorsSpec, ChainConfigValidationSpec, ETCDaoExclusionSpec,
-// ECIP1017EmissionScheduleSpec, BeaconRootsSpec, ...) AND the IntegrationTest config (the ethtest
-// fixture specs that actually resolve — VMTestsSpec, TransactionTestsSpec, the SimpleEthereumTest
-// structural specs, the BlockchainTestsSpec network-filter spec). The exec specs still RED under
-// batch-6 row ETHTEST-EXEC-REGRESSIONS-01 carry the `BrokenEthTest` tag and are excluded via
-// `-l BrokenEthTest` — a VISIBLE, tracked, deliberate skip (ScalaTest prints the excluded count),
-// never a silent pending/no-op. Was previously `testOnly -- -n EthereumTest`: unscoped to the Test
-// axis, it ran 5 unrelated BeaconRootsSpec tests and printed "all passed" while touching zero
-// fixtures (a false-green). See .local/docs/research-july/test-infra-ethtest-vectors-scout.md.
-addCommandAlias(
-  "testEthereum",
-  """; compile-all
-    |; testOnly -- -n EthereumTest -l BrokenEthTest
-    |; IntegrationTest / testOnly -- -n EthereumTest -l BrokenEthTest
-    |""".stripMargin
-)
-// Domain test commands — added in P12 (tag taxonomy audit)
-// ConsensusTest (284), RPCTest (219), OlympiaTest (201), StateTest (63), SyncTest (84)
-addCommandAlias("testConsensus", "testOnly -- -n ConsensusTest")
-addCommandAlias("testRPC", "testOnly -- -n RPCTest")
-addCommandAlias("testState", "testOnly -- -n StateTest")
-addCommandAlias("testOlympia", "testOnly -- -n OlympiaTest")
-addCommandAlias("testSync", "testOnly -- -n SyncTest")
 
 // Scapegoat configuration for Scala 3
 (ThisBuild / scapegoatVersion) := "3.3.6" // first cross-build for Scala 3.3.8
