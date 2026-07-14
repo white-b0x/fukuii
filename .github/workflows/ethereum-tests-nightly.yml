@@ -10,11 +10,60 @@ permissions:
   contents: read
 
 jobs:
+  load-shards:
+    name: Load ethtest shard manifest
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Verify shard manifest covers every ethtest spec class and build matrix
+        id: build-matrix
+        run: |
+          python3 -m pip install --quiet pyyaml
+
+          python3 - <<'PY'
+          import json
+          import yaml
+
+          with open(".github/ethtest-shards.yml") as f:
+              manifest = yaml.safe_load(f)
+
+          shards = manifest["shards"]
+          all_classes = [c for s in shards for c in s["classes"]]
+
+          with open("matrix.json", "w") as f:
+              json.dump({"include": shards}, f)
+
+          with open("manifest_class_count.txt", "w") as f:
+              f.write(str(len(all_classes)))
+          PY
+
+          MANIFEST_COUNT=$(cat manifest_class_count.txt)
+          ACTUAL_COUNT=$(grep -rlE '^(class|final class) [A-Za-z0-9]+(Spec|Test) extends' \
+            src/it/scala/com/chipprbots/ethereum/ethtest/*.scala | wc -l | tr -d ' ')
+
+          echo "Manifest classes: $MANIFEST_COUNT, concrete ethtest spec classes on disk: $ACTUAL_COUNT"
+
+          if [ "$MANIFEST_COUNT" -ne "$ACTUAL_COUNT" ]; then
+            echo "::error::.github/ethtest-shards.yml lists $MANIFEST_COUNT classes but $ACTUAL_COUNT concrete ethtest spec classes exist under src/it/scala/com/chipprbots/ethereum/ethtest/ — a class was added or removed without updating the manifest. See that file's header comment before editing shards."
+            exit 1
+          fi
+
+          echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
+
   comprehensive-ethereum-tests:
-    name: Comprehensive Ethereum/Tests Suite
+    name: Ethereum/Tests Suite (${{ matrix.shard }})
+    needs: load-shards
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    
+    continue-on-error: ${{ matrix.report_only == true }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.load-shards.outputs.matrix) }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -40,119 +89,139 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-sbt-21-
             ${{ runner.os }}-sbt-
-      
+
       - name: Set up SBT
         run: |
           curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo gpg --dearmor -o /usr/share/keyrings/scalasbt-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/scalasbt-archive-keyring.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
           sudo apt-get update
           sudo apt-get install sbt
-      
+
       - name: Compile all modules
         run: sbt compile-all
         env:
           FUKUII_DEV: true
-      
+
       - name: Validate KPI Baselines
         run: |
           echo "=========================================="
           echo "Validating KPI Baselines"
           echo "=========================================="
           echo ""
-          
+
           # Validate baseline definitions
           sbt "testOnly *KPIBaselinesSpec"
-          
+
           echo ""
           echo "✅ KPI baselines validated successfully"
         env:
           FUKUII_DEV: true
-      
-      - name: Run Comprehensive Ethereum/Tests Suite
+
+      - name: Run ethtest shard
+        env:
+          FUKUII_DEV: true
+          SHARD_CLASSES_JSON: ${{ toJson(matrix.classes) }}
         run: |
           echo "=========================================="
-          echo "Running comprehensive ethereum/tests suite"
+          echo "Running ethtest shard: ${{ matrix.shard }}"
           echo "This validates EVM compliance against official ethereum/tests"
           echo "=========================================="
           echo ""
-          
-          # Run all ethereum/tests integration tests
-          sbt "IntegrationTest / testOnly com.chipprbots.ethereum.ethtest.*" 2>&1 | tee ethereum-tests-output.log
-          
+
+          CLASSES=$(echo "$SHARD_CLASSES_JSON" | jq -r '.[] | "com.chipprbots.ethereum.ethtest." + .' | paste -sd ' ' -)
+          echo "Classes in this shard: $CLASSES"
+          echo ""
+
+          # Run this shard's ethereum/tests integration test classes
+          sbt "IntegrationTest / testOnly $CLASSES" 2>&1 | tee "ethereum-tests-output-${{ matrix.shard }}.log"
+
           echo ""
           echo "=========================================="
-          echo "Ethereum/Tests Results Summary"
+          echo "Ethereum/Tests Results Summary (${{ matrix.shard }})"
           echo "=========================================="
-          
+
           # Extract test summary
-          grep -E "(Total number of tests run|Tests: succeeded|All tests passed|TESTS FAILED)" ethereum-tests-output.log || true
-          
+          grep -E "(Total number of tests run|Tests: succeeded|All tests passed|TESTS FAILED)" "ethereum-tests-output-${{ matrix.shard }}.log" || true
+
           echo ""
           echo "Full results available in artifacts"
-        env:
-          FUKUII_DEV: true
-        continue-on-error: true
-      
+
       - name: Generate Test Report
         if: always()
         run: |
-          cat > ethereum-tests-summary.md << EOF
-          # Ethereum/Tests Nightly Run Summary
-          
+          cat > "ethereum-tests-summary-${{ matrix.shard }}.md" << EOF
+          # Ethereum/Tests Nightly Run Summary — shard ${{ matrix.shard }}
+
           **Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
           **Commit:** ${{ github.sha }}
           **Branch:** ${{ github.ref_name }}
-          
+          **Report-only shard (does not gate ethtest-nightly-passed):** ${{ matrix.report_only }}
+
           ## Test Results
-          
+
           See attached artifacts for detailed test results and logs.
-          
-          ## Test Categories Executed
-          
-          - **SimpleEthereumTest**: Basic validation tests
-          - **BlockchainTestsSpec**: Blockchain validation tests
-          - **ComprehensiveBlockchainTestsSpec**: Extended blockchain tests
-          - **GeneralStateTestsSpec**: State transition tests
-          
+
+          ## Test Classes In This Shard
+
+          $(echo '${{ toJson(matrix.classes) }}' | jq -r '.[] | "- `" + . + "`"')
+
           ## Artifacts
-          
-          - `ethereum-tests-output.log`: Full test execution output
-          - `fukuii.log`: Application logs from test execution
-          
+
+          - \`ethereum-tests-output-${{ matrix.shard }}.log\`: Full test execution output
+          - \`fukuii.log\`: Application logs from test execution
+
           ## Next Steps
-          
+
           1. Review any test failures
           2. Update issue tracking with results
           3. Investigate any new failures
-          
+
           EOF
-          
-          cat ethereum-tests-summary.md
-      
+
+          cat "ethereum-tests-summary-${{ matrix.shard }}.md"
+
       - name: Upload Test Logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ethereum-tests-nightly-logs-${{ github.run_number }}
+          name: ethereum-tests-nightly-logs-${{ matrix.shard }}-${{ github.run_number }}
           path: |
-            ethereum-tests-output.log
-            ethereum-tests-summary.md
+            ethereum-tests-output-${{ matrix.shard }}.log
+            ethereum-tests-summary-${{ matrix.shard }}.md
             /tmp/fukuii-it-test/**/*.log
           retention-days: 30
           if-no-files-found: warn
-      
+
       - name: Upload Test Reports
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ethereum-tests-nightly-reports-${{ github.run_number }}
+          name: ethereum-tests-nightly-reports-${{ matrix.shard }}-${{ github.run_number }}
           path: |
             **/target/test-reports/**
             **/target/scala-*/it-classes/**
           retention-days: 30
           if-no-files-found: warn
-      
-      - name: Notify on Failure
+
+  ethtest-nightly-passed:
+    name: ethtest-nightly-passed
+    runs-on: ubuntu-latest
+    needs: [comprehensive-ethereum-tests]
+    if: always()
+    steps:
+      # Fail if any non-report-only shard did not succeed. `continue-on-error` on the
+      # gascalc shard already makes its own outcome report as success here regardless
+      # of its tests' actual pass/fail state, so this check only trips for the shards
+      # that are meant to gate — see .github/ethtest-shards.yml.
+      - name: Fail on workflow error
+        run: exit 1
+        if: >-
+          ${{
+            contains(needs.comprehensive-ethereum-tests.result, 'failure')
+            || contains(needs.comprehensive-ethereum-tests.result, 'cancelled')
+          }}
+
+      - name: Notify on failure
         if: failure()
         run: |
           echo "::warning::Ethereum/Tests nightly run failed. Check artifacts for details."

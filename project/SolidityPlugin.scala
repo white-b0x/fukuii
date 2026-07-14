@@ -19,7 +19,7 @@ object SolidityPlugin extends AutoPlugin {
       val contractsDir = baseDirectory.value / "src" / "evmTest" / "resources" / "solidity"
       val outDir = baseDirectory.value / "target" / "contracts"
 
-      (contractsDir ** "*.sol").get.foreach { f =>
+      (contractsDir ** "*.sol").get().foreach { f =>
         Seq("solc", f.getPath, "--bin", "--overwrite", "-o", outDir.getPath).!!
 
         // this is a temporary workaround, see: https://github.com/ethereum/solidity/issues/1732

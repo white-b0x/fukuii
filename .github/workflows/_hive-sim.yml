@@ -2,10 +2,11 @@ name: _hive-sim (reusable)
 
 # Reusable workflow for running a single ethereum/hive simulator against the
 # fukuii client. Per-simulator caller workflows (hive-smoke-genesis.yml,
-# hive-rpc.yml, …) invoke this with `uses: ./.github/workflows/_hive-sim.yml`
-# so each has its own workflow name, run history, and badge in the README.
+# hive-rpc.yml, hive-osaka.yml, hive-prague.yml, …) invoke this with
+# `uses: ./.github/workflows/_hive-sim.yml` so each has its own workflow name,
+# run history, and badge in the README.
 #
-# Build steps mirror hive-prague.yml so the two pipelines stay in sync:
+# Pipeline shape (all 13 current callers share this):
 #   * sbt assembly -> thin JRE overlay tagged chipprbots/fukuii:latest
 #   * git clone ethereum/hive into external/hive (NOT ./hive — that would
 #     shadow the fukuii adapter dir) with retries + blob:none
@@ -32,6 +33,19 @@ on:
         default: ''
       sim_buildarg:
         description: 'Optional value for --sim.buildarg (e.g. disable_strict_exception_matching=fukuii)'
+        required: false
+        type: string
+        default: ''
+      fixtures_tag:
+        description: |
+          Optional execution-spec-tests release tag (e.g. 'v5.4.0'). When
+          non-empty, resolves the tag's fixtures_stable.tar.gz asset URL via
+          an authenticated `gh api` call (dodges the anonymous 60/hr rate
+          limit that otherwise starves the simulator's own `consume cache`
+          step) and passes it as a second `--sim.buildarg fixtures=<url>`
+          (hive.go's --sim.buildarg is a repeatable flag/map, so this
+          coexists with `sim_buildarg` above). Used by EEST-backed sims
+          (consume-engine/consume-rlp fork sweeps); leave empty otherwise.
         required: false
         type: string
         default: ''
@@ -146,17 +160,22 @@ jobs:
           restore-keys: sbt-${{ runner.os }}-
 
       - name: Install sbt
+        # Install from repo.scala-sbt.org rather than GitHub releases. The
+        # github.com/sbt/sbt/releases/download redirect goes to an Azure blob
+        # store that's been intermittently 504-ing lately, taking the whole
+        # workflow down before hive even starts. The scala-sbt.org debian repo
+        # is served by a separate CDN and has been reliable — same install
+        # path we already use in docker/Dockerfile-dev (and, until this
+        # change, only in hive-osaka.yml/hive-prague.yml — consolidated here
+        # so all _hive-sim.yml callers benefit).
         run: |
           set -euxo pipefail
-          # Retry curl — the GitHub->Azure blob redirect occasionally serves a
-          # 92-byte garbage body instead of the tarball, causing tar xz to die
-          # with "not in gzip format". --retry-all-errors handles that.
-          curl -L --fail --retry 5 --retry-delay 5 --retry-all-errors \
-            -o /tmp/sbt.tgz \
-            https://github.com/sbt/sbt/releases/download/v1.10.7/sbt-1.10.7.tgz
-          file /tmp/sbt.tgz
-          tar xz -C /tmp -f /tmp/sbt.tgz
-          sudo ln -sf /tmp/sbt/bin/sbt /usr/local/bin/sbt
+          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" \
+            | sudo gpg --dearmor -o /usr/share/keyrings/sbt-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/sbt-archive-keyring.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" \
+            | sudo tee /etc/apt/sources.list.d/sbt.list
+          sudo apt-get update
+          sudo apt-get install -y sbt
           sbt --version
 
       - name: Build fukuii assembly
@@ -235,6 +254,33 @@ jobs:
           go build -o hive .
           ./hive --help | head -5
 
+      - name: Resolve execution-spec-tests fixtures URL
+        id: fixtures
+        if: ${{ inputs.fixtures_tag != '' }}
+        env:
+          # GITHUB_TOKEN lifts anonymous API rate limits (60/hr) to 1000/hr,
+          # which matters because the consume-cache step inside the simulator
+          # image calls api.github.com unauthenticated and gets rate-limited
+          # to death on shared CI egress IPs — pytest catches the HTTPError
+          # and exits 3 (INTERNAL_ERROR). We resolve the URL here (authed)
+          # and inject it via --sim.buildarg fixtures=<url> so the inner
+          # Dockerfile's `consume cache --input "$FIXTURES"` takes the
+          # direct-URL code path and skips the API entirely.
+          GH_TOKEN: ${{ github.token }}
+          FIXTURES_TAG: ${{ inputs.fixtures_tag }}
+        run: |
+          set -euo pipefail
+          FIXTURES_URL="https://github.com/ethereum/execution-spec-tests/releases/download/${FIXTURES_TAG}/fixtures_stable.tar.gz"
+
+          # Sanity-check the asset exists (authenticated → no rate-limit).
+          gh api -H 'Accept: application/vnd.github+json' \
+            "repos/ethereum/execution-spec-tests/releases/tags/${FIXTURES_TAG}" \
+            --jq '.assets[] | select(.name == "fixtures_stable.tar.gz") | .browser_download_url' \
+            | grep -qx "$FIXTURES_URL"
+
+          echo "url=$FIXTURES_URL" >> "$GITHUB_OUTPUT"
+          echo "Resolved fixtures URL: $FIXTURES_URL"
+
       - name: Run simulator
         id: sim
         working-directory: external/hive
@@ -242,6 +288,7 @@ jobs:
           SIM: ${{ inputs.sim }}
           SIM_LIMIT: ${{ inputs.sim_limit }}
           SIM_BUILDARG: ${{ inputs.sim_buildarg }}
+          FIXTURES_URL: ${{ steps.fixtures.outputs.url }}
           SIM_TIMELIMIT: ${{ inputs.sim_timelimit }}
           PARALLELISM: ${{ inputs.parallelism }}
           CLIENTS: ${{ inputs.clients }}
@@ -268,6 +315,7 @@ jobs:
           )
           [ -n "$SIM_LIMIT" ]   && args+=(--sim.limit   "$SIM_LIMIT")
           [ -n "$SIM_BUILDARG" ] && args+=(--sim.buildarg "$SIM_BUILDARG")
+          [ -n "$FIXTURES_URL" ] && args+=(--sim.buildarg "fixtures=$FIXTURES_URL")
 
           ./hive "${args[@]}" 2>&1 | tee hive-run.log
           hive_exit=${PIPESTATUS[0]}

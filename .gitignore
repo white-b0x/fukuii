@@ -65,18 +65,42 @@ ops/*/captured-logs/
 *.conf.backup.*
 
 # Claude Code
-# Ignore local Claude settings/state, but track the project's shared subagents,
-# operations skills, and the Spec Kit slash-command skills (.specify/ holds the
-# shared spec-driven infra).
+# Ignore local Claude settings/state, but track the project's shared subagents
+# (.claude/agents/ — Claude Code-specific, no canonical .agents/ analog) and the
+# .claude/agent-protocols/ + .claude/skills/ symlinks pointing at their canonical
+# source under .agents/ (see .agents/protocols/agent-skills.md). The mechanical
+# helper/wrapper scripts formerly here now live at scripts/agent-tooling/ (moved
+# 2026-07, Nethermind-style: portable, not Claude-specific, shared team tooling).
+# .claude/worktrees/bin/ — the worktree lifecycle scripts, moved here (out of
+# agent-protocols/worktrees/bin/) to sit next to the worktree dirs themselves, same
+# layout as .claude/looping/bin/. The rest of .claude/worktrees/ (the actual worktree
+# checkouts) stays untracked — those are full working trees, never committed content.
+# The rest of .claude/sprints/ (QUEUE.md, patterns/, completed/, archive/, and — as of
+# 2026-07-07 — log/) stays untracked/operator-local. log/ was previously tracked as a
+# durable team record, but is now operator-local to avoid a stream of log-only commits
+# on shared history; the sprint-lifecycle close-out still writes it, it just isn't
+# committed (re-track later by removing the .claude/sprints/log/ line below if desired).
+# .claude/hooks/ (comment-policy.py, advisory PostToolUse check) and the new tracked
+# .claude/settings.json that wires it are shared team tooling, same as agents/skills below —
+# .claude/settings.local.json stays untracked/operator-local, unaffected by this exception.
 .claude/*
 !.claude/agents/
 !.claude/skills/
+!.claude/hooks/
+!.claude/settings.json
 !.claude/agent-protocols/
-.claude/agent-protocols/working-docs/
-.claude/agent-protocols/completed/
 !.claude/looping/
 .claude/looping/state/*/
 !.claude/looping/bin/
+!.claude/sprints/
+.claude/sprints/QUEUE.md
+.claude/sprints/patterns/
+.claude/sprints/completed/
+.claude/sprints/archive/
+.claude/sprints/log/
+!.claude/worktrees/
+.claude/worktrees/*
+!.claude/worktrees/bin/
 
 # Planning & internal docs
 SESSION_NOTES.md
@@ -103,7 +127,10 @@ service-account.json
 secrets/
 
 # Blockchain & crypto
-keystore/
+# Wallet keystore dir — root-anchored so it only ignores a node's datadir keystore at the
+# repo root, NOT the legitimate `src/**/keystore/` Scala source dirs (KeyStore.scala,
+# Wallet.scala, EncryptedKey*, and their specs), which are tracked source.
+/keystore/
 *.keystore
 wallet.json
 mnemonic.txt

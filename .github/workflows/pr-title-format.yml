@@ -1,0 +1,90 @@
+name: PR Title Format
+
+# Report-only, burn-in period (see CONSTRAINTS in the sprint item that added this file).
+# fukuii's real convention, sampled from `gh pr list --json title` across 30 recent PRs, is
+# `type(scope1,scope2): description` — e.g. `fix(snap): ...`, `feat(§8b): ...`,
+# `refactor(domain): ...`, `perf(crypto,snap): ...`, `port(#1374): ...`. Unlike
+# go-ethereum's validate_pr.yml, this workflow does NOT auto-close PRs whose titles match
+# a conventional-commit-style prefix — that upstream gate exists specifically because
+# go-ethereum does not use that convention and treats it as a spam signal. fukuii's own
+# day-to-day titles ARE exactly that shape, so porting go-ethereum's "Check for Spam PR"
+# step here would immediately false-positive on fukuii's own normal workflow. Only a
+# redesigned version of go-ethereum's second step (format/path validation) is ported.
+#
+# Scopes in real fukuii titles are not always real paths (`§8b` is a spec-section label,
+# `#1374` is an issue number, `scala3`/`snap` are topic labels, not directories) — so this
+# check reports mismatches as warnings rather than failing the job. Revisit after a burn-in
+# period once the observed false-positive rate is known; promote to a hard-failing step at
+# that point if the signal turns out to be reliable.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-title:
+    name: Validate PR title format (report-only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Check PR title format
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const prTitle = context.payload.pull_request.title;
+
+            // Allow-list drawn from fukuii's own observed convention (see file header),
+            // not go-ethereum's list — no bare directory-path-only titles here, fukuii
+            // always uses a Conventional-Commits-style type prefix.
+            const allowedTypes = ['feat', 'fix', 'refactor', 'perf', 'chore', 'test', 'docs', 'port', 'ops'];
+            const titleRegex = new RegExp(`^(${allowedTypes.join('|')})(\\(([^)]*)\\))?:\\s+.+`, 'i');
+
+            const match = prTitle.match(titleRegex);
+            if (!match) {
+              core.warning(`PR title "${prTitle}" does not match "type(scope1,scope2): description" ` +
+                `(type must be one of: ${allowedTypes.join(', ')}). Report-only during burn-in — not blocking.`);
+              return;
+            }
+
+            const scopePart = match[3];
+            if (!scopePart) {
+              console.log('✅ PR title format is valid (no scope given)');
+              return;
+            }
+
+            // Each comma-separated scope should resolve to a real path — either a
+            // src/main/scala/com/chipprbots/ethereum/<scope> package, or a known
+            // top-level repo directory. Real fukuii titles also use non-path scopes
+            // (spec labels, issue numbers) — those are reported, not failed.
+            const topLevelDirs = ['docs', 'scripts', 'hive', 'ops', 'site', 'ets', 'project'];
+            const domainRoot = 'src/main/scala/com/chipprbots/ethereum';
+            const scopes = scopePart.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            const unresolved = [];
+
+            for (const scope of scopes) {
+              const candidatePaths = [
+                path.join(process.env.GITHUB_WORKSPACE, domainRoot, scope),
+                ...topLevelDirs.includes(scope) ? [path.join(process.env.GITHUB_WORKSPACE, scope)] : []
+              ];
+              const resolved = candidatePaths.some(p => fs.existsSync(p));
+              if (!resolved) unresolved.push(scope);
+            }
+
+            if (unresolved.length > 0) {
+              core.warning(`PR title scope(s) did not resolve to a real path: ${unresolved.join(', ')} ` +
+                `(checked against ${domainRoot}/<scope> and top-level dirs [${topLevelDirs.join(', ')}]). ` +
+                `Report-only during burn-in — not blocking; scopes like spec labels or issue ` +
+                `numbers are expected to miss here.`);
+              return;
+            }
+
+            console.log('✅ PR title format is valid');

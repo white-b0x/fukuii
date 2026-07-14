@@ -104,7 +104,8 @@ git push origin v1.0.0
 #    - Create GitHub release with artifacts
 #    - Build and publish signed container image to ghcr.io/chippr-robotics/fukuii
 #    - Sign image with Cosign (keyless, GitHub OIDC)
-#    - Generate SLSA Level 3 provenance attestations
+#    - Generate a build provenance attestation (not the formal SLSA Level 3
+#      attestation — removed 2026-04-27, see `release.yml`)
 #    - Output immutable digest reference
 #    - Close milestone v1.0.0
 ```
@@ -154,7 +155,7 @@ Images are published to two registries:
 **Release Images (Production):**
 - Registry: `ghcr.io/chippr-robotics/fukuii`
 - Built by: `release.yml` on version tags
-- Security: ✅ Signed with Cosign, ✅ SLSA provenance, ✅ SBOM included
+- Security: ✅ Signed with Cosign, ✅ build provenance attestation, ✅ SBOM included
 
 ```bash
 # Pull and verify the latest signed release

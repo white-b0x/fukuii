@@ -1,0 +1,60 @@
+# ethtest-shards.yml — single source of truth for `ethereum-tests-nightly.yml`'s
+# matrix sharding of the `com.chipprbots.ethereum.ethtest.*` IntegrationTest suite.
+#
+# Read by: .github/workflows/ethereum-tests-nightly.yml's `load-shards` job, via
+# `yq -o=json`. Do not hand-duplicate this class list anywhere else.
+#
+# Each shard entry:
+#   shard        - unique name, used as the matrix leg name and artifact suffix
+#   report_only  - true: the shard's job step uses `continue-on-error: true` and its
+#                  outcome does NOT gate the `ethtest-nightly-passed` aggregator.
+#                  false (or omitted): the shard genuinely gates the aggregator.
+#   classes      - concrete `ethtest` ScalaTest spec class names (short name only,
+#                  the workflow prefixes `com.chipprbots.ethereum.ethtest.`)
+#
+# `gascalc` is report_only because 2 of GasCalculationIssuesSpec's 4 tests (add11,
+# addNonConst) currently fail. Per REPO-06-GASCALC (verified 2026-07-11): the failure
+# is NOT a gas discrepancy — fukuii's Berlin/Magneto gas is byte-correct vs core-geth
+# (Row 5.7 deep-map). It is ValidationBeforeExecError(HeaderPoWError), i.e. failure
+# mode (a) of ETHTEST-EXEC-REGRESSIONS-01 (fixture PoW-seal validation not disabled),
+# which fires before gas is ever computed. Keep this shard report_only until
+# ETHTEST-EXEC-REGRESSIONS-01 lands; isolating it means the other 8 classes get genuine
+# pass/fail signal instead of a blanket continue-on-error hiding real regressions.
+#
+# shard-a / shard-b are a simple round-robin split (Besu's splitList.sh pattern:
+# i % N, alphabetical class-name order) of the remaining 8 classes — NOT a
+# timing-aware bin-pack. Deliberately simple; see repo-hygiene-pattern.md's Besu
+# reference doc for the (out-of-scope-for-now) timing-based alternative.
+#
+# Extending this for PP-00 Phase 7 (real ethereum/tests corpus expansion): add new
+# spec class names to an existing shard's `classes` list, or a whole new shard
+# entry. The workflow's matrix-loading and safety-check steps read this file
+# generically and require no changes for additional entries.
+#
+# CRITICAL: every concrete `ethtest` spec class file under
+# src/it/scala/com/chipprbots/ethereum/ethtest/ MUST be listed in exactly one shard
+# below. The workflow's `load-shards` job fails the whole run if the total class
+# count here doesn't match a fresh scan of that directory — see
+# `ethereum-tests-nightly.yml`'s "Verify shard manifest coverage" step.
+
+shards:
+  - shard: gascalc
+    report_only: true
+    classes:
+      - GasCalculationIssuesSpec
+
+  - shard: shard-a
+    report_only: false
+    classes:
+      - BlockchainTestsSpec
+      - EthSmokeSpec
+      - GeneralStateTestsSpec
+      - TransactionTestsSpec
+
+  - shard: shard-b
+    report_only: false
+    classes:
+      - ComprehensiveBlockchainTestsSpec
+      - ExecutionSpecsStateTestsSpec
+      - SimpleEthereumTest
+      - VMTestsSpec
