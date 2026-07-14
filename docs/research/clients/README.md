@@ -218,7 +218,7 @@ Status legend: ` ` = not started · `~` = in progress · `✓` = done. Update as
 | Client | block-production | accounts-signer | cl-engine | exec-extensions | historical-distribution | observability |
 |--------|:--:|:--:|:--:|:--:|:--:|:--:|
 | go-ethereum | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| core-geth |  |  |  |  |  |  |
+| core-geth | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | besu |  |  |  |  |  |  |
 | erigon |  |  |  |  |  |  |
 | nethermind |  |  |  |  |  |  |
