@@ -77,13 +77,18 @@ enum Transaction:
       signature: ECDSASignature
   )
 
-  /** EIP-2718 type `0x03` (EIP-4844) — go-ethereum `tx_blob.go` `BlobTx{ ChainID, Nonce, GasTipCap, GasFeeCap, Gas, To,
-    * Value, Data, AccessList, BlobFeeCap, BlobHashes, V, R, S }`. `to` is **not** optional — EIP-4844 forbids
-    * contract-creation blob transactions. Models only the **consensus** encoding (no sidecar; geth's `Sidecar
-    * *BlobTxSidecar \`rlp:"-"\`` is excluded from this RLP by construction) — the network-wrapper form and its RLP
-    * given are phase-2b (`plan/L1.md` §9 two-form split).
+  /** EIP-2718 type `0x03` (EIP-4844) — go-ethereum `tx_blob.go:47-68` `BlobTx{ ChainID, Nonce, GasTipCap, GasFeeCap,
+    * Gas, To, Value, Data, AccessList, BlobFeeCap, BlobHashes, Sidecar, V, R, S }`. `to` is **not** optional — EIP-4844
+    * forbids contract-creation blob transactions.
     *
-    * **RLP given not yet implemented** — phase 2b.
+    * **Two-form encoding (`plan/L1.md` §9, nethermind two-form discipline).** The [[sidecar]]
+    * (blobs+commitments+proofs) is present **only** in the P2P network-wrapper form, never in the consensus form —
+    * mirroring geth's `Sidecar *BlobTxSidecar \`rlp:"-"\`` tag (`tx_blob.go:62`). The two forms are two explicitly
+    * named codecs over this one case (`Transaction.blobConsensusCodec` = default given, used by `tx.hash`/tx-trie;
+    * `Transaction.BlobNetworkWrapper`
+    * \= the explicitly-imported wire form) — **never one codec that conditionally includes the sidecar**, since hashing
+    * the wrapper is a consensus split (§9). Two `Blob`s differing only in [[sidecar]] therefore encode to **identical**
+    * consensus bytes (and the same tx hash).
     */
   case Blob(
       chainId: ChainId,
@@ -97,14 +102,15 @@ enum Transaction:
       accessList: List[AccessListEntry],
       maxFeePerBlobGas: Wei,
       blobVersionedHashes: List[Hash],
-      signature: ECDSASignature
+      signature: ECDSASignature,
+      sidecar: Option[BlobSidecar] = None
   )
 
   /** EIP-2718 type `0x04` (EIP-7702, ETH-family) — go-ethereum `tx_setcode.go` `SetCodeTx{ ChainID, Nonce, GasTipCap,
     * GasFeeCap, Gas, To, Value, Data, AccessList, AuthList, V, R, S }`. `to` is **not** optional, matching EIP-7702.
-    * The inner [[SetCodeAuthorization]] list carries its own, second signature surface (§7 N-1 companion note).
-    *
-    * **RLP given not yet implemented** — phase 2b.
+    * The inner [[SetCodeAuthorization]] list carries its own, second signature surface (§7 N-1 companion note) — its
+    * own RLP codec and `sigHash` (magic byte `0x05`, distinct from this type's `0x04`) live in
+    * [[SetCodeAuthorization]].
     */
   case SetCode(
       chainId: ChainId,
@@ -131,9 +137,6 @@ enum Transaction:
     case _: Transaction.SetCode    => 0x04
 
 object Transaction:
-
-  private def notYetSupported(what: String): Nothing =
-    throw RLPException(s"$what RLP is not yet supported (phase 2b)")
 
   // --- the `to` field -------------------------------------------------------------------------------------------
   // geth's `rlp:"nil"` pointer semantics: a nil `*common.Address` encodes as the RLP **empty string** (`0x80`), not
@@ -277,6 +280,162 @@ object Transaction:
         throw RLPException(s"Cannot decode DynamicFee transaction: expected 12 elements, got ${list.items.length}", rlp)
       case _ => throw RLPException("Cannot decode DynamicFee transaction: expected an RLPList", rlp)
 
+  // --- Blob (0x03), two-form (RX-L1-11): consensus (no sidecar) vs network wrapper (blobs+commitments+proofs) ----
+  // The consensus body is one 14-element list; both forms share it. `blobBodyList`/`blobFromBody` factor it so the
+  // wrapper form nests the *same* body list, never a re-derived one — the byte-difference between the two forms is
+  // exactly the sidecar tail, nothing else (§9: the consensus body must be byte-identical across both forms).
+
+  private def blobBodyList(tx: Blob): RLPList =
+    RLPList(
+      summon[RLPCodec[ChainId]].encode(tx.chainId),
+      summon[RLPCodec[UInt256]].encode(tx.nonce),
+      summon[RLPCodec[Wei]].encode(tx.maxPriorityFeePerGas),
+      summon[RLPCodec[Wei]].encode(tx.maxFeePerGas),
+      summon[RLPCodec[UInt256]].encode(tx.gasLimit),
+      summon[RLPCodec[Address]].encode(tx.to),
+      summon[RLPCodec[Wei]].encode(tx.value),
+      summon[RLPCodec[ByteString]].encode(tx.payload),
+      summon[RLPCodec[List[AccessListEntry]]].encode(tx.accessList),
+      summon[RLPCodec[Wei]].encode(tx.maxFeePerBlobGas),
+      summon[RLPCodec[List[Hash]]].encode(tx.blobVersionedHashes),
+      summon[RLPCodec[BigInt]].encode(tx.signature.v),
+      summon[RLPCodec[BigInt]].encode(tx.signature.r),
+      summon[RLPCodec[BigInt]].encode(tx.signature.s)
+    )
+
+  private def blobFromBody(body: RLPEncodeable, sidecar: Option[BlobSidecar]): Blob = body match
+    case RLPList(
+          chainId,
+          nonce,
+          maxPrio,
+          maxFee,
+          gasLimit,
+          to,
+          value,
+          payload,
+          accessList,
+          maxBlobFee,
+          hashes,
+          v,
+          r,
+          s
+        ) =>
+      Blob(
+        chainId = summon[RLPCodec[ChainId]].decode(chainId),
+        nonce = summon[RLPCodec[UInt256]].decode(nonce),
+        maxPriorityFeePerGas = summon[RLPCodec[Wei]].decode(maxPrio),
+        maxFeePerGas = summon[RLPCodec[Wei]].decode(maxFee),
+        gasLimit = summon[RLPCodec[UInt256]].decode(gasLimit),
+        to = summon[RLPCodec[Address]].decode(to),
+        value = summon[RLPCodec[Wei]].decode(value),
+        payload = summon[RLPCodec[ByteString]].decode(payload),
+        accessList = summon[RLPCodec[List[AccessListEntry]]].decode(accessList),
+        maxFeePerBlobGas = summon[RLPCodec[Wei]].decode(maxBlobFee),
+        blobVersionedHashes = summon[RLPCodec[List[Hash]]].decode(hashes),
+        signature = ECDSASignature(
+          r = summon[RLPCodec[BigInt]].decode(r),
+          s = summon[RLPCodec[BigInt]].decode(s),
+          v = summon[RLPCodec[BigInt]].decode(v)
+        ),
+        sidecar = sidecar
+      )
+    case list: RLPList =>
+      throw RLPException(s"Cannot decode Blob transaction body: expected 14 elements, got ${list.items.length}", body)
+    case _ => throw RLPException("Cannot decode Blob transaction body: expected an RLPList", body)
+
+  /** The **consensus** blob encoding — `0x03 ‖ RLP([chainId, …, blobVersionedHashes, v, r, s])`, **no** sidecar. This
+    * is the default `given RLPCodec[Blob]`: `tx.hash`, the tx-trie root, and the aggregate [[Transaction]] codec all
+    * resolve to it, so the sidecar can never leak into a hashed/rooted encoding (§9).
+    */
+  given blobConsensusCodec: RLPCodec[Blob] = new RLPCodec[Blob]:
+    def encode(tx: Blob): RLPEncodeable = PrefixedRLPEncodable(0x03, blobBodyList(tx))
+    def decode(rlp: RLPEncodeable): Blob = blobFromBody(rlp, None)
+
+  /** The **network-wrapper** blob encoding (EIP-4844 v0 / Cancun `PooledTransactions`): `0x03 ‖ RLP([txBody, blobs,
+    * commitments, proofs])`, where `txBody` is the *same* consensus body list. Byte-cited to geth `tx_blob.go:328-353`
+    * (`blobTxWithBlobsV0{ BlobTx, Blobs, Commitments, Proofs }`) — the v0 form carries no version byte (that is the v1
+    * form, `:341-348`), so decode fixes `sidecar.version = BlobSidecar.Version0`.
+    *
+    * Deliberately kept **out of default implicit scope** (a nested object, not a top-level `given RLPCodec[Blob]`): a
+    * second top-level given would be an ambiguous-implicit compile error *and*, worse, would let the wrapper be
+    * summoned for `tx.hash` — a consensus split. Import `Transaction.BlobNetworkWrapper.given` explicitly at the L6
+    * wire layer to select it. Both forms are named; only the consensus form is the default.
+    */
+  object BlobNetworkWrapper:
+    given blobNetworkWrapperCodec: RLPCodec[Blob] = new RLPCodec[Blob]:
+      def encode(tx: Blob): RLPEncodeable =
+        val sc = tx.sidecar.getOrElse(
+          throw RLPException("Blob network-wrapper encoding requires a sidecar, but the transaction has none")
+        )
+        PrefixedRLPEncodable(
+          0x03,
+          RLPList(
+            blobBodyList(tx),
+            summon[RLPCodec[List[ByteString]]].encode(sc.blobs),
+            summon[RLPCodec[List[ByteString]]].encode(sc.commitments),
+            summon[RLPCodec[List[ByteString]]].encode(sc.proofs)
+          )
+        )
+      def decode(rlp: RLPEncodeable): Blob = rlp match
+        case RLPList(body, blobs, commitments, proofs) =>
+          val sc = BlobSidecar(
+            version = BlobSidecar.Version0,
+            blobs = summon[RLPCodec[List[ByteString]]].decode(blobs),
+            commitments = summon[RLPCodec[List[ByteString]]].decode(commitments),
+            proofs = summon[RLPCodec[List[ByteString]]].decode(proofs)
+          )
+          blobFromBody(body, Some(sc))
+        case _ =>
+          throw RLPException(
+            "Cannot decode Blob network wrapper: expected [txBody, blobs, commitments, proofs]",
+            rlp
+          )
+
+  // --- SetCode (0x04, EIP-7702, ETH-family, RX-L1-12) -----------------------------------------------------------
+
+  given RLPCodec[SetCode] = new RLPCodec[SetCode]:
+    def encode(tx: SetCode): RLPEncodeable =
+      PrefixedRLPEncodable(
+        0x04,
+        RLPList(
+          summon[RLPCodec[ChainId]].encode(tx.chainId),
+          summon[RLPCodec[UInt256]].encode(tx.nonce),
+          summon[RLPCodec[Wei]].encode(tx.maxPriorityFeePerGas),
+          summon[RLPCodec[Wei]].encode(tx.maxFeePerGas),
+          summon[RLPCodec[UInt256]].encode(tx.gasLimit),
+          summon[RLPCodec[Address]].encode(tx.to),
+          summon[RLPCodec[Wei]].encode(tx.value),
+          summon[RLPCodec[ByteString]].encode(tx.payload),
+          summon[RLPCodec[List[AccessListEntry]]].encode(tx.accessList),
+          summon[RLPCodec[List[SetCodeAuthorization]]].encode(tx.authorizationList),
+          summon[RLPCodec[BigInt]].encode(tx.signature.v),
+          summon[RLPCodec[BigInt]].encode(tx.signature.r),
+          summon[RLPCodec[BigInt]].encode(tx.signature.s)
+        )
+      )
+    def decode(rlp: RLPEncodeable): SetCode = rlp match
+      case RLPList(chainId, nonce, maxPrio, maxFee, gasLimit, to, value, payload, accessList, authList, v, r, s) =>
+        SetCode(
+          chainId = summon[RLPCodec[ChainId]].decode(chainId),
+          nonce = summon[RLPCodec[UInt256]].decode(nonce),
+          maxPriorityFeePerGas = summon[RLPCodec[Wei]].decode(maxPrio),
+          maxFeePerGas = summon[RLPCodec[Wei]].decode(maxFee),
+          gasLimit = summon[RLPCodec[UInt256]].decode(gasLimit),
+          to = summon[RLPCodec[Address]].decode(to),
+          value = summon[RLPCodec[Wei]].decode(value),
+          payload = summon[RLPCodec[ByteString]].decode(payload),
+          accessList = summon[RLPCodec[List[AccessListEntry]]].decode(accessList),
+          authorizationList = summon[RLPCodec[List[SetCodeAuthorization]]].decode(authList),
+          signature = ECDSASignature(
+            r = summon[RLPCodec[BigInt]].decode(r),
+            s = summon[RLPCodec[BigInt]].decode(s),
+            v = summon[RLPCodec[BigInt]].decode(v)
+          )
+        )
+      case list: RLPList =>
+        throw RLPException(s"Cannot decode SetCode transaction: expected 13 elements, got ${list.items.length}", rlp)
+      case _ => throw RLPException("Cannot decode SetCode transaction: expected an RLPList", rlp)
+
   // --- the aggregate `Transaction` codec ------------------------------------------------------------------------
   // `decode(rlp: RLPEncodeable)` can only ever see a bare `RLPList` here (a typed tx's leading type byte is
   // consumed *before* AST parsing — see `Transaction.decode(bytes)` below); it is therefore always the Legacy
@@ -287,8 +446,8 @@ object Transaction:
       case l: Legacy     => summon[RLPCodec[Legacy]].encode(l)
       case a: AccessList => summon[RLPCodec[AccessList]].encode(a)
       case d: DynamicFee => summon[RLPCodec[DynamicFee]].encode(d)
-      case _: Blob       => notYetSupported("Blob transaction")
-      case _: SetCode    => notYetSupported("SetCode transaction")
+      case b: Blob       => summon[RLPCodec[Blob]].encode(b) // consensus form (blobConsensusCodec) — tx.hash uses this
+      case s: SetCode    => summon[RLPCodec[SetCode]].encode(s)
 
     def decode(rlp: RLPEncodeable): Transaction = rlp match
       case list: RLPList => summon[RLPCodec[Legacy]].decode(list)
@@ -318,8 +477,10 @@ object Transaction:
       first match
         case 0x01 => summon[RLPCodec[AccessList]].decode(com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
         case 0x02 => summon[RLPCodec[DynamicFee]].decode(com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
-        case 0x03 => notYetSupported("Blob transaction (0x03)")
-        case 0x04 => notYetSupported("SetCode transaction (0x04)")
+        // 0x03 → the **consensus** form (blobConsensusCodec, the default given); the network wrapper is never
+        // reached by binary-envelope decode — it is a wire-layer concern selected explicitly at L6.
+        case 0x03 => summon[RLPCodec[Blob]].decode(com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
+        case 0x04 => summon[RLPCodec[SetCode]].decode(com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
         case other =>
           throw RLPException(
             f"Unrecognized transaction type byte 0x$other%02x — not a legacy list header (>= 0xc0) and not a " +

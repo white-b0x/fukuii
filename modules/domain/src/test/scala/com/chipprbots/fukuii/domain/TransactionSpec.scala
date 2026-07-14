@@ -9,11 +9,12 @@ import com.chipprbots.fukuii.bytes.Hex
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.crypto.ECDSASignature
 import com.chipprbots.fukuii.crypto.kec256
+import com.chipprbots.fukuii.rlp.RLPCodecs.given
 import com.chipprbots.fukuii.rlp.RLPException
 import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.RLPValue
-import com.chipprbots.fukuii.rlp.rawDecode
 import com.chipprbots.fukuii.rlp.encode as rlpEncode
+import com.chipprbots.fukuii.rlp.rawDecode
 
 /** EIP-2718 typed-transaction envelope: per-variant RLP round-trip, the `to`-field `rlp:"nil"` shape, and the
   * first-byte dispatch decoder ([[Transaction.decode(bytes: Array[Byte])]]) — including its `0xc0` boundary, the
@@ -58,6 +59,54 @@ class TransactionSpec extends AnyFunSuite:
     signature = ECDSASignature(BigInt(1), BigInt(2), BigInt(1))
   )
 
+  private val versionedHash = Hash.fromHex("0x01" + ("ab" * 31)) // leading 0x01 KZG-version byte
+
+  private def blobTx: Transaction.Blob = Transaction.Blob(
+    chainId = ChainId(1),
+    nonce = UInt256(0),
+    maxPriorityFeePerGas = Wei(UInt256(1000000000L)),
+    maxFeePerGas = Wei(UInt256(2000000000L)),
+    gasLimit = UInt256(21000),
+    to = toAddress,
+    value = Wei.Zero,
+    payload = ByteString.empty,
+    accessList = Nil,
+    maxFeePerBlobGas = Wei(UInt256(10)),
+    blobVersionedHashes = List(versionedHash),
+    signature = ECDSASignature(BigInt(1), BigInt(2), BigInt(1)),
+    sidecar = None
+  )
+
+  private def blobSidecar: BlobSidecar = BlobSidecar(
+    version = BlobSidecar.Version0,
+    blobs = List(ByteString(Array.fill[Byte](4)(0x11))),
+    commitments = List(ByteString(Array.fill[Byte](48)(0x22))),
+    proofs = List(ByteString(Array.fill[Byte](48)(0x33)))
+  )
+
+  private def setCodeAuth: SetCodeAuthorization = SetCodeAuthorization(
+    chainId = ChainId(1),
+    address = toAddress,
+    nonce = UInt256(7),
+    yParity = 1,
+    r = UInt256(BigInt(3)),
+    s = UInt256(BigInt(4))
+  )
+
+  private def setCodeTx: Transaction.SetCode = Transaction.SetCode(
+    chainId = ChainId(1),
+    nonce = UInt256(0),
+    maxPriorityFeePerGas = Wei(UInt256(1000000000L)),
+    maxFeePerGas = Wei(UInt256(2000000000L)),
+    gasLimit = UInt256(21000),
+    to = toAddress,
+    value = Wei.Zero,
+    payload = ByteString.empty,
+    accessList = List(AccessListEntry(toAddress, List(Hash.fromHex("0x" + ("00" * 31) + "01")))),
+    authorizationList = List(setCodeAuth),
+    signature = ECDSASignature(BigInt(1), BigInt(2), BigInt(1))
+  )
+
   // --- RLP round-trip, one representative instance per implemented variant ---------------------------------------
 
   test("Legacy round-trips through Transaction.decode(bytes)"):
@@ -74,6 +123,99 @@ class TransactionSpec extends AnyFunSuite:
     val tx: Transaction = dynamicFeeTx
     val bytes = rlpEncode(tx)
     assert(Transaction.decode(bytes) == tx)
+
+  test("Blob (consensus form, no sidecar) round-trips through Transaction.decode(bytes)"):
+    val tx: Transaction = blobTx
+    val bytes = rlpEncode(tx)
+    assert(Transaction.decode(bytes) == tx)
+
+  test("SetCode round-trips through Transaction.decode(bytes)"):
+    val tx: Transaction = setCodeTx
+    val bytes = rlpEncode(tx)
+    assert(Transaction.decode(bytes) == tx)
+
+  test("SetCodeAuthorization round-trips through its RLP codec"):
+    val codec = summon[com.chipprbots.fukuii.rlp.RLPCodec[SetCodeAuthorization]]
+    val encoded = com.chipprbots.fukuii.rlp.encode(codec.encode(setCodeAuth))
+    assert(codec.decode(rawDecode(encoded)) == setCodeAuth)
+
+  // --- Blob two-form: consensus vs network wrapper (RX-L1-11, §9 nethermind two-form) ------------------------------
+
+  test("the two Blob forms produce DIFFERENT bytes (consensus omits the sidecar; wrapper carries it)"):
+    val withSidecar = blobTx.copy(sidecar = Some(blobSidecar))
+    val consensusBytes = rlpEncode(withSidecar: Transaction) // aggregate -> consensus form
+    val wrapperBytes = com.chipprbots.fukuii.rlp.encode(
+      Transaction.BlobNetworkWrapper.blobNetworkWrapperCodec.encode(withSidecar)
+    )
+    assert(!consensusBytes.sameElements(wrapperBytes))
+    // the wrapper is strictly longer — it nests the same body list plus the blobs/commitments/proofs tail
+    assert(wrapperBytes.length > consensusBytes.length)
+    // both are 0x03-prefixed EIP-2718 envelopes
+    assert(consensusBytes(0) == 0x03 && wrapperBytes(0) == 0x03)
+
+  test("tx.hash (consensus encoding) is STABLE regardless of the sidecar"):
+    val withoutSidecar = rlpEncode(blobTx: Transaction)
+    val withSidecar = rlpEncode(blobTx.copy(sidecar = Some(blobSidecar)): Transaction)
+    // the aggregate codec always uses the consensus form, so the hashed bytes are identical
+    assert(withoutSidecar.sameElements(withSidecar))
+    assert(kec256(withoutSidecar).sameElements(kec256(withSidecar)))
+
+  test("the network wrapper round-trips back to the same Blob, recovering the v0 sidecar"):
+    val withSidecar = blobTx.copy(sidecar = Some(blobSidecar))
+    val codec = Transaction.BlobNetworkWrapper.blobNetworkWrapperCodec
+    val encoded = com.chipprbots.fukuii.rlp.encode(codec.encode(withSidecar))
+    assert((encoded(0) & 0xff) == 0x03)
+    val decoded = codec.decode(rawDecode(encoded.tail))
+    assert(decoded == withSidecar)
+    assert(decoded.sidecar.map(_.version).contains(BlobSidecar.Version0))
+
+  test("versionedHash = 0x01 || sha256(commitment)[1:], with the fixed KZG 0x01 leading byte"):
+    val commitment = ByteString(Array.fill[Byte](48)(0x22))
+    val vh = BlobSidecar.versionedHash(commitment)
+    val expected = com.chipprbots.fukuii.crypto.sha256(commitment.toArray).clone()
+    expected(0) = 0x01
+    assert(vh.toArray.sameElements(expected))
+    assert(vh.toArray.head == 0x01) // fixed KZG version byte, NOT the sidecar version field
+
+  // --- SetCodeAuthorization SigHash: magic byte 0x05, NOT the tx-type 0x04 ----------------------------------------
+
+  test("SetCodeAuthorization.sigHash uses magic byte 0x05 = keccak256(0x05 || RLP([chainId, address, nonce]))"):
+    val body = RLPList(
+      summon[com.chipprbots.fukuii.rlp.RLPCodec[ChainId]].encode(setCodeAuth.chainId),
+      summon[com.chipprbots.fukuii.rlp.RLPCodec[Address]].encode(setCodeAuth.address),
+      summon[com.chipprbots.fukuii.rlp.RLPCodec[UInt256]].encode(setCodeAuth.nonce)
+    )
+    val expected = kec256(0x05.toByte +: com.chipprbots.fukuii.rlp.encode(body))
+    assert(setCodeAuth.sigHash.toArray.sameElements(expected))
+    assert(SetCodeAuthorization.MagicByte == 0x05)
+    // a byte-0x04 (tx-type) prefix would give a DIFFERENT hash — prove the magic byte is not conflated
+    val wrong = kec256(0x04.toByte +: com.chipprbots.fukuii.rlp.encode(body))
+    assert(!setCodeAuth.sigHash.toArray.sameElements(wrong))
+
+  // --- byte-exact Blob (0x03) vector from ethereum/tests BlockchainTests -------------------------------------------
+  // Extracted (tx index 3) from ValidBlocks/bcEIP4844-blobtransactions/blockWithAllTransactionTypes.json — the
+  // consensus (no-sidecar) encoding go-ethereum places in the block body. Pins the 14-field order to bytes.
+
+  test("byte-exact Blob consensus vector (bcEIP4844-blobtransactions/blockWithAllTransactionTypes) round-trips"):
+    val vectorBytes = Hex.decode(
+      "0x03f8890103018203e885e8d4a5100094100000000000000000000000000000000000000a0780c00ae1a0" +
+        "01a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8809f638144c46d5de7a9e630" +
+        "c0e7c5c63ae829ecfd8cc94715d9c29fe17c464de0a06c5fc54c3aa868ba35ef31a4e12431611631ab7bcdce" +
+        "b4214dd273d83f73b5e1"
+    )
+    val tx = Transaction.decode(vectorBytes)
+    assert(tx.isInstanceOf[Transaction.Blob])
+    assert(tx.txType == 0x03)
+    tx match
+      case b: Transaction.Blob =>
+        assert(b.chainId == ChainId(1))
+        assert(b.nonce == UInt256(3))
+        assert(b.maxFeePerBlobGas == Wei(UInt256(10)))
+        assert(b.blobVersionedHashes.length == 1)
+        assert(b.blobVersionedHashes.head.toArray.head == 0x01) // KZG versioned hash leading byte
+        assert(b.sidecar.isEmpty) // consensus form has no sidecar
+      case other => fail(s"expected a Blob, got $other")
+    assert(rlpEncode(tx).sameElements(vectorBytes))
 
   // --- byte-exact reference vectors (ethereum/tests TransactionTests) — the consensus gate -------------------------
   // A structural round-trip alone cannot catch a field-order or width bug that happens to be self-consistent; these
@@ -144,13 +286,15 @@ class TransactionSpec extends AnyFunSuite:
     assert(bytes(0) == 0x02)
     assert(Transaction.decode(bytes).isInstanceOf[Transaction.DynamicFee])
 
-  test("type byte 0x03 (Blob) throws the phase-2b notYetSupported guard, not a decode error"):
-    val ex = intercept[RLPException](Transaction.decode(Array[Byte](0x03)))
-    assert(ex.getMessage.contains("not yet supported"))
+  test("type byte 0x03 dispatches to Blob (consensus form)"):
+    val bytes = rlpEncode(blobTx: Transaction)
+    assert(bytes(0) == 0x03)
+    assert(Transaction.decode(bytes).isInstanceOf[Transaction.Blob])
 
-  test("type byte 0x04 (SetCode) throws the phase-2b notYetSupported guard, not a decode error"):
-    val ex = intercept[RLPException](Transaction.decode(Array[Byte](0x04)))
-    assert(ex.getMessage.contains("not yet supported"))
+  test("type byte 0x04 dispatches to SetCode"):
+    val bytes = rlpEncode(setCodeTx: Transaction)
+    assert(bytes(0) == 0x04)
+    assert(Transaction.decode(bytes).isInstanceOf[Transaction.SetCode])
 
   test("type byte 0x05 is REJECTED, not silently treated as legacy"):
     intercept[RLPException](Transaction.decode(Array[Byte](0x05)))
