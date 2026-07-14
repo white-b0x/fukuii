@@ -42,6 +42,19 @@ class ECDSASignatureSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     sig.publicKey(messageHash) shouldBe None
   }
 
+  it should "return None (not an empty pubkey) when the recovered point is infinity (besu isInfinity guard)" in {
+    // Take R = G (discrete log 1); then Q = r^{-1}(sR - eG) = r^{-1}(s - e)G is the point at infinity
+    // exactly when e == s. With s = e = 2 and recId matching G's y-parity, recoverPubBytes reconstructs
+    // R = G and must reject the ∞ recovery rather than return getEncoded(∞).tail == empty pubkey.
+    val g = curve.getG.normalize()
+    val r = BigInt(g.getAffineXCoord.toBigInteger)
+    val recId: Byte = if BigInt(g.getAffineYCoord.toBigInteger).testBit(0) then 28.toByte else 27.toByte
+    val s = BigInt(2)
+    val messageHash = Array.fill[Byte](32)(0.toByte)
+    messageHash(31) = 2.toByte // e = 2 = s
+    ECDSASignature.recoverPubBytes(r, s, recId, messageHash) shouldBe None
+  }
+
   it should "sign a message and recover the signing public key (round-trip)" in {
     forAll(arbitrary[Array[Byte]]) { message =>
       val keys = generateKeyPair(secureRandom)

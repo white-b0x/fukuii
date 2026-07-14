@@ -129,9 +129,23 @@ object BN128:
     /** Order `r` of the pairing-friendly cyclic subgroup. */
     val R: BigInt = BigInt("21888242871839275222246405745257275088548364400416034343698204186575808495617")
 
-    /** A valid element of subgroup `G2`: a valid on-curve point over `Fp2`. `None` if invalid. */
+    /** Prime-order-`r` subgroup membership for a G2 twist point.
+      *
+      * The twist `E'(Fp2)` has cofactor `> 1`, so being on-curve does not imply being in the
+      * order-`r` pairing subgroup. An on-curve-but-off-subgroup input would make `ECPAIRING`
+      * (`0x08`) return a pairing result differing from the reference client — a state-root split.
+      * A point is in the subgroup iff `[r]·P = ∞`. Byte-for-byte the check core-geth performs in
+      * `bn256/cloudflare/twist.go:60-62` (`cneg.Mul(c, Order); return cneg.z.IsZero()`) and gnark's
+      * `IsInSubGroup` (`bn256/gnark/g2.go:59`). G1 (cofactor 1) needs no such check.
+      */
+    def isInSubGroup(p: Point[Fp2]): Boolean =
+      mul(p, R).isZero
+
+    /** A valid element of subgroup `G2`: a valid on-curve point over `Fp2` that additionally lies in
+      * the order-`r` subgroup. `None` if the point is invalid, off-curve, or off-subgroup.
+      */
     def apply(a: ByteString, b: ByteString, c: ByteString, d: ByteString): Option[BN128G2] =
-      createPoint(a, b, c, d).map(BN128G2(_))
+      createPoint(a, b, c, d).filter(isInSubGroup).map(BN128G2(_))
 
     def mulByP(p: Point[Fp2]): Point[Fp2] =
       val rx = Fp2.TWIST_MUL_BY_P_X * Fp2.frobeniusMap(p.x, 1)

@@ -57,7 +57,23 @@ gives fail-loud on programmer error **and** byte-exact geth behavior where the s
 decode, and RLP-encoded scalars / minimal-length storage values legitimately arrive shorter than
 32 bytes; a strict "exactly 32" would wrongly reject valid input.
 
-### 4. Scala 3 idiom throughout
+### 4. `UInt256` carries its own 256-bit modular arithmetic
+
+`UInt256` is not just a byte/ordering wrapper — it carries the **core 256-bit modular arithmetic** as
+`extension` operators: add/sub/mul (mod `2^256` wrapping), div/mod (unsigned, `y == 0 ⇒ 0`), pow
+(`x^y mod 2^256`, `x^0 = 1`), bitwise and/or/xor/not, logical shl/shr, and unsigned comparison.
+
+**Empirical logic:** every reference client carries the arithmetic **on the number type itself** —
+go-ethereum's `holiman/uint256.Int` (`Add`/`Mul`/`Div`/`Exp`/`Lsh`…), besu's Tuweni `UInt256`. The
+wrapping and zero-divisor semantics are matched byte-for-byte to `holiman/uint256`: subtraction
+wraps into `[0, 2^256)`, `Div`/`Mod` by zero return `0` (not a trap), `Exp(x, 0) = 1`. Implemented
+over `BigInt` with a single `mod 2^256` reduction (`BigInt.mod` is always non-negative, giving the
+correct two's-complement wrap for an underflowing subtraction) — the JVM has no native `uint256`, so
+this is the besu-style big-int-backed approach, not the geth 4×`uint64` limb representation. What is
+deliberately **excluded** is the gas-metered EVM-opcode layer (EXP gas, SIGNEXTEND, signed
+SDIV/SMOD/SAR) — those encode opcode/gas rules and live in `evm` (L3), not on the number type.
+
+### 5. Scala 3 idiom throughout
 
 `extension` methods and `given` instances replace the old `implicit class` / `implicit def` forms;
 top-level definitions and braceless syntax throughout.
@@ -75,17 +91,25 @@ rebuild: *if it isn't Scala 3 idiom, don't write it that way.*
 | `Hex.decode` had no odd-length guard | Odd-length rejected; `0x`/`0X` tolerated; non-hex rejected | Matches go-ethereum `hexutil`; fails loud on malformed input |
 | `implicit class` / `implicit def` (Scala-2 idiom) | `extension` / `given` (Scala 3) | Modern, no implicit-scope surprises |
 | Raw `ByteString` with no type distinction | Type-distinct opaque `Address`/`Hash` | Can't mix an address and a hash by accident |
+| `UInt256` scattered arithmetic pulled from `domain`/`vm` | 256-bit modular arithmetic **on the type**, `holiman/uint256`-exact wrapping/zero-divisor semantics | The number type is self-contained; `domain`/`Wei` math consumes it without reaching up a layer |
 | `common` = large grab-bag `utils` | `common` = minimal (logging facade only) | No dependency magnet; utilities added only when a consumer needs them |
 
-## Deferred (and to which layer)
+## Layer boundaries (what lives elsewhere, and why)
 
-- **Wrapping EVM arithmetic** on `UInt256` (add/mul/mod-2²⁵⁶, signed ops, EXP-gas) → `evm`/`domain`.
-  `bytes` owns only construction, byte form, equality, ordering.
-- **`Wei` and other domain-semantic wrappers** → `domain`.
-- **RLP codecs** (`given RLPCodec[T]` for these types) → `rlp` (the `derives` DEFAULT is that
-  layer's job — and the cutover old fukuii never finished).
-- **keccak / address-from-pubkey derivation** → `crypto` (needs the hash + curve).
-- **`common` collection/error/cats helpers** → added when a concrete consumer first needs one.
+Durable placement decisions — permanent design facts, *not* build-status (for what's committed vs
+pending, see the README index alone).
+
+- **`UInt256`'s own 256-bit modular arithmetic** (add/sub/mul/div/mod/pow, bitwise, signed compare)
+  belongs **in `bytes` (L0)** — it is a property of the number type, which every reference client
+  carries on UInt256 (`holiman/uint256`, Tuweni `UInt256`); `domain`'s `Wei`/balance math consumes it.
+- **EVM-opcode gas-metered `UInt256` semantics** (EXP gas, sign-extend, opcode dispatch) → **`evm`
+  (L3)** — those encode opcode/gas rules, not the number type.
+- **`Wei` and other domain-semantic wrappers** → **`domain` (L1)** — semantic types over the raw
+  primitives.
+- **`common`** grows only when a concrete consumer needs a generic helper — never speculatively.
+
+(Value-type RLP codecs live in the `rlp` sibling module and hashing/address-derivation in `crypto` —
+sibling L0 modules, per the layering; not boundaries of this doc.)
 
 ## Verification
 

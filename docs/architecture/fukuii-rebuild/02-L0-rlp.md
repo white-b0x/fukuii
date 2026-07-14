@@ -92,6 +92,26 @@ value, a persisted record) must fail loud on trailing garbage — the project's 
 principle. The lenient path is kept for prefix-plus-payload frames (an RLPx message whose type byte
 precedes the payload), where trailing bytes are expected.
 
+### 6. Canonical-form decode enforcement (not just structural decode)
+
+The decoder rejects **non-canonical encodings** the way go-ethereum does, rather than accepting any
+structurally-parseable input:
+- **Non-canonical size headers** (`ErrCanonSize`, `rlp/raw.go`) — a single byte `< 0x80` wrapped as a
+  `0x81 xx` short string; a long-form header (`0xb8…`/`0xf8…`) used for a `< 56`-byte payload; a
+  length-of-length field with a leading zero byte.
+- **Non-canonical integers** (`ErrCanonInt`, `rlp/decode.go`) — a scalar decode (`Int`/`Long`/
+  `BigInt`/`UInt256`) rejects a leading zero byte, including a lone `0x00` (zero is the empty string,
+  never `0x00`). Encode was already minimal-length; this closes the matching decode path.
+- **Payload bounds** (`ErrValueTooLarge`, `rlp/raw.go`) — a header that claims more payload than the
+  buffer holds is rejected instead of silently truncating via `slice`.
+
+**Empirical logic:** a lenient decoder that accepts multiple byte-encodings of the same value is a
+**consensus-divergence / network-partition vector** — two nodes can disagree on whether a block or
+transaction is well-formed. go-ethereum and besu both enforce these canonical rules; matching them
+byte-for-byte is a hard requirement, not a nicety. Old fukuii inherited Mantis's *structural-only*
+decoder, which accepted all three non-canonical classes above; the rebuild is strict from line one,
+covered by the `ethereum/tests/RLPTests/invalidRLPTest.json` vectors.
+
 ## Improvements over old fukuii
 
 | Old fukuii (AS-IS) | Rebuild L0 `rlp` | Why it matters |
@@ -101,9 +121,12 @@ precedes the payload), where trailing bytes are expected.
 | **Triple** `given` per type (`RLPEncoder`, `RLPDecoder`, `RLPEncoder & RLPDecoder`) | **One** `given RLPCodec[T]` per type | Half the boilerplate; no ambiguity between the three forms |
 | `RLPImplicitConversions` — `implicit class` / `implicit def` (Scala-2 idiom) | `given`/`using`, top-level defs, `Mirror` `derives` (Scala 3) | No implicit-scope surprises; modern idiom |
 | Strict decode retrofitted later (RLP-DECODE-01/02) | `decodeStrict` / `rawDecodeStrict` present from line one | Fail-loud on trailing bytes by default where it matters |
+| Mantis-inherited **structural-only** decode — accepts non-canonical size headers, leading-zero scalars, over-long payloads | Canonical-form enforcement (`ErrCanonSize`/`ErrCanonInt`/`ErrValueTooLarge`), byte-exact to go-ethereum | Closes a consensus-divergence / network-partition vector; one byte-encoding per value |
 | `derived*` split across `RLPDerivation` + Shapeless-era `RLPImplicitDerivations` + `.scala3`/`.backup` files | Single `RLPCodec.derived` (Mirror) | One derivation path, no dead alternates |
 
-## Deferred (and to which layer)
+## Layer boundaries (what lives elsewhere, and why)
+
+_Durable placement decisions — not build-status (see the README index for what's committed)._
 
 - **Trailing-optional-omission derivation policy** (old fukuii's `DerivationPolicy.omitTrailingOptionals`)
   → the consumer layer that needs it (`domain`, fork-variant block headers). The base `derived` is

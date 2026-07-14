@@ -25,6 +25,12 @@ private[rlp] object RLP:
   /** Upper bound on a single item's length (`256^8`). */
   private val MaxItemLength: Double = math.pow(256, 8)
 
+  /** Widest length-of-length the JVM can address: a payload length wider than 4 bytes overflows an `Int`
+    * array index, so a long-form header declaring a longer length field is rejected (besu
+    * `RLPDecodingHelpers.extractSizeFromLongItem`, geth `rlp/raw.go` `ErrValueTooLarge`).
+    */
+  private val MaxLengthOfLength: Int = Integer.BYTES
+
   /** `0x80` — short-string header base. */
   private val OffsetShortItem: Int = 0x80
 
@@ -112,6 +118,19 @@ private[rlp] object RLP:
           ((data(offset + 2) & 0xff) << 8) + (data(offset + 3) & 0xff)
       case _ => throw RLPException("Bytes don't represent an int")
 
+  /** Read a big-endian item-header length field spanning `len` bytes (`len <= MaxLengthOfLength`) as an
+    * unsigned `Long`. Carrying the length in `Long` keeps a 4-byte length with the high bit set positive
+    * (a signed `Int` read would wrap negative, J-RLP-3) and lets the caller range-check the payload end in
+    * a non-overflowing type before any `Int` truncation (J-RLP-1) — the besu `Math.toIntExact` gate.
+    */
+  private def bigEndianLengthToLong(data: Array[Byte], offset: Int, len: Int): Long =
+    var result = 0L
+    var i = 0
+    while i < len do
+      result = (result << 8) | (data(offset + i) & 0xffL)
+      i += 1
+    result
+
   private def intToBytesNoLeadZeroes(value: Int): Array[Byte] =
     ByteBuffer.allocate(Integer.BYTES).putInt(value).array().dropWhile(_ == (0: Byte))
 
@@ -134,24 +153,66 @@ private[rlp] object RLP:
       else if prefix < OffsetShortItem then ItemBounds(start = pos, end = pos, isList = false)
       else if prefix <= OffsetLongItem then
         val length = prefix - OffsetShortItem
-        ItemBounds(start = pos + 1, end = pos + length, isList = false)
+        val end = pos + length
+        // F-RLP-1 (ErrCanonSize, go-ethereum rlp/raw.go:360-363): a single byte < 0x80 is its own
+        // encoding and must not be wrapped as a `0x81 xx` short string.
+        if length == 1 && pos + 1 < data.length && (data(pos + 1) & 0xff) < 0x80 then
+          throw RLPException("Non-canonical RLP: single byte < 0x80 must not be string-wrapped (ErrCanonSize)")
+        // F-RLP-3 (ErrValueTooLarge, go-ethereum rlp/raw.go:380-383): payload must fit the buffer.
+        if end >= data.length then
+          throw RLPException("Truncated RLP: string payload extends beyond data (ErrValueTooLarge)")
+        ItemBounds(start = pos + 1, end = end, isList = false)
       else if prefix < OffsetShortList then
         val lengthOfLength = prefix - OffsetLongItem
+        // J-RLP-2 (besu extractSizeFromLongItem): a length field wider than an Int can index cannot
+        // address a JVM array, so reject it with a self-describing message before reading.
+        if lengthOfLength > MaxLengthOfLength then
+          throw RLPException("Truncated RLP: length-of-length exceeds max supported size (ErrValueTooLarge)")
         if pos + 1 + lengthOfLength > data.length then
           throw RLPException("Truncated RLP: length-of-length prefix extends beyond data")
-        val length = bigEndianMinLengthToInt(data, pos + 1, lengthOfLength)
+        // J-RLP-1/J-RLP-3: carry the length in Long so a 4-byte length with the high bit set stays
+        // positive and the payload-end range-check below cannot overflow to a negative Int.
+        val length = bigEndianLengthToLong(data, pos + 1, lengthOfLength)
+        // F-RLP-1 (ErrCanonSize, go-ethereum rlp/raw.go:410-414): long-form header is only canonical
+        // when the payload is >= 56 bytes and the length field has no leading zero.
+        if length < SizeThreshold then
+          throw RLPException("Non-canonical RLP: length < 56 must use the short-form header (ErrCanonSize)")
+        if (data(pos + 1) & 0xff) == 0 then
+          throw RLPException("Non-canonical RLP: leading zero in length-of-length (ErrCanonSize)")
         val beginPos = pos + 1 + lengthOfLength
-        ItemBounds(start = beginPos, end = beginPos + length - 1, isList = false)
+        val end = beginPos.toLong + length - 1
+        // F-RLP-3 (ErrValueTooLarge, go-ethereum rlp/raw.go:380-383): payload must fit the buffer. The
+        // comparison is in Long (J-RLP-1) so an oversize length cannot wrap the guard.
+        if end >= data.length then
+          throw RLPException("Truncated RLP: string payload extends beyond data (ErrValueTooLarge)")
+        ItemBounds(start = beginPos, end = end.toInt, isList = false)
       else if prefix <= OffsetLongList then
         val length = prefix - OffsetShortList
-        ItemBounds(start = pos + 1, end = pos + length, isList = true)
+        val end = pos + length
+        if end >= data.length then
+          throw RLPException("Truncated RLP: list payload extends beyond data (ErrValueTooLarge)")
+        ItemBounds(start = pos + 1, end = end, isList = true)
       else
         val lengthOfLength = prefix - OffsetLongList
+        // J-RLP-2 (besu extractSizeFromLongItem): reject a length field wider than an Int can index.
+        if lengthOfLength > MaxLengthOfLength then
+          throw RLPException("Truncated RLP: length-of-length exceeds max supported size (ErrValueTooLarge)")
         if pos + 1 + lengthOfLength > data.length then
           throw RLPException("Truncated RLP: length-of-length prefix extends beyond data")
-        val length = bigEndianMinLengthToInt(data, pos + 1, lengthOfLength)
+        // J-RLP-1/J-RLP-3: carry the length in Long so an oversize length cannot wrap the guard below.
+        val length = bigEndianLengthToLong(data, pos + 1, lengthOfLength)
+        // F-RLP-1 (ErrCanonSize, go-ethereum rlp/raw.go:410-414): same canonical long-form rules for lists.
+        if length < SizeThreshold then
+          throw RLPException("Non-canonical RLP: length < 56 must use the short-form header (ErrCanonSize)")
+        if (data(pos + 1) & 0xff) == 0 then
+          throw RLPException("Non-canonical RLP: leading zero in length-of-length (ErrCanonSize)")
         val beginPos = pos + 1 + lengthOfLength
-        ItemBounds(start = beginPos, end = beginPos + length - 1, isList = true)
+        val end = beginPos.toLong + length - 1
+        // F-RLP-3 (ErrValueTooLarge, go-ethereum rlp/raw.go:380-383): payload must fit the buffer; compared
+        // in Long (J-RLP-1) so an oversize length cannot wrap the guard.
+        if end >= data.length then
+          throw RLPException("Truncated RLP: list payload extends beyond data (ErrValueTooLarge)")
+        ItemBounds(start = beginPos, end = end.toInt, isList = true)
 
   private def decodeWithPos(data: Array[Byte], pos: Int): (RLPEncodeable, Int) =
     if data.isEmpty then throw RLPException("data is too short")

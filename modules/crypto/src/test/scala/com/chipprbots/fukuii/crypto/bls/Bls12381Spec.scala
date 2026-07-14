@@ -50,6 +50,16 @@ class Bls12381Spec extends AnyFunSuite:
         case Left(err)  => fail(s"vector ${v.name} unexpectedly failed: $err")
     }
 
+  /** Assert the native backend rejects every malformed vector in a `fail-*.json` set (wrong length,
+    * off-curve, non-canonical field element, off-subgroup) instead of returning a wrong answer.
+    */
+  private def checkFailure(resource: String, run: Array[Byte] => Either[String, Array[Byte]]): Unit =
+    val vecs = loadVectors(resource)
+    assert(vecs.nonEmpty, s"no vectors loaded from $resource")
+    vecs.foreach { v =>
+      assert(run(Hex.decode(v.input)).isLeft, s"expected rejection for ${v.name}")
+    }
+
   test("native BLS12-381 library is available on this platform"):
     assert(Bls12381.isAvailable)
 
@@ -91,15 +101,28 @@ class Bls12381Spec extends AnyFunSuite:
       case Left(err) => fail(s"pairing identity vector failed: $err")
 
   test("malformed G1 add input is rejected (fail KAT)"):
-    val vecs = loadVectors("/eip2537/fail-add_G1_bls.json")
-    assert(vecs.nonEmpty)
-    vecs.foreach { v =>
-      assert(Bls12381.g1Add(Hex.decode(v.input)).isLeft, s"expected rejection for ${v.name}")
-    }
+    checkFailure("/eip2537/fail-add_G1_bls.json", Bls12381.g1Add)
+
+  test("malformed G2 add input is rejected (fail KAT)"):
+    checkFailure("/eip2537/fail-add_G2_bls.json", Bls12381.g2Add)
+
+  test("malformed G1 mul input is rejected (fail KAT)"):
+    checkFailure("/eip2537/fail-mul_G1_bls.json", Bls12381.g1Mul)
+
+  test("malformed G2 mul input is rejected (fail KAT)"):
+    checkFailure("/eip2537/fail-mul_G2_bls.json", Bls12381.g2Mul)
+
+  test("malformed G1 MSM input is rejected (fail KAT)"):
+    checkFailure("/eip2537/fail-msm_G1_bls.json", Bls12381.g1Msm)
+
+  test("malformed G2 MSM input is rejected (fail KAT)"):
+    checkFailure("/eip2537/fail-msm_G2_bls.json", Bls12381.g2Msm)
+
+  test("malformed map-fp-to-G1 input is rejected (fail KAT)"):
+    checkFailure("/eip2537/fail-map_fp_to_G1_bls.json", Bls12381.mapFpToG1)
+
+  test("malformed map-fp2-to-G2 input is rejected (fail KAT)"):
+    checkFailure("/eip2537/fail-map_fp2_to_G2_bls.json", Bls12381.mapFp2ToG2)
 
   test("malformed pairing input is rejected (fail KAT)"):
-    val vecs = loadVectors("/eip2537/fail-pairing_check_bls.json")
-    assert(vecs.nonEmpty)
-    vecs.foreach { v =>
-      assert(Bls12381.pairing(Hex.decode(v.input)).isLeft, s"expected rejection for ${v.name}")
-    }
+    checkFailure("/eip2537/fail-pairing_check_bls.json", Bls12381.pairing)

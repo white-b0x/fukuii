@@ -112,6 +112,17 @@ with a sentinel-gated dep-add. The pairing is exercised end-to-end by the EIP-19
 identity `e(P, Q)·e(−P, Q) = 1` over the standard generators, which validates the full Miller-loop +
 final-exponentiation path. Noted as the perf item to revisit when precompile throughput matters.
 
+**G2 prime-order subgroup check (consensus-correctness).** A `BN128G2` input point is validated for
+**order-`r` subgroup membership**, not merely for lying on the twist curve. The twist `E'(Fp2)` has
+cofactor `> 1`, so on-curve does not imply in-subgroup; an on-curve-but-off-subgroup G2 point fed to
+`ECPAIRING` (`0x08`) would make the pairing return a result differing from the reference client — a
+**state-root split**. The check is `[r]·P = ∞` (`BN128Fp2.mul(p, R).isZero`), applied to the **G2
+path only** — G1 over `Fp` has cofactor 1 and needs none. This is byte-for-byte the check core-geth
+performs in `bn256/cloudflare/twist.go:60-62` (`cneg.Mul(c, Order); return cneg.z.IsZero()`) and
+go-ethereum's gnark `IsInSubGroup` (`bn256/gnark/g2.go:59`). It is validated by an on-curve
+off-subgroup G2 vector asserted rejected (the off-subgroup point independently confirmed on-curve and
+`[r]P ≠ ∞`), alongside the retained bilinearity identity.
+
 ### 5. Defense-in-depth CVE guards carried forward explicitly
 
 Three guard classes are retained from old fukuii, each tied to its CVE:
@@ -198,21 +209,25 @@ byte-for-byte check per operation, including the pairing-identity `e(0,0) → 0�
 | Raw `Array[Byte]` address derivation, ad hoc | `pubKeyToAddress → bytes.Address` (typed) | Type-distinct `Address`, byte-exact to `crypto.PubkeyToAddress` |
 | Native/pure backend split implicit (BLS/KZG native, rest pure), undocumented as a decision | Pure default **stated** as the OPTIONAL(role) choice; native seam a documented deferral | The backend strategy is now a recorded decision, not an accident |
 | CVE guards present but scattered | Same guards, each with its CVE cited at the guard site | Auditable security surface |
+| alt-bn128 G2 input validated **on-curve only** — no order-`r` subgroup check | `BN128G2` enforces `[r]·P = ∞` (G2 path only), byte-exact to core-geth `twist.go` / geth gnark `IsInSubGroup` | Closes an `ECPAIRING` state-root split on an on-curve-off-subgroup G2 point |
 | **BLS12-381 native calls inlined at the precompile site** (`vm/PrecompiledContracts.scala`) | `bls.Bls12381` — a first-class L0 primitive, peer of BN128/KZG; only the precompile wrapper is `evm` L3 | Cryptographic primitive no longer entangled with EVM gas/dispatch — correct layering |
 | KZG lived in root-module glue (`KzgCellProofs` etc.), trusted-setup lifecycle ad hoc | `kzg.Kzg` at L0 with an idempotent, thread-safe, documented process-global trusted-setup gate | KZG is a proper L0 primitive with a stated native-by-default rationale and setup invariant |
 
 What is **byte-exact vs go-ethereum** (with cite): keccak256/512 (`keccak.go:40`), ECDSA
 deterministic-`k` sign + low-S (`signature_nocgo.go:121`, `crypto.go:246`), recovery
 (`recoverPubBytes` ↔ `sigToPub`), address derivation (`crypto.go:253`). alt-bn128 is byte-exact vs
-the EIP-196/197 reference tower (ethereumj/libff), validated by the pairing bilinearity vector.
+the EIP-196/197 reference tower (ethereumj/libff), validated by the pairing bilinearity vector, with
+the G2 order-`r` subgroup check byte-exact to core-geth `bn256/cloudflare/twist.go:60-62` and
+go-ethereum gnark `bn256/gnark/g2.go:59`.
 
-## Deferred (and to which layer)
+## Layer boundaries (what lives elsewhere, and why)
 
-- **KZG and BLS12-381 are now BUILT** (§6, §7) — `crypto` L0 is complete. Only their EVM
-  *precompile wrappers* remain deferred to `evm` (L3): the `0x0a` point-evaluation wrapper (gas /
-  192-byte decode / versioned-hash check / dispatch) for KZG, and the BLS12-381 precompile wrappers
-  (gas schedule, MSM discount table, input-length dispatch, precompile-address mapping). The
-  primitives themselves are L0 and done.
+_Durable placement decisions — not build-status (see the README index for what's committed)._
+
+- **KZG / BLS12-381 EVM *precompile wrappers*** → **`evm` (L3)**: the `0x0a` point-evaluation wrapper
+  (gas / 192-byte decode / versioned-hash check / dispatch) for KZG, and the BLS12-381 precompile
+  wrappers (gas schedule, MSM discount table, input-length dispatch, precompile-address mapping). The
+  cryptographic *primitives* they call live here at L0 crypto.
 - **Native secp256k1 / keccak fast-path** → future OPTIONAL(role) seam. When a mining-pool/archival
   throughput role justifies it, add one API with a native impl selected by config and the pure
   BouncyCastle path as the guaranteed fallback (the two must stay output-identical against

@@ -21,10 +21,21 @@ import com.chipprbots.fukuii.rlp.RLP.*
   */
 object RLPCodecs:
 
+  /** Enforce the RLP canonical-integer rule on a scalar's decoded bytes: a minimal-length big-endian
+    * scalar has no leading zero byte (and `0` is the empty string, never `0x00`). Byte-for-byte the
+    * `ErrCanonInt` rejection go-ethereum applies in `rlp/decode.go:750` (single `0x00` byte) and
+    * `rlp/decode.go:883,923` (`len(buffer) > 0 && buffer[0] == 0`). Encode is already minimal; this
+    * closes the lenient decode path.
+    */
+  private def requireMinimalScalar(bytes: Array[Byte], rlp: RLPEncodeable): Unit =
+    if bytes.length > 0 && bytes(0) == (0: Byte) then
+      throw RLPException("Non-canonical RLP integer: leading zero byte (ErrCanonInt)", rlp)
+
   given RLPCodec[Byte] = new RLPCodec[Byte]:
     def encode(obj: Byte): RLPEncodeable = RLPValue(byteToByteArray(obj))
     def decode(rlp: RLPEncodeable): Byte = rlp match
       case RLPValue(bytes) =>
+        requireMinimalScalar(bytes, rlp)
         if bytes.length == 0 then 0: Byte
         else if bytes.length == 1 then (bytes(0) & 0xff).toByte
         else throw RLPException("src doesn't represent a byte", rlp)
@@ -34,6 +45,7 @@ object RLPCodecs:
     def encode(obj: Short): RLPEncodeable = RLPValue(shortToBigEndianMinLength(obj))
     def decode(rlp: RLPEncodeable): Short = rlp match
       case RLPValue(bytes) =>
+        requireMinimalScalar(bytes, rlp)
         if bytes.length == 0 then 0: Short
         else if bytes.length == 1 then (bytes(0) & 0xff).toShort
         else if bytes.length == 2 then (((bytes(0) & 0xff) << 8) + (bytes(1) & 0xff)).toShort
@@ -43,15 +55,19 @@ object RLPCodecs:
   given RLPCodec[Int] = new RLPCodec[Int]:
     def encode(obj: Int): RLPEncodeable = RLPValue(intToBigEndianMinLength(obj))
     def decode(rlp: RLPEncodeable): Int = rlp match
-      case RLPValue(bytes) => bigEndianMinLengthToInt(bytes)
-      case _               => throw RLPException("src is not an RLPValue", rlp)
+      case RLPValue(bytes) =>
+        requireMinimalScalar(bytes, rlp)
+        bigEndianMinLengthToInt(bytes)
+      case _ => throw RLPException("src is not an RLPValue", rlp)
 
   /** Non-negative `BigInt` as a minimal-length unsigned big-endian scalar. */
   given bigIntCodec: RLPCodec[BigInt] = new RLPCodec[BigInt]:
     def encode(obj: BigInt): RLPEncodeable = RLPValue(ByteUtils.bigIntToUnsignedBytes(obj))
     def decode(rlp: RLPEncodeable): BigInt = rlp match
-      case RLPValue(bytes) => ByteUtils.bytesToBigInt(bytes)
-      case _               => throw RLPException("src is not an RLPValue", rlp)
+      case RLPValue(bytes) =>
+        requireMinimalScalar(bytes, rlp)
+        ByteUtils.bytesToBigInt(bytes)
+      case _ => throw RLPException("src is not an RLPValue", rlp)
 
   given RLPCodec[Long] = new RLPCodec[Long]:
     def encode(obj: Long): RLPEncodeable = bigIntCodec.encode(BigInt(obj))
@@ -173,5 +189,7 @@ object RLPCodecs:
   given RLPCodec[UInt256] = new RLPCodec[UInt256]:
     def encode(obj: UInt256): RLPEncodeable = RLPValue(ByteUtils.bigIntToUnsignedBytes(obj.toBigInt))
     def decode(rlp: RLPEncodeable): UInt256 = rlp match
-      case RLPValue(bytes) => UInt256.fromBytes(bytes)
-      case _               => throw RLPException("src is not an RLPValue for UInt256", rlp)
+      case RLPValue(bytes) =>
+        requireMinimalScalar(bytes, rlp)
+        UInt256.fromBytes(bytes)
+      case _ => throw RLPException("src is not an RLPValue for UInt256", rlp)

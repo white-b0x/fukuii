@@ -5,7 +5,8 @@ import com.sun.jna.ptr.IntByReference
 import org.hyperledger.besu.nativelib.bls12_381.LibEthPairings
 
 /** BLS12-381 curve operations for EIP-2537, backed by the besu `bls12-381` native library (`LibEthPairings`, the
-  * gnark/EIP-1962 `eth_pairings` backend via JNA).
+  * matter-labs EIP-1962 `eth_pairings` backend via JNA — not gnark; besu's own precompile has since moved to its gnark
+  * `LibGnarkEIP2537` binding, but `LibEthPairings` is verified byte-correct against the full EIP-2537 KAT set here).
   *
   * ==Layering==
   * These are the byte-exact *primitives* — the group/field operations the EVM BLS12-381 precompiles call. The

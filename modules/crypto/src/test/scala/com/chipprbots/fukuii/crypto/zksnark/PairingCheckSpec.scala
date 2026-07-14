@@ -7,6 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import com.chipprbots.fukuii.bytes.ByteUtils
 import com.chipprbots.fukuii.crypto.zksnark.BN128.BN128G1
 import com.chipprbots.fukuii.crypto.zksnark.BN128.BN128G2
+import com.chipprbots.fukuii.crypto.zksnark.BN128.Point
 import com.chipprbots.fukuii.crypto.zksnark.PairingCheck.G1G2Pair
 
 /** Optimal ate pairing over BN128 — the EIP-197 `ECPAIRING` predicate.
@@ -34,6 +35,30 @@ class PairingCheckSpec extends AnyFunSuite:
   test("the standard generators are valid on-curve group elements"):
     assert(BN128G1(bs(1), bs(2)).isDefined)
     assert(BN128G2(bs(g2x0), bs(g2x1), bs(g2y0), bs(g2y1)).isDefined)
+
+  // An on-curve G2 point that is NOT in the order-r pairing subgroup (twist cofactor > 1).
+  // X = 0 + 1·u ; Y computed as the curve-equation square root; verified off-subgroup ([r]P != ∞)
+  // via an independent affine implementation. core-geth rejects such a point as "malformed"
+  // (bn256/cloudflare/twist.go:47-63). Without the subgroup gate this point is on-curve and would
+  // be accepted — an ECPAIRING state-root split. See BN128.BN128G2.isInSubGroup.
+  private val offSubX0 = BigInt(0)
+  private val offSubX1 = BigInt(1)
+  private val offSubY0 =
+    BigInt("16030832648161758264004549876281670301789752035901655478622495684390734237343")
+  private val offSubY1 =
+    BigInt("18388737662781650394536484925627864106167267116893329563320683980901771000933")
+
+  test("createPoint rejects an on-curve G2 point outside the order-r subgroup"):
+    assert(BN128G2(bs(offSubX0), bs(offSubX1), bs(offSubY0), bs(offSubY1)).isEmpty)
+
+  test("the off-subgroup G2 point is genuinely on-curve (rejection is subgroup-only)"):
+    // Constructed with Fp2(a,b) = a + b·u; on-curve is the necessary precondition that makes the
+    // subgroup check the operative gate (an off-curve point would be rejected for a different reason).
+    val x = Fp2(bs(offSubX0), bs(offSubX1))
+    val y = Fp2(bs(offSubY0), bs(offSubY1))
+    val p = Point(x, y, FiniteField[Fp2].one)
+    assert(BN128Fp2.isOnCurve(p))
+    assert(!BN128G2.isInSubGroup(p))
 
   test("empty pairing set checks true (empty product = 1)"):
     assert(PairingCheck.pairingCheck(Seq.empty))

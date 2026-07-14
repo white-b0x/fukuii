@@ -1,5 +1,7 @@
 package com.chipprbots.fukuii.crypto.kzg
 
+import scala.util.Using
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -28,6 +30,14 @@ class KzgSpec extends AnyFunSuite:
       blob(base + 31) = (i & 0xff).toByte
       i += 1
     blob
+
+  test("bundled trusted_setup.txt provenance — pinned SHA-256 + zero-blob commitment KAT"):
+    // Provenance lock: the bundled ceremony resource must hash to this pinned canonical-mainnet digest.
+    val bytes = Using.resource(getClass.getResourceAsStream("/trusted_setup.txt"))(_.readAllBytes())
+    val sha = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
+    assert(toHex(sha) == "d39b9f2d047cc9dca2de58f264b6a09448ccd34db967881a6713eacacf0f26b7")
+    // Transitive proof the loaded setup is the ceremony: the all-zero blob commits to c0‖00·47.
+    assert(toHex(Kzg.blobToKzgCommitment(new Array[Byte](Kzg.BytesPerBlob))) == "c0" + "00" * 47)
 
   test("blobToKzgCommitment matches the zero-blob mainnet KAT"):
     // consensus-spec-tests: blob_to_kzg_commitment_case_valid_blob_0951cfd9ab47a8d3 (all-zero blob).

@@ -126,7 +126,11 @@ object ECDSASignature:
               .multiply(s.bigInteger)
               .subtract(curve.getG.multiply(e.bigInteger))
               .multiply(rInv.bigInteger)
-            Some(q.getEncoded(false).tail)
+            // Reject a recovery to the point at infinity: `q.getEncoded(false)` of infinity is a single
+            // `0x00` byte, so `.tail` would yield an empty (all-zero) pubkey that must not be accepted.
+            // Matches besu `AbstractSECP256.java:353` (`if (q.isInfinity()) return null;`).
+            if q.isInfinity then None
+            else Some(q.getEncoded(false).tail)
           else None
         else None
       }
