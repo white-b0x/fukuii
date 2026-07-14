@@ -237,14 +237,22 @@ Status legend: ` ` = not started · `~` = in progress · `✓` = done. Update as
 | nethermind | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | reth | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-## Progress — Phase 2 (observations, per subsystem)
-| Subsystem | Status |
-|-----------|--------|
-| storage-persistence ★ |  |
-| consensus-engines ★ |  |
-| sync ★ |  |
-| multi-network ★ |  |
-| _(remaining 10 after the priority-4)_ |  |
+## Progress — Phase 2 (observations, per subsystem) — 6/20 done
+Status: ` ` = not started · `✓` = done (`observations/{slug}.md`).
+
+| Subsystem | Status | | Subsystem | Status |
+|-----------|:--:|---|-----------|:--:|
+| storage-persistence ★ | ✓ | | txpool |  |
+| consensus-engines ★ | ✓ | | networking-p2p |  |
+| sync ★ | ✓ | | rpc-api |  |
+| multi-network ★ | ✓ | | testing |  |
+| build-deps | ✓ | | node-lifecycle |  |
+| primitives | ✓ | | block-production (15) |  |
+| state-trie |  | | accounts-signer (16) |  |
+| evm |  | | cl-engine (17) |  |
+| block-execution |  | | exec-extensions (18) |  |
+| | | | historical-distribution (19) |  |
+| | | | observability (20) |  |
 
 _Partial credit already banked (fold into the relevant cells when Phase 1 formally documents them): the B7.0
 engine-axis research already covers `consensus-engines` engine-selection for core-geth/besu/geth/erigon/
