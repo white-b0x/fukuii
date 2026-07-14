@@ -8,6 +8,7 @@ This directory contains documentation for developers working on the Fukuii codeb
 - **[Repository Structure](REPOSITORY_STRUCTURE.md)** - Detailed guide to the repository organization and codebase layout
 
 ### Development Guides
+- **[Coding Standards](coding-standards/README.md)** - Domain-organized coding standards (Scala 3, Pekko, dependencies, EVM, networking, cross-cutting) with a Mantis-inheritance anti-pattern ledger
 - **[Addressing Warnings](ADDRESSING_WARNINGS.md)** - Guide to addressing compiler and linter warnings
 - **[Vendored Modules Integration Plan](VENDORED_MODULES_INTEGRATION_PLAN.md)** - Plan for integrating vendored dependencies
 

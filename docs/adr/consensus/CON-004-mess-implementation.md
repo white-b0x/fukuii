@@ -347,7 +347,8 @@ Based on the core-geth implementation and Ethereum Classic community discussions
 
 ### Phase 6: Validation (Week 6)
 - [x] Code review
-- [x] Security analysis (CodeQL)
+- [x] Security analysis (manual review — CodeQL has no Scala extractor and was never
+      configured for this repo; this checklist item originally overstated it as run)
 - [ ] Performance testing
 - [ ] Testnet deployment and monitoring
 

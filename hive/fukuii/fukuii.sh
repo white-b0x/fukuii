@@ -34,6 +34,8 @@ SHANGHAI_TS=${HIVE_SHANGHAI_TIMESTAMP:-}
 CANCUN_TS=${HIVE_CANCUN_TIMESTAMP:-}
 PRAGUE_TS=${HIVE_PRAGUE_TIMESTAMP:-}
 OSAKA_TS=${HIVE_OSAKA_TIMESTAMP:-}
+NODETYPE=${HIVE_NODETYPE:-}
+LOGLEVEL=${HIVE_LOGLEVEL:-}
 
 # ==============================================================================
 # Genesis: convert geth format to Fukuii format
@@ -56,6 +58,19 @@ echo "0x7365637265747365637265747365637265747365637265747365637265747365" > "$JW
 FLAGS=""
 FLAGS="$FLAGS -Dfukuii.datadir=$DATADIR"
 FLAGS="$FLAGS -Dfukuii.blockchains.network=hive"
+
+# Log level — maps HIVE_LOGLEVEL (0-5, per docs/clients.md's documented `eth1`
+# contract) onto fukuii's own log-level key. Note the exact key has NO
+# `fukuii.` prefix: `application.conf` includes `conf/base/logging.conf` at
+# top level, and ConfigPropertyDefiner reads `logging.logs-level` directly
+# (defaulting to ERROR) — matching besu.sh's numeric mapping convention.
+case "$LOGLEVEL" in
+    0|1) FLAGS="$FLAGS -Dlogging.logs-level=ERROR" ;;
+    2)   FLAGS="$FLAGS -Dlogging.logs-level=WARN"  ;;
+    3)   FLAGS="$FLAGS -Dlogging.logs-level=INFO"  ;;
+    4)   FLAGS="$FLAGS -Dlogging.logs-level=DEBUG" ;;
+    5)   FLAGS="$FLAGS -Dlogging.logs-level=TRACE" ;;
+esac
 
 # Chain/network identity
 FLAGS="$FLAGS -Dfukuii.blockchains.hive.chain-id=$CHAIN_ID"
@@ -101,7 +116,7 @@ fi
 FLAGS="$FLAGS -Dfukuii.network.rpc.http.enabled=true"
 FLAGS="$FLAGS -Dfukuii.network.rpc.http.interface=0.0.0.0"
 FLAGS="$FLAGS -Dfukuii.network.rpc.http.port=8545"
-FLAGS="$FLAGS -Dfukuii.network.rpc.apis=eth,web3,net,debug"
+FLAGS="$FLAGS -Dfukuii.network.rpc.apis=eth,web3,net,debug,admin"
 
 # Engine API — only enable for post-merge chains (TTD is not MAX)
 if [ "$TTD" != "$MAX" ]; then
@@ -124,6 +139,19 @@ fi
 # P2P
 FLAGS="$FLAGS -Dfukuii.network.server-address.interface=0.0.0.0"
 FLAGS="$FLAGS -Dfukuii.network.server-address.port=30303"
+# Advertise the container's own IP so ServerActor.finishBinding (→ ServerStatus.Listening)
+# runs immediately, instead of waiting on ExternalIPDetector's UPnP/STUN/HTTP cascade
+# (up to ~13s). The hive sync sim calls enode.sh (admin_nodeInfo) within ~100ms of the
+# engine FCU becoming VALID; without this override the node is still NotListening, so
+# admin_nodeInfo returns enode=None and the "X as sync server" test aborts at boot with
+# "can't get node peer-to-peer endpoint:" before any sink is started. Mirrors
+# go-ethereum's geth.sh `--nat=extip:<ip>`.
+# Pick the first non-loopback IPv4 (hostname -i can list several, and on some
+# /etc/hosts setups it leads with 127.0.1.1 — never advertise a loopback address).
+CONTAINER_IP=$(hostname -i 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' | grep -v '^127\.' | head -1)
+if [ -n "$CONTAINER_IP" ]; then
+    FLAGS="$FLAGS -Dfukuii.network.server-address.advertised-address=$CONTAINER_IP"
+fi
 FLAGS="$FLAGS -Dfukuii.network.discovery.interface=0.0.0.0"
 FLAGS="$FLAGS -Dfukuii.network.discovery.port=30303"
 # Workaround for `sync go-ethereum from fukuii` Hive gate: scalanet's discv4
@@ -144,6 +172,17 @@ elif ls /blocks/*.rlp >/dev/null 2>&1; then
     cat /blocks/*.rlp > /chain.rlp
     FLAGS="$FLAGS -Dfukuii.import-chain-file=/chain.rlp"
 fi
+
+# Sync mode — maps HIVE_NODETYPE (per docs/clients.md's "snap sync roles" section)
+# onto fukuii's own sync.do-snap-sync/do-fast-sync HOCON keys. Only a system-property
+# override is needed here (ConfigFactory.load() applies -D properties with highest
+# priority over file values, the same mechanism every other HIVE_* flag in this script
+# already relies on) — src/main/resources/conf/hive.conf's hardcoded `false` defaults
+# are overridden, not edited. `full`/`archive`/unset keep today's default (fast-sync off,
+# snap-sync off); `snap` is the new, previously-unhandled case.
+case "$NODETYPE" in
+    snap) FLAGS="$FLAGS -Dfukuii.sync.do-snap-sync=true" ;;
+esac
 
 # Bootnode — write to static-nodes.json in the datadir so the node dials it directly.
 # HOCON arrays can't be populated via -D system properties, so file is the reliable path.

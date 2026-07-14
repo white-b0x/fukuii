@@ -33,11 +33,27 @@ ops/
 │   ├── deploy.sh                                 # Deployment management script
 │   ├── collect-logs.sh                           # Log collection script
 │   └── README.md                                 # Gorgoroth documentation
-├── grafana/                                      # Grafana dashboard configurations
-│   ├── fukuii-dashboard.json                    # Control Tower - Main monitoring dashboard
-│   ├── fukuii-miners-dashboard.json             # Miners - Mining-focused metrics
-│   ├── fukuii-node-troubleshooting-dashboard.json  # Node Troubleshooting - Debug dashboard
-│   └── fukuii-casual-dashboard.json             # Casual View - Minimalist dashboard
+├── grafana/                                      # Grafana dashboard configurations (15 dashboards, 5 categories)
+│   ├── Archive/                                  # Superseded dashboards, kept for reference
+│   │   ├── fukuii-dashboard.json                # Control Tower - original main dashboard
+│   │   ├── fukuii-casual-dashboard.json         # Casual View - minimalist at-a-glance
+│   │   ├── fukuii-miners-dashboard.json         # Miners - mining-focused metrics
+│   │   └── fukuii-fast-sync.json                # Legacy Fast Sync (pre-SNAP) view
+│   ├── ETC Node/                                 # ETC/Mordor (PoW) node dashboards
+│   │   ├── fukuii-node-health.json              # General node health overview
+│   │   └── fukuii-node-troubleshooting-dashboard.json  # Debug: sync phase, GC, RPC, peer churn
+│   ├── Network/                                  # Cross-network P2P dashboards
+│   │   ├── fukuii-multi-network-resources.json  # Resource usage across networks
+│   │   ├── fukuii-network-nodes.json            # Per-node network view
+│   │   └── fukuii-network-overview.json         # Aggregate network overview
+│   ├── Sepolia Consensus/                        # ETH/Sepolia (PoS) Engine API dashboards
+│   │   ├── fukuii-engine-api-dashboard.json     # Engine API call overview
+│   │   ├── fukuii-engine-api-detail.json        # Engine API detailed metrics
+│   │   ├── fukuii-lighthouse.json               # Paired Lighthouse CL metrics
+│   │   └── fukuii-sepolia-staking.json          # Sepolia staking/validator metrics
+│   └── Sync/                                     # Sync-mode-specific dashboards
+│       ├── fukuii-snap-sync.json                # SNAP sync progress/state
+│       └── fukuii-sync-peers.json               # Sync-related peer metrics
 ├── prometheus/                                   # Prometheus configuration
 ├── run-007-research/                             # Research directory for investigations
 └── README.md                                     # This file
@@ -45,7 +61,12 @@ ops/
 
 ## Grafana
 
-The `grafana/` directory contains pre-configured Grafana dashboards for monitoring Fukuii nodes, designed for Barad-dûr integration.
+The `grafana/` directory contains 15 pre-configured Grafana dashboards organized into 5
+categories (`Archive/`, `ETC Node/`, `Network/`, `Sepolia Consensus/`, `Sync/`), designed
+for Barad-dûr integration. There is currently no dedicated dashboard-contribution guide
+documenting the provisioning/naming/versioning convention for adding a new one — see
+`docs/research/best-practices/evm-clients/repo-patterns/erigon/repo-hygiene-pattern.md`
+for Erigon's `creating-a-dashboard.md` as a reference model.
 
 ## Run Configurations
 
@@ -128,41 +149,30 @@ For detailed information, see [run-007-research/README.md](run-007-research/READ
 
 ### Available Dashboards
 
-#### Control Tower (fukuii-dashboard.json)
-Main Fukuii node monitoring dashboard - comprehensive view for operations:
-- System overview and health
-- Blockchain synchronization metrics (Regular Sync & Fast Sync)
-- Network peer and message statistics
-- Transaction pool status
-- JVM metrics and performance
-- Pekko actor system metrics
+#### ETC Node/ — general node health & debugging
+- **fukuii-node-health.json** — general node health overview
+- **fukuii-node-troubleshooting-dashboard.json** — sync phase, JVM heap/GC, RPC latency,
+  peer churn, network message rates, file descriptor usage
 
-#### Miners Dashboard (fukuii-miners-dashboard.json)
-Focused dashboard for mining operations:
-- Block height and mining rate
-- Block generation time and difficulty
-- Gas usage and utilization
-- Block time statistics
-- Ommer (uncle/stale) block tracking
-- Transaction pool monitoring
+#### Network/ — cross-network P2P visibility
+- **fukuii-multi-network-resources.json** — resource usage across all running networks
+- **fukuii-network-nodes.json** — per-node network view
+- **fukuii-network-overview.json** — aggregate network/peer overview
 
-#### Node Troubleshooting (fukuii-node-troubleshooting-dashboard.json)
-Single-node focused dashboard for debugging:
-- Sync phase progress (Regular/Fast sync)
-- JVM heap memory usage
-- Garbage collection metrics (GC time, GC rate)
-- RPC latency and call rates
-- Peer churn tracking
-- Network message rates
-- File descriptor usage
+#### Sepolia Consensus/ — ETH/Sepolia PoS Engine API
+- **fukuii-engine-api-dashboard.json** — Engine API call overview
+- **fukuii-engine-api-detail.json** — Engine API detailed metrics
+- **fukuii-lighthouse.json** — paired Lighthouse consensus-layer metrics
+- **fukuii-sepolia-staking.json** — Sepolia staking/validator metrics
 
-#### Casual View (fukuii-casual-dashboard.json)
-Minimalist at-a-glance dashboard:
-- Current block height
-- Connected peers count
-- Transaction pool size
-- Memory and gas usage gauges
-- Simple sync progress chart
+#### Sync/ — sync-mode-specific
+- **fukuii-snap-sync.json** — SNAP sync progress/state
+- **fukuii-sync-peers.json** — sync-related peer metrics
+
+#### Archive/ — superseded, kept for reference
+- **fukuii-dashboard.json** (Control Tower — original main dashboard), **fukuii-casual-
+  dashboard.json** (minimalist at-a-glance), **fukuii-miners-dashboard.json** (mining
+  metrics), **fukuii-fast-sync.json** (legacy pre-SNAP fast-sync view)
 
 ### Using the Dashboards
 
@@ -182,10 +192,12 @@ Minimalist at-a-glance dashboard:
 
 | Use Case | Dashboard |
 |----------|-----------|
-| Day-to-day monitoring | Control Tower |
-| Mining operations | Miners |
-| Debugging issues | Node Troubleshooting |
-| Wall display / casual viewing | Casual View |
+| Day-to-day ETC node monitoring | `ETC Node/fukuii-node-health.json` |
+| Debugging a specific node | `ETC Node/fukuii-node-troubleshooting-dashboard.json` |
+| Multi-network/peer visibility | `Network/fukuii-network-overview.json` |
+| ETH/Sepolia Engine API + Lighthouse pairing | `Sepolia Consensus/fukuii-engine-api-dashboard.json` + `fukuii-lighthouse.json` |
+| SNAP sync progress | `Sync/fukuii-snap-sync.json` |
+| Simple/casual wall-display view | `Archive/fukuii-casual-dashboard.json` (superseded, still usable) |
 
 ### Dashboard Requirements
 

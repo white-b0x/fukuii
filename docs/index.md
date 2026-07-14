@@ -47,7 +47,7 @@ Fukuii is an EVM-compliant execution layer client built with Scala 3. Originatin
 - **Multi-mode sync** — SNAP, fast, and regular sync for PoW chains; optimistic block import via Engine API for PoS chains
 - **JSON-RPC API** — `eth_*`, `net_*`, `web3_*`, `debug_*`, `trace_*`, `admin_*`, `txpool_*`, `personal_*`, `engine_*` (authrpc), plus MCP 2025-11-25 for agentic AI control
 - **Hive-verified compliance** — Full Ethereum Foundation Hive simulator suite (`smoke`, `rpc`, `graphql`, `devp2p`, `sync`, `consensus`, `pyspec`, `engine`, `consume-engine`, `consume-rlp`) runs per-simulator in CI
-- **Docker support** — Production-ready container images with signed releases and SLSA provenance
+- **Docker support** — Production-ready container images with Cosign-signed releases and a build provenance attestation
 - **Comprehensive monitoring** — Prometheus metrics, Grafana dashboards, health/readiness endpoints
 
 ## Quick Links

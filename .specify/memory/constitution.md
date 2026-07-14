@@ -1,6 +1,57 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.1.1 → 1.1.2
+Rationale: Fukuii's agent roster (.claude/agents/forge.md, beacon.md) was rescoped from
+naming exactly two networks to naming two consensus families (PoW, PoS) that ETC/Mordor
+and ETH/Sepolia currently instantiate — network coverage is expected to grow within each
+family over time. This constitution described the same two networks as if they were the
+totality of what fukuii supports; reframed for alignment. No principle added, removed, or
+substantively changed — Principle I's rules are unchanged in effect, only reframed from
+"the ETC domain" / "the ETH domain" to "the PoW domain (currently ETC/Mordor)" / "the PoS
+domain (currently ETH/Sepolia)" (PATCH per this doc's own versioning rule: clarification
+and wording only).
+
+Changes:
+  - Preamble: "two independent chain families" → "two independent consensus families,
+    each currently instantiated by one network pair"
+  - Principle I: "ETC consensus domain" / "ETH/Sepolia consensus domain" → "PoW consensus
+    domain (currently ETC/Mordor)" / "PoS consensus domain (currently ETH/Sepolia)";
+    specialist-agent rule reframed as family-appropriate (forge for PoW, beacon for PoS)
+  - Development Workflow step 7: reframed to route by consensus family first, network
+    second
+  - Version bumped to 1.1.2; Last Amended updated
+
+Templates & artifacts reviewed for alignment: no template changes required (framing-only).
+
+Last Amended: 2026-07-03
+-->
+
+<!--
+SYNC IMPACT REPORT
+==================
+Version change: 1.1.0 → 1.1.1
+Rationale: Six references to `.github/agents/*.md` were factually wrong — subagent
+definition files live at `.claude/agents/*.md` and always have; `.github/agents/`
+contains only the unrelated Spec Kit context-update command definition. Pure path
+correction, no principle or governance change (PATCH per this doc's own versioning rule).
+
+Changes:
+  - Principle I: `forge`/`beacon` agent file paths corrected (2 refs)
+  - Principle I: `herald` agent file path corrected (1 ref)
+  - Development Workflow step 7: agent files location corrected (1 ref)
+  - Governance section: agent definitions location corrected (1 ref)
+  - SYNC IMPACT REPORT (1.0.0 ratification, below): agent file path corrected (1 ref)
+  - Version bumped to 1.1.1; Last Amended updated
+
+Templates & artifacts reviewed for alignment: no template changes required (path-only fix).
+
+Last Amended: 2026-07-03
+-->
+
+<!--
+SYNC IMPACT REPORT
+==================
 Version change: 1.0.0 → 1.1.0
 Rationale: Fukuii is now a multi-network client: ETC/Mordor (PoW, chain-ID 61/63)
 AND ETH/Sepolia (PoS, chain-ID 1/11155111). Principle I was ETC-only and incorrectly
@@ -31,7 +82,7 @@ Version change: (template) → 1.0.0
 Rationale: Initial ratification. First concrete constitution derived from the
 repository's existing, tool-enforced standards (build.sbt, .scalafmt.conf,
 .scalafix.conf, CI workflows, VERSIONING.md, BRANCH_PROTECTION.md,
-docs/development/contributing.md, and .github/agents/forge.md).
+docs/development/contributing.md, and .claude/agents/forge.md).
 
 Principles defined:
   I.   Consensus Determinism Is Sacred (NON-NEGOTIABLE)
@@ -59,15 +110,21 @@ Follow-up TODOs: none. RATIFICATION_DATE set to first adoption (2026-06-05).
 # Fukuii Constitution
 
 Fukuii is a multi-network EVM client written in Scala 3, descended from IOHK
-Mantis. It supports two independent chain families:
+Mantis. It supports two independent consensus families, each currently
+instantiated by one network pair — coverage within each family is expected to
+grow over time:
 
-- **ETC/Mordor** — Ethereum Classic mainnet (chain-ID 61) and Mordor testnet
-  (chain-ID 63). Proof-of-Work (Ethash), block-number fork dispatch, ECIP-1017
-  fixed-supply emission. Fork schedule: Atlantis → Agharta → Phoenix → Thanos
-  (ECIP-1099) → Magneto → Mystique → Spiral → **Olympia** (ECIP-1111/1112/1121/1122).
-- **ETH/Sepolia** — Ethereum mainnet (chain-ID 1) and Sepolia testnet
-  (chain-ID 11155111). Proof-of-Stake (post-Merge), timestamp fork dispatch, Engine
-  API-driven block production. Active fork: Osaka.
+- **Proof-of-Work (PoW)** — block-number fork dispatch. Currently: **ETC/Mordor**
+  — Ethereum Classic mainnet (chain-ID 61) and Mordor testnet (chain-ID 63).
+  Ethash, ECIP-1017 fixed-supply emission. Fork schedule: Atlantis → Agharta →
+  Phoenix → Thanos (ECIP-1099) → Magneto → Mystique → Spiral → **Olympia**
+  (ECIP-1111/1112/1121/1122).
+- **Proof-of-Stake (PoS)** — timestamp fork dispatch. Currently: **ETH/Sepolia**
+  — Ethereum mainnet (chain-ID 1) and Sepolia testnet (chain-ID 11155111).
+  Post-Merge, Engine API-driven block production. Active fork: Osaka.
+
+Treat "ETC/Mordor" and "ETH/Sepolia" throughout this document as the current
+instances of "PoW" and "PoS," not the ceiling of what fukuii supports.
 
 Fukuii participates in live, adversarial, value-bearing networks on both chains.
 This constitution defines the non-negotiable standards every change MUST uphold
@@ -78,36 +135,45 @@ contributors, human and automated.
 
 ### I. Consensus Determinism Is Sacred (NON-NEGOTIABLE)
 
-Consensus-critical code on BOTH chains MUST be byte-for-byte deterministic and
-compliant with the governing specification for that chain.
+Consensus-critical code on every supported network MUST be byte-for-byte
+deterministic and compliant with the governing specification for that network's
+consensus family (PoW or PoS).
 
-**ETC consensus domain**: EVM and opcode/gas semantics, state and Merkle Patricia
-Trie roots, block and transaction hashing, RLP serialization, signature verification,
-Ethash PoW and DAG generation, block reward schedules (ECIP-1017), chain-ID handling
-(EIP-155), and ETC hard-fork activation (Atlantis → Agharta → Phoenix → Thanos →
-Magneto → Mystique → Spiral → Olympia).
+**PoW consensus domain** (currently ETC/Mordor): EVM and opcode/gas semantics,
+state and Merkle Patricia Trie roots, block and transaction hashing, RLP
+serialization, signature verification, Ethash PoW and DAG generation, block
+reward schedules (ECIP-1017), chain-ID handling (EIP-155), and ETC hard-fork
+activation (Atlantis → Agharta → Phoenix → Thanos → Magneto → Mystique →
+Spiral → Olympia). New PoW networks fall under this same domain.
 
-**ETH/Sepolia consensus domain**: PoS validator correctness via Engine API
-(`engine_forkchoiceUpdated`, `engine_newPayload`), EIP-4844 blob transaction
-validation, execution payload semantics, timestamp-based fork activation, and
-Osaka-era EIPs (withdrawals, blob gas, EIP-7939 CLZ, etc.).
+**PoS consensus domain** (currently ETH/Sepolia): PoS validator correctness via
+Engine API (`engine_forkchoiceUpdated`, `engine_newPayload`), EIP-4844 blob
+transaction validation, execution payload semantics, timestamp-based fork
+activation, and Osaka-era EIPs (withdrawals, blob gas, EIP-7939 CLZ, etc.). New
+PoS networks fall under this same domain.
 
 Rules:
 - State roots, block hashes, and gas costs MUST match the governing specification
-  exactly for each chain. "Close enough" is a consensus bug.
+  exactly for each network. "Close enough" is a consensus bug.
 - Any change touching the domains above MUST be designed and reviewed BEFORE
-  implementation — never patched reactively after a failure. Use the chain-appropriate
-  specialist agent: `forge` (`.github/agents/forge.md`) for ETC/Mordor consensus;
-  `beacon` (`.github/agents/beacon.md`) for ETH/Sepolia consensus.
-- Do NOT mix ETC and ETH code paths. ETC fork dispatch uses
-  `OlympiaOpCodes` / `forBlock()`; ETH fork dispatch uses
-  `OsakaOpCodes` / `forTimestamp()`. A change to one MUST NOT silently affect the other.
-- ETC is and remains Proof-of-Work. PoS validator logic MUST NOT enter the ETC code path.
-- ETH/Sepolia is post-Merge PoS. ETC-specific PoW assumptions (Ethash DAG, mining
-  rewards, ECIP-1017) MUST NOT enter the ETH/Sepolia code path.
+  implementation — never patched reactively after a failure. Use the
+  family-appropriate specialist agent: `forge` (`.claude/agents/forge.md`) for
+  PoW consensus (currently ETC/Mordor); `beacon` (`.claude/agents/beacon.md`)
+  for PoS consensus (currently ETH/Sepolia).
+- Do NOT mix PoW and PoS code paths (currently ETC and ETH, respectively). PoW
+  fork dispatch uses `EtcOlympiaOpCodes` / the 2-arg `forBlock()` overload; PoS
+  fork dispatch uses `EthOsakaOpCodes` / the timestamp-aware `forBlock()`
+  overload (there is no separate `forTimestamp()` method — see
+  `vm/EvmConfig.scala`). A change to one family MUST NOT silently affect the
+  other.
+- ETC is and remains Proof-of-Work. PoS validator logic MUST NOT enter the ETC
+  (or any other PoW network's) code path.
+- ETH/Sepolia is post-Merge PoS. PoW-specific assumptions (Ethash DAG, mining
+  rewards, ECIP-1017) MUST NOT enter the ETH/Sepolia (or any other PoS
+  network's) code path.
 - Wire-protocol messages MUST be formatted for the negotiated peer capability
   (e.g. ETH66+ requestId framing vs. ETH62 framing); formats MUST NOT be mixed
-  on a connection. Use `herald` (`.github/agents/herald.md`) for P2P wire changes.
+  on a connection. Use `herald` (`.claude/agents/herald.md`) for P2P wire changes.
 
 Rationale: A single non-deterministic line can split the chain. This principle
 outranks all others; when it conflicts with convenience, convenience loses.
@@ -259,16 +325,17 @@ trust that a version number and changelog accurately describe what changed.
    approach, and any breaking-change callouts; link the spec/ADR.
 6. CI gates (Principle V) and at least one review MUST pass; all conversations
    resolved before merge.
-7. Consensus-critical work follows the chain-appropriate specialist agent before
-   merge: `forge` for ETC/Mordor consensus, `beacon` for ETH/Sepolia consensus,
-   `herald` for P2P wire protocol changes. Both consensus chains require
-   ethereum/tests validation before merge. Agent files are in `.github/agents/`.
+7. Consensus-critical work follows the family-appropriate specialist agent before
+   merge: `forge` for PoW consensus (currently ETC/Mordor), `beacon` for PoS
+   consensus (currently ETH/Sepolia), `herald` for P2P wire protocol changes.
+   Both consensus families require ethereum/tests validation before merge.
+   Agent files are in `.claude/agents/`.
 
 ## Governance
 
 This constitution supersedes ad hoc practice. Where a guideline elsewhere in the
 repo conflicts with it, this document wins; where this document is silent,
-`docs/development/contributing.md` and the agent definitions in `.github/agents/`
+`docs/development/contributing.md` and the agent definitions in `.claude/agents/`
 provide operational detail.
 
 - **Amendments**: Proposed via PR that edits this file, states the rationale, and
@@ -285,4 +352,4 @@ provide operational detail.
   plan for execution context; this file defines the standards those plans must
   satisfy.
 
-**Version**: 1.1.0 | **Ratified**: 2026-06-05 | **Last Amended**: 2026-06-13
+**Version**: 1.1.2 | **Ratified**: 2026-06-05 | **Last Amended**: 2026-07-03

@@ -310,6 +310,35 @@ Fukuii and its JVM may use temporary directories for various operations. This se
 **Frequency**: Uncommon  
 **Impact**: Node crashes or performance degradation
 
+#### Default behavior (size-driven placement, no `${datadir}/tmp`)
+
+Fukuii places temp/scratch data by size, not by a single blanket redirect:
+
+- **Disposable scratch** (small, short-lived, no resume value) uses the OS default
+  `java.io.tmpdir` (`/tmp` on Linux). Fukuii does not override `java.io.tmpdir` — there is no
+  `fukuii.tmpdir` config key and no `${datadir}/tmp` directory.
+- **SNAP-sync work files** (`contractStorageFile`, `uniqueCodeHashesFile` — resume-critical,
+  multi-GB over a sync run) are written under `${fukuii.datadir}/snap-work/`, an explicit
+  subdirectory on the same volume as the RocksDB database. `AccountRangeCoordinator` receives
+  this directory (computed once per account-range launch in `SNAPSyncController`, via
+  `Files.createDirectories`) and calls `Files.createTempFile(snapWorkDir, prefix, suffix)`
+  rather than the zero-arg overload. The largest SNAP spill file this mechanism used to produce
+  — a ~4.7 GB `contractAccountsFile` write-then-read-back path — was removed entirely
+  (production dispatch already used the inline `IncrementalContractData` message; the file was
+  only read by a test).
+- **RocksDB's native `.so`** is `dlopen`'d after extraction, so its scratch directory must be
+  exec-able. Both launchers (`ops/start.sh`, `ops/entrypoint.sh`) set
+  `ROCKSDB_SHAREDLIB_DIR="${DATADIR}/native-lib"` (creating the directory first) before invoking
+  `java`, so the RocksDB Java binding extracts there instead of relying on `java.io.tmpdir`.
+
+The SNAP-sync work files are deleted by the client itself once no longer needed (account-range
+completion, storage/bytecode-phase completion, fallback-to-fast-sync, or a pivot restart) — see
+the two cleanup points in `SNAPSyncController` (`deleteSnapSpillFile`, called from the success,
+fallback, and restart paths). If you observe stale `fukuii-contract-storage-*`/
+`fukuii-unique-codehashes-*` files accumulating under `${datadir}/snap-work/`, that indicates a
+crash before cleanup ran (best-effort — it never blocks sync or crashes the node) rather than
+day-to-day operation; they are safe to delete manually while the node is stopped.
+
 #### Symptoms
 
 ```
@@ -320,76 +349,74 @@ java.io.IOException: No space left on device
 
 - Node hangs or crashes unexpectedly
 - Slow performance during heavy operations
+- `/tmp` fills up if it's a small, separately-provisioned partition and something else on the
+  host (not fukuii's SNAP-sync work files, which live under the datadir volume) is writing to it
 
 #### Root Cause
 
-- `/tmp` partition full
-- Large temporary files not cleaned up
-- Small `/tmp` partition size
-- Excessive JVM temporary file usage
+- `${datadir}/snap-work/` partition full — check the volume backing your datadir, not `/tmp`
+- Large SNAP-sync work files not cleaned up (stale spill files from a crash before cleanup ran)
+- Small partition size relative to expected SNAP-sync spill volume
+- `/tmp` itself undersized or noexec-mounted, affecting RocksDB `.so` extraction if
+  `ROCKSDB_SHAREDLIB_DIR` isn't set (only relevant for launch paths other than
+  `ops/start.sh`/`ops/entrypoint.sh`, which set it)
 
 #### Workaround
 
 **Immediate fix**:
 ```bash
-# Check temp space
-df -h /tmp
+# Check space on the datadir volume (where snap-work/ lives)
+df -h "$(fukuii-config-get fukuii.datadir 2>/dev/null || echo ~/.fukuii)"
 
-# Clean temp files (carefully)
-sudo find /tmp -type f -atime +7 -delete  # Files older than 7 days
-sudo rm -rf /tmp/hsperfdata_*  # JVM performance data
-sudo rm -rf /tmp/java_*  # JVM temporary files
+# List and, if the node is stopped, clean up any stale SNAP work files
+ls -la "${DATADIR:-~/.fukuii}/snap-work"
+find "${DATADIR:-~/.fukuii}/snap-work" -name 'fukuii-contract-storage-*' -o -name 'fukuii-unique-codehashes-*'
 ```
 
 #### Permanent Fix
 
-**Option 1: Increase /tmp size**
+**Option 1: Increase the datadir volume's available space**
 
-For tmpfs (RAM-based):
-```bash
-# Check current size
-df -h /tmp
+`snap-work/` already lives on the datadir volume — sizing that volume for the database also
+sizes it for SNAP-sync work files. No separate `/tmp` provisioning is required.
 
-# Increase to 4GB (edit /etc/fstab)
-tmpfs /tmp tmpfs defaults,size=4G 0 0
+**Option 2: Automated cleanup for pre-crash-cleanup deployments**
 
-# Remount
-sudo mount -o remount /tmp
-```
+The client cleans up its own spill files on the normal completion/fallback/restart paths (see
+"Default behavior" above). If running an older build without that cleanup, or as defense-in-depth against
+crash-before-cleanup leaks, a cron/systemd-timer sweep is still reasonable:
 
-**Option 2: Use dedicated temp directory**
-
-```bash
-# Create dedicated temp directory
-sudo mkdir -p /var/tmp/fukuii
-sudo chown fukuii_user:fukuii_group /var/tmp/fukuii
-sudo chmod 700 /var/tmp/fukuii
-```
-
-Set in JVM options (`.jvmopts` or startup script):
-```
--Djava.io.tmpdir=/var/tmp/fukuii
-```
-
-**Option 3: Automated cleanup**
-
-Create systemd timer or cron job:
 ```bash
 #!/bin/bash
 # /usr/local/bin/cleanup-fukuii-temp.sh
+# Only run while fukuii is stopped — these files may be in active use otherwise.
 
-TEMP_DIR=/var/tmp/fukuii
-find "$TEMP_DIR" -type f -mtime +1 -delete  # Delete files older than 1 day
+TEMP_DIR="${1:?usage: cleanup-fukuii-temp.sh <datadir>/snap-work}"
+find "$TEMP_DIR" \( -name 'fukuii-contract-storage-*' -o -name 'fukuii-unique-codehashes-*' \) -mtime +1 -delete
 ```
 
 Cron:
 ```cron
-0 2 * * * /usr/local/bin/cleanup-fukuii-temp.sh
+0 2 * * * /usr/local/bin/cleanup-fukuii-temp.sh /var/lib/fukuii/snap-work
+```
+
+**Option 3: Ensure RocksDB `.so` extraction is exec-able**
+
+If launching outside `ops/start.sh`/`ops/entrypoint.sh` (which already set this), export
+`ROCKSDB_SHAREDLIB_DIR` yourself before starting the JVM:
+
+```bash
+mkdir -p "${DATADIR}/native-lib"
+export ROCKSDB_SHAREDLIB_DIR="${DATADIR}/native-lib"
 ```
 
 #### Status
 
-**Fixed**: Configure adequate temp space and automated cleanup.
+**Fixed**: SNAP-sync work files live under `${datadir}/snap-work/` (an explicit subdir, not a
+blanket `java.io.tmpdir` redirect) and the client deletes them itself once no longer needed.
+Disposable scratch uses the OS default `/tmp`. RocksDB's native library extracts to
+`${datadir}/native-lib/` via `ROCKSDB_SHAREDLIB_DIR`. Manual cleanup is a fallback for crash
+recovery only, not routine maintenance.
 
 ---
 
@@ -431,7 +458,8 @@ mount | grep /tmp
 # Should NOT have 'noexec' if JVM needs to execute from temp
 ```
 
-If `/tmp` has `noexec`, use dedicated temp directory (see Issue 4).
+If `/tmp` has `noexec`, RocksDB's native `.so` extraction needs an exec-able directory —
+set `ROCKSDB_SHAREDLIB_DIR` to a directory on an exec-able mount (see Issue 4, Option 3).
 
 **Check SELinux** (if applicable):
 ```bash

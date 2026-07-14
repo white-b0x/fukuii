@@ -6,6 +6,14 @@ Gas calculation in Fukuii is fully compliant with Ethereum specifications includ
 
 **Status:** ✅ Verified and compliant with ethereum/tests
 
+> **Re-verified 2026-07-11 (REPO-06-GASCALC).** `GasCalculationIssuesSpec` was originally written to flag an
+> add11/addNonConst Berlin shortfall (2100 / 900 gas, EIP-2929-cold-access-shaped). That discrepancy is
+> **resolved** — fukuii's Berlin/Magneto constants (`G_cold_sload=2100`, `G_cold_account_access=2600`,
+> `G_warm_storage_read=100`, access-list `2400`/`1900`) match core-geth `protocol_params.go` line-by-line,
+> independently confirmed by the Batch 5 Row 5.7 deep-map (`.local/docs/research-july/eip-ecip-conformance/etc-mordor-conformance.md` §5).
+> The 2 tests in that spec that still fail do so on `ValidationBeforeExecError(HeaderPoWError)` — a fixture-harness
+> PoW-seal issue tracked as **ETHTEST-EXEC-REGRESSIONS-01**, which fires before gas is computed — **not** a gas bug.
+
 ---
 
 ## EIP-2929 Gas Costs

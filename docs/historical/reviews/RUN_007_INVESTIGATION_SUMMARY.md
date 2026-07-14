@@ -87,7 +87,7 @@ All 8 message types fully compliant:
 
 **Merkle Proofs:** ✓ MerkleProofVerifier implemented and used
 
-See: `docs/reviews/SNAP_PROTOCOL_COMPLIANCE_VALIDATION.md` for detailed validation
+See: `docs/historical/reviews/SNAP_PROTOCOL_COMPLIANCE_VALIDATION.md` for detailed validation
 
 ### ETH Protocol (Partial Review)
 

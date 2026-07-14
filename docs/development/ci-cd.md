@@ -132,7 +132,7 @@ gh workflow run fast-distro.yml
 6. Creates GitHub release with all artifacts
 7. Builds and publishes Docker image to `ghcr.io/chippr-robotics/fukuii`
 8. Signs image with Cosign (keyless, using GitHub OIDC)
-9. Generates SLSA Level 3 provenance attestations
+9. Generates a build provenance attestation (not the formal SLSA Level 3 attestation — removed 2026-04-27 after persistent CI startup failures; see `release.yml`)
 10. Logs immutable image digest and tags
 11. Closes matching milestone (for stable releases)
 
@@ -145,7 +145,7 @@ gh workflow run fast-distro.yml
 
 **Container Security Features:**
 - ✅ **Image Signing:** Uses [Cosign](https://docs.sigstore.dev/cosign/overview/) with keyless signing (GitHub OIDC)
-- ✅ **SLSA Provenance:** Generates [SLSA Level 3](https://slsa.dev/spec/v1.0/levels) attestations for build integrity
+- ✅ **Build Provenance:** Generates a build provenance attestation for build integrity (not the formal [SLSA Level 3](https://slsa.dev/spec/v1.0/levels) attestation — that generator was removed 2026-04-27 after persistent CI startup failures; see `release.yml`)
 - ✅ **SBOM:** Includes Software Bill of Materials in SPDX format
 - ✅ **Immutable Digests:** Outputs `sha256` digest for tamper-proof image references
 

@@ -157,6 +157,7 @@ nav:
     - Architecture:
       - architecture/architecture-overview.md
       - Architecture Diagrams: architecture/ARCHITECTURE_DIAGRAMS.md
+      - Fork Divergence: architecture/FORK_DIVERGENCE.md
       - Console UI: architecture/console-ui.md
       - Snap Sync: architecture/SNAP_SYNC_IMPLEMENTATION.md
     - Development:
@@ -258,10 +259,10 @@ nav:
       - RLPx Handshake Analysis: analysis/RLPX_HANDSHAKE_AND_MESSAGE_ENCODING_ANALYSIS.md
       - RLPx Hello Regression: analysis/rlpx-hello-regression.md
     - Reviews:
-      - Compression Fix: reviews/COMPRESSION_FIX_WIRE_PROTOCOL.md
-      - Run 007 Investigation: reviews/RUN_007_INVESTIGATION_SUMMARY.md
-      - SNAP Protocol Compliance: reviews/SNAP_PROTOCOL_COMPLIANCE_VALIDATION.md
-      - SNAP Sync Implementation: reviews/SNAP_SYNC_IMPLEMENTATION_REVIEW.md
+      - Compression Fix: historical/reviews/COMPRESSION_FIX_WIRE_PROTOCOL.md
+      - Run 007 Investigation: historical/reviews/RUN_007_INVESTIGATION_SUMMARY.md
+      - SNAP Protocol Compliance: historical/reviews/SNAP_PROTOCOL_COMPLIANCE_VALIDATION.md
+      - SNAP Sync Implementation: historical/reviews/SNAP_SYNC_IMPLEMENTATION_REVIEW.md
     - Reports:
       - reports/README.md
     - Tools:

@@ -33,6 +33,7 @@ This directory contains operational runbooks for running and maintaining Fukuii 
 
 ### Reference
 - **[Known Issues](known-issues.md)** - Common issues with RocksDB, temporary directories, JVM flags, and their solutions
+- **[Incident Postmortem Template](incident-postmortem-template.md)** - Blank, fillable template for documenting a real consensus-affecting bug or security incident (timeline, root cause, handling decision, lessons learned)
 
 ## Quick Reference
 
