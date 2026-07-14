@@ -12,7 +12,7 @@ The two dependency-light leaves everything is built on:
 - **`common`** — genuinely generic, dependency-light utilities (currently just the SLF4J logging
   facade). Deliberately *not* the old grab-bag `utils` package.
 
-`crypto` and `rlp` (also L0) are documented separately in `02-L0-crypto-rlp.md`.
+`crypto` and `rlp` (also L0) are documented in `02-L0-rlp.md` (rlp) and `03-L0-crypto.md` (crypto).
 
 ## Design decisions & empirical logic
 
