@@ -18,13 +18,13 @@ import org.bouncycastle.crypto.parsers.ECIESPublicKeyParser
 import org.bouncycastle.util.Arrays
 import org.bouncycastle.util.BigIntegers
 
-/** Integrated Encryption Scheme (IES) over an EC key-agreement cipher, following IEEE Std 1363a with
-  * the two Ethereum-specific changes: the MAC key is hashed before use, and the encryption IV is
-  * folded into the MAC. This is the primitive behind the RLPx encrypted handshake.
+/** Integrated Encryption Scheme (IES) over an EC key-agreement cipher, following IEEE Std 1363a with the two
+  * Ethereum-specific changes: the MAC key is hashed before use, and the encryption IV is folded into the MAC. This is
+  * the primitive behind the RLPx encrypted handshake.
   *
   * @param kdf
-  *   key-derivation function (ECIES uses [[ConcatKDFBytesGenerator]]; [[MGF1BytesGeneratorExt]]
-  *   selectable via the `Right`).
+  *   key-derivation function (ECIES uses [[ConcatKDFBytesGenerator]]; [[MGF1BytesGeneratorExt]] selectable via the
+  *   `Right`).
   * @param mac
   *   MAC generator for the ciphertext.
   * @param hash
@@ -151,7 +151,7 @@ class EthereumIESEngine(
     mac.doFinal(messageAuthenticationCodeCalculated, 0)
 
     // Constant-time MAC comparison — reject a tampered ciphertext without a timing oracle.
-    if !Arrays.constantTimeAreEqual(messageAuthenticationCode, messageAuthenticationCodeCalculated) then
+    if !constantTimeEquals(messageAuthenticationCode, messageAuthenticationCodeCalculated) then
       throw new InvalidCipherTextException("Invalid MAC.")
 
     plainText.toArray
