@@ -25,6 +25,19 @@ clients + full git history). Do NOT rush to Phase 2.
 - **Phase 3 — fukuii snapshot** → `.local/docs/…` (fukuii evolves; snapshot goes stale).
 - **Phase 4 — alignment audit → modernization backlog** → `.local/docs/…` → new QUEUE items.
 
+### Scheduled follow-up track — Consensus-Layer (CL) SR (GATED, not now)
+The EL SR (Phases 1–4 above) is the active track. A **parallel CL research track is scheduled as a delayed
+follow-up, gated on EL Phase 4** — specifically, triggered when fukuii actually moves to **implement an
+embedded CL (à la erigon's Caplin)** and/or the **validator-software** product component. These are the
+"feature-complete" omni-client elements (single-binary EL+CL for the PoS family), not near-term. Rationale for
+the gate (operator 2026-07-13): CL findings are only actionable once the PoS-family direction is decided
+(Phase 4 decides it); CLs move fast so research done far ahead goes stale; and a full CL SR is its own
+orientation→deep→comparison cycle with a **separate taxonomy** (beacon-state / fork-choice LMD-GHOST + Casper-FFG,
+attestation & aggregation, sync committees, SSZ, gossipsub/discv5, validator duties, slashing protection,
+checkpoint / light-client sync) — NOT the EL 20-slot model. The 6 CL repos are **pre-cloned and ready** at
+`.claude/repo-references/consensus-clients/` (teku = the JVM structural mirror; + lighthouse/prysm/nimbus-eth2/
+lodestar/grandine), Caplin already in-tree at `clients/erigon/cl/`. Do NOT start this ahead of EL Phase 2.
+
 ## Execution model (operator 2026-07-13) — SEQUENTIAL, RESOURCE-CAPPED
 The NUC is resource-constrained; do NOT fan out a dozens-of-agents Workflow.
 - **One client at a time, in order**, so results never mix. Order (adjustable): **go-ethereum → core-geth
