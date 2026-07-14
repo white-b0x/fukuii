@@ -185,7 +185,7 @@ object RLPCodecs:
   /** A 256-bit word as a **minimal-length big-endian scalar** — no leading zeros, `0` ⇒ empty string — the exact RLP
     * scalar spec for storage values and quantities.
     */
-  given RLPCodec[UInt256] = new RLPCodec[UInt256]:
+  given uint256Codec: RLPCodec[UInt256] = new RLPCodec[UInt256]:
     def encode(obj: UInt256): RLPEncodeable = RLPValue(ByteUtils.bigIntToUnsignedBytes(obj.toBigInt))
     def decode(rlp: RLPEncodeable): UInt256 = rlp match
       case RLPValue(bytes) =>
