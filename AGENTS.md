@@ -22,6 +22,19 @@ Network coverage is expected to grow over time within each family — treat
 "ETC/Mordor" and "ETH/Sepolia" below as the current instances of "PoW" and
 "PoS", not the ceiling of what fukuii supports.
 
+## Status: clean-write rebuild in progress — read the plan before working in `modules/`
+
+fukuii is being **rebuilt from scratch, layer by layer**, under `modules/` in the new namespace
+`com.chipprbots.fukuii.*`. The old IOHK-Mantis-lineage tree (`com.chipprbots.ethereum.*`, formerly
+under `src/`) is **reference-only** and preserved on branch `july-fourth`; on the working branch it
+is **gone — only `modules/` exists**. The layer-by-layer plan, the module DAG, and per-layer status
+live in [`docs/architecture/fukuii-rebuild/`](docs/architecture/fukuii-rebuild/) — read
+[`plan/README.md`](docs/architecture/fukuii-rebuild/plan/README.md) first. The **domain semantics**
+below (PoW vs PoS, consensus rules) are durable and carry into the rebuild; the **exact file
+paths/APIs** cited elsewhere in this file are the reference-tree (`july-fourth`) locations — the
+rebuild relocates them into `modules/<layer>/` and modernizes them per the plan, and **this file is
+updated inline as each layer lands** (see "Key Directories" and the per-layer record docs).
+
 ## PoW vs PoS — read this first
 
 **ETC keeps**: PoW/Ethash, ECIP-1017 fixed-supply emission, traditional gas
@@ -75,8 +88,15 @@ exist. The `scala3-style.md` ratchet enforces that no `Eth*` references or exten
 - `formatAll` → runs scalafix first → aborts mid-migration on pre-existing violations → **pre-PR only**
 - `pp` → does **not** run scalafix, does **not** inherit `formatAll`'s abort behavior — it's a smoke pass, not a substitute for `formatAll`
 
-Modules: root `main`, plus `bytes`, `crypto`, `rlp`, `Evm`, `Benchmark`,
-`RpcTest`, `IntegrationTest`.
+Modules (clean-write, under `modules/`, namespace `com.chipprbots.fukuii.*`; `build.sbt` is
+authoritative): `bytes` · `common` · `crypto` · `rlp` (L0) · `domain` (L1) · `storage` · `trie` (L2)
+· `evm` (L3) · `execution` (L4) · `consensus` (L5) · `network` (L6) · `sync` (L7) · `rpc` (L9) ·
+`node` (L10, composition root). Integration/Benchmark/Evm/Rpc test suites are sbt **configs scoped
+within `node`**, not separate modules. The per-layer plan (scope, dependencies, further splits the
+plan proposes — e.g. `consensus` → `-api`/`-pow`/`-pos`, the L8 peripheral split) is
+`docs/architecture/fukuii-rebuild/plan/`. Only built layers have real code; see the rebuild
+`README.md` index for per-layer status. (The old single-`main` + `Evm`/`RpcTest`/`IntegrationTest`
+module layout was the pre-rebuild `src/` tree — reference-only on `july-fourth`.)
 
 ## Working discipline (applies to every task)
 
@@ -125,14 +145,24 @@ tools/resources/prompts.
 
 ## Key Directories
 
-Subsystem-level breadcrumbs exist for the areas below — read them before making structural
-changes in that directory, not just this top-level file:
+During the clean-write rebuild the **structural authority is the layer plan**,
+[`docs/architecture/fukuii-rebuild/plan/`](docs/architecture/fukuii-rebuild/plan/) — one doc per
+layer (L0→L10) with scope, down-only dependencies, per-concern reference authorities, and design.
+**Read the relevant `plan/L{n}.md` before making structural changes in `modules/<layer>/`.**
 
-| Path | Breadcrumb | Purpose |
-|------|-----------|---------|
-| `src/main/scala/com/chipprbots/ethereum/blockchain/sync/` | `blockchain/sync/AGENTS.md` | Fast/regular/SNAP sync strategies + shared peer plumbing |
-| `src/main/scala/com/chipprbots/ethereum/consensus/` | `consensus/AGENTS.md` | PoW (Ethash/ECIP)/PoS (Engine API) dual-family dispatch — mandatory gate, see `consensus-change-protocol.md` |
-| `src/main/scala/com/chipprbots/ethereum/db/` | `db/AGENTS.md` | RocksDB storage layer behind the `DataSource` abstraction |
+Per-module subsystem breadcrumbs (`modules/<name>/AGENTS.md`) are added **as each layer is built and
+gated** — the rebuild's inline-maintenance rule: a layer's completion updates this section and drops
+its breadcrumb, the same commit that lands its record doc (`docs/architecture/fukuii-rebuild/NN-*.md`).
+Until a layer lands, its `plan/L{n}.md` *is* the breadcrumb.
+
+| Module (when built) | Breadcrumb | Plan |
+|------|-----------|------|
+| `modules/storage`, `modules/trie` (L2) | (added when built) | [`plan/L2.md`](docs/architecture/fukuii-rebuild/plan/L2.md) — RocksDB `DataSource` + MPT, byte-pure storage seam |
+| `modules/consensus` (L5) | (added when built) | [`plan/L5.md`](docs/architecture/fukuii-rebuild/plan/L5.md) — PoW/PoS dual-family dispatch + `NetworkFamily`; mandatory gate, see `consensus-change-protocol.md` |
+| `modules/sync` (L7) | (added when built) | [`plan/L7.md`](docs/architecture/fukuii-rebuild/plan/L7.md) — fast/regular/SNAP/checkpoint strategies |
+
+(The old `src/main/scala/com/chipprbots/ethereum/{blockchain/sync,consensus,db}/AGENTS.md`
+breadcrumbs are retired with that tree — see branch `july-fourth` for the reference implementation.)
 
 ## Where agent protocols and skills actually live
 

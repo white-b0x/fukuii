@@ -29,6 +29,39 @@ and Mordor testnet (chain ID 63). As fukuii adds new PoW networks, they fall
 under this same scope. For PoS network consensus work (currently ETH/Sepolia),
 hand off to `beacon`.
 
+## Rebuild context (read before any task)
+
+fukuii is being rebuilt from scratch, layer by layer, under `modules/`
+(`com.chipprbots.fukuii.*`). The old IOHK-Mantis tree (`com.chipprbots.ethereum.*`,
+formerly `src/`) is **reference-only** on branch `july-fourth` — it does not exist
+on the working branch. **Before any rebuild task, read the relevant
+`docs/architecture/fukuii-rebuild/plan/L{n}.md`** (and `plan/README.md` for the
+model). PoW consensus (Ethash/ECIP-1017, MESS) lands at `modules/consensus` (L5,
+`-pow` submodule; `plan/L5.md`); the EVM at `modules/evm` (L3, `plan/L3.md`); block
+execution + block rewards at `modules/execution` (L4, `plan/L4.md`); domain types
+(Block, Header, Tx) at `modules/domain` (L1, `plan/L1.md`). Only L0
+(`bytes`/`common`/`crypto`/`rlp`) is built as of this writing — L1+ are planned,
+not built; check `build.sbt` for the current real module list.
+
+**Authority is per-concern, not per-client** (`plan/REVIEW.md` §3): **core-geth**
+is the FROZEN authority for ETC/PoW values (ECIP-1017/1099/1111/1121/1122);
+**go-ethereum + besu together** for shared EVM/RLP/crypto (must agree —
+divergence = investigate); **besu is the JVM-implementation guide** — read its
+Java alongside geth's Go, mandatory from line one (this lens already caught
+F-BN-1/B-BLS-1/J-RLP-1 that a Go-only comparison missed); besu is also the
+PoA/multi-consensus authority; erigon = sidechain/perf design ideas; nethermind =
+plugin-architecture design ideas; reth = modularity/SDK design ideas.
+
+**Rule 0 — the SR is binding.** `docs/research/clients/observations/{slot}.md`
+(especially `consensus-engines.md`, `block-execution.md`, `evm.md`) answers most
+design questions before you ask them — grep the relevant slot first; never flag a
+"new gap" without confirming the SR didn't already resolve it (memory
+`consult-sr-research-before-design`).
+
+**The gate.** Each layer passes ≥3 independent lenses before advancing, including
+the besu JVM-implementation lens — byte-authority (what the values are) and
+structural mirror (how to build it in Scala/JVM) are both required, never just one.
+
 ## Shared protocols
 
 - Commit discipline for consensus-touching changes (bucket C = semantic risk, never batch with A/B): `~/.claude/agent-protocols/risk-stratified-commit.md`
@@ -158,25 +191,36 @@ ECIP-1017 block-reward schedule (20% reduction every 5M blocks):
 
 ## The sacred modules
 
-- EVM: `src/main/scala/com/chipprbots/ethereum/vm/` — `VM.scala`, `OpCode.scala`,
+Real, built path first; planned rebuild destination second — `src/main/scala/com/chipprbots/ethereum/…`
+paths below describe the reference-only `july-fourth` tree (port source), not the working branch.
+
+- Crypto (BUILT): `modules/crypto/src/main/scala/com/chipprbots/fukuii/crypto/` — ECDSA
+  (secp256k1), Keccak-256, address derivation.
+- EVM (planned, L3 — `plan/L3.md`): will land at `modules/evm`. Reference-only source:
+  `july-fourth`'s `src/main/scala/com/chipprbots/ethereum/vm/` — `VM.scala`, `OpCode.scala`,
   `EvmConfig.scala`, `WorldStateProxy.scala`, `Stack.scala`, `Memory.scala`.
   **Fork-config objects**: `EtcOlympiaOpCodes` (ETC, block-gated) and `EthOsakaOpCodes`
   (ETH, timestamp-gated) are distinct — never merge their activation logic.
-- Mining: `src/main/scala/com/chipprbots/ethereum/consensus/mining/` — Ethash,
-  DAG generation/epochs, difficulty, block rewards. **PoW networks only**
-  (currently ETC/Mordor).
-- Domain: `src/main/scala/com/chipprbots/ethereum/domain/` — `Blockchain.scala`,
-  `Block.scala`, `BlockHeader.scala`, `Transaction.scala`, MPT state.
-- Crypto: `crypto/src/main/scala/com/chipprbots/ethereum/crypto/` — ECDSA
-  (secp256k1), Keccak-256, address derivation.
-- Ledger: `src/main/scala/com/chipprbots/ethereum/ledger/` — block execution pipeline:
-  `BlockExecution.scala` (559 LOC), `BlockPreparator.scala`, `StxLedger.scala`,
-  `BlockValidation.scala`, `BlockRewardCalculator.scala`. Applies ECIP-1017 block rewards
-  and ECIP-1111 basefee→Treasury routing. Treat with the same care as vm/.
-- extvm: `src/main/scala/com/chipprbots/ethereum/extvm/` — **HIBERNATED. Do not modify.**
-  IOHK/Mantis experimental gRPC bridge to external EVM. Upstream archived September 2021.
-  All tests `@Ignored`. Default `vm.mode = "internal"`. Deletion is a Deferred item — check
-  `.claude/sprints/QUEUE.md`'s Chase & Deferred Items section for current status.
+- Mining/consensus (planned, L5 — `plan/L5.md`): will land at `modules/consensus`
+  (`-pow` submodule). Reference-only source: `july-fourth`'s
+  `src/main/scala/com/chipprbots/ethereum/consensus/mining/` — Ethash, DAG
+  generation/epochs, difficulty, block rewards. **PoW networks only** (currently
+  ETC/Mordor).
+- Domain (planned, L1 — `plan/L1.md`): will land at `modules/domain`. Reference-only
+  source: `july-fourth`'s `src/main/scala/com/chipprbots/ethereum/domain/` —
+  `Blockchain.scala`, `Block.scala`, `BlockHeader.scala`, `Transaction.scala`, MPT state.
+- Ledger/execution (planned, L4 — `plan/L4.md`): will land at `modules/execution`.
+  Reference-only source: `july-fourth`'s `src/main/scala/com/chipprbots/ethereum/ledger/` —
+  block execution pipeline: `BlockExecution.scala` (559 LOC), `BlockPreparator.scala`,
+  `StxLedger.scala`, `BlockValidation.scala`, `BlockRewardCalculator.scala`. Applies
+  ECIP-1017 block rewards and ECIP-1111 basefee→Treasury routing. Treat with the same
+  care as evm/.
+- extvm: **not carried into the rebuild.** `july-fourth`'s
+  `src/main/scala/com/chipprbots/ethereum/extvm/` was HIBERNATED (IOHK/Mantis
+  experimental gRPC bridge to external EVM, upstream archived September 2021, all
+  tests `@Ignored`, default `vm.mode = "internal"`) — it has no module in the L0–L10
+  plan and should be treated as historical unless a future layer plan explicitly
+  reintroduces it.
 
 ## Hard constraints
 
@@ -209,16 +253,20 @@ are one-way doors — when in doubt, guard behind a fork block rather than delet
 
 ## Verification (run, do not assume)
 
+`testVM`/`testEthereum`/the named `testOnly` targets below apply once EVM (L3) and
+execution (L4) are built — until then they have nothing to run against; verify
+against `modules/crypto`'s real tests today.
+
 ```bash
 sbt compile-all                  # all modules compile
-sbt testVM                       # EVM opcode/gas tests
-sbt testCrypto                   # crypto vectors
-sbt testEthereum                 # ethereum/tests compliance (ETC-filtered)
-sbt "testOnly *ECIP1017*"          # ETC block-reward schedule
-sbt "testOnly *EtcOlympiaOpCodes*" # ETC Olympia fork dispatch
-sbt "testOnly *BlockExecution*"    # ledger block execution pipeline
-sbt "testOnly *BlockValidation*"   # ledger block validation
-sbt "testOnly *StxLedger*"         # ledger transaction application
+sbt testVM                       # EVM opcode/gas tests (once modules/evm, L3, is built)
+sbt testCrypto                   # crypto vectors (modules/crypto — built today)
+sbt testEthereum                 # ethereum/tests compliance (ETC-filtered; once L3/L4 built)
+sbt "testOnly *ECIP1017*"          # ETC block-reward schedule (once modules/execution, L4, is built)
+sbt "testOnly *EtcOlympiaOpCodes*" # ETC Olympia fork dispatch (once modules/evm, L3, is built)
+sbt "testOnly *BlockExecution*"    # ledger block execution pipeline (once modules/execution, L4, is built)
+sbt "testOnly *BlockValidation*"   # ledger block validation (once modules/execution, L4, is built)
+sbt "testOnly *StxLedger*"         # ledger transaction application (once modules/execution, L4, is built)
 ```
 
 Evidence required. "Probably works" is forbidden — show the test-vector result,

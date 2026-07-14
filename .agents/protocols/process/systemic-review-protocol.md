@@ -25,6 +25,21 @@ plus whatever is specific to that cycle (which items are gated on other in-fligh
 QUEUE.md items it supersedes). Do not duplicate this protocol's taxonomies into a cycle folder —
 cite this file.
 
+## The SR outputs are BINDING design inputs — consult before deciding
+
+The whole point of running this review is to **inform decisions**, so its outputs
+(`docs/research/clients/observations/{slot}.md` + `consensus-engines.md` / `multi-network.md` /
+`cross-cutting-themes.md` / `topics/` + per-client `{client}/{slot}.md`) are the **binding first
+input** to every fukuii design / architecture / rebuild / authority decision — not optional
+background to skim afterward. **Before proposing any design, resolving an OPEN decision, making an
+authority call, or flagging a "new gap/finding," consult the relevant slot first**: is there already
+a DEFAULT/OPTIONAL(role)/OBSOLETE verdict, a named per-concern authority, or a fukuii built-but-dormant
+seam this research identified? Re-inventing what the SR already answered wastes the entire Phase 1–4
+investment and produces wrong-authority conclusions (cautionary case: flagging "besu `plugin-api`"
+as a new extensibility gap when the SR had already designed the B7.0.5 `NetworkFamily` `given`-typeclass
+registry with nethermind/reth/erigon as the authorities). This binds the orchestrator's own decisions,
+not only dispatched agents. Memory: `consult-sr-research-before-design`.
+
 ---
 
 ## Cadence
@@ -214,38 +229,46 @@ per-unit rollup.
 | Client | Authority role | Notes |
 |---|---|---|
 | **go-ethereum** | Primary ETH/EIP authority | Default tie-breaker when ETH-side clients disagree |
-| **Besu** | Independent ETH cross-check **and** architectural mirror | See "Authority vs. architectural mirror" below — Besu's dual role is deliberate, not a table-grouping accident |
+| **Besu** | Independent **ETC and ETH** cross-check, **JVM implementation guide**, **and** architectural mirror | Maintained JVM client with 9 yrs of ETC support + current ETH — so a second *maintained behavioral* authority alongside geth for shared behavior, not merely a structural mirror. Its **Java transfers to fukuii's Scala/JVM constraints** (BouncyCastle, JNI native libs like the besu-native `bls12-381` fukuii already wires, big-int towers, no native `uint256`) where geth's Go idioms often do NOT — read besu's Java **alongside** geth's Go. See "Authority vs. architectural mirror vs. JVM implementation guide" below |
 | **Erigon**, **Reth** | Independent ETH cross-checks | Disagreement among these + geth is a signal to investigate, not a majority vote to auto-resolve |
 | **Nethermind** | Independent ETH cross-check (same tier as Besu/Erigon/Reth) | Carries its own ETC overlay on `main` in the vendored fork — check `main`, not just `upstream`, when a finding is ETC-relevant and Nethermind's ETC behavior specifically matters |
-| **core-geth** | ECIP/ETC-ONLY authority | **NEVER** cite as ETH-authoritative, even where its code visibly still contains ETH-mainline logic inherited from its multi-geth lineage — a concrete instance of this trap: core-geth's SNAP-sync code (`eth/protocols/snap/`, `eth/handler_snap.go`) is inherited verbatim from go-ethereum, not independently ECIP-derived, so it must never be cited as justifying an ETC-specific SNAP design choice |
+| **go-ethereum** + **Besu** (together) | **Shared-behavior co-authority** (the EVM/RLP/crypto core *every* supported network executes) | fukuii is a **multi-network framework** (families PoW/PoS/PoA…; ETC/ETH are today's instances, not a binary). For behavior common across networks, the two *maintained* clients must **agree**; a divergence is a signal to investigate, not to pick one. geth is what the ecosystem tracks; besu is the independent maintained JVM cross-check |
+| **core-geth** | ECIP/ETC-ONLY authority — **and FROZEN** | Deprecated Sept-2024, ~5 majors behind go-ethereum, so authoritative **ONLY** for **frozen ETC-specific values** (ECIP-1017 emission, ETChash/1099, difficulty-bomb delays 1010/1041/1100, MESS/1100) + the **ETC fork level** — **NOT** shared behavior, which has staled. Corroborate against besu's maintained ETC history. **NEVER** cite as ETH-authoritative, even where its code visibly still contains ETH-mainline logic inherited from its multi-geth lineage — a concrete instance: core-geth's SNAP-sync code (`eth/protocols/snap/`, `eth/handler_snap.go`) is inherited verbatim from go-ethereum, not independently ECIP-derived, so it must never justify an ETC-specific SNAP design choice |
 
 **Branch-checkout caveat:** besu/nethermind/core-geth carry a real ETC overlay on `main` (their
 resting branch per `.claude/agents/REFERENCES.md`); go-ethereum/reth/erigon currently rest on
 `upstream` (no overlay written). Check which branch is actually checked out before trusting a
 citation's network context.
 
-### Authority vs. architectural mirror
+### Authority vs. architectural mirror vs. JVM implementation guide
 
 The table above answers one question — **which client is correct?** (the right bytes/values:
-EIP formula, ECIP emission schedule, gas cost, opcode behavior). It does not answer a second,
-orthogonal question that any structural-comparison lens also needs: **which client's code is
-structured closest to how fukuii's Scala should be structured?** These are different axes and
-neither substitutes for the other:
+EIP formula, ECIP emission schedule, gas cost, opcode behavior). It does not answer two other,
+orthogonal questions any thorough lens needs. These are **three distinct axes**; none substitutes
+for another, and Besu is the lead on two of the three:
 
-- **Authority (correctness axis)** — go-ethereum for EIP behavior, core-geth for ECIP behavior.
-  Cite these for "is this the right value."
-- **Architectural mirror (structure axis)** — **Besu**. Both fukuii and Besu are JVM clients
-  with object-structured protocol schedules and validator/builder factories (fukuii's Scala
-  `object`-per-fork-schedule idiom has a direct structural analog in Besu's Java class-per-
-  schedule/builder idiom) — the closest codebase kinship among the 6 vendored clients. Cite
-  Besu for "how should this be shaped," independent of whether Besu's own values are the ones
-  fukuii should copy.
+- **Authority (correctness axis) — "what is the right value?"** Per-concern, not per-client:
+  **shared EVM/RLP/crypto behavior → go-ethereum + Besu together** (two maintained clients that
+  must agree); **ETC-specific frozen values + ETC fork level → core-geth** (frozen/deprecated —
+  only these, corroborate against Besu's ETC history); **ETH-family-specific → go-ethereum**. Cite
+  these for "is this the right value."
+- **JVM implementation guide (how-to-build axis) — "how do I build this correctly on the JVM?"**
+  **Besu.** fukuii and Besu share JVM constraints go-ethereum's Go does not: BouncyCastle crypto,
+  JNI native libs, big-integer towers, no native `uint256` value type. So Besu's **Java
+  implementation approach transfers directly** where geth's Go idioms often don't (concrete
+  fukuii evidence: the KZG/BLS precompiles wire the besu-native `bls12-381` lib). For every layer,
+  read **Besu's Java alongside geth's Go** — geth/core-geth for the value, Besu for the JVM how.
+- **Architectural mirror (structure axis) — "how should this be shaped?"** **Besu**. Both are JVM
+  clients with object-structured protocol schedules and validator/builder factories (fukuii's
+  Scala `object`-per-fork-schedule has a direct analog in Besu's Java class-per-schedule/builder)
+  — the closest codebase kinship among the vendored clients. Cite Besu for "how should this be
+  shaped," independent of whether Besu's own values are the ones to copy.
 
-A structural-comparison lens should run **both** consults, not just the authority one: confirm
-correctness against the byte-authority, then separately check Besu for a transferable
-dispatch/organization pattern. Neither consult is optional and neither is a replacement for the
-other — a change can be byte-correct per go-ethereum and still be structured worse than Besu's
-equivalent, or structured like Besu and still wrong per go-ethereum's values.
+A thorough lens runs **all three** consults: confirm correctness against the per-concern
+byte-authority, check Besu's Java for the JVM implementation approach, and check Besu for a
+transferable dispatch/organization pattern. A change can be byte-correct per go-ethereum and still
+be built with a Go idiom that doesn't hold on the JVM, or structured worse than Besu's equivalent.
+**Reading go-ethereum's Go alone — without Besu's Java — is how JVM-specific latent bugs slip in.**
 
 **Illustrative case (method, not a status line):** deciding whether a header is PoW or PoS-era
 requires keying off `terminalTotalDifficulty` presence, then dispatching per-header on
