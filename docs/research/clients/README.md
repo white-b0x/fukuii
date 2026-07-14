@@ -217,7 +217,7 @@ Status legend: ` ` = not started · `~` = in progress · `✓` = done. Update as
 ### Progress — extended slots 15–20 (added 2026-07-13)
 | Client | block-production | accounts-signer | cl-engine | exec-extensions | historical-distribution | observability |
 |--------|:--:|:--:|:--:|:--:|:--:|:--:|
-| go-ethereum |  |  |  |  |  |  |
+| go-ethereum | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | core-geth |  |  |  |  |  |  |
 | besu |  |  |  |  |  |  |
 | erigon |  |  |  |  |  |  |
