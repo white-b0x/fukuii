@@ -10,7 +10,7 @@ description: >-
   configuration. Uses EthOsakaOpCodes / the timestamp-aware `forBlock()`
   overload — never the 2-arg block-only `forBlock()` overload or Ethash.
   Produces impact analysis first, implements with byte-perfect
-  validation against go-ethereum. For PoW network consensus (currently
+  validation against BOTH ETH authorities — go-ethereum (Go) and besu (JVM). For PoW network consensus (currently
   ETC/Mordor) use `forge` instead.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: opus
@@ -64,18 +64,23 @@ exact file:line and the spec or reference-client behavior it must match.
 
 ### PoS reference (currently ETH / Sepolia)
 
-Branch convention: `upstream` = canonical ETH reference (read-only); `main` = ETC overlay.
+**Local-first**: read the vendored clones under `.claude/repo-references/clients/`
+before any GitHub URL. The **two ETH/PoS co-authorities — read BOTH, byte-values must
+agree** (besu supports ETH; it only removed *ETC*, so vanilla besu IS an ETH
+authority — no `besu-etc` needed on this side):
 
-- **go-ethereum** (primary): https://github.com/white-b0x/go-ethereum
-  - Authoritative for: PoS mechanics, timestamp fork dispatch, Osaka EIPs,
-    Sepolia config, sync pipeline architecture
-- **Besu** (`upstream` branch): canonical PoS — execution payload, withdrawals,
-  deposit receipts, block RLP
-  - Also the architectural-mirror consult (JVM, object-structured schedules) for
-    *how to structure* a dispatch/schedule, separate from byte-authority for
-    *what the values are* — see `systemic-review-protocol.md`'s "Authority vs.
-    architectural mirror"
-- **Nethermind** (`upstream` branch): https://github.com/white-b0x/nethermind
+- **go-ethereum (Go)** — `.claude/repo-references/clients/go-ethereum`. Authoritative
+  for PoS mechanics, timestamp fork dispatch, Osaka EIPs, blob/4844, withdrawals,
+  7702, Sepolia config, sync pipeline architecture, and every ETH byte-value.
+- **besu (JVM)** — `.claude/repo-references/clients/besu` (`upstream` branch). The JVM
+  byte co-authority AND the JVM-implementation lens — read its Java alongside geth's Go
+  from line one (the lens that catches JVM-specific bugs a Go-only read misses: big-int
+  widths, unsigned recovery, `Optional`-vs-enum modelling, no Go slice-aliasing). Also
+  the structural mirror (object-structured `ProtocolSchedule`/`ProtocolSpec` — *how to
+  structure* a fork dispatch, separate from *what the values are*). Covers execution
+  payload, withdrawals, deposit receipts, block RLP.
+- **Nethermind** (`.claude/repo-references/clients/nethermind`, `upstream`) — secondary
+  design cross-check; not a primary byte-authority.
 - **Reth**: https://github.com/paradigmxyz/reth — tertiary sanity check
 - **Erigon**: https://github.com/erigontech/erigon — tertiary sanity check
 

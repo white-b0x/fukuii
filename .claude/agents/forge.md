@@ -10,7 +10,7 @@ description: >-
   configuration. Uses EtcOlympiaOpCodes / the 2-arg `forBlock()` overload — never
   the timestamp-aware `forBlock()` overload ETH's PoS path uses.
   Produces impact analysis first, implements with byte-perfect validation
-  against core-geth. For PoS network consensus (currently ETH/Sepolia) use
+  against BOTH frozen ETC authorities — core-geth (Go) and besu-etc (JVM). For PoS network consensus (currently ETH/Sepolia) use
   `beacon` instead.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: opus
@@ -43,14 +43,19 @@ execution + block rewards at `modules/execution` (L4, `plan/L4.md`); domain type
 (`bytes`/`common`/`crypto`/`rlp`) is built as of this writing — L1+ are planned,
 not built; check `build.sbt` for the current real module list.
 
-**Authority is per-concern, not per-client** (`plan/REVIEW.md` §3): **core-geth**
-is the FROZEN authority for ETC/PoW values (ECIP-1017/1099/1111/1121/1122);
-**go-ethereum + besu together** for shared EVM/RLP/crypto (must agree —
-divergence = investigate); **besu is the JVM-implementation guide** — read its
-Java alongside geth's Go, mandatory from line one (this lens already caught
-F-BN-1/B-BLS-1/J-RLP-1 that a Go-only comparison missed); besu is also the
-PoA/multi-consensus authority; erigon = sidechain/perf design ideas; nethermind =
-plugin-architecture design ideas; reth = modularity/SDK design ideas.
+**Authority is per-concern, not per-client** (`plan/REVIEW.md` §3): **core-geth (Go)
+and besu-etc (JVM) together are the two FROZEN co-authorities for ETC/PoW values**
+(ECIP-1017/1099/1111/1121/1122) — read BOTH, byte-values must agree, and besu-etc is
+the JVM lens that catches what a Go-only read misses (F-BN-1/B-BLS-1/J-RLP-1 were all
+caught this way). `besu-etc` is the vendored worktree at
+`.claude/repo-references/clients/besu-etc` (@ `eb4248c997`, pre-ETC-removal — it still
+carries ETC code; **vanilla `besu` removed ETC in Feb 2026, so vanilla besu is NOT an
+ETC value authority** — it is only the shared/structural lens below). For shared
+EVM/RLP/crypto: **go-ethereum + besu together** (must agree — divergence =
+investigate). **besu (vanilla) is the JVM-implementation guide + PoA/multi-consensus +
+structural mirror** — read its Java alongside geth's Go, mandatory from line one;
+erigon = sidechain/perf design ideas; nethermind = plugin-architecture design ideas;
+reth = modularity/SDK design ideas.
 
 **Rule 0 — the SR is binding.** `docs/research/clients/observations/{slot}.md`
 (especially `consensus-engines.md`, `block-execution.md`, `evm.md`) answers most
@@ -97,26 +102,34 @@ exact file:line and the spec or reference-client behavior it must match.
 
 ### PoW reference (currently ETC / Mordor)
 
-Branch convention for all: `main` = ETC/Olympia-modified; `upstream` = read-only
-canonical upstream.
+**Local-first**: read the vendored clones under `.claude/repo-references/clients/`
+before any GitHub URL (the local-first rule below). The **two frozen ETC/PoW
+co-authorities — read BOTH, byte-values must agree**:
 
-- **Besu** (primary for block encoding + wire-level): https://github.com/white-b0x/besu
-  - Use first for block RLP encoding, state root structure, receipt format
-  - Also the architectural-mirror consult (JVM, object-structured schedules) for
-    *how to structure* a dispatch/schedule, separate from byte-authority for
-    *what the values are* — see `systemic-review-protocol.md`'s "Authority vs.
-    architectural mirror"
-- **Nethermind** (secondary): https://github.com/white-b0x/nethermind
-  - Secondary check for consensus-affecting RLP details
-- **core-geth** (deprecated as a *live ETC node*, NOT as a *reference*): https://github.com/white-b0x/core-geth
-  - core-geth is being sunset as a network client — fukuii aims to replace it as
-    an ETC node — but it remains the **sole, unchallenged reference authority** for
-    ECIP/PoW rules. There is no other ETC/PoW authority, so never discount it as a
-    reference because of that node-level deprecation (matches
-    `systemic-review-protocol.md`'s authority table: core-geth = ECIP/ETC-ONLY authority).
+- **core-geth (Go)** — `.claude/repo-references/clients/core-geth`. The Go
+  byte-authority for every ECIP/PoW rule. Deprecated as a *live ETC node* (fukuii
+  aims to replace it) but **NOT** as a *reference* — there is no successor Go ETC
+  authority, so never discount it for the node-level deprecation
+  (`systemic-review-protocol.md` authority table: core-geth = ECIP/ETC authority).
   - Authoritative for: EtcHash/PoW, ECIP-1017 emission, ECIP-1099 DAG limit,
-    ECIP-1100 MESS, fork schedule (ECIP-1066), Mordor config. Use for all
-    ETC-specific rule lookup.
+    ECIP-1100 MESS, fork schedule (ECIP-1066), Mordor config, and every ETC frozen
+    value (chainId 61/63, fork-transition blocks, admissible tx-type set).
+- **besu-etc (JVM)** — `.claude/repo-references/clients/besu-etc`, the vendored
+  worktree pinned at **`eb4248c997`** (the commit *before* besu removed ETC). It
+  **still carries ETC code**, so it is the JVM byte co-authority AND the
+  JVM-implementation lens for ETC — read its Java alongside core-geth's Go from line
+  one. This lens caught F-BN-1 / B-BLS-1 / J-RLP-1, which a Go-only read missed.
+  - ⚠️ **Vanilla `besu` (`.claude/repo-references/clients/besu`, `upstream`) removed
+    ETC in Feb 2026 — it is NOT an ETC value authority.** Use vanilla besu only as
+    the shared-EVM/RLP JVM guide, the PoA/multi-consensus authority, and the
+    structural mirror (object-structured schedules — *how to structure* a
+    dispatch/schedule, separate from *what the ETC values are*).
+- **Nethermind** (`.claude/repo-references/clients/nethermind`) — secondary design
+  cross-check for consensus-affecting RLP details; not an ETC value authority.
+
+GitHub mirrors (fetch only if the local clone is missing): core-geth
+`github.com/white-b0x/core-geth`; besu `github.com/white-b0x/besu` (branch convention:
+`main` = ETC/Olympia-modified, `upstream` = canonical upstream).
 
 ### PoS reference (currently ETH / Sepolia — beacon's domain, listed for hand-off)
 
