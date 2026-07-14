@@ -17,9 +17,10 @@ Phase 1 is **iterative, not a single pass** ("measure many times, cut once" — 
 clients + full git history). Do NOT rush to Phase 2.
 - **Phase 1a — ★ orientation** ✅ DONE: `{client}/{storage,consensus,sync,multi-network}.md` across all 6 (+ besu networking). Taught us the *shape* of the differences, not the depth.
 - **Initial assessment** ✅ [`initial-assessment.md`](initial-assessment.md) — orientation synthesis + the **deep-question map** that drives the rest. (Read this first.)
-- **Phase 1b — deep full review** → every subsystem (all 14 slots) per client, traversed via **each client's own dependency graph** (low→high). `{client}/{subsystem}.md`.
-- **Phase 1c — second-wave deep questions** (woven into 1b) → esp. **historical PoW/ETC** (git-log each client's pre-merge Ethash/ETC structure = 4-5 PoW references beyond core-geth) + **ETH68-71 wire commit-log evolution** + deeper ★-subsystem follow-ups. May expose a **third wave** of targeted questions — that's expected.
-- **Phase 2 — cross-client observations/comparison** → `observations/{subsystem}.md` (durable, public). ONLY after the deep review: align → best-practice; differ → *why* (language/runtime, performance, legacy-vs-modernized).
+- **Phase 1b — deep full review** ✅ DONE (2026-07-13): all 14 slots documented for all 6 clients (84 `{client}/{subsystem}.md` docs; grid below full). Traversed via each client's own dependency graph, `upstream`-only. Branch discipline held (core-geth inverted @ `4185df450`; besu/nethermind overlays avoided).
+- **Phase 1c — second-wave deep questions** ✅ DONE (woven into 1b): **historical PoW/ETC** (`{client}/history-pow-etc.md` for geth/besu/erigon/nethermind; core-geth=baseline, reth=never-PoW) + **ETH68→72 wire commit-log evolution** (`topics/wire-protocol-evolution.md`, incl. the cross-client adoption matrix + ETH68 preservation for fukuii) + mining-protocol survey (`topics/mining-protocol-{evm,nonevm}.md`). Third-wave targeted follow-ups can still surface during Phase 2 — that's expected.
+- **Phase 1c-third-wave — extended slots 15–20** ← **IN PROGRESS** (the module-list gap audit, operator 2026-07-13): the 14 spine slots missed 6 real subsystems (block-production, accounts-signer, cl-engine, exec-extensions, historical-distribution, observability). Documenting all 6 × 6 clients before Phase 2. See the extended taxonomy + grid below.
+- **Phase 2 — cross-client observations/comparison** (after 15–20) → `observations/{subsystem}.md` (durable, public), now 20 subsystems. align → best-practice; differ → *why* (language/runtime, performance, legacy-vs-modernized). Also crystallize the two cross-cutting themes noted below (Classic→Typed target; gRPC-seam = product-family + dRPC bridge).
 - **Phase 3 — fukuii snapshot** → `.local/docs/…` (fukuii evolves; snapshot goes stale).
 - **Phase 4 — alignment audit → modernization backlog** → `.local/docs/…` → new QUEUE items.
 
@@ -93,7 +94,25 @@ Every client is documented against THIS list, same slugs, so Phase-2 tables line
 | 11 | `rpc-api` | JSON-RPC, Engine API, WS/IPC, GraphQL, method coverage |
 | 12 ★ | `multi-network` | network/family config & selection, testnet support, custom genesis, chain-spec model |
 | 13 | `testing` | test structure, groupings/tiers, fixtures (ethereum/tests, hive), simulators, determinism |
-| 14 | `node-lifecycle` | startup/shutdown, DI/plugins, config, metrics/logging/observability |
+| 14 | `node-lifecycle` | startup/shutdown, DI/plugins, config, wiring (metrics/logging pointer → slot 20) |
+
+### Extended slots (15–20) — added 2026-07-13 (operator: "how can all clients have exactly 14?")
+The original 14 are the execution-client **spine**; a module-list audit of all 6 clients found six more
+first-class subsystems that don't map cleanly to any spine slot. Added as slots 15–20 so the gap is closed
+before Phase 2. (Minor/util modules — console REPL, `ethclient` SDK, `event`, ABI, NAT/UPnP, source-analyzers,
+`Nethermind.UI` = the GUI-as-fukuii-deliverable — remain folded, not slots.)
+
+| # | Slug | Covers | Where it lives (examples) |
+|---|------|--------|---------------------------|
+| 15 | `block-production` | payload building, block assembly, sealing/mining, MEV/builder, tx-selection *production* side (vs block-execution = validate+apply) | geth `miner/` · reth `payload/` · nethermind `Mining`/`Flashbots`/`Shutter` · besu block-creation |
+| 16 | `accounts-signer` | account mgmt, keystore, wallet, local + external signer (clef-style) | geth `accounts/`+`signer/` · nethermind `KeyStore`/`Wallet`/`ExternalSigner.Plugin` |
+| 17 | `cl-engine` | consensus-layer integration, embedded beacon, engine-tree/fork-choice driver, Engine-API *driver* side (vs rpc transport) | erigon `cl` (Caplin) · geth `beacon/` · reth `engine/` · nethermind `Merge.Plugin`+`Ssz` |
+| 18 | `exec-extensions` | execution extensions, indexing/notification hooks, trace-store, data-feeds, distinct gRPC-data transport | reth `exex/` · nethermind `TraceStore`/`StateDiffsWriter`/`BalRecorder`/`Grpc` |
+| 19 | `historical-distribution` | era files, snapshot/segment distribution (torrent), freezer/ancient store, checkpoint distribution, EIP-4444 history-expiry | geth freezer · erigon `downloader` · reth `era*`/`static-file` · nethermind `Era1`/`History`/`Init.Snapshot` |
+| 20 | `observability` | metrics (Prometheus), tracing (OTLP), health checks, diagnostics, dashboards, ethstats/telemetry | geth `metrics/`+`ethstats/` · erigon `diagnostics`+`dashboards` · reth `metrics`/`tracing-otlp` · nethermind `Monitoring`/`HealthChecks` |
+
+_Forward-looking subsystems noted but NOT yet slotted (too few clients, or emerging): stateless-execution / ZK
+proving (nethermind `Stateless.ZiskGuest`, reth sparse-trie witnesses) — revisit if a 21st slot is warranted._
 
 ## Use-case / node-role lens (operator 2026-07-13) — characterize approaches, DON'T just rank them
 fukuii is an **omni-client**: it does NOT have to pick one approach. The design principle is **best-practice
@@ -193,6 +212,16 @@ Status legend: ` ` = not started · `~` = in progress · `✓` = done. Update as
 | erigon | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | nethermind | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | reth | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+### Progress — extended slots 15–20 (added 2026-07-13)
+| Client | block-production | accounts-signer | cl-engine | exec-extensions | historical-distribution | observability |
+|--------|:--:|:--:|:--:|:--:|:--:|:--:|
+| go-ethereum |  |  |  |  |  |  |
+| core-geth |  |  |  |  |  |  |
+| besu |  |  |  |  |  |  |
+| erigon |  |  |  |  |  |  |
+| nethermind |  |  |  |  |  |  |
+| reth |  |  |  |  |  |  |
 
 ## Progress — Phase 2 (observations, per subsystem)
 | Subsystem | Status |
