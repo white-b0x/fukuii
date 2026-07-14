@@ -117,6 +117,29 @@ git -C erigon remote add upstream https://github.com/erigontech/erigon.git
 cd ..
 ```
 
+# Reference Consensus-Layer (CL) Clients — beacon-chain clients (beacon, and any future
+# single-binary-EL+CL / validator-software work). Added 2026-07-13 (operator): the EL SR
+# surfaced erigon's Caplin (embedded CL) → fukuii may embed/build a CL for the PoS family,
+# and the "validator software (PoS)" product-family component is CL-adjacent. Unlike the EL
+# clients above, these have NO fukuii fork/overlay — clone DIRECT from canonical upstream
+# (default branch), no `upstream`-branch discipline. This is a SEPARATE research track with
+# its OWN taxonomy (beacon-state/fork-choice LMD-GHOST+Casper-FFG, attestation/aggregation,
+# sync committees, SSZ, gossipsub/discv5, validator duties, slashing protection, checkpoint/
+# light-client sync) — NOT the EL 20-slot taxonomy. Research deferred (Phase 4+ / when the
+# embed-CL or validator-software decision is live); repos cloned now so they're ready.
+# Cloned via `.local/scratch/clone-consensus-clients.sh`.
+```bash
+mkdir -p consensus-clients && cd consensus-clients
+git clone https://github.com/Consensys/teku.git teku                 # JVM (Java) — THE structural mirror (besu-equivalent for CLs); the reference if fukuii embeds/builds a CL in Scala/JVM
+git clone https://github.com/sigp/lighthouse.git lighthouse          # Rust — modularity/perf; pairs with reth
+git clone https://github.com/prysmaticlabs/prysm.git prysm           # Go — most-used CL; gRPC-native (ties to the dRPC/gRPC-seam thesis); pairs with geth/core-geth
+git clone https://github.com/status-im/nimbus-eth2.git nimbus-eth2   # Nim — resource-efficient/embedded; the light single-binary CL reference
+git clone https://github.com/ChainSafe/lodestar.git lodestar         # TypeScript — spec-reference clarity
+git clone https://github.com/grandinetech/grandine.git grandine      # Rust — high-performance/parallel
+cd ..
+# Caplin (erigon's embedded CL, Go) is already in-tree at clients/erigon/cl/ — the single-binary EL+CL reference.
+```
+
 > **ECIPs local-ahead note:** The local `repo-references/ECIPs` copy contains Olympia spec
 > changes (ECIP-1111/1112/1121/1122) that have not been published upstream yet. This is
 > intentional — we are the lead core developers on ETC and the authors of these ECIPs.
