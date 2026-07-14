@@ -7,7 +7,10 @@ AS-IS in [`clients/fukuii/primitives.md`](../../research/clients/fukuii/primitiv
 behavior is matched against go-ethereum `crypto/keccak.go`, `crypto/crypto.go`,
 `crypto/signature_nocgo.go`; the alt-bn128 tower against the EIP-196/197 reference (ethereumj /
 libff). core-geth is a pure geth passthrough at the primitive level (no ECIP divergence in
-crypto), so go-ethereum is the sole byte-authority here._
+crypto), so go-ethereum is the byte-authority for the classic primitives; the KZG and BLS12-381
+additions are matched against the consensus-spec-tests `kzg-mainnet` fixtures and the EIP-2537
+reference vectors respectively (the same native c-kzg-4844 / besu-native libraries every reference
+client links)._
 
 ## Scope
 
@@ -15,7 +18,7 @@ The cryptographic primitives every state root, transaction hash, and signature c
 `crypto` sits at L0 alongside `bytes`/`rlp`; it depends only on `bytes` (for `Address`, `ByteUtils`
 big-endian plumbing).
 
-Five pieces:
+Seven pieces:
 - **Keccak** — `kec256` (the single hottest op) + `kec512`, thread-local digest reuse.
 - **secp256k1 ECDSA** — `ECDSASignature(r, s, v)` sign (RFC-6979 deterministic-`k`), recover/verify,
   low-S canonicalization (EIP-2), unsigned-byte / EIP-155 `v` handling.
@@ -24,6 +27,11 @@ Five pieces:
 - **Digests** — `sha256`, `ripemd160` (the `0x02`/`0x03` precompiles).
 - **ECIES + key material** — the RLPx-handshake envelope (`ECIESCoder`/`EthereumIESEngine`/
   `ConcatKDFBytesGenerator`), key generation, public-key + address derivation, point validation.
+- **KZG (EIP-4844 / EIP-7594)** — `kzg.Kzg`, the blob-commitment / opening-proof / PeerDAS cell
+  primitive backed by the c-kzg-4844 native library (`jc-kzg-4844` JNI), loaded with the mainnet
+  ceremony trusted setup.
+- **BLS12-381 (EIP-2537)** — `bls.Bls12381`, the G1/G2 add/mul/MSM, pairing and map-to-curve
+  primitive backed by the besu `bls12-381` native library (`LibEthPairings` via JNA).
 
 ## Design decisions & empirical logic
 
@@ -120,6 +128,65 @@ Three guard classes are retained from old fukuii, each tied to its CVE:
 and the EVM precompiles, and dropping any of them in a "clean rewrite" would be a silent
 regression. They are carried with their CVE rationale intact.
 
+### 6. KZG (EIP-4844 / EIP-7594) is native-JNI by default, not an OPTIONAL(role) fast-path
+
+`kzg.Kzg` wraps the c-kzg-4844 native library (via the `jc-kzg-4844` 2.1.6 JNI bindings) for the
+full EIP-4844 blob-commitment surface (`blobToKzgCommitment`, `computeKzgProof`/`verifyKzgProof`,
+`computeBlobKzgProof`/`verifyBlobKzgProof` + batch) and the EIP-7594 PeerDAS cell surface
+(`computeCells`, `computeCellsAndKzgProofs`, `recoverCellsAndKzgProofs`, `verifyCellKzgProofBatch`).
+
+**Empirical logic:** unlike keccak/secp256k1/alt-bn128 — where a pure-BouncyCastle path is the
+correctness floor and the native seam is the OPTIONAL(role) optimization (§1) — KZG has *no*
+practical pure-JVM implementation at consensus throughput, and every reference client
+(geth/besu/nethermind/reth) links the *same* c-kzg-4844 (or crate-crypto rust) native library. The
+native library, together with the trusted setup, *is* the shared byte-authority; there is no
+independent pure reference to be the fallback. Native JNI is therefore the **default** at this slot,
+not a role-sized fast-path. The `jc-kzg-4844` jar bundles the platform natives (linux/darwin ×
+x86-64/aarch64), so the enterprise single-binary still "builds and runs everywhere" with no separate
+native install. This is a peer-of-BN128 placement: both are consensus pairing-based primitives that
+belong in `crypto` L0; only the `0x0a` point-evaluation *precompile wrapper* (gas, 192-byte decode,
+versioned-hash check, dispatch) is deferred up to `evm` (L3).
+
+**Trusted-setup lifecycle (documented invariant).** The c-kzg native library holds the trusted
+setup in **process-global** state — exactly one setup per JVM, guarded inside the `.so`.
+`Kzg.loadTrustedSetup()` is idempotent and thread-safe at the Scala layer (double-checked
+`AtomicReference` gate, `CKZG4844JNI.loadNativeLibrary()` then
+`loadTrustedSetupFromResource("/trusted_setup.txt", …)` on first call); every operation calls it
+first, so callers never sequence the load by hand. `freeTrustedSetup()` is deliberately *not*
+exposed to application code — it is a one-way global teardown that would break every other consumer
+in the process. The bundled `trusted_setup.txt` is byte-identical to the c-kzg-4844 / besu mainnet
+ceremony setup (PeerDAS format: 4096 g1-lagrange + 65 g2-monomial + 4096 g1-monomial points), the
+same file old fukuii shipped.
+
+Byte-exactness is validated against the consensus-spec-tests `kzg-mainnet` KAT fixtures (the
+zero-blob commitment and `verify_kzg_proof` correct/incorrect cases), plus full compute→verify
+round-trips (with tamper-rejection) over the 4844 blob-proof, batch, and 7594 cell/recovery paths.
+
+### 7. BLS12-381 (EIP-2537) is a first-class L0 primitive, native-JNI, correcting old fukuii's mislayering
+
+`bls.Bls12381` wraps the besu `bls12-381` 1.0.0 native library (`LibEthPairings`, the gnark/EIP-1962
+`eth_pairings` backend, dispatched over JNA) for all nine EIP-2537 operations: G1 add/mul/MSM, G2
+add/mul/MSM, pairing check, map-fp-to-G1, map-fp2-to-G2. A single `perform(op, input)` dispatches to
+the native `eip2537_perform_operation` and returns `Either[String, Array[Byte]]` — `Right(output)`
+on success, `Left(nativeError)` when the backend rejects a malformed point / non-canonical field
+element / wrong-length input (the native library performs the mandatory subgroup checks). Inputs and
+outputs are the canonical EIP-2537 byte encodings, passed through unmodified, so the wrapper is a
+pure byte conduit with no re-encoding.
+
+**Empirical logic:** same native-by-default reasoning as §6 — there is no pure-JVM BLS12-381 at
+consensus throughput, and the besu native lib bundles the platform `.so`/`.dylib`. Placing it in
+`crypto` L0 as a peer of the alt-bn128 tower and `kzg.Kzg` fixes a concrete mislayering: **old
+fukuii inlined the besu-native BLS calls directly at the precompile site
+(`vm/PrecompiledContracts.scala`)**, entangling a pure cryptographic primitive with EVM
+gas/dispatch. The primitive now lives at L0; only the BLS *precompile wrappers* (gas schedule, MSM
+discount table, input-length dispatch, and the precompile-address mapping — which itself differs
+across EIP-2537 revisions) are deferred to `evm` (L3).
+
+Byte-exactness is validated against the EIP-2537 reference vectors (`EIPs/assets/eip-2537`): each
+success vector's `Input`/`Expected` is the raw precompile encoding, so the KAT is a direct
+byte-for-byte check per operation, including the pairing-identity `e(0,0) → 0…01` word; the
+`fail-*` vectors assert malformed input is rejected (`Left`) rather than silently mis-answered.
+
 ## Improvements over old fukuii
 
 | Old fukuii (AS-IS) | Rebuild L0 `crypto` | Why it matters |
@@ -131,6 +198,8 @@ regression. They are carried with their CVE rationale intact.
 | Raw `Array[Byte]` address derivation, ad hoc | `pubKeyToAddress → bytes.Address` (typed) | Type-distinct `Address`, byte-exact to `crypto.PubkeyToAddress` |
 | Native/pure backend split implicit (BLS/KZG native, rest pure), undocumented as a decision | Pure default **stated** as the OPTIONAL(role) choice; native seam a documented deferral | The backend strategy is now a recorded decision, not an accident |
 | CVE guards present but scattered | Same guards, each with its CVE cited at the guard site | Auditable security surface |
+| **BLS12-381 native calls inlined at the precompile site** (`vm/PrecompiledContracts.scala`) | `bls.Bls12381` — a first-class L0 primitive, peer of BN128/KZG; only the precompile wrapper is `evm` L3 | Cryptographic primitive no longer entangled with EVM gas/dispatch — correct layering |
+| KZG lived in root-module glue (`KzgCellProofs` etc.), trusted-setup lifecycle ad hoc | `kzg.Kzg` at L0 with an idempotent, thread-safe, documented process-global trusted-setup gate | KZG is a proper L0 primitive with a stated native-by-default rationale and setup invariant |
 
 What is **byte-exact vs go-ethereum** (with cite): keccak256/512 (`keccak.go:40`), ECDSA
 deterministic-`k` sign + low-S (`signature_nocgo.go:121`, `crypto.go:246`), recovery
@@ -139,17 +208,11 @@ the EIP-196/197 reference tower (ethereumj/libff), validated by the pairing bili
 
 ## Deferred (and to which layer)
 
-- **This crypto commit is the pure core** (keccak / secp256k1 / BN128 / ECIES). **KZG and BLS12-381
-  land in the very next crypto pass — `crypto` L0 is NOT "complete" until they do** (they are crypto
-  primitives, peers of BN128).
-- **KZG (EIP-4844 / EIP-7594) primitive** → **`crypto` (L0), immediate next addition.** The
-  `jc-kzg-4844` dep is already pinned in the floor (2.1.6) — sentinel wires it to `crypto`, no new
-  approval. Built with the mainnet trusted setup + EIP-4844/7594 KAT vectors. Only the KZG
-  *precompile wrapper* (`0x0a` gas/decode/dispatch) goes to `evm` (L3).
-- **BLS12-381 (EIP-2537) primitive** → **`crypto` (L0), immediate next addition.** `besu-native`
-  `bls12-381` 1.0.0 already pinned — sentinel wires it. Built with EIP-2537 KAT vectors. Only the
-  BLS *precompile wrappers* (`0x0b–0x12`) go to `evm` (L3). (Old fukuii inlined BLS at the precompile
-  site — the mislayering this fixes.)
+- **KZG and BLS12-381 are now BUILT** (§6, §7) — `crypto` L0 is complete. Only their EVM
+  *precompile wrappers* remain deferred to `evm` (L3): the `0x0a` point-evaluation wrapper (gas /
+  192-byte decode / versioned-hash check / dispatch) for KZG, and the BLS12-381 precompile wrappers
+  (gas schedule, MSM discount table, input-length dispatch, precompile-address mapping). The
+  primitives themselves are L0 and done.
 - **Native secp256k1 / keccak fast-path** → future OPTIONAL(role) seam. When a mining-pool/archival
   throughput role justifies it, add one API with a native impl selected by config and the pure
   BouncyCastle path as the guaranteed fallback (the two must stay output-identical against
@@ -165,14 +228,18 @@ the EIP-196/197 reference tower (ethereumj/libff), validated by the pairing bili
 ## Verification
 
 `sbt "crypto/compile" "crypto/Test/compile" "crypto/testOnly com.chipprbots.fukuii.crypto.*"` —
-**43 tests green**, **zero compiler warnings on main sources** under the strict flags
-(`-Wunused:all`, `-Wconf:id=E198:error`, `-Wconf:cat=unchecked:error`). Coverage: keccak256/512
-byte vectors + per-call-oracle parity + reset-after-abort + concurrency/thread-confinement;
-sha256/ripemd160 known-answer vectors; ECDSA sign→verify→recover round-trip, low-S canonical,
-RFC-6979 determinism, the go-ethereum recovery vectors, and `r||s||v` encode round-trip; secp256k1
-key generation + the go-ethereum key/address KAT + point validation; BN128 `P+P=2P`/`3P` on-curve
-arithmetic; the EIP-197 pairing bilinearity identity; and the ethereumj ECIES known-answer decrypt +
-encrypt/decrypt round-trip + truncation guard.
+**63 tests green** (43 core + 20 KZG/BLS), **zero compiler warnings on main sources** under the
+strict flags (`-Wunused:all`, `-Wconf:id=E198:error`, `-Wconf:cat=unchecked:error`). Core coverage:
+keccak256/512 byte vectors + per-call-oracle parity + reset-after-abort + concurrency/
+thread-confinement; sha256/ripemd160 known-answer vectors; ECDSA sign→verify→recover round-trip,
+low-S canonical, RFC-6979 determinism, the go-ethereum recovery vectors, and `r||s||v` encode
+round-trip; secp256k1 key generation + the go-ethereum key/address KAT + point validation; BN128
+`P+P=2P`/`3P` on-curve arithmetic; the EIP-197 pairing bilinearity identity; and the ethereumj ECIES
+known-answer decrypt + encrypt/decrypt round-trip + truncation guard. KZG coverage (8 tests): the
+consensus-spec-tests `kzg-mainnet` zero-blob commitment KAT and `verify_kzg_proof` correct/incorrect
+KATs, plus compute→verify round-trips over the 4844 blob-proof/batch and 7594 cell/recovery paths.
+BLS12-381 coverage (12 tests): the EIP-2537 reference KAT per operation (G1/G2 add/mul/MSM, pairing,
+map-to-curve), the pairing-identity word, and `fail-*` malformed-input rejection.
 
 _(The test specs carry the same `-Wnonunit-statement` "unused Assertion" warnings the `bytes`/`rlp`
 specs do — the documented multiple-`assert`-per-test ScalaTest pattern, warning-level only, not
