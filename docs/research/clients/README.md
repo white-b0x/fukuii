@@ -219,7 +219,7 @@ Status legend: ` ` = not started · `~` = in progress · `✓` = done. Update as
 |--------|:--:|:--:|:--:|:--:|:--:|:--:|
 | go-ethereum | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | core-geth | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| besu |  |  |  |  |  |  |
+| besu | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | erigon |  |  |  |  |  |  |
 | nethermind |  |  |  |  |  |  |
 | reth |  |  |  |  |  |  |
