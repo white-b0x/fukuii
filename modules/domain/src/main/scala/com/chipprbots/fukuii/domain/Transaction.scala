@@ -36,6 +36,9 @@ enum Transaction:
     * the empty RLP string, not an empty list).
     */
   case Legacy(
+      // L1-F2: `nonce` and `gasLimit` (here and in every variant below) are modeled as `UInt256` where geth
+      // uses `uint64` — RLP-byte-identical for in-range values (minimal big-endian scalar either way). The
+      // uint64 range bound is an L4/execution-layer validation concern, not enforced at this modeling layer.
       nonce: UInt256,
       gasPrice: Wei,
       gasLimit: UInt256,
