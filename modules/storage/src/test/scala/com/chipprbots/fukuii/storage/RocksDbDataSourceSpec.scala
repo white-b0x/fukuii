@@ -137,6 +137,48 @@ class RocksDbDataSourceSpec extends AnyFlatSpec with Matchers with DataSourceCon
     finally db.destroy()
   }
 
+  // -- BUG-W7 crash-consistency: a block and its chain-weight are durably co-committed (L2 required DoD) ----------
+  //
+  // S1 already proves the ASSEMBLY-FAILURE direction (DataSourceContractBehaviors: "roll back a fully-processed
+  // earlier namespace when a later namespace's traversal faults") — a batch that faults mid-assembly leaves nothing
+  // visible. This proves the CRASH-CONSISTENCY direction: a batch that assembles and commits successfully survives
+  // a close/reopen of the SAME datadir with every co-committed namespace present TOGETHER — never a block visible
+  // without its chain-weight, or vice versa. Deterministic (close + reopen over the real on-disk WAL/SST, no
+  // `kill -9` — the constitution's determinism rule forbids a non-deterministic process-kill test); this is the L2
+  // *primitive* proof that one `update()` call is one atomic, durable commit. The typed `putBlock` that actually
+  // assembles a real header/body/chain-weight batch from domain types is L4/L5, not this module.
+
+  it should "durably co-commit a block-shaped batch (Header + Body + ChainWeight) across a close/reopen — a crash between a block-write and a separate TD-write is structurally impossible (BUG-W7)" in {
+    val config = RocksDbTestConfig()
+    val blockKey = new Array[Byte](32)
+    Random.nextBytes(blockKey)
+    val headerValue = new Array[Byte](64)
+    Random.nextBytes(headerValue)
+    val bodyValue = new Array[Byte](96)
+    Random.nextBytes(bodyValue)
+    val chainWeightValue = new Array[Byte](8)
+    Random.nextBytes(chainWeightValue)
+
+    val db = RocksDbDataSource(config)
+    db.update(
+      Seq(
+        DataSourceUpdateOptimized(Namespace.Header, Seq(), Seq(blockKey -> headerValue)),
+        DataSourceUpdateOptimized(Namespace.Body, Seq(), Seq(blockKey -> bodyValue)),
+        DataSourceUpdateOptimized(Namespace.ChainWeight, Seq(), Seq(blockKey -> chainWeightValue))
+      )
+    )
+    db.close() // close only — the datadir (and its WAL/SSTs) survive on disk, simulating a process restart
+
+    val reopened = RocksDbDataSource(reopenConfig(config))
+    try
+      // All three co-committed keys are present TOGETHER after the close/reopen boundary — the heaviest-chain
+      // decision on restart can never observe a block without its total difficulty, or a dangling TD with no block.
+      reopened.getOptimized(Namespace.Header, blockKey).map(_.toSeq) shouldBe Some(headerValue.toSeq)
+      reopened.getOptimized(Namespace.Body, blockKey).map(_.toSeq) shouldBe Some(bodyValue.toSeq)
+      reopened.getOptimized(Namespace.ChainWeight, blockKey).map(_.toSeq) shouldBe Some(chainWeightValue.toSeq)
+    finally reopened.destroy()
+  }
+
   // -- SchemaMarker checked-at-open (S2) --------------------------------------------------------------------------
 
   /** A second config over the SAME `path` as `base` — simulates a reopen of an existing datadir under a (potentially

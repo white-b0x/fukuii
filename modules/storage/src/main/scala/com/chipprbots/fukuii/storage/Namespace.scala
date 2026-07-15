@@ -76,7 +76,25 @@ enum Namespace(
   /** EVM contract bytecode, content-addressed by code hash (immutable once written, prunable when unreferenced). */
   case Code extends Namespace('c'.toByte, containsStaticData = true, isStaticDataGarbageCollectionEnabled = true)
 
-  /** Per-block chain weight / total difficulty (ETC fork-choice input — small, mutated at chain-tip only). */
+  /** Per-block chain weight / total difficulty — the first-class, PoW-load-bearing hot-path backing store for the L6 §5
+    * TD-sourcing invariant: total difficulty is COMPUTED from PoW-validated headers and compared against THIS
+    * locally-stored canonical chain-weight record, never against a value read off the wire (a peer's claimed TD is an
+    * unverified hint, never a source of truth for the heaviest-chain decision). O(1)-keyed by canonical block — the
+    * AS-IS `ChainWeightStorage` shape, preserved here.
+    *
+    * ==Written atomically with its block (BUG-W7)==
+    * A block's [[Header]] (and [[Body]]) write and its `ChainWeight` write MUST land in the SAME [[DataSource.update]]
+    * batch — never two separate calls — so a crash between them is structurally impossible (Iron Rule #2, batches are
+    * atomic; `RocksDbDataSourceSpec`'s close/reopen crash-consistency test pins this at the primitive level). A block
+    * visible without its chain-weight (or a chain-weight with no corresponding block) would corrupt the heaviest-chain
+    * decision on restart — there is no recovery path that reconstructs a missing TD from partial data.
+    *
+    * ==fukuii-specific: PoW keeps TD first-class, unlike post-merge PoS clients==
+    * Post-merge ETH clients demote total difficulty entirely (the consensus layer owns fork choice via attestations,
+    * not accumulated work) — that is the WRONG template for a PoW successor. fukuii keeps TD first-class at BOTH tiers:
+    * this hot CF for the live chain, and [[ColdChainWeight]] for the frozen historical range (`ColdStore`, mirroring
+    * core-geth's retained `"diffs"` ancient table) — never dropped, at either tier.
+    */
   case ChainWeight extends Namespace('w'.toByte)
 
   /** Node application/sync-progress bookkeeping (best block, sync status). */
