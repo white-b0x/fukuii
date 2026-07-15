@@ -44,10 +44,14 @@ Ecosystem consensus **value types** composed from the L0 leaves: `Account`, opaq
 semantics → L3/L4/L5; `constantTimeEquals` + recovery math → L0. `domain` models shapes; the rules over
 them live at their execution/consensus layer (see the record's Layer boundaries).
 
-## Codec call-site idiom
+## Codec call-site idiom (settled — see `scala3-style.md` S13)
 
-Hand-written codecs use L0's `RLPEncoder.encode(v)` / `RLPDecoder.decode[T](rlp)` free functions (not
-`summon[RLPCodec[T]].encode/decode`). **Decode call sites must carry the explicit `[T]` type arg** — inside
-the aggregate `given RLPCodec[Transaction]` a bare `RLPDecoder.decode(list)` would infer `T = Transaction`
-from the return type and recurse instead of dispatching to the per-variant codec (`Legacy` etc.). Keep the
-explicit type arg on every decode.
+Hand-written codec bodies dispatching to a sibling/field type (`Transaction`→`Legacy`→field codecs,
+`BlockHeader`, `Receipt`, …) use **explicit `summon[RLPCodec[U]]`** — the Scala 3 reference-canonical form
+for this shape (`givens.md` `listOrd`) and structurally safe: the type `U` is mandatory at the summon site,
+so the silent-recursion hazard (a bracket-omitted `decode` inferring `T=Transaction` from the enclosing
+return type and dispatching to itself) is **unrepresentable**. Do NOT rewrite these to `RLPDecoder.decode`/
+`RLPEncoder.encode` free functions — that was tried (`64f252d2c`) and reverted; the free-function form is
+safe only with an always-present `[U]` + a lint, whereas `summon` is safe by construction. Generic
+combinators that already hold a `using` witness (`seqCodec` etc.) call it directly. Extension syntax
+(`value.rlpEncoded` / `rlp.decodeAs[T]`) is for **consuming** code (L2+), not codec authoring.

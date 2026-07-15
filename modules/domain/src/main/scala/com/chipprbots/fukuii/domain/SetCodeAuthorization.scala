@@ -8,9 +8,7 @@ import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.crypto.kec256
 import com.chipprbots.fukuii.rlp.RLPCodec
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
-import com.chipprbots.fukuii.rlp.RLPDecoder
 import com.chipprbots.fukuii.rlp.RLPEncodeable
-import com.chipprbots.fukuii.rlp.RLPEncoder
 import com.chipprbots.fukuii.rlp.RLPException
 import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.encode as rlpEncode
@@ -49,22 +47,22 @@ object SetCodeAuthorization:
   given RLPCodec[SetCodeAuthorization] = new RLPCodec[SetCodeAuthorization]:
     def encode(auth: SetCodeAuthorization): RLPEncodeable =
       RLPList(
-        RLPEncoder.encode(auth.chainId),
-        RLPEncoder.encode(auth.address),
-        RLPEncoder.encode(auth.nonce),
-        RLPEncoder.encode(auth.yParity),
-        RLPEncoder.encode(auth.r),
-        RLPEncoder.encode(auth.s)
+        summon[RLPCodec[ChainId]].encode(auth.chainId),
+        summon[RLPCodec[Address]].encode(auth.address),
+        summon[RLPCodec[UInt256]].encode(auth.nonce),
+        summon[RLPCodec[Byte]].encode(auth.yParity),
+        summon[RLPCodec[UInt256]].encode(auth.r),
+        summon[RLPCodec[UInt256]].encode(auth.s)
       )
     def decode(rlp: RLPEncodeable): SetCodeAuthorization = rlp match
       case RLPList(chainId, address, nonce, yParity, r, s) =>
         SetCodeAuthorization(
-          chainId = RLPDecoder.decode[ChainId](chainId),
-          address = RLPDecoder.decode[Address](address),
-          nonce = RLPDecoder.decode[UInt256](nonce),
-          yParity = RLPDecoder.decode[Byte](yParity),
-          r = RLPDecoder.decode[UInt256](r),
-          s = RLPDecoder.decode[UInt256](s)
+          chainId = summon[RLPCodec[ChainId]].decode(chainId),
+          address = summon[RLPCodec[Address]].decode(address),
+          nonce = summon[RLPCodec[UInt256]].decode(nonce),
+          yParity = summon[RLPCodec[Byte]].decode(yParity),
+          r = summon[RLPCodec[UInt256]].decode(r),
+          s = summon[RLPCodec[UInt256]].decode(s)
         )
       case list: RLPList =>
         throw RLPException(
@@ -81,9 +79,9 @@ object SetCodeAuthorization:
     */
   def sigHash(chainId: ChainId, address: Address, nonce: UInt256): Hash =
     val body = RLPList(
-      RLPEncoder.encode(chainId),
-      RLPEncoder.encode(address),
-      RLPEncoder.encode(nonce)
+      summon[RLPCodec[ChainId]].encode(chainId),
+      summon[RLPCodec[Address]].encode(address),
+      summon[RLPCodec[UInt256]].encode(nonce)
     )
     Hash(ByteString(kec256(MagicByte +: rlpEncode(body))))
 

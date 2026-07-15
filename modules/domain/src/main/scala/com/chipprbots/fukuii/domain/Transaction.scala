@@ -9,9 +9,7 @@ import com.chipprbots.fukuii.crypto.ECDSASignature
 import com.chipprbots.fukuii.rlp.PrefixedRLPEncodable
 import com.chipprbots.fukuii.rlp.RLPCodec
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
-import com.chipprbots.fukuii.rlp.RLPDecoder
 import com.chipprbots.fukuii.rlp.RLPEncodeable
-import com.chipprbots.fukuii.rlp.RLPEncoder
 import com.chipprbots.fukuii.rlp.RLPException
 import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.RLPValue
@@ -162,29 +160,29 @@ object Transaction:
   given RLPCodec[Legacy] = new RLPCodec[Legacy]:
     def encode(tx: Legacy): RLPEncodeable =
       RLPList(
-        RLPEncoder.encode(tx.nonce),
-        RLPEncoder.encode(tx.gasPrice),
-        RLPEncoder.encode(tx.gasLimit),
+        summon[RLPCodec[UInt256]].encode(tx.nonce),
+        summon[RLPCodec[Wei]].encode(tx.gasPrice),
+        summon[RLPCodec[UInt256]].encode(tx.gasLimit),
         encodeTo(tx.to),
-        RLPEncoder.encode(tx.value),
-        RLPEncoder.encode(tx.payload),
-        RLPEncoder.encode(tx.signature.v),
-        RLPEncoder.encode(tx.signature.r),
-        RLPEncoder.encode(tx.signature.s)
+        summon[RLPCodec[Wei]].encode(tx.value),
+        summon[RLPCodec[ByteString]].encode(tx.payload),
+        summon[RLPCodec[BigInt]].encode(tx.signature.v),
+        summon[RLPCodec[BigInt]].encode(tx.signature.r),
+        summon[RLPCodec[BigInt]].encode(tx.signature.s)
       )
     def decode(rlp: RLPEncodeable): Legacy = rlp match
       case RLPList(nonce, gasPrice, gasLimit, to, value, payload, v, r, s) =>
         Legacy(
-          nonce = RLPDecoder.decode[UInt256](nonce),
-          gasPrice = RLPDecoder.decode[Wei](gasPrice),
-          gasLimit = RLPDecoder.decode[UInt256](gasLimit),
+          nonce = summon[RLPCodec[UInt256]].decode(nonce),
+          gasPrice = summon[RLPCodec[Wei]].decode(gasPrice),
+          gasLimit = summon[RLPCodec[UInt256]].decode(gasLimit),
           to = decodeTo(to),
-          value = RLPDecoder.decode[Wei](value),
-          payload = RLPDecoder.decode[ByteString](payload),
+          value = summon[RLPCodec[Wei]].decode(value),
+          payload = summon[RLPCodec[ByteString]].decode(payload),
           signature = ECDSASignature(
-            r = RLPDecoder.decode[BigInt](r),
-            s = RLPDecoder.decode[BigInt](s),
-            v = RLPDecoder.decode[BigInt](v)
+            r = summon[RLPCodec[BigInt]].decode(r),
+            s = summon[RLPCodec[BigInt]].decode(s),
+            v = summon[RLPCodec[BigInt]].decode(v)
           )
         )
       case list: RLPList =>
@@ -196,34 +194,34 @@ object Transaction:
       PrefixedRLPEncodable(
         0x01,
         RLPList(
-          RLPEncoder.encode(tx.chainId),
-          RLPEncoder.encode(tx.nonce),
-          RLPEncoder.encode(tx.gasPrice),
-          RLPEncoder.encode(tx.gasLimit),
+          summon[RLPCodec[ChainId]].encode(tx.chainId),
+          summon[RLPCodec[UInt256]].encode(tx.nonce),
+          summon[RLPCodec[Wei]].encode(tx.gasPrice),
+          summon[RLPCodec[UInt256]].encode(tx.gasLimit),
           encodeTo(tx.to),
-          RLPEncoder.encode(tx.value),
-          RLPEncoder.encode(tx.payload),
-          RLPEncoder.encode(tx.accessList),
-          RLPEncoder.encode(tx.signature.v),
-          RLPEncoder.encode(tx.signature.r),
-          RLPEncoder.encode(tx.signature.s)
+          summon[RLPCodec[Wei]].encode(tx.value),
+          summon[RLPCodec[ByteString]].encode(tx.payload),
+          summon[RLPCodec[List[AccessListEntry]]].encode(tx.accessList),
+          summon[RLPCodec[BigInt]].encode(tx.signature.v),
+          summon[RLPCodec[BigInt]].encode(tx.signature.r),
+          summon[RLPCodec[BigInt]].encode(tx.signature.s)
         )
       )
     def decode(rlp: RLPEncodeable): AccessList = rlp match
       case RLPList(chainId, nonce, gasPrice, gasLimit, to, value, payload, accessList, v, r, s) =>
         AccessList(
-          chainId = RLPDecoder.decode[ChainId](chainId),
-          nonce = RLPDecoder.decode[UInt256](nonce),
-          gasPrice = RLPDecoder.decode[Wei](gasPrice),
-          gasLimit = RLPDecoder.decode[UInt256](gasLimit),
+          chainId = summon[RLPCodec[ChainId]].decode(chainId),
+          nonce = summon[RLPCodec[UInt256]].decode(nonce),
+          gasPrice = summon[RLPCodec[Wei]].decode(gasPrice),
+          gasLimit = summon[RLPCodec[UInt256]].decode(gasLimit),
           to = decodeTo(to),
-          value = RLPDecoder.decode[Wei](value),
-          payload = RLPDecoder.decode[ByteString](payload),
-          accessList = RLPDecoder.decode[List[AccessListEntry]](accessList),
+          value = summon[RLPCodec[Wei]].decode(value),
+          payload = summon[RLPCodec[ByteString]].decode(payload),
+          accessList = summon[RLPCodec[List[AccessListEntry]]].decode(accessList),
           signature = ECDSASignature(
-            r = RLPDecoder.decode[BigInt](r),
-            s = RLPDecoder.decode[BigInt](s),
-            v = RLPDecoder.decode[BigInt](v)
+            r = summon[RLPCodec[BigInt]].decode(r),
+            s = summon[RLPCodec[BigInt]].decode(s),
+            v = summon[RLPCodec[BigInt]].decode(v)
           )
         )
       case list: RLPList =>
@@ -235,18 +233,18 @@ object Transaction:
       PrefixedRLPEncodable(
         0x02,
         RLPList(
-          RLPEncoder.encode(tx.chainId),
-          RLPEncoder.encode(tx.nonce),
-          RLPEncoder.encode(tx.maxPriorityFeePerGas),
-          RLPEncoder.encode(tx.maxFeePerGas),
-          RLPEncoder.encode(tx.gasLimit),
+          summon[RLPCodec[ChainId]].encode(tx.chainId),
+          summon[RLPCodec[UInt256]].encode(tx.nonce),
+          summon[RLPCodec[Wei]].encode(tx.maxPriorityFeePerGas),
+          summon[RLPCodec[Wei]].encode(tx.maxFeePerGas),
+          summon[RLPCodec[UInt256]].encode(tx.gasLimit),
           encodeTo(tx.to),
-          RLPEncoder.encode(tx.value),
-          RLPEncoder.encode(tx.payload),
-          RLPEncoder.encode(tx.accessList),
-          RLPEncoder.encode(tx.signature.v),
-          RLPEncoder.encode(tx.signature.r),
-          RLPEncoder.encode(tx.signature.s)
+          summon[RLPCodec[Wei]].encode(tx.value),
+          summon[RLPCodec[ByteString]].encode(tx.payload),
+          summon[RLPCodec[List[AccessListEntry]]].encode(tx.accessList),
+          summon[RLPCodec[BigInt]].encode(tx.signature.v),
+          summon[RLPCodec[BigInt]].encode(tx.signature.r),
+          summon[RLPCodec[BigInt]].encode(tx.signature.s)
         )
       )
     def decode(rlp: RLPEncodeable): DynamicFee = rlp match
@@ -265,19 +263,19 @@ object Transaction:
             s
           ) =>
         DynamicFee(
-          chainId = RLPDecoder.decode[ChainId](chainId),
-          nonce = RLPDecoder.decode[UInt256](nonce),
-          maxPriorityFeePerGas = RLPDecoder.decode[Wei](maxPriorityFeePerGas),
-          maxFeePerGas = RLPDecoder.decode[Wei](maxFeePerGas),
-          gasLimit = RLPDecoder.decode[UInt256](gasLimit),
+          chainId = summon[RLPCodec[ChainId]].decode(chainId),
+          nonce = summon[RLPCodec[UInt256]].decode(nonce),
+          maxPriorityFeePerGas = summon[RLPCodec[Wei]].decode(maxPriorityFeePerGas),
+          maxFeePerGas = summon[RLPCodec[Wei]].decode(maxFeePerGas),
+          gasLimit = summon[RLPCodec[UInt256]].decode(gasLimit),
           to = decodeTo(to),
-          value = RLPDecoder.decode[Wei](value),
-          payload = RLPDecoder.decode[ByteString](payload),
-          accessList = RLPDecoder.decode[List[AccessListEntry]](accessList),
+          value = summon[RLPCodec[Wei]].decode(value),
+          payload = summon[RLPCodec[ByteString]].decode(payload),
+          accessList = summon[RLPCodec[List[AccessListEntry]]].decode(accessList),
           signature = ECDSASignature(
-            r = RLPDecoder.decode[BigInt](r),
-            s = RLPDecoder.decode[BigInt](s),
-            v = RLPDecoder.decode[BigInt](v)
+            r = summon[RLPCodec[BigInt]].decode(r),
+            s = summon[RLPCodec[BigInt]].decode(s),
+            v = summon[RLPCodec[BigInt]].decode(v)
           )
         )
       case list: RLPList =>
@@ -291,20 +289,20 @@ object Transaction:
 
   private def blobBodyList(tx: Blob): RLPList =
     RLPList(
-      RLPEncoder.encode(tx.chainId),
-      RLPEncoder.encode(tx.nonce),
-      RLPEncoder.encode(tx.maxPriorityFeePerGas),
-      RLPEncoder.encode(tx.maxFeePerGas),
-      RLPEncoder.encode(tx.gasLimit),
-      RLPEncoder.encode(tx.to),
-      RLPEncoder.encode(tx.value),
-      RLPEncoder.encode(tx.payload),
-      RLPEncoder.encode(tx.accessList),
-      RLPEncoder.encode(tx.maxFeePerBlobGas),
-      RLPEncoder.encode(tx.blobVersionedHashes),
-      RLPEncoder.encode(tx.signature.v),
-      RLPEncoder.encode(tx.signature.r),
-      RLPEncoder.encode(tx.signature.s)
+      summon[RLPCodec[ChainId]].encode(tx.chainId),
+      summon[RLPCodec[UInt256]].encode(tx.nonce),
+      summon[RLPCodec[Wei]].encode(tx.maxPriorityFeePerGas),
+      summon[RLPCodec[Wei]].encode(tx.maxFeePerGas),
+      summon[RLPCodec[UInt256]].encode(tx.gasLimit),
+      summon[RLPCodec[Address]].encode(tx.to),
+      summon[RLPCodec[Wei]].encode(tx.value),
+      summon[RLPCodec[ByteString]].encode(tx.payload),
+      summon[RLPCodec[List[AccessListEntry]]].encode(tx.accessList),
+      summon[RLPCodec[Wei]].encode(tx.maxFeePerBlobGas),
+      summon[RLPCodec[List[Hash]]].encode(tx.blobVersionedHashes),
+      summon[RLPCodec[BigInt]].encode(tx.signature.v),
+      summon[RLPCodec[BigInt]].encode(tx.signature.r),
+      summon[RLPCodec[BigInt]].encode(tx.signature.s)
     )
 
   private def blobFromBody(body: RLPEncodeable, sidecar: Option[BlobSidecar]): Blob = body match
@@ -325,21 +323,21 @@ object Transaction:
           s
         ) =>
       Blob(
-        chainId = RLPDecoder.decode[ChainId](chainId),
-        nonce = RLPDecoder.decode[UInt256](nonce),
-        maxPriorityFeePerGas = RLPDecoder.decode[Wei](maxPrio),
-        maxFeePerGas = RLPDecoder.decode[Wei](maxFee),
-        gasLimit = RLPDecoder.decode[UInt256](gasLimit),
-        to = RLPDecoder.decode[Address](to),
-        value = RLPDecoder.decode[Wei](value),
-        payload = RLPDecoder.decode[ByteString](payload),
-        accessList = RLPDecoder.decode[List[AccessListEntry]](accessList),
-        maxFeePerBlobGas = RLPDecoder.decode[Wei](maxBlobFee),
-        blobVersionedHashes = RLPDecoder.decode[List[Hash]](hashes),
+        chainId = summon[RLPCodec[ChainId]].decode(chainId),
+        nonce = summon[RLPCodec[UInt256]].decode(nonce),
+        maxPriorityFeePerGas = summon[RLPCodec[Wei]].decode(maxPrio),
+        maxFeePerGas = summon[RLPCodec[Wei]].decode(maxFee),
+        gasLimit = summon[RLPCodec[UInt256]].decode(gasLimit),
+        to = summon[RLPCodec[Address]].decode(to),
+        value = summon[RLPCodec[Wei]].decode(value),
+        payload = summon[RLPCodec[ByteString]].decode(payload),
+        accessList = summon[RLPCodec[List[AccessListEntry]]].decode(accessList),
+        maxFeePerBlobGas = summon[RLPCodec[Wei]].decode(maxBlobFee),
+        blobVersionedHashes = summon[RLPCodec[List[Hash]]].decode(hashes),
         signature = ECDSASignature(
-          r = RLPDecoder.decode[BigInt](r),
-          s = RLPDecoder.decode[BigInt](s),
-          v = RLPDecoder.decode[BigInt](v)
+          r = summon[RLPCodec[BigInt]].decode(r),
+          s = summon[RLPCodec[BigInt]].decode(s),
+          v = summon[RLPCodec[BigInt]].decode(v)
         ),
         sidecar = sidecar
       )
@@ -375,18 +373,18 @@ object Transaction:
           0x03,
           RLPList(
             blobBodyList(tx),
-            RLPEncoder.encode(sc.blobs),
-            RLPEncoder.encode(sc.commitments),
-            RLPEncoder.encode(sc.proofs)
+            summon[RLPCodec[List[ByteString]]].encode(sc.blobs),
+            summon[RLPCodec[List[ByteString]]].encode(sc.commitments),
+            summon[RLPCodec[List[ByteString]]].encode(sc.proofs)
           )
         )
       def decode(rlp: RLPEncodeable): Blob = rlp match
         case RLPList(body, blobs, commitments, proofs) =>
           val sc = BlobSidecar(
             version = BlobSidecar.Version0,
-            blobs = RLPDecoder.decode[List[ByteString]](blobs),
-            commitments = RLPDecoder.decode[List[ByteString]](commitments),
-            proofs = RLPDecoder.decode[List[ByteString]](proofs)
+            blobs = summon[RLPCodec[List[ByteString]]].decode(blobs),
+            commitments = summon[RLPCodec[List[ByteString]]].decode(commitments),
+            proofs = summon[RLPCodec[List[ByteString]]].decode(proofs)
           )
           blobFromBody(body, Some(sc))
         case _ =>
@@ -402,38 +400,38 @@ object Transaction:
       PrefixedRLPEncodable(
         0x04,
         RLPList(
-          RLPEncoder.encode(tx.chainId),
-          RLPEncoder.encode(tx.nonce),
-          RLPEncoder.encode(tx.maxPriorityFeePerGas),
-          RLPEncoder.encode(tx.maxFeePerGas),
-          RLPEncoder.encode(tx.gasLimit),
-          RLPEncoder.encode(tx.to),
-          RLPEncoder.encode(tx.value),
-          RLPEncoder.encode(tx.payload),
-          RLPEncoder.encode(tx.accessList),
-          RLPEncoder.encode(tx.authorizationList),
-          RLPEncoder.encode(tx.signature.v),
-          RLPEncoder.encode(tx.signature.r),
-          RLPEncoder.encode(tx.signature.s)
+          summon[RLPCodec[ChainId]].encode(tx.chainId),
+          summon[RLPCodec[UInt256]].encode(tx.nonce),
+          summon[RLPCodec[Wei]].encode(tx.maxPriorityFeePerGas),
+          summon[RLPCodec[Wei]].encode(tx.maxFeePerGas),
+          summon[RLPCodec[UInt256]].encode(tx.gasLimit),
+          summon[RLPCodec[Address]].encode(tx.to),
+          summon[RLPCodec[Wei]].encode(tx.value),
+          summon[RLPCodec[ByteString]].encode(tx.payload),
+          summon[RLPCodec[List[AccessListEntry]]].encode(tx.accessList),
+          summon[RLPCodec[List[SetCodeAuthorization]]].encode(tx.authorizationList),
+          summon[RLPCodec[BigInt]].encode(tx.signature.v),
+          summon[RLPCodec[BigInt]].encode(tx.signature.r),
+          summon[RLPCodec[BigInt]].encode(tx.signature.s)
         )
       )
     def decode(rlp: RLPEncodeable): SetCode = rlp match
       case RLPList(chainId, nonce, maxPrio, maxFee, gasLimit, to, value, payload, accessList, authList, v, r, s) =>
         SetCode(
-          chainId = RLPDecoder.decode[ChainId](chainId),
-          nonce = RLPDecoder.decode[UInt256](nonce),
-          maxPriorityFeePerGas = RLPDecoder.decode[Wei](maxPrio),
-          maxFeePerGas = RLPDecoder.decode[Wei](maxFee),
-          gasLimit = RLPDecoder.decode[UInt256](gasLimit),
-          to = RLPDecoder.decode[Address](to),
-          value = RLPDecoder.decode[Wei](value),
-          payload = RLPDecoder.decode[ByteString](payload),
-          accessList = RLPDecoder.decode[List[AccessListEntry]](accessList),
-          authorizationList = RLPDecoder.decode[List[SetCodeAuthorization]](authList),
+          chainId = summon[RLPCodec[ChainId]].decode(chainId),
+          nonce = summon[RLPCodec[UInt256]].decode(nonce),
+          maxPriorityFeePerGas = summon[RLPCodec[Wei]].decode(maxPrio),
+          maxFeePerGas = summon[RLPCodec[Wei]].decode(maxFee),
+          gasLimit = summon[RLPCodec[UInt256]].decode(gasLimit),
+          to = summon[RLPCodec[Address]].decode(to),
+          value = summon[RLPCodec[Wei]].decode(value),
+          payload = summon[RLPCodec[ByteString]].decode(payload),
+          accessList = summon[RLPCodec[List[AccessListEntry]]].decode(accessList),
+          authorizationList = summon[RLPCodec[List[SetCodeAuthorization]]].decode(authList),
           signature = ECDSASignature(
-            r = RLPDecoder.decode[BigInt](r),
-            s = RLPDecoder.decode[BigInt](s),
-            v = RLPDecoder.decode[BigInt](v)
+            r = summon[RLPCodec[BigInt]].decode(r),
+            s = summon[RLPCodec[BigInt]].decode(s),
+            v = summon[RLPCodec[BigInt]].decode(v)
           )
         )
       case list: RLPList =>
@@ -447,14 +445,14 @@ object Transaction:
 
   given RLPCodec[Transaction] = new RLPCodec[Transaction]:
     def encode(tx: Transaction): RLPEncodeable = tx match
-      case l: Legacy     => RLPEncoder.encode(l)
-      case a: AccessList => RLPEncoder.encode(a)
-      case d: DynamicFee => RLPEncoder.encode(d)
-      case b: Blob       => RLPEncoder.encode(b) // consensus form (blobConsensusCodec) — tx.hash uses this
-      case s: SetCode    => RLPEncoder.encode(s)
+      case l: Legacy     => summon[RLPCodec[Legacy]].encode(l)
+      case a: AccessList => summon[RLPCodec[AccessList]].encode(a)
+      case d: DynamicFee => summon[RLPCodec[DynamicFee]].encode(d)
+      case b: Blob       => summon[RLPCodec[Blob]].encode(b) // consensus form (blobConsensusCodec) — tx.hash uses this
+      case s: SetCode    => summon[RLPCodec[SetCode]].encode(s)
 
     def decode(rlp: RLPEncodeable): Transaction = rlp match
-      case list: RLPList => RLPDecoder.decode[Legacy](list)
+      case list: RLPList => summon[RLPCodec[Legacy]].decode(list)
       case _ =>
         throw RLPException(
           "Cannot decode a typed (EIP-2718) transaction from a bare RLPEncodeable — " +
@@ -476,15 +474,15 @@ object Transaction:
   def decode(bytes: Array[Byte]): Transaction =
     if bytes.isEmpty then throw RLPException("Cannot decode an empty transaction")
     val first = bytes(0) & 0xff
-    if first >= 0xc0 then RLPDecoder.decode[Legacy](com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes))
+    if first >= 0xc0 then summon[RLPCodec[Legacy]].decode(com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes))
     else
       first match
-        case 0x01 => RLPDecoder.decode[AccessList](com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
-        case 0x02 => RLPDecoder.decode[DynamicFee](com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
+        case 0x01 => summon[RLPCodec[AccessList]].decode(com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
+        case 0x02 => summon[RLPCodec[DynamicFee]].decode(com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
         // 0x03 → the **consensus** form (blobConsensusCodec, the default given); the network wrapper is never
         // reached by binary-envelope decode — it is a wire-layer concern selected explicitly at L6.
-        case 0x03 => RLPDecoder.decode[Blob](com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
-        case 0x04 => RLPDecoder.decode[SetCode](com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
+        case 0x03 => summon[RLPCodec[Blob]].decode(com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
+        case 0x04 => summon[RLPCodec[SetCode]].decode(com.chipprbots.fukuii.rlp.rawDecodeStrict(bytes.tail))
         case other =>
           throw RLPException(
             f"Unrecognized transaction type byte 0x$other%02x — not a legacy list header (>= 0xc0) and not a " +
