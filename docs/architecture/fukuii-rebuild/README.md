@@ -78,7 +78,7 @@ lives in `.local/docs/phase4/target-architecture.md` and `_phase3-findings-rollu
 | [`01-L0-primitives.md`](01-L0-primitives.md) | `bytes`, `common` — value types + byte utils | `77da1da62` |
 | [`02-L0-rlp.md`](02-L0-rlp.md) | `rlp` — working `derives` codecs + byte engine | `77da1da62` |
 | [`03-L0-crypto.md`](03-L0-crypto.md) | `crypto` — keccak, secp256k1 ECDSA, alt-bn128, ECIES, KZG/BLS, `CryptoBackend` seam, `constantTimeEquals` | `77da1da62`, `6f922f0aa` |
-| `04-L1-domain.md` | `domain` — (pending) | — |
+| [`04-L1-domain.md`](04-L1-domain.md) | `domain` — value types, `enum Transaction` (5 EIP-2718 variants + dispatch), sender recovery (EIP-155 + H-1 homestead + N-1 gate + 7702 authority), fork-variant `BlockHeader` (open tail) + Block/Body + Receipt | `5972aed58`…`494c42333` |
 | … | L2→L10 as built | — |
 
 **Note — commit SHAs are the `fukuii-rebuild` curated foundation series.** L0 was first built on the
