@@ -59,7 +59,7 @@ re-confirmed to hold in current prose.
 
 The as-built record docs were loose at the `fukuii-rebuild/` root, mixing with the README, research-index,
 and `plan/`. Moved into **`implementation-reports/`** (operator's chosen name): `00-repo-setup.md`,
-`01-L0-primitives.md`, `02-L0-rlp.md`, `03-L0-crypto.md`, `04-L1-domain.md`, `L0-review.md`. All inbound
+`01-L0-foundation.md`, `02-L1-domain.md`, `L0-review.md`. All inbound
 references rewritten (the plan docs' `../NN-*.md` "as-built record lands at" convention, the README index,
 `AGENTS.md`'s record-doc-location line), the moved docs' own research links recomputed for the new depth,
 and the README given a three-part-structure intro (`plan/` = intent · `implementation-reports/` = as-built

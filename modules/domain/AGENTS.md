@@ -1,7 +1,7 @@
 # `modules/domain` — L1 subsystem breadcrumb
 
 _Pure value-type layer. Depends **down-only** on `bytes`, `crypto`, `rlp`, `common` — an upward
-`.dependsOn` is a compile error. Full record: [`docs/architecture/fukuii-rebuild/04-L1-domain.md`](../../docs/architecture/fukuii-rebuild/04-L1-domain.md);
+`.dependsOn` is a compile error. Full record: [`docs/architecture/fukuii-rebuild/implementation-reports/02-L1-domain.md`](../../docs/architecture/fukuii-rebuild/implementation-reports/02-L1-domain.md);
 plan: [`plan/L1.md`](../../docs/architecture/fukuii-rebuild/plan/L1.md); byte-cited RX evidence:
 [`plan/rx/L1.md`](../../docs/architecture/fukuii-rebuild/plan/rx/L1.md). Read the record before structural
 changes here._

@@ -82,11 +82,10 @@ record** (`plan/L{n}.md` is intent; `implementation-reports/NN-L{n}-*.md` is wha
 | Doc (in `implementation-reports/`) | Covers | Commit |
 |---|---|---|
 | [`00-repo-setup.md`](implementation-reports/00-repo-setup.md) | Clean-slate: layering, build config, dep floor, sbt-2, keep/clear | `dc7e32c61`…`39e8fd6ed` |
-| [`01-L0-primitives.md`](implementation-reports/01-L0-primitives.md) | `bytes`, `common` — value types + byte utils | `77da1da62` |
-| [`02-L0-rlp.md`](implementation-reports/02-L0-rlp.md) | `rlp` — working `derives` codecs + byte engine | `77da1da62` |
-| [`03-L0-crypto.md`](implementation-reports/03-L0-crypto.md) | `crypto` — keccak, secp256k1 ECDSA, alt-bn128, ECIES, KZG/BLS, `CryptoBackend` seam, `constantTimeEquals` | `77da1da62`, `6f922f0aa` |
-| [`04-L1-domain.md`](implementation-reports/04-L1-domain.md) | `domain` — value types, `enum Transaction` (5 EIP-2718 variants + dispatch), sender recovery (EIP-155 + H-1 homestead + N-1 gate + 7702 authority), fork-variant `BlockHeader` (open tail) + Block/Body + Receipt | `5972aed58`…`494c42333` |
-| … | L2→L10 as built | — |
+| [`01-L0-foundation.md`](implementation-reports/01-L0-foundation.md) | `bytes`, `common`, `crypto`, `rlp` — value types + byte utils, zero-cast `derives` RLP engine, keccak / secp256k1 ECDSA / alt-bn128 / ECIES / KZG / BLS, `CryptoBackend` seam, `constantTimeEquals` | `77da1da62`, `6f922f0aa`, `16502d72d` |
+| [`02-L1-domain.md`](implementation-reports/02-L1-domain.md) | `domain` — value types, `enum Transaction` (5 EIP-2718 variants + dispatch), sender recovery (EIP-155 + H-1 homestead + N-1 gate + 7702 authority), fork-variant `BlockHeader` (open tail) + Block/Body + Receipt | `5972aed58`…`494c42333` |
+| [`03-L2-storage-trie.md`](implementation-reports/03-L2-storage-trie.md) | `storage`, `trie` — MPT (`enum MptNode`, state-root core), `DataSource`/RocksDB + `enum Namespace`, `INodeStorage` scheme-indirection `(owner,path)`, `StorageProfile`, `ChainWeight` + BUG-W7 atomic write, composable pruning, `TrieLog`, `ColdStore`/era1 | `1cfb8e09f`…`54b51a4b7` |
+| … | L3→L10 as built | — |
 
 **Note — commit SHAs are the `fukuii-rebuild` curated foundation series.** L0 was first built on the
 `july-mod-sprint` planning branch, then the clean cut off `upstream/staging` collapsed that granular
