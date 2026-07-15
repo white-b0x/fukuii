@@ -221,6 +221,24 @@ enum Namespace(
     */
   case ColdShardMeta extends Namespace('M'.toByte, profiles = Set(Namespace.Profile.Base, Namespace.Profile.Freezer))
 
+  /** Per-block `TrieLog` bookkeeping (T2c, [[PersistedTrieLogStore]]): `blockNumber -> TrieLog.serialized` — the R7
+    * reorg-event substrate for the pruned/flat (Bonsai/Path) [[StorageProfile]] (RX-L2-19; `trie`'s `TrieLog.scala`
+    * owns the `{prior,updated}` leaf-diff shape and its `serialized`/`deserialize` codec, this CF only ever holds the
+    * resulting bytes — DoD grep, no `com.chipprbots.fukuii.trie.*` import here). Append-heavy per-block bookkeeping,
+    * GC-eligible like the other static/append-only CFs (append while the block is within the reorg-safe window,
+    * discarded past it by [[PersistedTrieLogStore.prune]]). Schema-reserved under [[Profile.PathScheme]] — the
+    * Hash/Forest profile has no use for a leaf-diff journal at all; it relies on S3a's node-refcount death-row
+    * snapshots for its own reorg substrate instead. Reservation only, per the L2-F1 precedent: `namespacesFor` does not
+    * gate CF-open on this membership yet.
+    */
+  case TrieLog
+      extends Namespace(
+        'T'.toByte,
+        profiles = Set(Namespace.Profile.Base, Namespace.Profile.PathScheme),
+        containsStaticData = true,
+        isStaticDataGarbageCollectionEnabled = true
+      )
+
 object Namespace:
 
   /** Storage-profile tags a namespace's column family may belong to. `Base` = every profile (the default); `Snap`,
