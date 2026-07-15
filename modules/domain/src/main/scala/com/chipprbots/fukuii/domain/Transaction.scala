@@ -85,10 +85,9 @@ enum Transaction:
     * (blobs+commitments+proofs) is present **only** in the P2P network-wrapper form, never in the consensus form —
     * mirroring geth's `Sidecar *BlobTxSidecar \`rlp:"-"\`` tag (`tx_blob.go:62`). The two forms are two explicitly
     * named codecs over this one case (`Transaction.blobConsensusCodec` = default given, used by `tx.hash`/tx-trie;
-    * `Transaction.BlobNetworkWrapper`
-    * \= the explicitly-imported wire form) — **never one codec that conditionally includes the sidecar**, since hashing
-    * the wrapper is a consensus split (§9). Two `Blob`s differing only in [[sidecar]] therefore encode to **identical**
-    * consensus bytes (and the same tx hash).
+    * `Transaction.BlobNetworkWrapper` \= the explicitly-imported wire form) — **never one codec that conditionally
+    * includes the sidecar**, since hashing the wrapper is a consensus split (§9). Two `Blob`s differing only in
+    * [[sidecar]] therefore encode to **identical** consensus bytes (and the same tx hash).
     */
   case Blob(
       chainId: ChainId,
@@ -144,7 +143,10 @@ object Transaction:
   // empty list, `Some(v)` -> single-element list) — that codec is the wrong shape for this field and is
   // deliberately not used here.
 
-  private def encodeTo(to: Option[Address]): RLPEncodeable = to match
+  // `private[domain]` (not `private`): the sender-recovery sighash builder (`SenderRecovery.scala`) reuses this exact
+  // `to` encoding so the signed message's `to` field is byte-identical to the envelope's — a single source, no risk of
+  // a divergent nil-pointer encoding between the two.
+  private[domain] def encodeTo(to: Option[Address]): RLPEncodeable = to match
     case Some(address) => RLPValue(address.toArray)
     case None          => RLPValue(Array.emptyByteArray)
 
