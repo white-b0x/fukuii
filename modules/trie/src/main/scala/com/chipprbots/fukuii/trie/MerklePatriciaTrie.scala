@@ -1,8 +1,8 @@
 package com.chipprbots.fukuii.trie
 
-import scala.annotation.tailrec
-
 import org.apache.pekko.util.ByteString
+
+import scala.annotation.tailrec
 
 import com.chipprbots.fukuii.bytes.ByteUtils.matchingLength
 import com.chipprbots.fukuii.crypto.kec256

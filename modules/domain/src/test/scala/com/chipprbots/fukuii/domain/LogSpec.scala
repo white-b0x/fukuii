@@ -1,7 +1,6 @@
 package com.chipprbots.fukuii.domain
 
 import org.apache.pekko.util.ByteString
-import org.scalatest.funsuite.AnyFunSuite
 
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hash
@@ -10,6 +9,7 @@ import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.decode
 import com.chipprbots.fukuii.rlp.encode
 import com.chipprbots.fukuii.rlp.rawDecode
+import org.scalatest.funsuite.AnyFunSuite
 
 /** Log RLP: exactly the 3 consensus fields go-ethereum `core/types/log.go:31-38` encodes. */
 class LogSpec extends AnyFunSuite:

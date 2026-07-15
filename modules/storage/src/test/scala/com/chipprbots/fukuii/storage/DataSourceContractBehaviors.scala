@@ -1,9 +1,9 @@
 package com.chipprbots.fukuii.storage
 
+import cats.effect.unsafe.implicits.global
+
 import scala.collection.immutable.ArraySeq
 import scala.util.Random
-
-import cats.effect.unsafe.implicits.global
 
 import org.scalatest.flatspec.AnyFlatSpec
 

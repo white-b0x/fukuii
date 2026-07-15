@@ -81,10 +81,13 @@ object RLPCodec:
     val fieldCodecs = codecs.toArray
     new RLPCodec[T]:
       def encode(obj: T): RLPEncodeable =
-        val product = obj.asInstanceOf[Product]
+        val product = (obj: Any) match
+          case p: Product => p
         val buf = new Array[RLPEncodeable](fieldCodecs.length)
         var i = 0
         while i < fieldCodecs.length do
+          // Not convertible to a typed match: Scala 3's E092 rejects `case _: RLPEncoder[Any]` here since
+          // the type argument can't be recovered from the existential `RLPCodec[?]` at runtime.
           buf(i) = fieldCodecs(i).asInstanceOf[RLPEncoder[Any]].encode(product.productElement(i))
           i += 1
         RLPList(buf*)
@@ -101,6 +104,7 @@ object RLPCodec:
             val values = new Array[Any](fieldCodecs.length)
             var i = 0
             while i < fieldCodecs.length do
+              // See the matching E092 note in `encode` above — same existential-erasure limit.
               values(i) = fieldCodecs(i).asInstanceOf[RLPDecoder[Any]].decode(items(i))
               i += 1
             m.fromProduct(Tuple.fromArray(values))

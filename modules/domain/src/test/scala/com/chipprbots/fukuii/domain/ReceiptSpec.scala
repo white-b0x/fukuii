@@ -1,7 +1,6 @@
 package com.chipprbots.fukuii.domain
 
 import org.apache.pekko.util.ByteString
-import org.scalatest.funsuite.AnyFunSuite
 
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hash
@@ -10,6 +9,7 @@ import com.chipprbots.fukuii.rlp.RLPException
 import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.encode as rlpEncode
 import com.chipprbots.fukuii.rlp.rawDecode
+import org.scalatest.funsuite.AnyFunSuite
 
 /** [[Receipt]] RLP: the legacy (bare list) vs typed (`type ‖ RLP`) prefix, the **status-vs-post-state** mutually-
   * exclusive union (a pre-Byzantium/pre-Atlantis receipt carries a 32-byte post-state root, a post-fork receipt a

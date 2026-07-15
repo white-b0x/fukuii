@@ -9,10 +9,9 @@ import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
+import com.chipprbots.fukuii.common.Logger
 import fs2.Stream
 import org.rocksdb.*
-
-import com.chipprbots.fukuii.common.Logger
 
 /** Per-`ChainInstance` RocksDB configuration. Every field is supplied by the instance that owns a given
   * `RocksDbDataSource` (constructor-injected — never a process-global default) so two `ChainInstance`s (e.g. two
@@ -404,7 +403,7 @@ object RocksDbDataSource extends Logger:
       extends RuntimeException(message, cause)
 
   object RocksDbDataSourceException:
-    def apply(message: String): RocksDbDataSourceException = new RocksDbDataSourceException(message, null)
+    def apply(message: String): RocksDbDataSourceException = new RocksDbDataSourceException(message, None.orNull)
 
   /** Loads the RocksDB native library once per JVM. Stateless and idempotent — the one deliberate exception to
     * per-instance isolation (R2); see the class-level doc.
@@ -592,14 +591,15 @@ object RocksDbDataSource extends Logger:
     * exception as suppressed rather than masking the original failure.
     */
   private def withResources[R <: AutoCloseable, T](resource: R)(f: R => T): T =
-    var primary: Throwable = null
+    var primary: Option[Throwable] = None
     try f(resource)
     catch
       case NonFatal(e) =>
-        primary = e
+        primary = Some(e)
         throw e
     finally
-      if primary != null then
-        try resource.close()
-        catch case NonFatal(suppressed) => primary.addSuppressed(suppressed)
-      else resource.close()
+      primary match
+        case Some(p) =>
+          try resource.close()
+          catch case NonFatal(suppressed) => p.addSuppressed(suppressed)
+        case None => resource.close()

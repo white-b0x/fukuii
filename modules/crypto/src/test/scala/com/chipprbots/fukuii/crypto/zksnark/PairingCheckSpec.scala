@@ -2,13 +2,12 @@ package com.chipprbots.fukuii.crypto.zksnark
 
 import org.apache.pekko.util.ByteString
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import com.chipprbots.fukuii.bytes.ByteUtils
 import com.chipprbots.fukuii.crypto.zksnark.BN128.BN128G1
 import com.chipprbots.fukuii.crypto.zksnark.BN128.BN128G2
 import com.chipprbots.fukuii.crypto.zksnark.BN128.Point
 import com.chipprbots.fukuii.crypto.zksnark.PairingCheck.G1G2Pair
+import org.scalatest.funsuite.AnyFunSuite
 
 /** Optimal ate pairing over BN128 — the EIP-197 `ECPAIRING` predicate.
   *

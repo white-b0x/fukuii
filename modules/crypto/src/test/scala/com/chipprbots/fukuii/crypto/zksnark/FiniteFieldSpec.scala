@@ -1,8 +1,7 @@
 package com.chipprbots.fukuii.crypto.zksnark
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import com.chipprbots.fukuii.crypto.zksnark.FiniteField.*
+import org.scalatest.funsuite.AnyFunSuite
 
 /** Field-axiom sanity for the `given`/`extension` wiring that replaced old fukuii's `implicit object` + `implicit class
   * Ops`.

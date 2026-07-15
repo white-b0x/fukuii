@@ -1,8 +1,8 @@
 package com.chipprbots.fukuii.storage
 
-import scala.collection.concurrent.TrieMap
-
 import cats.effect.IO
+
+import scala.collection.concurrent.TrieMap
 
 /** One node's refcount-GC bookkeeping record — the besu/old-Mantis-lineage `StoredNode(rlp, references,
   * lastUsedByBlock)` shape, minus the RLP bytes ([[INodeStorage]] already holds those) plus [[location]] (needed to

@@ -1,8 +1,8 @@
 package com.chipprbots.fukuii.storage
 
-import scala.util.Random
-
 import cats.effect.unsafe.implicits.global
+
+import scala.util.Random
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

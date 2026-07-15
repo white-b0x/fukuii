@@ -2,13 +2,12 @@ package com.chipprbots.fukuii.trie
 
 import org.apache.pekko.util.ByteString
 
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-
 import com.chipprbots.fukuii.bytes.Hex
 import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.RLPValue
 import com.chipprbots.fukuii.rlp.encode as encodeRlp
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 /** Node-level byte-exact vectors: empty root, node RLP round-trips, the `< 32` inline threshold, hex-prefix compaction,
   * and the L2-F3 fail-loud decode guard. All values transcribed from the S0 reference map / geth.

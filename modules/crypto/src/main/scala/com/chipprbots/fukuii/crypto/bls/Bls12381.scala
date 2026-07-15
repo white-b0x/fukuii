@@ -1,7 +1,6 @@
 package com.chipprbots.fukuii.crypto.bls
 
 import com.sun.jna.ptr.IntByReference
-
 import org.hyperledger.besu.nativelib.bls12_381.LibEthPairings
 
 /** BLS12-381 curve operations for EIP-2537, backed by the besu `bls12-381` native library (`LibEthPairings`, the

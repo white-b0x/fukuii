@@ -1,8 +1,7 @@
 package com.chipprbots.fukuii.rlp
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
+import org.scalatest.funsuite.AnyFunSuite
 
 /** Strict decoding: a buffer that by design holds exactly one self-contained item must reject any trailing bytes. The
   * lenient [[decode]]/[[rawDecode]] accept them (a prefix-plus-payload frame legitimately has more bytes after the
@@ -24,7 +23,9 @@ class RLPStrictDecodeSpec extends AnyFunSuite:
 
   test("rawDecodeStrict rejects trailing bytes after a list"):
     val listBytes = encode(RLPList(RLPEncoder.encode("dog"), RLPEncoder.encode("cat")))
-    assert(rawDecode(listBytes ++ Array[Byte](0x7f)).isInstanceOf[RLPList]) // lenient: ok
+    rawDecode(listBytes ++ Array[Byte](0x7f)) match // lenient: ok
+      case _: RLPList => ()
+      case other      => fail(s"expected RLPList, got $other")
     intercept[RLPException](rawDecodeStrict(listBytes ++ Array[Byte](0x7f)))
 
   test("truncated RLP (header promises more bytes than present) fails"):

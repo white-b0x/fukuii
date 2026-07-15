@@ -1,9 +1,8 @@
 package com.chipprbots.fukuii.crypto
 
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-
 import com.chipprbots.fukuii.crypto.zksnark.PairingCheck
 import com.chipprbots.fukuii.crypto.zksnark.PairingCheck.G1G2Pair
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 /** The seam through which every consumer of L0's hot-path cryptographic primitives — Keccak-256, secp256k1
   * sign/recover, and the alt-bn128 pairing check — should route, so that adding a native (JNI) fast path later is a

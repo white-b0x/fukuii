@@ -1,8 +1,7 @@
 package com.chipprbots.fukuii.crypto.zksnark
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import com.chipprbots.fukuii.crypto.zksnark.BN128.Point
+import org.scalatest.funsuite.AnyFunSuite
 
 /** BN128 curve arithmetic over `Fp` — the group law behind EIP-196 `ECADD`/`ECMUL`. Points from old fukuii's
   * `BN128FpSpec` (each a valid on-curve `Fp` point).

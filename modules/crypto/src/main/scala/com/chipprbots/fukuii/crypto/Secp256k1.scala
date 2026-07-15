@@ -4,15 +4,14 @@ import java.security.SecureRandom
 
 import org.apache.pekko.util.ByteString
 
+import com.chipprbots.fukuii.bytes.Address
+import com.chipprbots.fukuii.bytes.ByteUtils
 import org.bouncycastle.asn1.sec.SECNamedCurves
 import org.bouncycastle.asn1.x9.X9ECParameters
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.generators.ECKeyPairGenerator
 import org.bouncycastle.crypto.params.*
 import org.bouncycastle.math.ec.ECPoint
-
-import com.chipprbots.fukuii.bytes.Address
-import com.chipprbots.fukuii.bytes.ByteUtils
 
 /** secp256k1 domain parameters and key-material helpers.
   *

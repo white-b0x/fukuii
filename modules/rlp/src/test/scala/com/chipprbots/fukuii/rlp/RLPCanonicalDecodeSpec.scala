@@ -1,10 +1,9 @@
 package com.chipprbots.fukuii.rlp
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import com.chipprbots.fukuii.bytes.Hex
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
+import org.scalatest.funsuite.AnyFunSuite
 
 /** Canonical-decode enforcement — the strict-decode rules go-ethereum applies in `rlp/raw.go` and `rlp/decode.go`. Old
   * fukuii inherited Mantis's lenient decoder, which accepted these non-canonical encodings; a lenient decoder is a
@@ -99,11 +98,15 @@ class RLPCanonicalDecodeSpec extends AnyFunSuite:
 
   test("J-RLP-1 rejects int-overflow long-string length with a clean RLPException (lenient rawDecode)"):
     val ex = intercept[RLPException](rawDecode(bytes(overflowString)))
-    assert(!ex.isInstanceOf[ArrayIndexOutOfBoundsException])
+    // Not a pattern match: RLPException/ArrayIndexOutOfBoundsException are unrelated types, so a typed
+    // match here is statically unreachable (E030) — the exact-class check below preserves the intent.
+    assert(ex.getClass != classOf[ArrayIndexOutOfBoundsException])
 
   test("J-RLP-1 rejects int-overflow long-list length with a clean RLPException (lenient rawDecode)"):
     val ex = intercept[RLPException](rawDecode(bytes(overflowList)))
-    assert(!ex.isInstanceOf[ArrayIndexOutOfBoundsException])
+    // Not a pattern match: RLPException/ArrayIndexOutOfBoundsException are unrelated types, so a typed
+    // match here is statically unreachable (E030) — the exact-class check below preserves the intent.
+    assert(ex.getClass != classOf[ArrayIndexOutOfBoundsException])
 
   test("J-RLP-1 does not raise ArrayIndexOutOfBoundsException on the overflow vectors"):
     intercept[RLPException](rawDecode(bytes(overflowString)))
@@ -117,13 +120,15 @@ class RLPCanonicalDecodeSpec extends AnyFunSuite:
     // 56-byte payload -> smallest canonical long-form string header (0xb8 0x38 ...).
     val payload = "01" * 56
     val decoded = rawDecode(bytes("b838" + payload))
-    assert(decoded.isInstanceOf[RLPValue])
-    assert(decoded.asInstanceOf[RLPValue].bytes.sameElements(bytes(payload)))
+    decoded match
+      case value: RLPValue => assert(value.bytes.sameElements(bytes(payload)))
+      case other           => fail(s"expected RLPValue, got $other")
     // 56-byte long-form list of 56 single-byte items round-trips.
     val listBody = "01" * 56
     val decodedList = rawDecode(bytes("f838" + listBody))
-    assert(decodedList.isInstanceOf[RLPList])
-    assert(decodedList.asInstanceOf[RLPList].items.size == 56)
+    decodedList match
+      case list: RLPList => assert(list.items.size == 56)
+      case other         => fail(s"expected RLPList, got $other")
 
   // --- F-RLP-2: scalar decoders reject leading zeros (ErrCanonInt, go-ethereum rlp/decode.go:750) ---
 

@@ -1,13 +1,13 @@
 package com.chipprbots.fukuii.rlp
 
 import org.apache.pekko.util.ByteString
-import org.scalatest.funsuite.AnyFunSuite
 
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hash
 import com.chipprbots.fukuii.bytes.Hex
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
+import org.scalatest.funsuite.AnyFunSuite
 
 /** RLP codecs for the `bytes` value types. The consensus-critical distinction: [[UInt256]] is a minimal-length
   * big-endian *scalar* (no leading zeros), while [[Address]]/[[Hash]] are fixed-width *byte strings* (leading zeros

@@ -4,6 +4,7 @@ import org.apache.pekko.util.ByteString
 
 import scala.util.Try
 
+import com.chipprbots.fukuii.bytes.ByteUtils
 import org.bouncycastle.asn1.x9.X9IntegerConverter
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.digests.SHA256Digest
@@ -12,8 +13,6 @@ import org.bouncycastle.crypto.signers.ECDSASigner
 import org.bouncycastle.crypto.signers.HMacDSAKCalculator
 import org.bouncycastle.math.ec.ECCurve
 import org.bouncycastle.math.ec.ECPoint
-
-import com.chipprbots.fukuii.bytes.ByteUtils
 
 object ECDSASignature:
 

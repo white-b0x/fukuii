@@ -1,7 +1,6 @@
 package com.chipprbots.fukuii.domain
 
 import org.apache.pekko.util.ByteString
-import org.scalatest.funsuite.AnyFunSuite
 
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hash
@@ -11,6 +10,7 @@ import com.chipprbots.fukuii.crypto.ECDSASignature
 import com.chipprbots.fukuii.crypto.curve
 import com.chipprbots.fukuii.crypto.pubKeyFromPrvKey
 import com.chipprbots.fukuii.crypto.pubKeyToAddress
+import org.scalatest.funsuite.AnyFunSuite
 
 /** EIP-155 sender recovery + the N-1 `ValidateSignatureValues` gate (`plan/L1.md` §5, §7; RX-L1-09/10/12).
   *

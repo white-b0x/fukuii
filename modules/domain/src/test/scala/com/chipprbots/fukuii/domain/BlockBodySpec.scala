@@ -1,7 +1,6 @@
 package com.chipprbots.fukuii.domain
 
 import org.apache.pekko.util.ByteString
-import org.scalatest.funsuite.AnyFunSuite
 
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.UInt256
@@ -11,6 +10,7 @@ import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.RLPValue
 import com.chipprbots.fukuii.rlp.encode as rlpEncode
 import com.chipprbots.fukuii.rlp.rawDecode
+import org.scalatest.funsuite.AnyFunSuite
 
 /** [[BlockBody]] RLP: the trailing-optional `withdrawals` list (present post-Shanghai ETH, omitted for ETC /
   * pre-Shanghai), and the legacy-vs-typed transaction nesting (a typed tx wraps as an RLP byte string inside the

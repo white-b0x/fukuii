@@ -1,6 +1,7 @@
 package com.chipprbots.fukuii.bytes
 
 import org.apache.pekko.util.ByteString
+
 import org.scalatest.funsuite.AnyFunSuite
 
 class AddressSpec extends AnyFunSuite:

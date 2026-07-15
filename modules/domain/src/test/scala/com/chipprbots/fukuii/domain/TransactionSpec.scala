@@ -1,7 +1,6 @@
 package com.chipprbots.fukuii.domain
 
 import org.apache.pekko.util.ByteString
-import org.scalatest.funsuite.AnyFunSuite
 
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hash
@@ -15,6 +14,7 @@ import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.RLPValue
 import com.chipprbots.fukuii.rlp.encode as rlpEncode
 import com.chipprbots.fukuii.rlp.rawDecode
+import org.scalatest.funsuite.AnyFunSuite
 
 /** EIP-2718 typed-transaction envelope: per-variant RLP round-trip, the `to`-field `rlp:"nil"` shape, and the
   * first-byte dispatch decoder ([[Transaction.decode(bytes: Array[Byte])]]) — including its `0xc0` boundary, the

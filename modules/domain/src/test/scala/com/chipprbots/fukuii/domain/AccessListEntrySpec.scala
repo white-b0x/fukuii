@@ -1,11 +1,10 @@
 package com.chipprbots.fukuii.domain
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hash
 import com.chipprbots.fukuii.rlp.decode
 import com.chipprbots.fukuii.rlp.encode
+import org.scalatest.funsuite.AnyFunSuite
 
 /** EIP-2930 access-list entry RLP — `derives RLPCodec`, byte-exact to go-ethereum `tx_access_list.go` `AccessTuple{
   * Address; StorageKeys []common.Hash }`.

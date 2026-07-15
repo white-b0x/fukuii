@@ -1,8 +1,8 @@
 package com.chipprbots.fukuii.trie
 
-import scala.collection.concurrent.TrieMap
-
 import org.apache.pekko.util.ByteString
+
+import scala.collection.concurrent.TrieMap
 
 /** A 32-byte keccak reference to a stored node. Opaque over `ByteString` (structural equality ⇒ a valid map key). */
 opaque type NodeHash = ByteString

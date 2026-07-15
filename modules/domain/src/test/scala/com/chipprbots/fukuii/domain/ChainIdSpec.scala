@@ -1,9 +1,8 @@
 package com.chipprbots.fukuii.domain
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import com.chipprbots.fukuii.rlp.decode
 import com.chipprbots.fukuii.rlp.encode
+import org.scalatest.funsuite.AnyFunSuite
 
 class ChainIdSpec extends AnyFunSuite:
 

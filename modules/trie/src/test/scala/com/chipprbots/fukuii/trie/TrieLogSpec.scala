@@ -2,10 +2,9 @@ package com.chipprbots.fukuii.trie
 
 import org.apache.pekko.util.ByteString
 
+import com.chipprbots.fukuii.rlp.RLPException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import com.chipprbots.fukuii.rlp.RLPException
 
 /** T2b: the besu-Bonsai `{prior, updated}` leaf-diff `TrieLog` — the R7 reorg-event source.
   *
