@@ -123,6 +123,13 @@ def decode[T](data: Array[Byte])(using dec: RLPDecoder[T]): T = dec.decode(RLP.r
 /** Decode a value from an AST node. */
 def decode[T](data: RLPEncodeable)(using dec: RLPDecoder[T]): T = dec.decode(data)
 
+/** Zone-3 consuming-code syntax (see `scala3-style.md` S13): encode a held value to the RLP AST via its `RLPEncoder`.
+  * Symmetric to [[RLPEncodeable.decodeAs]] on the decode side. This is for *consuming* code above L0 that holds a value
+  * and wants it encoded; codec-authoring bodies dispatching to a field/sibling codec use explicit `summon[RLPCodec[U]]`
+  * instead (S13 Zone 2), never this extension.
+  */
+extension [A](obj: A) def rlpEncoded(using enc: RLPEncoder[A]): RLPEncodeable = enc.encode(obj)
+
 /** Strict variant of [[decode]]: decodes exactly one self-contained item and throws [[RLPException]] if any trailing
   * bytes remain. Use for buffers that by design hold exactly one item (stored state values, persisted records). Keep
   * the lenient [[decode]] for prefix-plus-payload frames (e.g. an RLPx message whose type byte precedes the payload).

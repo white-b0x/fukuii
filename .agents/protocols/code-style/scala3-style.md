@@ -322,6 +322,33 @@ to a `domain/`-scoped type still requires the consensus-change-protocol.md hard-
 any other `domain/` edit. See that protocol's own note (added 2026-07-05) on what to do when a
 gate-worthy path is discovered mid-implementation of an otherwise gate-free batch.
 
+### S13 — RLPCodec call-site zones (codec-authoring uses `summon[RLPCodec[U]]`)
+
+Three zones for reaching an `RLPCodec[T]` at a call site:
+
+- **Zone 1 — a witness is already a named `using` param / context bound in scope** (generic combinators:
+  `seqCodec`, `optionCodec`, `tupleNCodec`): call it directly (`c.encode(x)` / `c.decode(x)`) — never re-summon.
+- **Zone 2 — a `given RLPCodec[T]` body dispatching to a *sibling/field* type's codec** (`Transaction`→`Legacy`
+  →field, `BlockHeader`, `Receipt`, …): use explicit **`summon[RLPCodec[U]]`**. It is the Scala 3
+  reference-canonical form for this shape (`reference/contextual/givens.md`'s `listOrd` resolves the element's
+  instance with `summon[Ord[T]]`) and it is safe *by construction* — `U` is mandatory at the summon site, so the
+  silent-recursion hazard (a bracket-omitted `decode` inferring `T` from the enclosing return type and dispatching
+  to itself) cannot be written. A free-function `RLPDecoder.decode[U](x)` is only *as* safe when the `[U]` is
+  present; `summon` removes the omit-the-bracket failure mode entirely.
+- **Zone 3 — ordinary consuming code above L0** holding a value it wants serialized: use the extension /
+  top-level surface — `value.rlpEncoded` / `rlp.decodeAs[T]`, or the top-level `encode[T]`/`decode[T]` free
+  functions. Not `summon` (that's codec-authoring only).
+
+**Ratchet (decode-only; encode is inference-safe — `encode`'s return is always `RLPEncodeable`, so `T` infers
+bottom-up from the argument):**
+```
+grep -rn 'RLPDecoder\.decode(' modules/ | grep -v 'RLPDecoder\.decode\['
+# Target: 0 — a free-function RLPDecoder.decode must carry an explicit [T] (Zone-2 belt-and-suspenders).
+```
+
+_History: a summon→free-function sweep of L1 codec bodies (`64f252d2c`) was reverted — `summon[RLPCodec[U]]` is
+the canonical Zone-2 form. Do not re-relitigate this at the call sites._
+
 ---
 
 ## Consensus-critical exception
