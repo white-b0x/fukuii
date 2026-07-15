@@ -96,7 +96,16 @@ jobs:
         run: sbt compile-all
         env:
           FUKUII_DEV: true
-      
+
+      # scalafix lint gate (semantic — needs the semanticdb from the compile step above).
+      # Enforces .scalafix.conf: DisableSyntax (noNulls/noAsInstanceOf/noIsInstanceOf/noReturns/
+      # noFinalize), OrganizeImports, ExplicitResultTypes, RedundantSyntax, RemoveUnused,
+      # NoValInForComprehension. scalafmtCheckAll (above) covers formatting; this covers lint.
+      - name: Check scalafix lint
+        run: sbt "scalafixAll --check"
+        env:
+          FUKUII_DEV: true
+
       - name: Run Essential Tests (Tier 1)
         run: |
           echo "=========================================="

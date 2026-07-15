@@ -46,19 +46,31 @@ sbt "testOnly *<SubsystemSuite>*"                    # subsystem if callers touc
 Run targeted tests only. Do not run testEssential here. These finish in seconds with
 small output — run directly, no wrapper needed.
 
-### Format gate — before `git commit` of a phase (MANDATORY)
+### Format + lint gate — before `git commit` of a phase (MANDATORY)
 ```bash
-sbt "<module>/scalafmtCheck" "<module>/Test/scalafmtCheck"   # scoped to the module you touched
+sbt "<module>/scalafmtCheck" "<module>/Test/scalafmtCheck"   # formatting (syntactic)
+sbt "<module>/scalafixAll --check"                           # lint (semantic — reuses the phase's compile)
 ```
-`scalafmtCheck` **verifies** formatting without writing — it is the gate, run it before
-every phase commit (not just `scalafmtAll`, which writes silently and can be forgotten).
-If it fails, `sbt "<module>/scalafmt" "<module>/Test/scalafmt"` to fix, re-check, then commit.
-**Why this gate exists:** a phase's build agent can finish (or die mid-run — a stalled agent
-once left two consensus files unformatted) with formatCheck-dirty output; committing it
-defers the failure to CI `formatCheck`. Catch it at the phase boundary — one cheap check —
-so formatting is never a downstream catch. The code itself is written Scala-3-idiomatic from
-the start (`scala3-style.md` S1–S11); this gate is purely about whitespace/wrap conformance
-to `.scalafmt.conf` (`runner.dialect = scala3`), not idiom conversion.
+Both **verify** without writing — run them before every phase commit (not `scalafmtAll`/
+`scalafixAll`, which write silently and can be forgotten). Fix-then-recheck: formatting via
+`sbt "<module>/scalafmt" "<module>/Test/scalafmt"`; lint by hand.
+`scalafmtCheck` is purely whitespace/wrap conformance to `.scalafmt.conf` (`runner.dialect =
+scala3`). `scalafixAll --check` is the lint half — it verifies `.scalafix.conf` (DisableSyntax
+noNulls/noAsInstanceOf/noIsInstanceOf/noReturns/noFinalize, OrganizeImports, ExplicitResultTypes,
+RedundantSyntax, RemoveUnused, NoValInForComprehension). It is semantic, so it reuses the module's
+semanticdb from the per-file `compile-all` above (no extra build). **Do not blindly
+`scalafixAll`-autofix consensus code** — route a DisableSyntax hit in `crypto/domain/rlp/trie/
+consensus/vm` to forge/beacon (`consensus-change-protocol.md`); a genuine unfixable
+Java-interop/erasure case gets a scoped `// scalafix:off <Rule>` + rationale, never a silent
+suppress-to-defer (`no-suppress-to-defer`).
+**Why both halves exist:** a phase's build agent can finish (or die mid-run — a stalled agent
+once left two consensus files unformatted) with a dirty tree; committing it defers the failure to
+CI. scalafmt was gated from the start but **scalafix was not**, so idiom violations accumulated
+uncaught until CI (caught at L2, 2026-07-15: 26 DisableSyntax violations had piled up across L0–L2).
+CI now runs a `Check scalafix lint` step; catch both halves at the phase boundary — two cheap
+checks — so neither formatting nor lint is ever a downstream catch. The code itself is written
+Scala-3-idiomatic from the start (`scala3-style.md` S1–S11); this gate is conformance, not
+idiom conversion.
 
 ### Pre-push gate — before `git push origin`
 ```bash
