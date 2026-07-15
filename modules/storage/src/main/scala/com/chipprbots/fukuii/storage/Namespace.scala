@@ -1,0 +1,147 @@
+package com.chipprbots.fukuii.storage
+
+/** Self-describing RocksDB column-family registry.
+  *
+  * Every [[Namespace]] case IS a column family: `RocksDbDataSource` opens one CF per case (plus RocksDB's own `DEFAULT`
+  * CF), keyed by [[id]]. `EphemDataSource` uses the same enum as a logical partition key over a single in-memory map.
+  * Modelled on besu's `SegmentIdentifier` (`plugin-api/.../storage/SegmentIdentifier.java`) /
+  * `KeyValueSegmentIdentifier` (`ethereum/core/.../storage/keyvalue/KeyValueSegmentIdentifier.java`) — six per-segment
+  * properties instead of a bare byte tag, so callers can express storage-engine tuning intent (append-only vs.
+  * hot-mutable, GC-eligible, cacheable) at the point a namespace is declared rather than threading ad hoc booleans
+  * through `RocksDbConfig`.
+  *
+  * ==Namespace-ID immutability (Iron Rule)==
+  * [[id]] is a frozen on-disk contract: it becomes the literal RocksDB column-family name byte. Renumbering,
+  * reordering, or reusing an `id` after removing a case corrupts every on-disk database built against the prior
+  * assignment — column families are matched by name/id at open, not by enum ordinal. Only ever ADD a new case with an
+  * unused `id`; never edit an existing one. [[Namespace.byId]]'s construction-time uniqueness check exists precisely to
+  * catch an accidental collision before it reaches production.
+  *
+  * ==Profile-membership reservation (L2-F1)==
+  * [[profiles]] declares which storage profile(s) a namespace's column family belongs to. S1 does not gate CF open on
+  * this field — `RocksDbDataSource` opens the full [[Namespace.values]] set unconditionally, matching the AS-IS
+  * behaviour (`Namespaces.nsSeq` was always the complete fixed list). This field exists so S2's
+  * `StorageProfile`/`SchemaMarker` (checked-at-open CF-set-vs-profile validation, besu's
+  * `includeInDatabaseFormat(DataStorageFormat)` gate) has every profile-scoped CF already declared — S1's job is
+  * reserving the schema slot, not building the gating machinery. [[Namespace.Profile.Snap]] marks the SNAP crash-resume
+  * frontier journal CFs (`HealingFrontier`, `BfsQueue`, `SnapSyncProgress`); [[Namespace.Profile.PathScheme]] marks the
+  * path-keyed trie CFs (`StateTriePath`, `StorageTriePath`) that only apply under `INodeStorage`'s `HalfPath` scheme
+  * (S2). Both are schema reservations only — no journaling or scheme-dispatch logic lives here.
+  */
+enum Namespace(
+    val id: Byte,
+    val profiles: Set[Namespace.Profile] = Set(Namespace.Profile.Base),
+    val containsStaticData: Boolean = false,
+    val isEligibleToHighSpecFlag: Boolean = false,
+    val isStaticDataGarbageCollectionEnabled: Boolean = false,
+    val isCacheIndexAndFilterBlocks: Boolean = false
+):
+
+  /** besu `SegmentIdentifier.includeInDatabaseFormat(DataStorageFormat)` equivalent: is this namespace's column family
+    * part of the given storage profile? S2's `SchemaMarker` is the actual enforcement point — this is the predicate it
+    * will call.
+    */
+  def includeInDatabaseFormat(profile: Namespace.Profile): Boolean = profiles.contains(profile)
+
+  /** Block receipts (append-only, one write per block, never mutated in place). */
+  case Receipts
+      extends Namespace(
+        'r'.toByte,
+        containsStaticData = true,
+        isEligibleToHighSpecFlag = true,
+        isStaticDataGarbageCollectionEnabled = true
+      )
+
+  /** Block headers (append-only blockchain data). */
+  case Header
+      extends Namespace(
+        'h'.toByte,
+        containsStaticData = true,
+        isEligibleToHighSpecFlag = true,
+        isStaticDataGarbageCollectionEnabled = true
+      )
+
+  /** Block bodies (append-only blockchain data). */
+  case Body
+      extends Namespace(
+        'b'.toByte,
+        containsStaticData = true,
+        isEligibleToHighSpecFlag = true,
+        isStaticDataGarbageCollectionEnabled = true
+      )
+
+  /** MPT trie nodes, hash-keyed (content-addressed, high write/read volume — the hottest CF in the database). */
+  case Node extends Namespace('n'.toByte, isEligibleToHighSpecFlag = true, isCacheIndexAndFilterBlocks = true)
+
+  /** EVM contract bytecode, content-addressed by code hash (immutable once written, prunable when unreferenced). */
+  case Code extends Namespace('c'.toByte, containsStaticData = true, isStaticDataGarbageCollectionEnabled = true)
+
+  /** Per-block chain weight / total difficulty (ETC fork-choice input — small, mutated at chain-tip only). */
+  case ChainWeight extends Namespace('w'.toByte)
+
+  /** Node application/sync-progress bookkeeping (best block, sync status). */
+  case AppState extends Namespace('s'.toByte)
+
+  /** Discovered peer-node bookkeeping. */
+  case KnownNodes extends Namespace('k'.toByte)
+
+  /** Block-number -> hash mapping (append-only). */
+  case Heights extends Namespace('i'.toByte, containsStaticData = true)
+
+  /** Legacy fast-sync progress bookkeeping (transient, cleared once sync completes). */
+  case FastSyncState extends Namespace('f'.toByte)
+
+  /** Transaction-hash -> (block, index) mapping (append-only, prunable alongside receipts). */
+  case TransactionMapping
+      extends Namespace('l'.toByte, containsStaticData = true, isStaticDataGarbageCollectionEnabled = true)
+
+  /** First-seen timestamp bookkeeping per block hash (small, mutated rarely). */
+  case BlockFirstSeen extends Namespace('m'.toByte)
+
+  /** Flat storage-slot overlay (besu `ACCOUNT_STORAGE_STORAGE` analogue) — hot, high write volume. */
+  case FlatSlot extends Namespace('d'.toByte, isEligibleToHighSpecFlag = true, isCacheIndexAndFilterBlocks = true)
+
+  /** Flat account overlay (besu `ACCOUNT_INFO_STATE` analogue, geth `'a'` convention) — hot, high write volume. */
+  case FlatAccount extends Namespace('a'.toByte, isEligibleToHighSpecFlag = true, isCacheIndexAndFilterBlocks = true)
+
+  /** Post-SNAP healing frontier (node hash -> pathset): SNAP crash-resume journal, schema-reserved per L2-F1. */
+  case HealingFrontier extends Namespace('g'.toByte, profiles = Set(Namespace.Profile.Base, Namespace.Profile.Snap))
+
+  /** BFS level queue for streaming frontier rebuild: SNAP crash-resume journal, schema-reserved per L2-F1. */
+  case BfsQueue extends Namespace('q'.toByte, profiles = Set(Namespace.Profile.Base, Namespace.Profile.Snap))
+
+  /** SNAP download progress cursors (stateRoot -> account/storage-range cursors): SNAP crash-resume journal,
+    * schema-reserved per L2-F1.
+    */
+  case SnapSyncProgress extends Namespace('p'.toByte, profiles = Set(Namespace.Profile.Base, Namespace.Profile.Snap))
+
+  /** State-trie nodes, path-keyed — only populated under `INodeStorage`'s `HalfPath` scheme (S2). */
+  case StateTriePath extends Namespace('t'.toByte, profiles = Set(Namespace.Profile.Base, Namespace.Profile.PathScheme))
+
+  /** Storage-trie nodes, path-keyed and account-scoped — only populated under `INodeStorage`'s `HalfPath` scheme (S2).
+    * See the S0 reference map's `Location` finding: the account scope is load-bearing, not cosmetic — a bare
+    * per-subtrie nibble path collides storage-subtrie nodes across accounts sharing this CF.
+    */
+  case StorageTriePath
+      extends Namespace('u'.toByte, profiles = Set(Namespace.Profile.Base, Namespace.Profile.PathScheme))
+
+object Namespace:
+
+  /** Storage-profile tags a namespace's column family may belong to. `Base` = every profile (the default); `Snap` and
+    * `PathScheme` mark the two schema reservations from L2-F1 / L2-S0. This is deliberately NOT S2's full
+    * `StorageProfile` (5 live axes + 1 reserved `engine`) — it is the minimal membership tag S1 needs to reserve CF
+    * slots without building S2's profile-gating machinery.
+    */
+  enum Profile:
+    case Base, Snap, PathScheme
+
+  private val duplicateIds: Set[Byte] =
+    values.toList.groupBy(_.id).collect { case (id, cases) if cases.sizeIs > 1 => id }.toSet
+
+  require(
+    duplicateIds.isEmpty,
+    s"Namespace id collision(s): $duplicateIds — namespace ids are a frozen on-disk contract, never reassign"
+  )
+
+  /** Reverse lookup, e.g. for diagnostics over a raw column-family name read back from RocksDB. */
+  val byId: Map[Byte, Namespace] = values.map(n => n.id -> n).toMap

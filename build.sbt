@@ -237,6 +237,7 @@ lazy val storage = project
   .settings(
     libraryDependencies ++=
       Dependencies.cats ++
+        Dependencies.fs2 ++
         Dependencies.rocksDb ++
         Dependencies.scaffeine ++
         Dependencies.testing
