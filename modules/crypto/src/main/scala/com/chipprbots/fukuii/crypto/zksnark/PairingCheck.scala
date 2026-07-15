@@ -7,15 +7,15 @@ import com.chipprbots.fukuii.crypto.zksnark.BN128.BN128G2
 import com.chipprbots.fukuii.crypto.zksnark.BN128.Point
 import com.chipprbots.fukuii.crypto.zksnark.FiniteField.*
 
-/** Optimal ate pairing over the BN128 curve — the engine behind the EIP-197 `ECPAIRING` precompile
-  * (address `0x08`). Arithmetic ported from libff's `alt_bn128_pairing.cpp`.
+/** Optimal ate pairing over the BN128 curve — the engine behind the EIP-197 `ECPAIRING` precompile (address `0x08`).
+  * Arithmetic ported from libff's `alt_bn128_pairing.cpp`.
   */
 object PairingCheck:
 
   val loopCount: BigInt = BigInt("29793968203157093288")
 
-  /** `e: G₁ × G₂ → G_T`. Returns `true` iff
-    * `log_P1(a1)·log_P2(b1) + … + log_P1(ak)·log_P2(bk) = 0` — the EIP-197 pairing-set predicate.
+  /** `e: G₁ × G₂ → G_T`. Returns `true` iff `log_P1(a1)·log_P2(b1) + … + log_P1(ak)·log_P2(bk) = 0` — the EIP-197
+    * pairing-set predicate.
     */
   def pairingCheck(pairs: Seq[G1G2Pair]): Boolean =
     val product = pairs.foldLeft(FiniteField[Fp12].one) { (acc, pair) =>

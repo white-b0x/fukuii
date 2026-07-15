@@ -7,9 +7,8 @@ import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-/** Ethereum ECIES (AES-128-CTR + HMAC-SHA-256 + Concat-KDF) round-trips and known-answer decrypt.
-  * The KAT is the ethereumj `test1` fixed cipher → known plaintext, proving byte-exact envelope
-  * behaviour.
+/** Ethereum ECIES (AES-128-CTR + HMAC-SHA-256 + Concat-KDF) round-trips and known-answer decrypt. The KAT is the
+  * ethereumj `test1` fixed cipher → known plaintext, proving byte-exact envelope behaviour.
   */
 class ECIESCoderSpec extends AnyFlatSpec with Matchers:
 

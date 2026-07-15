@@ -4,9 +4,9 @@ import org.apache.pekko.util.ByteString
 
 import org.bouncycastle.crypto.Digest
 
-/** MGF1 mask-generation function (from BouncyCastle) with an added `counterStart` to match Crypto++.
-  * An alternate KDF for [[EthereumIESEngine]]; the Ethereum ECIES profile uses
-  * [[ConcatKDFBytesGenerator]] instead, but the engine keeps both as a selectable option.
+/** MGF1 mask-generation function (from BouncyCastle) with an added `counterStart` to match Crypto++. An alternate KDF
+  * for [[EthereumIESEngine]]; the Ethereum ECIES profile uses [[ConcatKDFBytesGenerator]] instead, but the engine keeps
+  * both as a selectable option.
   */
 class MGF1BytesGeneratorExt(digest: Digest):
   val digestSize: Int = digest.getDigestSize

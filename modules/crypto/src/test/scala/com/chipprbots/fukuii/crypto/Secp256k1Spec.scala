@@ -11,9 +11,9 @@ import com.chipprbots.fukuii.bytes.Address
 
 /** secp256k1 key generation, public-key derivation and address derivation.
   *
-  * The private/address KAT is go-ethereum's `crypto_test.go` test key
-  * (`testPrivHex`/`testAddrHex`): private `289c2857…232032` → address `970e8128…8cf791`, proving
-  * [[pubKeyToAddress]] is byte-exact to `crypto.PubkeyToAddress`.
+  * The private/address KAT is go-ethereum's `crypto_test.go` test key (`testPrivHex`/`testAddrHex`): private
+  * `289c2857…232032` → address `970e8128…8cf791`, proving [[pubKeyToAddress]] is byte-exact to
+  * `crypto.PubkeyToAddress`.
   */
 class Secp256k1Spec extends AnyFunSuite:
 

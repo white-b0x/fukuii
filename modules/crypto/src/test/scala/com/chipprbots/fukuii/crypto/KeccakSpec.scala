@@ -15,8 +15,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 /** Keccak-256/512 byte-exactness and the thread-local digest-reuse parity guarantees.
   *
-  * Golden vectors are the go-ethereum `Keccak256` outputs (original-padding Keccak, not FIPS-202
-  * SHA3). The empty-trie root `56e81f...b421` is the canonical `keccak256(RLP("")) = keccak256(0x80)`.
+  * Golden vectors are the go-ethereum `Keccak256` outputs (original-padding Keccak, not FIPS-202 SHA3). The empty-trie
+  * root `56e81f...b421` is the canonical `keccak256(RLP("")) = keccak256(0x80)`.
   */
 class KeccakSpec extends AnyFunSuite:
 

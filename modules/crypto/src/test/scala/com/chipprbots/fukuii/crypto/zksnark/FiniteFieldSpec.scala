@@ -4,8 +4,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import com.chipprbots.fukuii.crypto.zksnark.FiniteField.*
 
-/** Field-axiom sanity for the `given`/`extension` wiring that replaced old fukuii's
-  * `implicit object` + `implicit class Ops`.
+/** Field-axiom sanity for the `given`/`extension` wiring that replaced old fukuii's `implicit object` + `implicit class
+  * Ops`.
   */
 class FiniteFieldSpec extends AnyFunSuite:
 

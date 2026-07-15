@@ -5,12 +5,12 @@ import org.apache.pekko.util.ByteString
 import org.bouncycastle.crypto.digests.RIPEMD160Digest
 import org.bouncycastle.crypto.digests.SHA256Digest
 
-/** SHA-256 and RIPEMD-160 — the two non-Keccak digests exposed as EVM precompiles (address `0x02`
-  * SHA-256, address `0x03` RIPEMD-160) and used in the RLPx handshake / keystore. Output matches
-  * the standard FIPS-180 / RIPEMD-160 vectors byte-for-byte.
+/** SHA-256 and RIPEMD-160 — the two non-Keccak digests exposed as EVM precompiles (address `0x02` SHA-256, address
+  * `0x03` RIPEMD-160) and used in the RLPx handshake / keystore. Output matches the standard FIPS-180 / RIPEMD-160
+  * vectors byte-for-byte.
   *
-  * Unlike [[kec256]] these are not on the state-root hot path, so no thread-local reuse — a fresh
-  * digest per call keeps them trivially thread-safe.
+  * Unlike [[kec256]] these are not on the state-root hot path, so no thread-local reuse — a fresh digest per call keeps
+  * them trivially thread-safe.
   */
 
 /** SHA-256 over a whole array. */

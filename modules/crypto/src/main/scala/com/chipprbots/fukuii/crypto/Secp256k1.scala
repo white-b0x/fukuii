@@ -16,9 +16,8 @@ import com.chipprbots.fukuii.bytes.ByteUtils
 
 /** secp256k1 domain parameters and key-material helpers.
   *
-  * The single curve every Ethereum signature and public key lives on. Values come from
-  * BouncyCastle's named-curve table (`secp256k1`), matching go-ethereum `crypto.S256()` — same
-  * field prime, generator, order `N` and cofactor `H`.
+  * The single curve every Ethereum signature and public key lives on. Values come from BouncyCastle's named-curve table
+  * (`secp256k1`), matching go-ethereum `crypto.S256()` — same field prime, generator, order `N` and cofactor `H`.
   */
 
 /** The raw X9 curve parameters for `secp256k1`. */
@@ -51,9 +50,8 @@ def keyPairFromPrvKey(prvKeyBytes: ByteString): AsymmetricCipherKeyPair =
   keyPairFromPrvKey(BigInt(1, prvKeyBytes.toArray))
 
 /** @return
-  *   `(privateKey, publicKey)` as raw bytes. The private key is fixed-width 32 bytes; the public
-  *   key is uncompressed with its `0x04` prefix byte dropped (the 64-byte `X || Y` form Ethereum
-  *   uses everywhere).
+  *   `(privateKey, publicKey)` as raw bytes. The private key is fixed-width 32 bytes; the public key is uncompressed
+  *   with its `0x04` prefix byte dropped (the 64-byte `X || Y` form Ethereum uses everywhere).
   */
 def keyPairToByteArrays(keyPair: AsymmetricCipherKeyPair): (Array[Byte], Array[Byte]) =
   val prvKey = ByteUtils.bigIntToBytes(BigInt(keyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD), 32)
@@ -79,10 +77,9 @@ def pubKeyFromPrvKey(prvKey: ByteString): ByteString =
 
 /** Derive the 20-byte account address from a 64-byte (prefix-dropped) public key.
   *
-  * Byte-exact to go-ethereum `crypto.PubkeyToAddress` (`crypto/crypto.go:253`):
-  * `Keccak256(pubBytes[1:])[12:]` — the low 20 bytes of the Keccak-256 of the uncompressed key with
-  * its `0x04` prefix stripped. fukuii already carries public keys prefix-dropped, so this hashes the
-  * 64 bytes directly and takes the rightmost 20.
+  * Byte-exact to go-ethereum `crypto.PubkeyToAddress` (`crypto/crypto.go:253`): `Keccak256(pubBytes[1:])[12:]` — the
+  * low 20 bytes of the Keccak-256 of the uncompressed key with its `0x04` prefix stripped. fukuii already carries
+  * public keys prefix-dropped, so this hashes the 64 bytes directly and takes the rightmost 20.
   */
 def pubKeyToAddress(pubKey: Array[Byte]): Address =
   Address(ByteString(kec256(pubKey).takeRight(Address.Length)))
@@ -93,9 +90,9 @@ def pubKeyToAddress(pubKey: ByteString): Address =
 
 /** Decode an EC point from its encoded form and validate it thoroughly.
   *
-  * Defense-in-depth for the invalid-curve / small-subgroup point family (CVE-2025-24883,
-  * CVE-2026-26314, CVE-2026-26315). `decodePoint` already checks the curve equation; `isValid()`
-  * additionally rejects small-subgroup points (wrong order) and the point at infinity.
+  * Defense-in-depth for the invalid-curve / small-subgroup point family (CVE-2025-24883, CVE-2026-26314,
+  * CVE-2026-26315). `decodePoint` already checks the curve equation; `isValid()` additionally rejects small-subgroup
+  * points (wrong order) and the point at infinity.
   */
 def decodeAndValidatePoint(encoded: Array[Byte]): ECPoint =
   val point = curve.getCurve.decodePoint(encoded)

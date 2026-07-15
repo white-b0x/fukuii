@@ -5,8 +5,8 @@ import java.nio.charset.StandardCharsets
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.funsuite.AnyFunSuite
 
-/** SHA-256 (FIPS-180) and RIPEMD-160 known-answer vectors — the precompile digests at `0x02`/`0x03`.
-  * RIPEMD-160 vectors are from Bosselaers' reference test suite.
+/** SHA-256 (FIPS-180) and RIPEMD-160 known-answer vectors — the precompile digests at `0x02`/`0x03`. RIPEMD-160 vectors
+  * are from Bosselaers' reference test suite.
   */
 class HashesSpec extends AnyFunSuite:
 

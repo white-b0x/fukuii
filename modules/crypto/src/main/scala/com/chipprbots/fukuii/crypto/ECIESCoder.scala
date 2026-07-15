@@ -15,9 +15,8 @@ import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.*
 import org.bouncycastle.math.ec.ECPoint
 
-/** Ethereum ECIES: `AES-128-CTR` + `HMAC-SHA-256` + `Concat-KDF(SHA-256)` over secp256k1 ECDH — the
-  * envelope scheme for the RLPx encrypted handshake. The wire layout is
-  * `ephemeralPubKey(65) || IV(16) || ciphertext || MAC(32)`.
+/** Ethereum ECIES: `AES-128-CTR` + `HMAC-SHA-256` + `Concat-KDF(SHA-256)` over secp256k1 ECDH — the envelope scheme for
+  * the RLPx encrypted handshake. The wire layout is `ephemeralPubKey(65) || IV(16) || ciphertext || MAC(32)`.
   */
 object ECIESCoder:
 

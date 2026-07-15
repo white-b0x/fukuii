@@ -5,9 +5,8 @@ import org.apache.pekko.util.ByteString
 import org.bouncycastle.crypto.Digest
 import org.bouncycastle.util.Pack
 
-/** NIST SP 800-56A concatenation KDF: derives a key stream by hashing `counter || seed` with an
-  * incrementing big-endian counter. Used by [[EthereumIESEngine]] to expand the ECDH shared secret
-  * into the AES key and the MAC key.
+/** NIST SP 800-56A concatenation KDF: derives a key stream by hashing `counter || seed` with an incrementing big-endian
+  * counter. Used by [[EthereumIESEngine]] to expand the ECDH shared secret into the AES key and the MAC key.
   *
   * @param digest
   *   the hash driving derivation (SHA-256 for Ethereum ECIES).
