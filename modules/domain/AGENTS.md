@@ -44,8 +44,10 @@ Ecosystem consensus **value types** composed from the L0 leaves: `Account`, opaq
 semantics → L3/L4/L5; `constantTimeEquals` + recovery math → L0. `domain` models shapes; the rules over
 them live at their execution/consensus layer (see the record's Layer boundaries).
 
-## Follow-up (logged, non-blocking)
+## Codec call-site idiom
 
-- Optional idiom cleanup: hand-written codecs use `summon[RLPCodec[T]].encode/decode`; L0 exposes the
-  shorter `RLPEncoder.encode`/`RLPDecoder.decode` free functions. Byte-identical; consensus-gated to change
-  (dozens of sites across 7 co-signed files) — an optional sweep, not a defect.
+Hand-written codecs use L0's `RLPEncoder.encode(v)` / `RLPDecoder.decode[T](rlp)` free functions (not
+`summon[RLPCodec[T]].encode/decode`). **Decode call sites must carry the explicit `[T]` type arg** — inside
+the aggregate `given RLPCodec[Transaction]` a bare `RLPDecoder.decode(list)` would infer `T = Transaction`
+from the return type and recurse instead of dispatching to the per-variant codec (`Legacy` etc.). Keep the
+explicit type arg on every decode.

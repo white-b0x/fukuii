@@ -3,7 +3,9 @@ package com.chipprbots.fukuii.domain
 import com.chipprbots.fukuii.bytes.Hash
 import com.chipprbots.fukuii.rlp.RLPCodec
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
+import com.chipprbots.fukuii.rlp.RLPDecoder
 import com.chipprbots.fukuii.rlp.RLPEncodeable
+import com.chipprbots.fukuii.rlp.RLPEncoder
 import com.chipprbots.fukuii.rlp.RLPException
 import com.chipprbots.fukuii.rlp.RLPList
 
@@ -25,7 +27,7 @@ object Block:
 
   given RLPCodec[Block] = new RLPCodec[Block]:
     def encode(b: Block): RLPEncodeable =
-      val header = summon[RLPCodec[BlockHeader]].encode(b.header)
+      val header = RLPEncoder.encode(b.header)
       RLPList((header +: BlockBody.bodyFields(b.body))*)
 
     def decode(rlp: RLPEncodeable): Block = rlp match
@@ -36,11 +38,11 @@ object Block:
             s"Cannot decode Block: expected at least [header, transactions, uncles], got ${items.length}",
             rlp
           )
-        val header = summon[RLPCodec[BlockHeader]].decode(items(0))
+        val header = RLPDecoder.decode[BlockHeader](items(0))
         // Length-driven, mirroring the body: item 3 is the trailing-optional withdrawals; anything past it is a
         // future field, tolerated not crashed.
         val withdrawals =
-          if items.length > 3 then Some(summon[RLPCodec[List[Withdrawal]]].decode(items(3))) else None
+          if items.length > 3 then Some(RLPDecoder.decode[List[Withdrawal]](items(3))) else None
         val body = BlockBody(BlockBody.decodeTxs(items(1)), BlockBody.decodeUncles(items(2)), withdrawals)
         Block(header, body)
       case _ => throw RLPException("Cannot decode Block: expected an RLPList", rlp)

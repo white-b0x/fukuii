@@ -3,7 +3,9 @@ package com.chipprbots.fukuii.domain
 import com.chipprbots.fukuii.rlp.PrefixedRLPEncodable
 import com.chipprbots.fukuii.rlp.RLPCodec
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
+import com.chipprbots.fukuii.rlp.RLPDecoder
 import com.chipprbots.fukuii.rlp.RLPEncodeable
+import com.chipprbots.fukuii.rlp.RLPEncoder
 import com.chipprbots.fukuii.rlp.RLPException
 import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.RLPValue
@@ -38,7 +40,7 @@ object BlockBody:
     * byte string over its `typeByte ‖ RLP(payload)` binary form (go-ethereum `[]*Transaction` `EncodeRLP`).
     */
   private[domain] def encodeTx(tx: Transaction): RLPEncodeable =
-    summon[RLPCodec[Transaction]].encode(tx) match
+    RLPEncoder.encode(tx) match
       case list: RLPList                  => list
       case prefixed: PrefixedRLPEncodable => RLPValue(rlpEncode(prefixed))
       case other                          => other
@@ -47,7 +49,7 @@ object BlockBody:
     * `typeByte ‖ RLP(payload)` binary form, routed through the EIP-2718 first-byte dispatch.
     */
   private[domain] def decodeTx(item: RLPEncodeable): Transaction = item match
-    case list: RLPList   => summon[RLPCodec[Transaction]].decode(list)
+    case list: RLPList   => RLPDecoder.decode[Transaction](list)
     case RLPValue(bytes) => Transaction.decode(bytes)
     case _               => throw RLPException("Cannot decode a block-body transaction item", item)
 
@@ -56,17 +58,17 @@ object BlockBody:
     */
   private[domain] def bodyFields(body: BlockBody): List[RLPEncodeable] =
     val txs = RLPList(body.transactionList.map(encodeTx)*)
-    val uncles = summon[RLPCodec[List[BlockHeader]]].encode(body.uncleNodesList)
+    val uncles = RLPEncoder.encode(body.uncleNodesList)
     body.withdrawals match
       case None     => List(txs, uncles)
-      case Some(ws) => List(txs, uncles, summon[RLPCodec[List[Withdrawal]]].encode(ws))
+      case Some(ws) => List(txs, uncles, RLPEncoder.encode(ws))
 
   private[domain] def decodeTxs(item: RLPEncodeable): List[Transaction] = item match
     case list: RLPList => list.items.map(decodeTx).toList
     case _             => throw RLPException("Cannot decode block-body transactions: expected an RLPList", item)
 
   private[domain] def decodeUncles(item: RLPEncodeable): List[BlockHeader] =
-    summon[RLPCodec[List[BlockHeader]]].decode(item)
+    RLPDecoder.decode[List[BlockHeader]](item)
 
   given RLPCodec[BlockBody] = new RLPCodec[BlockBody]:
     def encode(body: BlockBody): RLPEncodeable = RLPList(bodyFields(body)*)
@@ -82,6 +84,6 @@ object BlockBody:
         // Length-driven: a third item is the trailing-optional withdrawals; anything past it is a future body
         // field this build does not model — tolerated, not a crash (same open-suffix discipline as the header).
         val withdrawals =
-          if items.length > 2 then Some(summon[RLPCodec[List[Withdrawal]]].decode(items(2))) else None
+          if items.length > 2 then Some(RLPDecoder.decode[List[Withdrawal]](items(2))) else None
         BlockBody(decodeTxs(items(0)), decodeUncles(items(1)), withdrawals)
       case _ => throw RLPException("Cannot decode BlockBody: expected an RLPList", rlp)

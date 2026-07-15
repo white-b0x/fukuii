@@ -7,7 +7,9 @@ import com.chipprbots.fukuii.bytes.Hash
 import com.chipprbots.fukuii.crypto.kec256
 import com.chipprbots.fukuii.rlp.RLPCodec
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
+import com.chipprbots.fukuii.rlp.RLPDecoder
 import com.chipprbots.fukuii.rlp.RLPEncodeable
+import com.chipprbots.fukuii.rlp.RLPEncoder
 import com.chipprbots.fukuii.rlp.RLPException
 import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.encode as rlpEncode
@@ -93,32 +95,32 @@ object BlockHeader:
   given RLPCodec[BlockHeader] = new RLPCodec[BlockHeader]:
     def encode(h: BlockHeader): RLPEncodeable =
       val fixed: List[RLPEncodeable] = List(
-        summon[RLPCodec[Hash]].encode(h.parentHash),
-        summon[RLPCodec[Hash]].encode(h.ommersHash),
-        summon[RLPCodec[Address]].encode(h.beneficiary),
-        summon[RLPCodec[Hash]].encode(h.stateRoot),
-        summon[RLPCodec[Hash]].encode(h.transactionsRoot),
-        summon[RLPCodec[Hash]].encode(h.receiptsRoot),
-        summon[RLPCodec[Bloom]].encode(h.logsBloom),
-        summon[RLPCodec[BigInt]].encode(h.difficulty),
-        summon[RLPCodec[BigInt]].encode(h.number),
-        summon[RLPCodec[Long]].encode(h.gasLimit),
-        summon[RLPCodec[Long]].encode(h.gasUsed),
-        summon[RLPCodec[Long]].encode(h.unixTimestamp),
-        summon[RLPCodec[ByteString]].encode(h.extraData),
-        summon[RLPCodec[Hash]].encode(h.mixHash),
-        summon[RLPCodec[ByteString]].encode(h.nonce)
+        RLPEncoder.encode(h.parentHash),
+        RLPEncoder.encode(h.ommersHash),
+        RLPEncoder.encode(h.beneficiary),
+        RLPEncoder.encode(h.stateRoot),
+        RLPEncoder.encode(h.transactionsRoot),
+        RLPEncoder.encode(h.receiptsRoot),
+        RLPEncoder.encode(h.logsBloom),
+        RLPEncoder.encode(h.difficulty),
+        RLPEncoder.encode(h.number),
+        RLPEncoder.encode(h.gasLimit),
+        RLPEncoder.encode(h.gasUsed),
+        RLPEncoder.encode(h.unixTimestamp),
+        RLPEncoder.encode(h.extraData),
+        RLPEncoder.encode(h.mixHash),
+        RLPEncoder.encode(h.nonce)
       )
       // Positive-keyed, in geth's exact tail order — each slot is Some(encoded) iff that field is populated.
       val trailing: List[Option[RLPEncodeable]] = List(
-        h.baseFeePerGas.map(summon[RLPCodec[BigInt]].encode),
-        h.withdrawalsRoot.map(summon[RLPCodec[Hash]].encode),
-        h.blobGasUsed.map(summon[RLPCodec[Long]].encode),
-        h.excessBlobGas.map(summon[RLPCodec[Long]].encode),
-        h.parentBeaconBlockRoot.map(summon[RLPCodec[Hash]].encode),
-        h.requestsHash.map(summon[RLPCodec[Hash]].encode),
-        h.blockAccessListHash.map(summon[RLPCodec[Hash]].encode),
-        h.slotNumber.map(summon[RLPCodec[Long]].encode)
+        h.baseFeePerGas.map(v => RLPEncoder.encode(v)),
+        h.withdrawalsRoot.map(v => RLPEncoder.encode(v)),
+        h.blobGasUsed.map(v => RLPEncoder.encode(v)),
+        h.excessBlobGas.map(v => RLPEncoder.encode(v)),
+        h.parentBeaconBlockRoot.map(v => RLPEncoder.encode(v)),
+        h.requestsHash.map(v => RLPEncoder.encode(v)),
+        h.blockAccessListHash.map(v => RLPEncoder.encode(v)),
+        h.slotNumber.map(v => RLPEncoder.encode(v))
       )
       RLPList((fixed ++ encodeTrailing(trailing))*)
 
@@ -136,21 +138,21 @@ object BlockHeader:
         def opt[T](i: Int)(using dec: RLPCodec[T]): Option[T] =
           if i < trailing.length then Some(dec.decode(trailing(i))) else None
         BlockHeader(
-          parentHash = summon[RLPCodec[Hash]].decode(items(0)),
-          ommersHash = summon[RLPCodec[Hash]].decode(items(1)),
-          beneficiary = summon[RLPCodec[Address]].decode(items(2)),
-          stateRoot = summon[RLPCodec[Hash]].decode(items(3)),
-          transactionsRoot = summon[RLPCodec[Hash]].decode(items(4)),
-          receiptsRoot = summon[RLPCodec[Hash]].decode(items(5)),
-          logsBloom = summon[RLPCodec[Bloom]].decode(items(6)),
-          difficulty = summon[RLPCodec[BigInt]].decode(items(7)),
-          number = summon[RLPCodec[BigInt]].decode(items(8)),
-          gasLimit = summon[RLPCodec[Long]].decode(items(9)),
-          gasUsed = summon[RLPCodec[Long]].decode(items(10)),
-          unixTimestamp = summon[RLPCodec[Long]].decode(items(11)),
-          extraData = summon[RLPCodec[ByteString]].decode(items(12)),
-          mixHash = summon[RLPCodec[Hash]].decode(items(13)),
-          nonce = summon[RLPCodec[ByteString]].decode(items(14)),
+          parentHash = RLPDecoder.decode[Hash](items(0)),
+          ommersHash = RLPDecoder.decode[Hash](items(1)),
+          beneficiary = RLPDecoder.decode[Address](items(2)),
+          stateRoot = RLPDecoder.decode[Hash](items(3)),
+          transactionsRoot = RLPDecoder.decode[Hash](items(4)),
+          receiptsRoot = RLPDecoder.decode[Hash](items(5)),
+          logsBloom = RLPDecoder.decode[Bloom](items(6)),
+          difficulty = RLPDecoder.decode[BigInt](items(7)),
+          number = RLPDecoder.decode[BigInt](items(8)),
+          gasLimit = RLPDecoder.decode[Long](items(9)),
+          gasUsed = RLPDecoder.decode[Long](items(10)),
+          unixTimestamp = RLPDecoder.decode[Long](items(11)),
+          extraData = RLPDecoder.decode[ByteString](items(12)),
+          mixHash = RLPDecoder.decode[Hash](items(13)),
+          nonce = RLPDecoder.decode[ByteString](items(14)),
           baseFeePerGas = opt[BigInt](0),
           withdrawalsRoot = opt[Hash](1),
           blobGasUsed = opt[Long](2),

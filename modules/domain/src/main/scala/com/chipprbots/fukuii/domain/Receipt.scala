@@ -6,7 +6,9 @@ import com.chipprbots.fukuii.bytes.Hash
 import com.chipprbots.fukuii.rlp.PrefixedRLPEncodable
 import com.chipprbots.fukuii.rlp.RLPCodec
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
+import com.chipprbots.fukuii.rlp.RLPDecoder
 import com.chipprbots.fukuii.rlp.RLPEncodeable
+import com.chipprbots.fukuii.rlp.RLPEncoder
 import com.chipprbots.fukuii.rlp.RLPException
 import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.RLPValue
@@ -82,18 +84,18 @@ object Receipt:
   private def body(r: Receipt): RLPList =
     RLPList(
       ReceiptStatus.encode(r.status),
-      summon[RLPCodec[Long]].encode(r.cumulativeGasUsed),
-      summon[RLPCodec[Bloom]].encode(r.logsBloom),
-      summon[RLPCodec[List[Log]]].encode(r.logs)
+      RLPEncoder.encode(r.cumulativeGasUsed),
+      RLPEncoder.encode(r.logsBloom),
+      RLPEncoder.encode(r.logs)
     )
 
   private def fromBody(txType: Byte, rlp: RLPEncodeable): Receipt = rlp match
     case RLPList(status, gasUsed, bloom, logs) =>
       Receipt(
         status = ReceiptStatus.decode(status),
-        cumulativeGasUsed = summon[RLPCodec[Long]].decode(gasUsed),
-        logsBloom = summon[RLPCodec[Bloom]].decode(bloom),
-        logs = summon[RLPCodec[List[Log]]].decode(logs),
+        cumulativeGasUsed = RLPDecoder.decode[Long](gasUsed),
+        logsBloom = RLPDecoder.decode[Bloom](bloom),
+        logs = RLPDecoder.decode[List[Log]](logs),
         txType = txType
       )
     case list: RLPList =>

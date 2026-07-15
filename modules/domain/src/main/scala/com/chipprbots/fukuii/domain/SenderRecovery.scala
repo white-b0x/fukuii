@@ -9,8 +9,8 @@ import com.chipprbots.fukuii.crypto.ECDSASignature
 import com.chipprbots.fukuii.crypto.curve
 import com.chipprbots.fukuii.crypto.kec256
 import com.chipprbots.fukuii.crypto.pubKeyToAddress
-import com.chipprbots.fukuii.rlp.RLPCodec
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
+import com.chipprbots.fukuii.rlp.RLPEncoder
 import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.encode as rlpEncode
 
@@ -110,84 +110,84 @@ object SenderRecovery:
 
   private def legacyPre155SigHash(tx: Transaction.Legacy): Array[Byte] =
     val body = RLPList(
-      summon[RLPCodec[UInt256]].encode(tx.nonce),
-      summon[RLPCodec[Wei]].encode(tx.gasPrice),
-      summon[RLPCodec[UInt256]].encode(tx.gasLimit),
+      RLPEncoder.encode(tx.nonce),
+      RLPEncoder.encode(tx.gasPrice),
+      RLPEncoder.encode(tx.gasLimit),
       Transaction.encodeTo(tx.to),
-      summon[RLPCodec[Wei]].encode(tx.value),
-      summon[RLPCodec[ByteString]].encode(tx.payload)
+      RLPEncoder.encode(tx.value),
+      RLPEncoder.encode(tx.payload)
     )
     kec256(rlpEncode(body))
 
   private def legacy155SigHash(tx: Transaction.Legacy, chainId: ChainId): Array[Byte] =
     val body = RLPList(
-      summon[RLPCodec[UInt256]].encode(tx.nonce),
-      summon[RLPCodec[Wei]].encode(tx.gasPrice),
-      summon[RLPCodec[UInt256]].encode(tx.gasLimit),
+      RLPEncoder.encode(tx.nonce),
+      RLPEncoder.encode(tx.gasPrice),
+      RLPEncoder.encode(tx.gasLimit),
       Transaction.encodeTo(tx.to),
-      summon[RLPCodec[Wei]].encode(tx.value),
-      summon[RLPCodec[ByteString]].encode(tx.payload),
-      summon[RLPCodec[ChainId]].encode(chainId),
-      summon[RLPCodec[BigInt]].encode(BigInt(0)),
-      summon[RLPCodec[BigInt]].encode(BigInt(0))
+      RLPEncoder.encode(tx.value),
+      RLPEncoder.encode(tx.payload),
+      RLPEncoder.encode(chainId),
+      RLPEncoder.encode(BigInt(0)),
+      RLPEncoder.encode(BigInt(0))
     )
     kec256(rlpEncode(body))
 
   private def accessListSigHash(tx: Transaction.AccessList): Array[Byte] =
     val body = RLPList(
-      summon[RLPCodec[ChainId]].encode(tx.chainId),
-      summon[RLPCodec[UInt256]].encode(tx.nonce),
-      summon[RLPCodec[Wei]].encode(tx.gasPrice),
-      summon[RLPCodec[UInt256]].encode(tx.gasLimit),
+      RLPEncoder.encode(tx.chainId),
+      RLPEncoder.encode(tx.nonce),
+      RLPEncoder.encode(tx.gasPrice),
+      RLPEncoder.encode(tx.gasLimit),
       Transaction.encodeTo(tx.to),
-      summon[RLPCodec[Wei]].encode(tx.value),
-      summon[RLPCodec[ByteString]].encode(tx.payload),
-      summon[RLPCodec[List[AccessListEntry]]].encode(tx.accessList)
+      RLPEncoder.encode(tx.value),
+      RLPEncoder.encode(tx.payload),
+      RLPEncoder.encode(tx.accessList)
     )
     kec256(0x01.toByte +: rlpEncode(body))
 
   private def dynamicFeeSigHash(tx: Transaction.DynamicFee): Array[Byte] =
     val body = RLPList(
-      summon[RLPCodec[ChainId]].encode(tx.chainId),
-      summon[RLPCodec[UInt256]].encode(tx.nonce),
-      summon[RLPCodec[Wei]].encode(tx.maxPriorityFeePerGas),
-      summon[RLPCodec[Wei]].encode(tx.maxFeePerGas),
-      summon[RLPCodec[UInt256]].encode(tx.gasLimit),
+      RLPEncoder.encode(tx.chainId),
+      RLPEncoder.encode(tx.nonce),
+      RLPEncoder.encode(tx.maxPriorityFeePerGas),
+      RLPEncoder.encode(tx.maxFeePerGas),
+      RLPEncoder.encode(tx.gasLimit),
       Transaction.encodeTo(tx.to),
-      summon[RLPCodec[Wei]].encode(tx.value),
-      summon[RLPCodec[ByteString]].encode(tx.payload),
-      summon[RLPCodec[List[AccessListEntry]]].encode(tx.accessList)
+      RLPEncoder.encode(tx.value),
+      RLPEncoder.encode(tx.payload),
+      RLPEncoder.encode(tx.accessList)
     )
     kec256(0x02.toByte +: rlpEncode(body))
 
   private def blobSigHash(tx: Transaction.Blob): Array[Byte] =
     val body = RLPList(
-      summon[RLPCodec[ChainId]].encode(tx.chainId),
-      summon[RLPCodec[UInt256]].encode(tx.nonce),
-      summon[RLPCodec[Wei]].encode(tx.maxPriorityFeePerGas),
-      summon[RLPCodec[Wei]].encode(tx.maxFeePerGas),
-      summon[RLPCodec[UInt256]].encode(tx.gasLimit),
-      summon[RLPCodec[Address]].encode(tx.to),
-      summon[RLPCodec[Wei]].encode(tx.value),
-      summon[RLPCodec[ByteString]].encode(tx.payload),
-      summon[RLPCodec[List[AccessListEntry]]].encode(tx.accessList),
-      summon[RLPCodec[Wei]].encode(tx.maxFeePerBlobGas),
-      summon[RLPCodec[List[Hash]]].encode(tx.blobVersionedHashes)
+      RLPEncoder.encode(tx.chainId),
+      RLPEncoder.encode(tx.nonce),
+      RLPEncoder.encode(tx.maxPriorityFeePerGas),
+      RLPEncoder.encode(tx.maxFeePerGas),
+      RLPEncoder.encode(tx.gasLimit),
+      RLPEncoder.encode(tx.to),
+      RLPEncoder.encode(tx.value),
+      RLPEncoder.encode(tx.payload),
+      RLPEncoder.encode(tx.accessList),
+      RLPEncoder.encode(tx.maxFeePerBlobGas),
+      RLPEncoder.encode(tx.blobVersionedHashes)
     )
     kec256(0x03.toByte +: rlpEncode(body))
 
   private def setCodeSigHash(tx: Transaction.SetCode): Array[Byte] =
     val body = RLPList(
-      summon[RLPCodec[ChainId]].encode(tx.chainId),
-      summon[RLPCodec[UInt256]].encode(tx.nonce),
-      summon[RLPCodec[Wei]].encode(tx.maxPriorityFeePerGas),
-      summon[RLPCodec[Wei]].encode(tx.maxFeePerGas),
-      summon[RLPCodec[UInt256]].encode(tx.gasLimit),
-      summon[RLPCodec[Address]].encode(tx.to),
-      summon[RLPCodec[Wei]].encode(tx.value),
-      summon[RLPCodec[ByteString]].encode(tx.payload),
-      summon[RLPCodec[List[AccessListEntry]]].encode(tx.accessList),
-      summon[RLPCodec[List[SetCodeAuthorization]]].encode(tx.authorizationList)
+      RLPEncoder.encode(tx.chainId),
+      RLPEncoder.encode(tx.nonce),
+      RLPEncoder.encode(tx.maxPriorityFeePerGas),
+      RLPEncoder.encode(tx.maxFeePerGas),
+      RLPEncoder.encode(tx.gasLimit),
+      RLPEncoder.encode(tx.to),
+      RLPEncoder.encode(tx.value),
+      RLPEncoder.encode(tx.payload),
+      RLPEncoder.encode(tx.accessList),
+      RLPEncoder.encode(tx.authorizationList)
     )
     kec256(0x04.toByte +: rlpEncode(body))
 
