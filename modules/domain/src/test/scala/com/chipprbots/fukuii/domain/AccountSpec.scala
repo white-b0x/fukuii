@@ -1,5 +1,7 @@
 package com.chipprbots.fukuii.domain
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import com.chipprbots.fukuii.bytes.Hash
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
@@ -7,7 +9,6 @@ import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.decode
 import com.chipprbots.fukuii.rlp.encode
 import com.chipprbots.fukuii.rlp.rawDecode
-import org.scalatest.funsuite.AnyFunSuite
 
 /** State-account RLP, matching go-ethereum `core/types/state_account.go:31-35` field order (Nonce → Balance →
   * StorageRoot → CodeHash) and the `*uint256.Int` balance width.

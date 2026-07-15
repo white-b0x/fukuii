@@ -177,8 +177,13 @@ class EthereumIESEngine(
       key => (key, None),
       keyPairGenerator =>
         val ephKeyPair = keyPairGenerator.generateKeyPair()
-        val prvParam = ephKeyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters]
-        val pubEncodedParam = ephKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
+        val prvParam = ephKeyPair.getPrivate match
+          case p: ECPrivateKeyParameters => p
+          case other => sys.error(s"expected ECPrivateKeyParameters, got ${other.getClass.getName}")
+        val pubParam = ephKeyPair.getPublic match
+          case p: ECPublicKeyParameters => p
+          case other => sys.error(s"expected ECPublicKeyParameters, got ${other.getClass.getName}")
+        val pubEncodedParam = pubParam.getQ.getEncoded(false)
         (prvParam, Some(pubEncodedParam))
     )
 
@@ -186,7 +191,9 @@ class EthereumIESEngine(
       key => (key, None),
       keyParser =>
         val bIn = new ByteArrayInputStream(in, inOff, inLen)
-        val result = keyParser.readKey(bIn).asInstanceOf[ECPublicKeyParameters]
+        val result = keyParser.readKey(bIn) match
+          case p: ECPublicKeyParameters => p
+          case other => sys.error(s"expected ECPublicKeyParameters, got ${other.getClass.getName}")
         val encLength = inLen - bIn.available
         (result, Some(Arrays.copyOfRange(in, inOff, inOff + encLength)))
     )

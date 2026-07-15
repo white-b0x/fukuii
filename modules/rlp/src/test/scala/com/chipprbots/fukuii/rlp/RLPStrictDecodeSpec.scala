@@ -1,7 +1,8 @@
 package com.chipprbots.fukuii.rlp
 
-import com.chipprbots.fukuii.rlp.RLPCodecs.given
 import org.scalatest.funsuite.AnyFunSuite
+
+import com.chipprbots.fukuii.rlp.RLPCodecs.given
 
 /** Strict decoding: a buffer that by design holds exactly one self-contained item must reject any trailing bytes. The
   * lenient [[decode]]/[[rawDecode]] accept them (a prefix-plus-payload frame legitimately has more bytes after the

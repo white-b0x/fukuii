@@ -2,6 +2,9 @@ package com.chipprbots.fukuii.domain
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hash
 import com.chipprbots.fukuii.bytes.Hex
@@ -14,13 +17,12 @@ import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.RLPValue
 import com.chipprbots.fukuii.rlp.encode as rlpEncode
 import com.chipprbots.fukuii.rlp.rawDecode
-import org.scalatest.funsuite.AnyFunSuite
 
 /** EIP-2718 typed-transaction envelope: per-variant RLP round-trip, the `to`-field `rlp:"nil"` shape, and the
   * first-byte dispatch decoder ([[Transaction.decode(bytes: Array[Byte])]]) — including its `0xc0` boundary, the
   * canonical byte-exact regression gate for consensus code.
   */
-class TransactionSpec extends AnyFunSuite:
+class TransactionSpec extends AnyFunSuite with Matchers:
 
   private val toAddress = Address.fromHex("0x095e7baea6a6c7c4c2dfeb977efac326af552d87")
 
@@ -204,7 +206,7 @@ class TransactionSpec extends AnyFunSuite:
         "b4214dd273d83f73b5e1"
     )
     val tx = Transaction.decode(vectorBytes)
-    assert(tx.isInstanceOf[Transaction.Blob])
+    tx shouldBe a[Transaction.Blob]
     assert(tx.txType == 0x03)
     tx match
       case b: Transaction.Blob =>
@@ -232,7 +234,7 @@ class TransactionSpec extends AnyFunSuite:
     val expectedHash = Hex.decode("0x1cbb233404f49e96cb795d0ea74f485eca2c41a216e0ce80694cef4dd7a45b50")
 
     val tx = Transaction.decode(vectorBytes)
-    assert(tx.isInstanceOf[Transaction.Legacy])
+    tx shouldBe a[Transaction.Legacy]
     assert(tx.txType == 0x00)
     assert(rlpEncode(tx).sameElements(vectorBytes))
     assert(kec256(vectorBytes).sameElements(expectedHash))
@@ -248,7 +250,7 @@ class TransactionSpec extends AnyFunSuite:
     val expectedHash = Hex.decode("0xb4f8b14a7aaf85ec2f76be9fbe4155deae1f87b2da95af73be3c27ed8d4c8cb7")
 
     val tx = Transaction.decode(vectorBytes)
-    assert(tx.isInstanceOf[Transaction.AccessList])
+    tx shouldBe a[Transaction.AccessList]
     assert(tx.txType == 0x01)
     assert(rlpEncode(tx).sameElements(vectorBytes))
     assert(kec256(vectorBytes).sameElements(expectedHash))
@@ -264,7 +266,7 @@ class TransactionSpec extends AnyFunSuite:
     val expectedHash = Hex.decode("0xdad8bff3ecfcf95169b1d5625b47f3372be795802bc4fe570991cf332f609334")
 
     val tx = Transaction.decode(vectorBytes)
-    assert(tx.isInstanceOf[Transaction.DynamicFee])
+    tx shouldBe a[Transaction.DynamicFee]
     assert(tx.txType == 0x02)
     assert(rlpEncode(tx).sameElements(vectorBytes))
     assert(kec256(vectorBytes).sameElements(expectedHash))
@@ -274,27 +276,27 @@ class TransactionSpec extends AnyFunSuite:
   test("a bare legacy list (first byte >= 0xc0) dispatches to Legacy"):
     val bytes = rlpEncode(legacyTx: Transaction)
     assert((bytes(0) & 0xff) >= 0xc0)
-    assert(Transaction.decode(bytes).isInstanceOf[Transaction.Legacy])
+    Transaction.decode(bytes) shouldBe a[Transaction.Legacy]
 
   test("type byte 0x01 dispatches to AccessList"):
     val bytes = rlpEncode(accessListTx: Transaction)
     assert(bytes(0) == 0x01)
-    assert(Transaction.decode(bytes).isInstanceOf[Transaction.AccessList])
+    Transaction.decode(bytes) shouldBe a[Transaction.AccessList]
 
   test("type byte 0x02 dispatches to DynamicFee"):
     val bytes = rlpEncode(dynamicFeeTx: Transaction)
     assert(bytes(0) == 0x02)
-    assert(Transaction.decode(bytes).isInstanceOf[Transaction.DynamicFee])
+    Transaction.decode(bytes) shouldBe a[Transaction.DynamicFee]
 
   test("type byte 0x03 dispatches to Blob (consensus form)"):
     val bytes = rlpEncode(blobTx: Transaction)
     assert(bytes(0) == 0x03)
-    assert(Transaction.decode(bytes).isInstanceOf[Transaction.Blob])
+    Transaction.decode(bytes) shouldBe a[Transaction.Blob]
 
   test("type byte 0x04 dispatches to SetCode"):
     val bytes = rlpEncode(setCodeTx: Transaction)
     assert(bytes(0) == 0x04)
-    assert(Transaction.decode(bytes).isInstanceOf[Transaction.SetCode])
+    Transaction.decode(bytes) shouldBe a[Transaction.SetCode]
 
   test("type byte 0x05 is REJECTED, not silently treated as legacy"):
     intercept[RLPException](Transaction.decode(Array[Byte](0x05)))

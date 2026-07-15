@@ -1,10 +1,11 @@
 package com.chipprbots.fukuii.rlp
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hex
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
-import org.scalatest.funsuite.AnyFunSuite
 
 // The headline proof: `derives RLPCodec` compiles and produces a working codec. Old fukuii had the
 // Mirror machinery but the `RLPCodec` alias exposed no `derived`, so this line did not compile.

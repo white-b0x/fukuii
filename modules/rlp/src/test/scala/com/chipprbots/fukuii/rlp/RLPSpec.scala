@@ -2,9 +2,10 @@ package com.chipprbots.fukuii.rlp
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import com.chipprbots.fukuii.bytes.Hex
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
-import org.scalatest.funsuite.AnyFunSuite
 
 /** Canonical RLP-spec byte vectors (from `ethereum/tests/RLPTests/rlptest.json`) plus round-trips for every base and
   * value type. Byte layout is consensus-critical and matched against go-ethereum (`rlp/raw.go`, `rlp/encbuffer.go`).

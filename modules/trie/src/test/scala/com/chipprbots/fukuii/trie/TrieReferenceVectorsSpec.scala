@@ -4,9 +4,10 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 
-import com.chipprbots.fukuii.bytes.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import com.chipprbots.fukuii.bytes.Hex
 
 /** The `ethereum/tests/TrieTests` reference fixtures — the byte-exact state-root consensus gate. Runs the actual JSON
   * fixtures (plain and `*_secureTrie`), asserting every published root byte-for-byte.
@@ -21,7 +22,7 @@ class TrieReferenceVectorsSpec extends AnyFlatSpec with Matchers:
   private val fixtureDir: File =
     Iterator
       .iterate(new File(System.getProperty("user.dir")))(_.getParentFile)
-      .takeWhile(_ != null)
+      .takeWhile(Option(_).isDefined)
       .map(new File(_, fixtureSubPath))
       .find(_.isDirectory)
       .getOrElse(fail(s"could not locate $fixtureSubPath by walking up from ${System.getProperty("user.dir")}"))

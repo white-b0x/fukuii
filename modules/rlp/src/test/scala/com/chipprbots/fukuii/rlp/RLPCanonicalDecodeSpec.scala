@@ -1,9 +1,10 @@
 package com.chipprbots.fukuii.rlp
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import com.chipprbots.fukuii.bytes.Hex
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
-import org.scalatest.funsuite.AnyFunSuite
 
 /** Canonical-decode enforcement — the strict-decode rules go-ethereum applies in `rlp/raw.go` and `rlp/decode.go`. Old
   * fukuii inherited Mantis's lenient decoder, which accepted these non-canonical encodings; a lenient decoder is a

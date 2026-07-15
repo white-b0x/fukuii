@@ -4,7 +4,6 @@ import org.apache.pekko.util.ByteString
 
 import scala.util.Try
 
-import com.chipprbots.fukuii.bytes.ByteUtils
 import org.bouncycastle.asn1.x9.X9IntegerConverter
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.digests.SHA256Digest
@@ -13,6 +12,8 @@ import org.bouncycastle.crypto.signers.ECDSASigner
 import org.bouncycastle.crypto.signers.HMacDSAKCalculator
 import org.bouncycastle.math.ec.ECCurve
 import org.bouncycastle.math.ec.ECPoint
+
+import com.chipprbots.fukuii.bytes.ByteUtils
 
 object ECDSASignature:
 
@@ -93,7 +94,10 @@ object ECDSASignature:
       key: AsymmetricCipherKeyPair,
       messageHash: Array[Byte]
   ): Option[Byte] =
-    val pubKey = key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
+    val pubKeyParam = key.getPublic match
+      case p: ECPublicKeyParameters => p
+      case other                    => sys.error(s"expected ECPublicKeyParameters, got ${other.getClass.getName}")
+    val pubKey = pubKeyParam.getQ.getEncoded(false).tail
     Seq(positivePointSign, negativePointSign).find { i =>
       recoverPubBytes(r, s, i, messageHash).exists(java.util.Arrays.equals(_, pubKey))
     }
@@ -110,7 +114,9 @@ object ECDSASignature:
       val order = curve.getCurve.getOrder
       // x = r (the case x = r + order is negligibly improbable and ignored, matching libsecp256k1).
       val xCoordinate = r
-      val curveFp = curve.getCurve.asInstanceOf[ECCurve.Fp]
+      val curveFp = curve.getCurve match
+        case fp: ECCurve.Fp => fp
+        case other          => sys.error(s"expected ECCurve.Fp, got ${other.getClass.getName}")
       val prime = curveFp.getQ
 
       checkPointSignValidity(recId).flatMap { recovery =>

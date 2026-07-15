@@ -9,9 +9,10 @@ import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
-import com.chipprbots.fukuii.common.Logger
 import fs2.Stream
 import org.rocksdb.*
+
+import com.chipprbots.fukuii.common.Logger
 
 /** Per-`ChainInstance` RocksDB configuration. Every field is supplied by the instance that owns a given
   * `RocksDbDataSource` (constructor-injected — never a process-global default) so two `ChainInstance`s (e.g. two
@@ -192,7 +193,7 @@ final class RocksDbDataSource private (
       }
     catch
       case error: RocksDbDataSourceClosedException => throw error
-      case NonFatal(error)                         => throw RocksDbDataSourceException(s"DataSource not updated", error)
+      case NonFatal(error)                         => throw RocksDbDataSourceException("DataSource not updated", error)
     finally dbLock.writeLock().unlock()
 
   /** One native range tombstone for the whole interval — O(1) write, lazily reclaimed by compaction. Never expand a
@@ -385,7 +386,7 @@ final class RocksDbDataSource private (
       statistics = None
     catch
       case error: RocksDbDataSourceClosedException => throw error
-      case NonFatal(error) => throw RocksDbDataSourceException(s"Failed to close DataSource", error)
+      case NonFatal(error) => throw RocksDbDataSourceException("Failed to close DataSource", error)
     finally dbLock.writeLock().unlock()
 
   /** Test/staging-area only. */
@@ -413,7 +414,7 @@ object RocksDbDataSource extends Logger:
     catch
       case NonFatal(error) =>
         throw RocksDbDataSourceException(
-          s"Failed to load the RocksDB native library — ensure rocksdbjni is on the classpath",
+          "Failed to load the RocksDB native library — ensure rocksdbjni is on the classpath",
           error
         )
 
@@ -551,7 +552,7 @@ object RocksDbDataSource extends Logger:
       RocksDB.destroyDB(config.path, options)
       options.close()
       cfOptions.close()
-    catch case NonFatal(error) => throw RocksDbDataSourceException(s"Failed to destroy DataSource", error)
+    catch case NonFatal(error) => throw RocksDbDataSourceException("Failed to destroy DataSource", error)
 
   /** Opens (or creates) the RocksDB instance at `rocksDbConfig.path`.
     *

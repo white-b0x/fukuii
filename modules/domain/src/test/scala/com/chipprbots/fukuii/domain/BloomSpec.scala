@@ -1,10 +1,11 @@
 package com.chipprbots.fukuii.domain
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hash
 import com.chipprbots.fukuii.bytes.Hex
 import com.chipprbots.fukuii.crypto.kec256
-import org.scalatest.funsuite.AnyFunSuite
 
 /** Byte-exact against go-ethereum `core/types/bloom9_test.go` — the `bloomValues`/`Add` bit-index scheme, not just
   * "some" bloom filter shape.

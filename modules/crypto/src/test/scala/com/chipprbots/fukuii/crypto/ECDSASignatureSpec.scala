@@ -58,7 +58,10 @@ class ECDSASignatureSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   it should "sign a message and recover the signing public key (round-trip)" in {
     forAll(arbitrary[Array[Byte]]) { message =>
       val keys = generateKeyPair(secureRandom)
-      val pubKey = keys.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
+      val pubParam = keys.getPublic match
+        case p: ECPublicKeyParameters => p
+        case other                    => sys.error(s"expected ECPublicKeyParameters, got ${other.getClass.getName}")
+      val pubKey = pubParam.getQ
       val msg = kec256(message)
 
       val signature = ECDSASignature.sign(msg, keys)

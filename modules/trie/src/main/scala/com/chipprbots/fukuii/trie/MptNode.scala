@@ -19,7 +19,8 @@ import com.chipprbots.fukuii.rlp.rawDecode
   * list of the wrong arity, an oversized (`>= 32`) embedded child that should have been a hash reference, or a bad
   * hex-prefix flag byte — must fail loud here, never silently mis-decode into a wrong-but-plausible node.
   */
-final class MptNodeDecodeException(message: String, cause: Throwable = null) extends RuntimeException(message, cause)
+final class MptNodeDecodeException(message: String, cause: Option[Throwable] = None)
+    extends RuntimeException(message, cause.orNull)
 
 /** A Merkle Patricia Trie node — the five consensus node shapes.
   *
@@ -153,7 +154,7 @@ object MptNode:
     try parse(rawDecode(bytes))
     catch
       case e: MptNodeDecodeException => throw e
-      case e: Throwable => throw new MptNodeDecodeException(s"Malformed MPT node bytes: ${e.getMessage}", e)
+      case e: Throwable => throw new MptNodeDecodeException(s"Malformed MPT node bytes: ${e.getMessage}", Some(e))
 
   private def parse(rlp: RLPEncodeable): MptNode = rlp match
     case list: RLPList if list.items.size == ListSize =>

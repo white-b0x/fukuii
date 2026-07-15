@@ -2,15 +2,16 @@ package com.chipprbots.fukuii.crypto
 
 import java.security.SecureRandom
 
+import org.scalacheck.Arbitrary.arbitrary
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import com.chipprbots.fukuii.bytes.ByteUtils
 import com.chipprbots.fukuii.crypto.zksnark.BN128.BN128G1
 import com.chipprbots.fukuii.crypto.zksnark.BN128.BN128G2
 import com.chipprbots.fukuii.crypto.zksnark.Fp
 import com.chipprbots.fukuii.crypto.zksnark.PairingCheck.G1G2Pair
-import org.scalacheck.Arbitrary.arbitrary
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 /** The `CryptoBackend` seam must be byte-identical to calling the wrapped pure-BouncyCastle primitives directly — it is
   * a summonable interface, not an alternate implementation. This is the differential KAT `plan/L0.md` §7 requires

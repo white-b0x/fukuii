@@ -2,6 +2,9 @@ package com.chipprbots.fukuii.domain
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.crypto.ECDSASignature
@@ -10,13 +13,12 @@ import com.chipprbots.fukuii.rlp.RLPList
 import com.chipprbots.fukuii.rlp.RLPValue
 import com.chipprbots.fukuii.rlp.encode as rlpEncode
 import com.chipprbots.fukuii.rlp.rawDecode
-import org.scalatest.funsuite.AnyFunSuite
 
 /** [[BlockBody]] RLP: the trailing-optional `withdrawals` list (present post-Shanghai ETH, omitted for ETC /
   * pre-Shanghai), and the legacy-vs-typed transaction nesting (a typed tx wraps as an RLP byte string inside the
   * transaction list, byte-exact to go-ethereum's `[]*Transaction` encoding).
   */
-class BlockBodySpec extends AnyFunSuite:
+class BlockBodySpec extends AnyFunSuite with Matchers:
 
   private val toAddress = Address.fromHex("0x095e7baea6a6c7c4c2dfeb977efac326af552d87")
 
@@ -77,8 +79,8 @@ class BlockBodySpec extends AnyFunSuite:
     rawDecode(rlpEncode(body)) match
       case RLPList(txs: RLPList, _, _*) =>
         assert(txs.items.length == 2)
-        assert(txs.items(0).isInstanceOf[RLPList], "legacy tx should be a bare list")
-        assert(txs.items(1).isInstanceOf[RLPValue], "typed tx should be a wrapped byte string")
+        withClue("legacy tx should be a bare list: ")(txs.items(0) shouldBe a[RLPList])
+        withClue("typed tx should be a wrapped byte string: ")(txs.items(1) shouldBe a[RLPValue])
       case other => fail(s"expected [txs, uncles], got $other")
 
   test("mixed legacy + typed transaction body round-trips"):

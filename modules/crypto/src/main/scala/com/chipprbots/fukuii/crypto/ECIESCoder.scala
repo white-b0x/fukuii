@@ -62,8 +62,14 @@ object ECIESCoder:
     val eGen = new ECKeyPairGenerator
     eGen.init(new ECKeyGenerationParameters(curve, secureRandom))
     val ephemPair = eGen.generateKeyPair
-    val prv = ephemPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD
-    val pub = ephemPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
+    val prvParam = ephemPair.getPrivate match
+      case p: ECPrivateKeyParameters => p
+      case other                     => sys.error(s"expected ECPrivateKeyParameters, got ${other.getClass.getName}")
+    val pubParam = ephemPair.getPublic match
+      case p: ECPublicKeyParameters => p
+      case other                    => sys.error(s"expected ECPublicKeyParameters, got ${other.getClass.getName}")
+    val prv = prvParam.getD
+    val pub = pubParam.getQ
 
     val iesEngine = makeIESEngine(toPub, prv, Some(iv))
     pub.getEncoded(false) ++ iv ++

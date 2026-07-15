@@ -4,14 +4,15 @@ import java.security.SecureRandom
 
 import org.apache.pekko.util.ByteString
 
-import com.chipprbots.fukuii.bytes.Address
-import com.chipprbots.fukuii.bytes.ByteUtils
 import org.bouncycastle.asn1.sec.SECNamedCurves
 import org.bouncycastle.asn1.x9.X9ECParameters
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.generators.ECKeyPairGenerator
 import org.bouncycastle.crypto.params.*
 import org.bouncycastle.math.ec.ECPoint
+
+import com.chipprbots.fukuii.bytes.Address
+import com.chipprbots.fukuii.bytes.ByteUtils
 
 /** secp256k1 domain parameters and key-material helpers.
   *
@@ -53,8 +54,14 @@ def keyPairFromPrvKey(prvKeyBytes: ByteString): AsymmetricCipherKeyPair =
   *   with its `0x04` prefix byte dropped (the 64-byte `X || Y` form Ethereum uses everywhere).
   */
 def keyPairToByteArrays(keyPair: AsymmetricCipherKeyPair): (Array[Byte], Array[Byte]) =
-  val prvKey = ByteUtils.bigIntToBytes(BigInt(keyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD), 32)
-  val pubKey = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
+  val prvParam = keyPair.getPrivate match
+    case p: ECPrivateKeyParameters => p
+    case other                     => sys.error(s"expected ECPrivateKeyParameters, got ${other.getClass.getName}")
+  val pubParam = keyPair.getPublic match
+    case p: ECPublicKeyParameters => p
+    case other                    => sys.error(s"expected ECPublicKeyParameters, got ${other.getClass.getName}")
+  val prvKey = ByteUtils.bigIntToBytes(BigInt(prvParam.getD), 32)
+  val pubKey = pubParam.getQ.getEncoded(false).tail
   (prvKey, pubKey)
 
 /** As [[keyPairToByteArrays]] but returning `ByteString`s. */

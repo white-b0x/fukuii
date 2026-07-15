@@ -2,6 +2,9 @@ package com.chipprbots.fukuii.domain
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hash
 import com.chipprbots.fukuii.bytes.Hex
@@ -10,7 +13,6 @@ import com.chipprbots.fukuii.crypto.ECDSASignature
 import com.chipprbots.fukuii.crypto.curve
 import com.chipprbots.fukuii.crypto.pubKeyFromPrvKey
 import com.chipprbots.fukuii.crypto.pubKeyToAddress
-import org.scalatest.funsuite.AnyFunSuite
 
 /** EIP-155 sender recovery + the N-1 `ValidateSignatureValues` gate (`plan/L1.md` §5, §7; RX-L1-09/10/12).
   *
@@ -19,7 +21,7 @@ import org.scalatest.funsuite.AnyFunSuite
   * recovery (ETC 61, ETH 1, unprotected 27/28, AccessList, DynamicFee); the H-1 block-gated `homestead` acceptance of
   * full-N `s`; the N-1 rejection fail-set; and the second (EIP-7702) authorization-recovery surface.
   */
-class SenderRecoverySpec extends AnyFunSuite:
+class SenderRecoverySpec extends AnyFunSuite with Matchers:
 
   private val N: BigInt = BigInt(curve.getN)
   private val halfN: BigInt = N >> 1
@@ -50,7 +52,7 @@ class SenderRecoverySpec extends AnyFunSuite:
       "0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83"
     )
     val tx = Transaction.decode(bytes)
-    assert(tx.isInstanceOf[Transaction.Legacy])
+    tx shouldBe a[Transaction.Legacy]
     val expected = Address.fromHex("0x9d8a62f656a8d1615c1294fd71e9cfb3e4855a4f")
     assert(tx.getSender(homestead = true) == Right(expected))
 

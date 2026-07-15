@@ -1,10 +1,11 @@
 package com.chipprbots.fukuii.domain
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.rlp.RLPCodecs.given
 import com.chipprbots.fukuii.rlp.decode
 import com.chipprbots.fukuii.rlp.encode
-import org.scalatest.funsuite.AnyFunSuite
 
 class WeiSpec extends AnyFunSuite:
 

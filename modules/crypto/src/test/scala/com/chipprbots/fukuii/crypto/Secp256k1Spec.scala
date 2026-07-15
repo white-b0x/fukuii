@@ -4,9 +4,10 @@ import java.security.SecureRandom
 
 import org.apache.pekko.util.ByteString
 
-import com.chipprbots.fukuii.bytes.Address
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.funsuite.AnyFunSuite
+
+import com.chipprbots.fukuii.bytes.Address
 
 /** secp256k1 key generation, public-key derivation and address derivation.
   *

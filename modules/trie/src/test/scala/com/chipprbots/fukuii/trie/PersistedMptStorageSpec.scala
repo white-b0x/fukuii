@@ -2,11 +2,12 @@ package com.chipprbots.fukuii.trie
 
 import org.apache.pekko.util.ByteString
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 import com.chipprbots.fukuii.storage.EphemDataSource
 import com.chipprbots.fukuii.storage.HashKeyedNodeStorage
 import com.chipprbots.fukuii.storage.PathKeyedNodeStorage
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 /** S2 gate: the same state committed under a hash-keyed profile and a path-keyed profile must produce the
   * byte-identical state root — only the on-disk key layout differs, never the content-addressed commitment (geth

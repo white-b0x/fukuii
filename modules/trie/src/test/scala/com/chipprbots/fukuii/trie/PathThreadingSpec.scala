@@ -2,6 +2,9 @@ package com.chipprbots.fukuii.trie
 
 import org.apache.pekko.util.ByteString
 
+import scala.collection.mutable.LinkedHashMap
+import scala.collection.mutable.ListBuffer
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -21,8 +24,8 @@ class PathThreadingSpec extends AnyFlatSpec with Matchers:
     * paths a commit threads while still resolving reads by hash alone (so a Hash-rooted re-commit short-circuits).
     */
   final private class CapturingMptStorage extends MptStorage:
-    val stored = scala.collection.mutable.LinkedHashMap.empty[ByteString, Array[Byte]]
-    val writes = scala.collection.mutable.ListBuffer.empty[(Location, ByteString)]
+    val stored: LinkedHashMap[ByteString, Array[Byte]] = scala.collection.mutable.LinkedHashMap.empty[ByteString, Array[Byte]]
+    val writes: ListBuffer[(Location, ByteString)] = scala.collection.mutable.ListBuffer.empty[(Location, ByteString)]
 
     override def loadNode(location: Location, hash: NodeHash): Option[NodeEncoded] =
       stored.get(hash.bytes).map(NodeEncoded.apply)

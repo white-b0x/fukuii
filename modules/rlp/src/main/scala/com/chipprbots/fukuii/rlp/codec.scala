@@ -1,6 +1,6 @@
 package com.chipprbots.fukuii.rlp
 
-import scala.compiletime.erasedValue
+import scala.compiletime.constValue
 import scala.compiletime.summonInline
 import scala.deriving.Mirror
 import scala.util.control.NonFatal
@@ -63,51 +63,63 @@ object RLPCodec:
     * `given`, exactly as reth hand-writes those cases rather than deriving them — keeping the special behavior visible
     * per type. Each field type must have its own `RLPCodec` in scope (`import RLPCodecs.given`).
     */
-  inline def derived[T](using m: Mirror.ProductOf[T]): RLPCodec[T] =
-    // `inline` only reaches far enough to summon each field's codec at compile time; the actual codec
-    // object is built by the regular (non-inline) `productCodec`, so the anonymous class is defined
-    // once rather than duplicated at every `derives` site (avoids E197).
-    productCodec[T](m, summonCodecs[m.MirroredElemTypes])
+  inline def derived[T <: Product](using m: Mirror.ProductOf[T]): RLPCodec[T] =
+    // `inline` only reaches far enough to resolve the fully-typed field-tuple codec and the field count at
+    // compile time; the actual codec object is built by the regular (non-inline) `productCodec`, so the
+    // anonymous class is defined once rather than duplicated at every `derives` site (avoids E197).
+    productCodec[T](m)(
+      summonInline[TupleRLPCodec[m.MirroredElemTypes]],
+      constValue[Tuple.Size[m.MirroredElemTypes]]
+    )
 
-  private inline def summonCodecs[T <: Tuple]: List[RLPCodec[?]] =
-    inline erasedValue[T] match
-      case _: EmptyTuple     => Nil
-      case _: (head *: tail) => summonInline[RLPCodec[head]] :: summonCodecs[tail]
+  /** Type-directed RLP codec for a product's heterogeneous field tuple.
+    *
+    * Recurses on the tuple's `H *: T` cons structure so every field keeps its precise static type through the fold
+    * (`head: RLPCodec[H]` is summoned per element, `tail` handles the rest) — no field is ever erased to an
+    * existential `RLPCodec[?]`/`Any`, which is exactly what lets [[productCodec]] run with zero `asInstanceOf`. Field
+    * resolution is identical to the old per-element `summonInline[RLPCodec[head]]`: the same `given RLPCodec[H]` for
+    * each field type, in the same declaration order.
+    *
+    * Public because it is part of the derivation surface: `derived` is `inline`, so its `summonInline[TupleRLPCodec[…]]`
+    * resolves against the *call site's* implicit scope in whichever module writes `derives RLPCodec`. These givens live
+    * in this companion (always in implicit scope for a `TupleRLPCodec[_]` search, no import needed) and therefore must be
+    * accessible from those sites — the same reason a field's `given RLPCodec[H]` must be. Not intended for direct use.
+    */
+  trait TupleRLPCodec[T <: Tuple]:
+    def encode(t: T): List[RLPEncodeable]
+    def decode(items: List[RLPEncodeable]): T
 
-  private def productCodec[T](
-      m: Mirror.ProductOf[T],
-      codecs: List[RLPCodec[?]]
+  object TupleRLPCodec:
+    given TupleRLPCodec[EmptyTuple] with
+      def encode(t: EmptyTuple): List[RLPEncodeable] = Nil
+      def decode(items: List[RLPEncodeable]): EmptyTuple = EmptyTuple
+
+    given [H, T <: Tuple](using head: RLPCodec[H], tail: TupleRLPCodec[T]): TupleRLPCodec[H *: T] with
+      def encode(t: H *: T): List[RLPEncodeable] = head.encode(t.head) :: tail.encode(t.tail)
+      def decode(items: List[RLPEncodeable]): H *: T = items match
+        case h :: rest => head.decode(h) *: tail.decode(rest)
+        // Unreachable in normal flow: `productCodec.decode` arity-checks before recursing, so the element count
+        // always matches the tuple length. Kept as a defensive hard failure rather than a silent truncation.
+        case Nil => throw RLPException("Cannot decode product: fewer RLP elements than fields")
+
+  private def productCodec[T <: Product](m: Mirror.ProductOf[T])(
+      tc: TupleRLPCodec[m.MirroredElemTypes],
+      size: Int
   ): RLPCodec[T] =
-    val fieldCodecs = codecs.toArray
     new RLPCodec[T]:
       def encode(obj: T): RLPEncodeable =
-        val product = (obj: Any) match
-          case p: Product => p
-        val buf = new Array[RLPEncodeable](fieldCodecs.length)
-        var i = 0
-        while i < fieldCodecs.length do
-          // Not convertible to a typed match: Scala 3's E092 rejects `case _: RLPEncoder[Any]` here since
-          // the type argument can't be recovered from the existential `RLPCodec[?]` at runtime.
-          buf(i) = fieldCodecs(i).asInstanceOf[RLPEncoder[Any]].encode(product.productElement(i))
-          i += 1
-        RLPList(buf*)
+        RLPList(tc.encode(Tuple.fromProductTyped(obj)(using m))*)
 
       def decode(rlp: RLPEncodeable): T =
         rlp match
           case list: RLPList =>
             val items = list.items
-            if items.length != fieldCodecs.length then
+            if items.length != size then
               throw RLPException(
-                s"Cannot decode product: expected ${fieldCodecs.length} elements, got ${items.length}",
+                s"Cannot decode product: expected $size elements, got ${items.length}",
                 rlp
               )
-            val values = new Array[Any](fieldCodecs.length)
-            var i = 0
-            while i < fieldCodecs.length do
-              // See the matching E092 note in `encode` above — same existential-erasure limit.
-              values(i) = fieldCodecs(i).asInstanceOf[RLPDecoder[Any]].decode(items(i))
-              i += 1
-            m.fromProduct(Tuple.fromArray(values))
+            m.fromProduct(tc.decode(items.toList))
           case _ =>
             throw RLPException("Cannot decode product: expected an RLPList", rlp)
 
