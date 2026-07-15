@@ -3,6 +3,10 @@ package com.chipprbots.fukuii.domain
 import org.apache.pekko.util.ByteString
 
 import com.chipprbots.fukuii.crypto.kec256
+import com.chipprbots.fukuii.rlp.RLPCodec
+import com.chipprbots.fukuii.rlp.RLPEncodeable
+import com.chipprbots.fukuii.rlp.RLPException
+import com.chipprbots.fukuii.rlp.RLPValue
 
 /** The 256-byte (2048-bit) logs-bloom filter carried per-receipt and aggregated into the block header.
   *
@@ -25,6 +29,16 @@ object Bloom:
     bytes
 
   def apply(bytes: Array[Byte]): Bloom = apply(ByteString(bytes))
+
+  /** The 256-byte filter as a **full fixed-width byte string** (leading zeros preserved) — like [[Address]]/[[Hash]],
+    * not a scalar. go-ethereum encodes the header/receipt `Bloom [256]byte` as its raw bytes; decode is strict on the
+    * 256-byte length (via [[apply]]'s `require`).
+    */
+  given RLPCodec[Bloom] = new RLPCodec[Bloom]:
+    def encode(obj: Bloom): RLPEncodeable = RLPValue(obj.toArray)
+    def decode(rlp: RLPEncodeable): Bloom = rlp match
+      case RLPValue(bytes) => Bloom(ByteString(bytes))
+      case _               => throw RLPException("src is not an RLPValue for Bloom", rlp)
 
   /** The aggregate filter over every log in a receipt, matching go-ethereum `CreateBloom` (`bloom9.go:107-119`): each
     * log's address and every one of its topics contribute bits.
