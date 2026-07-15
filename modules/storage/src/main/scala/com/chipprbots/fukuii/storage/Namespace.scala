@@ -131,6 +131,30 @@ enum Namespace(
     */
   case SchemaMeta extends Namespace('z'.toByte)
 
+  /** Per-node refcount-GC bookkeeping (S3): `nodeHash -> RefEntry(refCount, location, childHashes, lastUsedByBlock)`.
+    * As hot as [[Node]] itself — every trie-node commit touches it. Dedicated CF rather than a prefix within [[Node]]
+    * (the AS-IS anti-pattern this replaces, L2 improvement #15).
+    */
+  case RefCount extends Namespace('e'.toByte, isEligibleToHighSpecFlag = true, isCacheIndexAndFilterBlocks = true)
+
+  /** Death-row bookkeeping (S3): `nodeHash -> blockNumber` at which the node's refcount reached zero — the
+    * [[PruningStore.prune]] safe-height barrier's candidate set. Dedicated CF, not a prefix within [[Node]].
+    */
+  case DeathRow extends Namespace('j'.toByte)
+
+  /** The retained-root ring (S3): `blockNumber -> rootHash` for every block still within the local retention window —
+    * the anchor [[PruningStore.commitBlock]] releases once a root falls `historyBlocks` deep. Small, bounded by the
+    * window size.
+    */
+  case RetainedRoot extends Namespace('v'.toByte)
+
+  /** Per-block pruning undo-log (S3): `blockNumber -> BlockSnapshot`, replayed by [[PruningStore.rollback]] on a reorg.
+    * Append-only until [[PruningStore.prune]] discards entries at or below the safe height (a rollback beyond it is
+    * never valid).
+    */
+  case PruneSnapshot
+      extends Namespace('x'.toByte, containsStaticData = true, isStaticDataGarbageCollectionEnabled = true)
+
 object Namespace:
 
   /** Storage-profile tags a namespace's column family may belong to. `Base` = every profile (the default); `Snap` and
