@@ -55,6 +55,34 @@ enum MptNode:
     case Hash(ref) => ref
     case _         => ByteString(kec256(encoded))
 
+  /** Whether this node is persisted as its own store entry (and thus reference-counted independently) rather than
+    * inlined into its parent. A [[Hash]] reference always is (it names a stored node from this or a prior commit); a
+    * resident node is iff its RLP is `>= 32` bytes (below that it is embedded verbatim in its parent — geth's `< 32`
+    * inline rule). [[Null]] never is. This is exactly the predicate under which
+    * [[MerklePatriciaTrie.store]]/`persistIfBig` writes a child to storage, so a child that answers `true` is
+    * guaranteed present in the committed set/store (upholds forge F-2: no dangling child-hash).
+    */
+  private def isStoredSeparately: Boolean = this match
+    case Null    => false
+    case Hash(_) => true
+    case _       => encoded.length >= MptNode.MaxEncodedNodeLength
+
+  /** The direct child node-hashes this node contributes as edges to the refcount graph (S3a `RefCountedNodeStore`).
+    *
+    * A [[Branch]] yields the hash of each populated child slot stored as its own node; an [[Extension]] yields its
+    * `next` child's; [[Leaf]] (its value is inline data, not a node), [[Hash]] (a reference, not a node with resident
+    * children), and [[Null]] yield none. **Only children that are themselves separate store entries** ([[Hash]] refs,
+    * or resident nodes `>= 32` bytes — see [[isStoredSeparately]]) are emitted: an embedded (`< 32`-byte) child has no
+    * independent store entry, so emitting its hash would be a dangling reference (forge F-2). The trie extracts these
+    * hashes; `storage` refcounts them (byte-pure boundary — `storage` never parses a node).
+    */
+  def childHashes: Seq[ByteString] = this match
+    case Branch(children, _) => children.collect { case c if c.isStoredSeparately => c.hash }
+    case Extension(_, next)  => if next.isStoredSeparately then Seq(next.hash) else Nil
+    case Leaf(_, _)          => Nil
+    case Hash(_)             => Nil
+    case Null                => Nil
+
 object MptNode:
 
   /** RLP list length of a branch node (16 children + terminator). */

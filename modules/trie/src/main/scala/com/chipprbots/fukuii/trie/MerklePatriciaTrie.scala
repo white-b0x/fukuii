@@ -302,24 +302,35 @@ object MerklePatriciaTrie:
     if rootHash == MptNode.EmptyRootHash then new MerklePatriciaTrie[K, V](None, storage)
     else new MerklePatriciaTrie[K, V](Some(MptNode.Hash(rootHash)), storage)
 
-  /** Persist a resident tree into `updater`, returning the force-hashed root reference (always a [[MptNode.Hash]]). */
-  private[trie] def store(node: MptNode, updater: NodeUpdater): MptNode = storeNode(node, updater, force = true)
+  /** Persist a resident tree into `updater`, returning the force-hashed root reference (always a [[MptNode.Hash]]).
+    *
+    * Threads the **nibble path from the trie root** through the descent so each node is stored under its real `Location
+    * \= (None, pathFromRoot)` — geth `committer.commit(path, n)` (`trie/committer.go:51-118`): a node is stored at its
+    * own `path`, an extension's child at `path ++ sharedKey`, a branch's child `i` at `path :+ i`. `owner = None` —
+    * this is the state/account trie; the per-account **owner** for storage sub-tries is composed at L4 world-state, not
+    * here. **Root-neutral:** node bytes ([[MptNode.encoded]]), the keccak hash, and the returned reference are
+    * untouched; only the `Location` handed to storage changes from the placeholder [[Location.Root]] to the real path
+    * (and the root node's own path *is* [[Location.Root]], so its key is unchanged). A hash-keyed store ignores
+    * `location` entirely, so the state root stays byte-identical under either keying scheme.
+    */
+  private[trie] def store(node: MptNode, updater: NodeUpdater): MptNode =
+    storeNode(node, Array.emptyByteArray, updater, force = true)
 
-  private def storeNode(node: MptNode, updater: NodeUpdater, force: Boolean): MptNode = node match
+  private def storeNode(node: MptNode, path: Array[Byte], updater: NodeUpdater, force: Boolean): MptNode = node match
     case MptNode.Null    => MptNode.Null
     case h: MptNode.Hash => h
-    case _: MptNode.Leaf => persistIfBig(node, updater, force)
-    case MptNode.Extension(_, next) =>
-      val _ = storeNode(next, updater, force = false)
-      persistIfBig(node, updater, force)
+    case _: MptNode.Leaf => persistIfBig(node, path, updater, force)
+    case MptNode.Extension(sharedKey, next) =>
+      val _ = storeNode(next, path ++ sharedKey.toArray, updater, force = false)
+      persistIfBig(node, path, updater, force)
     case MptNode.Branch(children, _) =>
-      children.foreach(c => storeNode(c, updater, force = false))
-      persistIfBig(node, updater, force)
+      children.indices.foreach(i => storeNode(children(i), path :+ i.toByte, updater, force = false))
+      persistIfBig(node, path, updater, force)
 
-  private def persistIfBig(node: MptNode, updater: NodeUpdater, force: Boolean): MptNode =
+  private def persistIfBig(node: MptNode, path: Array[Byte], updater: NodeUpdater, force: Boolean): MptNode =
     val bytes = node.encoded
     if force || bytes.length >= MptNode.MaxEncodedNodeLength then
       val h = ByteString(kec256(bytes))
-      updater.storeNode(Location.Root, NodeHash(h), NodeEncoded(bytes))
+      updater.storeNode(Location(ByteString(path)), NodeHash(h), NodeEncoded(bytes))
       MptNode.Hash(h)
     else node
