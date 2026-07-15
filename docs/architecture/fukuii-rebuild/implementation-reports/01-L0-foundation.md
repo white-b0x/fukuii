@@ -403,6 +403,43 @@ pure cryptographic primitive with EVM gas/dispatch. The primitive now lives at L
 *precompile wrappers* (gas schedule, MSM discount table, input-length dispatch, and the precompile-address
 mapping — which itself differs across EIP-2537 revisions) are deferred to `evm` (L3).
 
+#### 20. `Secp256r1` (P256VERIFY) + `Blake2b` (BLAKE2F) — two precompile primitives back-filled during L3 kickoff
+
+Two consensus-critical crypto primitives that the L3 `evm` precompile wrappers call down into were
+**missed in the initial L0 build and back-filled on 2026-07-15**, when the L3 reference map was verified
+against the built `modules/crypto` and the gap surfaced. Both belong at L0 by the same
+primitives-at-L0-wrappers-at-L3 discipline as §18/§19: every classic-set precompile primitive is an L0
+`crypto` member (`Secp256k1`, `Hashes.sha256`/`ripemd160`, `zksnark.BN128`, `kzg.Kzg`, `bls.Bls12381`).
+
+- **`Secp256r1`** — `verify(hash, r, s, x, y): Boolean`, the EIP-7951 P256VERIFY (`0x0100`) primitive.
+  secp256r1 was already documented L0 scope (`plan/L0.md` KZG/BLS row lists the `0x0100` P256VERIFY
+  primitive); L0 simply missed porting the AS-IS `crypto/Secp256r1.scala`.
+  **Consensus-critical implementation-path decision (forge co-signed, CHANGES-REQUIRED → applied):** the
+  AS-IS delegated the on-curve check + verify to the **platform JDK EC provider** (`KeyFactory` +
+  `NONEwithECDSA`). That was **rejected** and re-implemented on the **pure-BouncyCastle** path
+  (`r1Params.getCurve.createPoint` + `point.isValid` + `ECDSASigner().verifySignature(hash, r, s)`) —
+  matching besu `SECP256R1`/`AbstractSECP256` and the §13 CryptoBackend discipline. **Why:** ECDSA
+  *verify* is deterministic on well-formed input, but P256 input is attacker-controlled precompile
+  calldata; a crafted in-range-but-off-curve key is rejected by the JDK provider, and *which* provider
+  answers (`SunEC` vs a registered BC vs another JDK vendor) is unpinned — two nodes on different JDKs
+  could disagree (VALID vs INVALID) → state-root split → chain split. P256VERIFY has **never been
+  consensus-active** (Olympia/Osaka are future), so there was no production fence protecting the provider
+  choice; fixing it before it gates a state root was free. `ECDSASigner()` default keeps EIP-7951's
+  malleable (high-s-accepting) verify — no low-s enforcement. The dead DER helpers
+  (`toDerSignature`/`toUnsignedByteArray`) were removed with the JDK path (118→80 lines). Tests: 7 EIP-7951
+  KATs (Wycheproof valid, tampered r/s, all-zero, r==N/s==N, coord==P, point-at-infinity, off-curve).
+- **`Blake2b`** — `compress(input): Option[Array[Byte]]` + `isValidInput` + `parseNumberOfRounds`, the
+  EIP-152 BLAKE2F (`0x09`) compression primitive. The AS-IS mis-filed this under `vm/`
+  (`Blake2bCompression.scala`) — the lone classic-set primitive not at L0; it belongs beside `Hashes`/
+  `Keccak`. Pure BouncyCastle (`Pack`), hand-rolled F — no provider indirection, deterministic by
+  construction; constants match core-geth (frozen ETC authority) `crypto/blake2b` and besu
+  `Blake2bfMessageDigest`. **forge CO-SIGNED clean.** Tests: 5 EIP-152 vectors (round edges, bad-flag,
+  malformed-length → `None`).
+
+Only the *wrappers* remain L3 (§ layer boundaries): the P256 160-byte `hash‖r‖s‖qx‖qy` decode + output
+framing, and the BLAKE2F gas (`rounds * GFROUND`) + `0x09` address. This gap was **caught at L3, not
+hidden** — the right place to catch a missing lower-layer requirement.
+
 ## Improvements over old fukuii
 
 _Grouped by module; each row is a durable design fact, not a build-status snapshot._
@@ -465,11 +502,13 @@ pending, see the rebuild README index alone)._
 - **`RLPSerializable` convenience trait / typed-tx-envelope aggregation** → **`domain`**; the `rlp` engine
   provides `PrefixedRLPEncodable` (encode side) and `nextElementIndex` (stream walk), and `encode`/`decode`
   already cover the module's API surface.
-- **KZG / BLS12-381 / alt-bn128 EVM *precompile wrappers*** → **`evm` (L3)**: the `0x0a`
-  point-evaluation wrapper (gas / 192-byte decode / versioned-hash check / dispatch) for KZG, the
+- **KZG / BLS12-381 / alt-bn128 / P256VERIFY / BLAKE2F EVM *precompile wrappers*** → **`evm` (L3)**: the
+  `0x0a` point-evaluation wrapper (gas / 192-byte decode / versioned-hash check / dispatch) for KZG, the
   BLS12-381 precompile wrappers (gas schedule, MSM discount table, input-length dispatch,
-  precompile-address mapping), and the alt-bn128 precompiles. The cryptographic *primitives* they call
-  live here at L0 `crypto`.
+  precompile-address mapping), the alt-bn128 precompiles, the `0x0100` P256VERIFY wrapper (160-byte decode
+  + `Boolean → (0x01·32 | empty)` framing) over `crypto.Secp256r1.verify`, and the `0x09` BLAKE2F wrapper
+  (gas `rounds * GFROUND` + 213-byte framing) over `crypto.Blake2b`. The cryptographic *primitives* they
+  call live here at L0 `crypto` (§20).
 - **Native secp256k1 / keccak / alt-bn128 fast-paths** → future OPTIONAL(role) seam behind the built
   `CryptoBackend` (or a peer BN128 seam), sized to a mining-pool/archival throughput role, with the pure
   BouncyCastle / pure-Scala path as the guaranteed output-identical fallback. No native dep for these now.
