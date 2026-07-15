@@ -72,13 +72,20 @@ lives in `.local/docs/phase4/target-architecture.md` and `_phase3-findings-rollu
 
 ## Documents (one per layer, in build order)
 
-| Doc | Covers | Commit |
+The tree has three parts: **`plan/`** — forward-looking layer designs (`L0.md`–`L10.md`), their per-item
+RX verification (`plan/rx/`), the cross-layer coherence passes (`plan/coherence-pass-0N.md`), and the
+`requirements`/`optimizations`/`feature-ledger` registries; **`implementation-reports/`** — the **as-built
+records** (`NN-L{n}-*.md`) landed *after* a layer is built, plus `00-repo-setup.md` and the `L0-review.md`
+gate; and **`research-index.md`** — the research-asset→layer map. Lifecycle: **plan → build → gate →
+record** (`plan/L{n}.md` is intent; `implementation-reports/NN-L{n}-*.md` is what was actually built).
+
+| Doc (in `implementation-reports/`) | Covers | Commit |
 |---|---|---|
-| [`00-repo-setup.md`](00-repo-setup.md) | Clean-slate: layering, build config, dep floor, sbt-2, keep/clear | `dc7e32c61`…`39e8fd6ed` |
-| [`01-L0-primitives.md`](01-L0-primitives.md) | `bytes`, `common` — value types + byte utils | `77da1da62` |
-| [`02-L0-rlp.md`](02-L0-rlp.md) | `rlp` — working `derives` codecs + byte engine | `77da1da62` |
-| [`03-L0-crypto.md`](03-L0-crypto.md) | `crypto` — keccak, secp256k1 ECDSA, alt-bn128, ECIES, KZG/BLS, `CryptoBackend` seam, `constantTimeEquals` | `77da1da62`, `6f922f0aa` |
-| [`04-L1-domain.md`](04-L1-domain.md) | `domain` — value types, `enum Transaction` (5 EIP-2718 variants + dispatch), sender recovery (EIP-155 + H-1 homestead + N-1 gate + 7702 authority), fork-variant `BlockHeader` (open tail) + Block/Body + Receipt | `5972aed58`…`494c42333` |
+| [`00-repo-setup.md`](implementation-reports/00-repo-setup.md) | Clean-slate: layering, build config, dep floor, sbt-2, keep/clear | `dc7e32c61`…`39e8fd6ed` |
+| [`01-L0-primitives.md`](implementation-reports/01-L0-primitives.md) | `bytes`, `common` — value types + byte utils | `77da1da62` |
+| [`02-L0-rlp.md`](implementation-reports/02-L0-rlp.md) | `rlp` — working `derives` codecs + byte engine | `77da1da62` |
+| [`03-L0-crypto.md`](implementation-reports/03-L0-crypto.md) | `crypto` — keccak, secp256k1 ECDSA, alt-bn128, ECIES, KZG/BLS, `CryptoBackend` seam, `constantTimeEquals` | `77da1da62`, `6f922f0aa` |
+| [`04-L1-domain.md`](implementation-reports/04-L1-domain.md) | `domain` — value types, `enum Transaction` (5 EIP-2718 variants + dispatch), sender recovery (EIP-155 + H-1 homestead + N-1 gate + 7702 authority), fork-variant `BlockHeader` (open tail) + Block/Body + Receipt | `5972aed58`…`494c42333` |
 | … | L2→L10 as built | — |
 
 **Note — commit SHAs are the `fukuii-rebuild` curated foundation series.** L0 was first built on the

@@ -2,7 +2,7 @@
 
 _Layer L1 (pure value types), depends down-only on `bytes`, `crypto`, `rlp`, `common`. The first layer
 that composes the L0 leaves into ecosystem consensus objects. Forward-looking plan:
-[`plan/L1.md`](plan/L1.md); per-item byte-cited RX evidence: [`plan/rx/L1.md`](plan/rx/L1.md). Byte behavior
+[`plan/L1.md`](../plan/L1.md); per-item byte-cited RX evidence: [`plan/rx/L1.md`](../plan/rx/L1.md). Byte behavior
 matched against go-ethereum `core/types/` (shared/ETH-family) and core-geth `core/types/` (ETC-frozen),
 with besu / besu-etc as the JVM-implementation lens. Built in five phases, each forge (ETC) / beacon (ETH)
 consensus-validated and eye-tested; the one gate-discovery (H-1, block-gated homestead) is recorded in
@@ -89,7 +89,7 @@ reference clients block-gate the signer — go-ethereum/core-geth `MakeSigner` (
 block number) and besu's per-fork `checkSignatureMalleability` flag on the `ProtocolSpec`. So `getSender`
 takes a **plumbed `homestead` flag** from block context (the Legacy path; typed variants force `true`); a
 from-genesis node passes `homestead=false` for the pre-1.15M range. The `r,s ≥ 1` / `r,s < N` / `v ∈ {0,1}`
-checks are unconditional. See [`plan/L1.md`](plan/L1.md) §7 for the binding rule.
+checks are unconditional. See [`plan/L1.md`](../plan/L1.md) §7 for the binding rule.
 
 **7702 inner authority — a second, independent recovery surface.** `SetCodeAuthorization.authority`
 recovers the authorizing account from `keccak(0x05 ‖ RLP[chainId, address, nonce])` with **homestead always

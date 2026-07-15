@@ -1,9 +1,9 @@
 # L0 — crypto: `crypto`
 
 _Layer L0 (foundation), depends on `bytes`. Measured against
-[`observations/primitives.md`](../../research/clients/observations/primitives.md) (the "Crypto
+[`observations/primitives.md`](../../../research/clients/observations/primitives.md) (the "Crypto
 backend strategy" row and the "Dual native+pure crypto backend" OPTIONAL(role) verdict); old-fukuii
-AS-IS in [`clients/fukuii/primitives.md`](../../research/clients/fukuii/primitives.md). Byte
+AS-IS in [`clients/fukuii/primitives.md`](../../../../.local/docs/research/clients/fukuii/primitives.md). Byte
 behavior is matched against go-ethereum `crypto/keccak.go`, `crypto/crypto.go`,
 `crypto/signature_nocgo.go`; the alt-bn128 tower against the EIP-196/197 reference (ethereumj /
 libff). core-geth is a pure geth passthrough at the primitive level (no ECIP divergence in

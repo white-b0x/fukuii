@@ -4,7 +4,7 @@ _The layer beneath L0. It has no code of its own, but it is the **R6 build-floor
 above** (SR↔dev directive: "a dep-bump or build-modernization item must clear before the structural work
 it unblocks can land"). It was unplanned in the first draft (the `00-repo-setup.md` record is a thin
 harvest note) — this is setup brought to the same rubric bar as L0–L10. Governed by
-[`observations/build-deps.md`](../../research/clients/observations/build-deps.md) +
+[`observations/build-deps.md`](../../../research/clients/observations/build-deps.md) +
 [`repo-patterns/`](../../research/best-practices/evm-clients/repo-patterns/); the foundation mining dossier's
 Part A is the evidence base; R6/R10/R11 + F12/F13 are the requirements it satisfies._
 
@@ -122,7 +122,10 @@ Setup is done when:
   grep** (`object … { var … }` + direct `Config.`-read **+ the metrics process-globals
   `PrometheusRegistry.defaultRegistry` / `CollectorRegistry.defaultRegistry` / `GlobalOpenTelemetry`** in
   per-instance code — the repo-wide enforced home for the gate L2/L8/L9/L10 each assert, so it can't drift
-  per-layer, R2-F3), the auto-doc drift check, formatCheck.
+  per-layer, R2-F3), **the constant-time-comparison lint** (`coherence-pass-03` L0-F1: fails on
+  `==`/`sameElements`/`java.util.Arrays.equals` at MAC/tag/secret sites, sanctioning L0's
+  `constantTimeEquals` — the single repo-wide home for the gate L0 promises its L6-ECIES / L8-keystore-MAC /
+  L9-auth consumers, so it isn't N per-layer greps), the auto-doc drift check, formatCheck.
 - `SECURITY.md` + `dependabot.yml` (deps + security, 7-day cooldown) + Docker `@sha256` pins present.
 - **Root docs (AGENTS.md/CLAUDE.md) + every fukuii agent charter describe `modules/` + the plan** (no dead
   `src/…` pointer); the standing rebuild context is in each charter (F13 — §10).

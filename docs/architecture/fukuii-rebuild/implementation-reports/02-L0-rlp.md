@@ -1,9 +1,9 @@
 # L0 — RLP: `rlp`
 
 _Layer L0 (foundation), depends on `bytes`. Measured against
-[`observations/primitives.md`](../../research/clients/observations/primitives.md) (the RLP-codec
+[`observations/primitives.md`](../../../research/clients/observations/primitives.md) (the RLP-codec
 row and the "Derive-macro / typeclass-derived RLP codecs" DEFAULT); old-fukuii AS-IS in
-[`clients/fukuii/primitives.md`](../../research/clients/fukuii/primitives.md). Byte layout is
+[`clients/fukuii/primitives.md`](../../../../.local/docs/research/clients/fukuii/primitives.md). Byte layout is
 matched against go-ethereum `rlp/raw.go`, `rlp/encbuffer.go`, `rlp/decode.go`._
 
 ## Scope

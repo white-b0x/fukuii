@@ -16,8 +16,26 @@ IMPLEMENTATION.** They cleared the full multi-pass (`REVIEW.md` §6):
 2. **Wave 3 — cross-layer coherence.** Six through-lines checked end-to-end; two structural
    contradictions (the R7 reorg-event ADT, the R11 auth/wire seam) + the `chain`-module orphan + 14
    fixes resolved. Record: [`coherence-pass-01.md`](coherence-pass-01.md).
-3. **Wave 4 — adversarial.** Iterated to a clean pass (the `ForkActivation` half-fix + the
-   `MutationReason` orphan found and fixed; re-verification found nothing new).
+3. **Wave 4 — adversarial.** Two passes. The first iterated the Wave-3 fixes to a clean state (the
+   `ForkActivation` half-fix + the `MutationReason` orphan found and fixed). A second, deeper per-layer
+   adversarial pass (Workstream B, [`coherence-pass-02.md`](coherence-pass-02.md)) confirmed the Wave-3
+   resolutions hold in prose and surfaced what the six threads structurally missed — **four scoped
+   subsystem reviews** (WB-R1 scalanet discovery · WB-R2 state-diff payload contract · WB-R3 reorg-import
+   driver · WB-R4 L10 isolation/custody) plus a **systemic research-asset under-linkage** (WB-R5), fixed
+   via the [`../research-index.md`](../research-index.md) asset→layer map (every layer + RX doc now links
+   the research it should consult). A third pass — [`coherence-pass-03.md`](coherence-pass-03.md),
+   research-utilization — then re-audited every layer against that newly-linked library: the two BUILT
+   layers (L0/L1) verified sound, the plan layers surfaced additive findings the SR-observation-only passes
+   missed (1 consensus-adjacent + 3 security/correctness + 1 custody HIGH, plus MED/LOW), each seeding the
+   owning layer's build-time §10 register. [`coherence-pass-04.md`](coherence-pass-04.md) —
+   session-delta wiring verification — confirmed the cross-layer invariants added during the working
+   session (eth/69+ TD-sourcing + anti-spoof, per-network pivot-policy, bootstrap-source/BitTorrent, the L2
+   `chain-weight` CF) are consistently wired at every layer they span. Finally,
+   [`coherence-pass-05.md`](coherence-pass-05.md) — the **full-plan re-audit** — ran a deterministic
+   cross-reference sweep (fixing ~20 broken research-grounding links + 1 dangling finding-ref) and the six
+   through-lines over the whole plan: DAG down-only/acyclic ✓, R1–R11 + F1–F13 coverage ✓, all `§`-refs
+   resolve ✓, ~13 residual gaps applied/scheduled (incl. one MESS-ownership contradiction the session
+   itself introduced), and the as-built record docs reorganized into `implementation-reports/`.
 4. **Wave 5 — RX per-item reference-client verification** ([`rx/README.md`](rx/README.md)). Every
    `optimizations.md` row + per-layer seam + ledger item was verified **item-by-item against the actual
    vendored reference-client source** (two independent ETC authorities — core-geth Go + besu-etc JVM —
@@ -184,7 +202,7 @@ documented, per-item gate rather than a re-read of the abstraction.
 
 **Findings resolution (per-layer — no find-mention-forget; operator).** Every layer surfaces findings /
 follow-ups (especially during build). The governing rule is
-[`finding-resolution.md`](../../../.agents/protocols/process/finding-resolution.md): each finding is **found
+[`finding-resolution.md`](../../../../.agents/protocols/process/finding-resolution.md): each finding is **found
 AND scheduled**, never mentioned-and-forgotten. **Prefer resolving it in the same layer it's found.** If it
 genuinely depends on another layer, **route it to that layer's plan §7 ("deferrals landing here, with
 tests")** so it is worked *there* — not left floating in the finding-layer. Live findings (surfaced during

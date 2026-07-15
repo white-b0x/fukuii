@@ -152,7 +152,7 @@ layer (L0→L10) with scope, down-only dependencies, per-concern reference autho
 
 Per-module subsystem breadcrumbs (`modules/<name>/AGENTS.md`) are added **as each layer is built and
 gated** — the rebuild's inline-maintenance rule: a layer's completion updates this section and drops
-its breadcrumb, the same commit that lands its record doc (`docs/architecture/fukuii-rebuild/NN-*.md`).
+its breadcrumb, the same commit that lands its record doc (`docs/architecture/fukuii-rebuild/implementation-reports/NN-*.md`).
 Until a layer lands, its `plan/L{n}.md` *is* the breadcrumb.
 
 | Module (when built) | Breadcrumb | Plan |

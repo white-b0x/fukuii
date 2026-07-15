@@ -1,8 +1,8 @@
 # L0 — primitives: `bytes`, `common`
 
 _Layer L0 (foundation). Commit `b8c064ef6`. Measured against
-[`observations/primitives.md`](../../research/clients/observations/primitives.md); old-fukuii AS-IS
-in [`clients/fukuii/primitives.md`](../../research/clients/fukuii/primitives.md)._
+[`observations/primitives.md`](../../../research/clients/observations/primitives.md); old-fukuii AS-IS
+in [`clients/fukuii/primitives.md`](../../../../.local/docs/research/clients/fukuii/primitives.md)._
 
 ## Scope
 
