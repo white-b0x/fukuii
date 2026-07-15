@@ -125,6 +125,12 @@ enum Namespace(
   case StorageTriePath
       extends Namespace('u'.toByte, profiles = Set(Namespace.Profile.Base, Namespace.Profile.PathScheme))
 
+  /** The [[SchemaMarker]] record (S2): `(format, version, StorageProfile)`, checked at open against both the requesting
+    * profile and the actually-open column-family set (`StorageProfile.namespacesFor`) before any other CF is touched.
+    * One fixed key per datadir; tiny, never pruned.
+    */
+  case SchemaMeta extends Namespace('z'.toByte)
+
 object Namespace:
 
   /** Storage-profile tags a namespace's column family may belong to. `Base` = every profile (the default); `Snap` and

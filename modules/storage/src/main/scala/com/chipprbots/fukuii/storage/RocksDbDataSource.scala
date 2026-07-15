@@ -72,6 +72,7 @@ trait RocksDbConfig:
 final class RocksDbDataSource private (
     private var db: RocksDB,
     private val rocksDbConfig: RocksDbConfig,
+    private val storageProfile: StorageProfile,
     private var readOptions: ReadOptions,
     private var dbOptions: DBOptions,
     private var cfOptions: ColumnFamilyOptions,
@@ -83,6 +84,15 @@ final class RocksDbDataSource private (
   import RocksDbDataSource.*
 
   private val dbLock = new ReentrantReadWriteLock()
+
+  /** The column families this instance actually has open right now — the `openNamespaces` half of
+    * [[SchemaMarker.ensureCompatible]]'s CF-set-vs-profile check. On a reopen of an existing datadir this reflects the
+    * datadir's REAL on-disk CF set (see [[RocksDbDataSource.createDB]]), which may differ from
+    * `StorageProfile.namespacesFor(storageProfile)` when the requested profile doesn't match what's actually on disk —
+    * exactly the case [[apply]]'s post-open marker check exists to catch, before that mismatch could ever manifest as a
+    * native RocksDB "missing/extra column family" failure.
+    */
+  def openNamespaces: Set[Namespace] = handles.keySet
 
   @volatile
   private var isClosed = false
@@ -305,10 +315,20 @@ final class RocksDbDataSource private (
 
   /** Every namespace is its own column family — `db.newIterator()` with no handle would only see RocksDB's own
     * (always-empty, for us) DEFAULT column family, not the union of every [[Namespace]] CF. Concatenating the
-    * per-namespace scans is the correct — and only — way to visit every key-value pair across all namespaces.
+    * per-namespace scans is the correct — and only — way to visit every key-value pair across all namespaces. Iterates
+    * [[openNamespaces]] (what THIS instance actually has a handle for), not the full `Namespace.values` — under the
+    * default profile the two sets are identical modulo `Namespace.SchemaMeta` (see below); under a restrictive profile,
+    * iterating a CF this instance never opened would fail every call via [[handleOf]] instead of simply not visiting
+    * it.
+    *
+    * `Namespace.SchemaMeta` is excluded: it holds [[SchemaMarker]]'s own internal bookkeeping record, not domain data a
+    * caller of "every key-value pair" is asking for (besu's analogous `DATABASE_METADATA.json` isn't domain data either
+    * — it's never mixed into a domain-level dump). Excluding it also keeps this method's enumerated results
+    * byte-for-byte identical to before [[SchemaMarker]] existed for every existing caller; a caller who genuinely wants
+    * the marker can still read it directly via `iterate(Namespace.SchemaMeta)` or `get(Namespace.SchemaMeta, _)`.
     */
   override def iterate(): Stream[IO, Either[DataSource.IterationError, (Array[Byte], Array[Byte])]] =
-    Stream.emits(Namespace.values.toIndexedSeq).flatMap(ns => iterate(ns))
+    Stream.emits((openNamespaces - Namespace.SchemaMeta).toIndexedSeq).flatMap(ns => iterate(ns))
 
   override def iterate(
       namespace: Namespace
@@ -326,7 +346,7 @@ final class RocksDbDataSource private (
     try
       destroy()
       log.debug(s"Recreating RocksDB DataSource at path: ${rocksDbConfig.path}")
-      val opened = createDB(rocksDbConfig)
+      val opened = createDB(rocksDbConfig, storageProfile)
       this.db = opened.db
       this.readOptions = opened.readOptions
       this.handles = opened.handles
@@ -334,6 +354,9 @@ final class RocksDbDataSource private (
       this.cfOptions = opened.cfOptions
       this.statistics = opened.statistics
       this.isClosed = false
+      // destroy() just emptied the datadir, so this is always a fresh-datadir write of the SAME
+      // storageProfile this instance was opened with — never a mismatch.
+      SchemaMarker.ensureCompatible(this, openNamespaces, storageProfile)
     finally dbLock.writeLock().unlock()
 
   def approximateKeyCount(namespace: Namespace): Long =
@@ -418,7 +441,29 @@ object RocksDbDataSource extends Logger:
       .setLevelCompactionDynamicLevelBytes(levelCompaction)
       .setTableFormatConfig(tableCfg)
 
-  private def createDB(config: RocksDbConfig): OpenedDb =
+  /** The on-disk column-family set at `path`, as `Namespace` values — read WITHOUT opening the database (`RocksDB
+    * .listColumnFamilies`, a static probe). `None` CF names (anything not a single byte matching a live
+    * [[Namespace.id]], i.e. RocksDB's own `DEFAULT` CF) are silently dropped; they are not part of the
+    * `Namespace`-addressed schema this class exposes.
+    *
+    * This is the mechanism that lets [[createDB]] always open an EXISTING datadir with the CF descriptor list that is
+    * actually on disk — never with a caller-requested set that might not match reality — so a profile mismatch is
+    * caught by [[SchemaMarker.ensureCompatible]] afterward, rather than by `RocksDB.open` itself throwing a native "you
+    * have to open all column families" error.
+    */
+  private def listOnDiskNamespaces(path: String): Set[Namespace] =
+    import scala.jdk.CollectionConverters.*
+    val probeOptions = new Options()
+    try
+      RocksDB
+        .listColumnFamilies(probeOptions, path)
+        .asScala
+        .flatMap(name => if name.length == 1 then Namespace.byId.get(name(0)) else None)
+        .toSet
+    catch case NonFatal(error) => throw RocksDbDataSourceException(s"Failed to list column families at $path", error)
+    finally probeOptions.close()
+
+  private def createDB(config: RocksDbConfig, storageProfile: StorageProfile): OpenedDb =
     import config.*
     import scala.jdk.CollectionConverters.*
     import java.nio.file.Files
@@ -462,7 +507,19 @@ object RocksDbDataSource extends Logger:
 
     val cfOptions = buildCfOptions(config)
 
-    val allNamespaces = Namespace.values.toIndexedSeq
+    // `pathExists` only tells us the DIRECTORY is there (createIfMissing pre-creates it, and callers may hand us an
+    // already-existing empty directory) — it does NOT mean a RocksDB database was ever written to it. `CURRENT` is
+    // the file every RocksDB/LevelDB-family database writes on its first successful open and never removes; its
+    // presence is the actual "does a database already live here" signal `listOnDiskNamespaces` needs. Without this
+    // distinction, an empty pre-created directory would probe zero column families and reject every fresh open.
+    val databaseAlreadyExists = Files.exists(dbPath.resolve("CURRENT"))
+
+    // A pre-existing database is ALWAYS opened with its real on-disk CF set (see listOnDiskNamespaces's doc) — never
+    // with the requested profile's resolved set, which might not match. A fresh database has no "on disk" set to
+    // defer to, so it opens with exactly what the requested profile calls for.
+    val namespacesToOpen: Set[Namespace] =
+      if databaseAlreadyExists then listOnDiskNamespaces(path) else StorageProfile.namespacesFor(storageProfile)
+    val allNamespaces = namespacesToOpen.toIndexedSeq
     val cfDescriptors =
       new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOptions) +:
         allNamespaces.map(ns => new ColumnFamilyDescriptor(Array(ns.id), cfOptions))
@@ -497,21 +554,39 @@ object RocksDbDataSource extends Logger:
       cfOptions.close()
     catch case NonFatal(error) => throw RocksDbDataSourceException(s"Failed to destroy DataSource", error)
 
-  /** Opens (or creates) the RocksDB instance at `rocksDbConfig.path`, with one column family per [[Namespace]] case —
-    * the full, fixed set (unconditional; profile-gated CF subsetting is S2's job, see [[Namespace]]'s
-    * "Profile-membership reservation" note).
+  /** Opens (or creates) the RocksDB instance at `rocksDbConfig.path`.
+    *
+    * `storageProfile` defaults to [[StorageProfile.default]] (`keying = NodeKeying.Both`), which resolves to the full,
+    * fixed `Namespace.values` set — the same unconditional "open everything" shape this method had before
+    * [[SchemaMarker]] existed. Every existing call site that does not pass a profile is therefore unaffected: same CF
+    * set, same handles, and (after the very first open ever writes it) a marker that only ever compares itself to
+    * itself on every later default-profile reopen.
+    *
+    * On EVERY open (default profile included) [[SchemaMarker.ensureCompatible]] runs immediately after the native
+    * `RocksDB.open` call, checked against [[RocksDbDataSource.openNamespaces]] (the datadir's real on-disk CF set on a
+    * reopen, per [[createDB]]) and the requested `storageProfile`. A mismatch — either the CF-set-vs-profile check or
+    * the persisted-marker-vs-requested check — raises [[SchemaMarker.SchemaMismatchException]]; this method closes the
+    * just-opened handles before propagating it, so a rejected open never leaks a native `RocksDB` handle.
     */
-  def apply(rocksDbConfig: RocksDbConfig): RocksDbDataSource =
-    val opened = createDB(rocksDbConfig)
-    new RocksDbDataSource(
+  def apply(rocksDbConfig: RocksDbConfig, storageProfile: StorageProfile = StorageProfile.default): RocksDbDataSource =
+    val opened = createDB(rocksDbConfig, storageProfile)
+    val instance = new RocksDbDataSource(
       opened.db,
       rocksDbConfig,
+      storageProfile,
       opened.readOptions,
       opened.dbOptions,
       opened.cfOptions,
       opened.handles,
       opened.statistics
     )
+    try
+      SchemaMarker.ensureCompatible(instance, instance.openNamespaces, storageProfile)
+      instance
+    catch
+      case NonFatal(error) =>
+        instance.close()
+        throw error
 
   /** try-with-resources for an `AutoCloseable`: runs `f`, then always closes `resource`, adding any close-time
     * exception as suppressed rather than masking the original failure.

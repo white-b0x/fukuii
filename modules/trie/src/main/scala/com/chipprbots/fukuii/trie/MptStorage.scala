@@ -18,19 +18,34 @@ object NodeEncoded:
   def apply(bytes: Array[Byte]): NodeEncoded = bytes
   extension (e: NodeEncoded) def toArray: Array[Byte] = e
 
-/** A node's location in the trie — the nibble path from the trie root.
-  *
-  * besu's `NodeLoader`/`NodeUpdater` carry both a `location` and a `hash`; this is the abstraction that lets a store
-  * key nodes by *either* hash (archival) *or* path. For T1 the store is hash-keyed and `location` is not load-bearing.
-  * The path-keyed profile and the **account-scoped** `Location` (a nibble path from the *account* trie root, so
-  * per-account storage-subtrie nodes don't collide in the shared node store) is the S2 storage decision (vault) — the
-  * seam shape is landed here so S2 does not have to retrofit it.
+/** A 32-byte keccak-hashed account key — scopes a trie node to a specific account's storage sub-trie. Opaque over
+  * `ByteString`, mirroring [[NodeHash]].
   */
-opaque type Location = ByteString
+opaque type AccountHash = ByteString
+object AccountHash:
+  def apply(bytes: ByteString): AccountHash = bytes
+  extension (h: AccountHash) def bytes: ByteString = h
+
+/** A node's location in the trie: which trie ([[owner]]) and where within it ([[path]], the nibble path from that
+  * trie's root).
+  *
+  * `owner = None` -> a node in the state/account trie. `owner = Some(accountHash)` -> a node in that account's storage
+  * sub-trie. besu's `NodeLoader`/`NodeUpdater` carry both a `location` and a `hash`; this is the abstraction that lets
+  * a store key nodes by *either* hash (archival) *or* path. The `owner` scope is load-bearing for a path-keyed store
+  * (S2, `storage.INodeStorage`): a single node store is shared by the state trie and every per-contract storage trie,
+  * so a bare nibble path would collide storage-subtrie nodes at the same path across different accounts (nethermind's
+  * explicit `(address, path, keccak)` key, `NodeStorage.cs:32-35`; besu's account-scoped `location`). `storage`'s
+  * path-keyed physical key additionally folds in the node hash as a key tail (D4), so distinct nodes never collide
+  * on-disk even where `(owner, path)` alone is not yet fully discriminating.
+  */
+opaque type Location = (Option[AccountHash], ByteString)
 object Location:
-  val Root: Location = ByteString.empty
-  def apply(path: ByteString): Location = path
-  extension (l: Location) def bytes: ByteString = l
+  val Root: Location = (None, ByteString.empty)
+  def apply(path: ByteString): Location = (None, path)
+  def apply(owner: Option[AccountHash], path: ByteString): Location = (owner, path)
+  extension (l: Location)
+    def owner: Option[AccountHash] = l._1
+    def path: ByteString = l._2
 
 /** The read half of the byte-pure storage seam (besu `NodeLoader`): resolve a node's RLP bytes by `(location, hash)`.
   */

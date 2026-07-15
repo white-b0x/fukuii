@@ -136,3 +136,57 @@ class RocksDbDataSourceSpec extends AnyFlatSpec with Matchers with DataSourceCon
         case other => fail(s"expected a single IterationError(RocksDbDataSourceClosedException), got: $other")
     finally db.destroy()
   }
+
+  // -- SchemaMarker checked-at-open (S2) --------------------------------------------------------------------------
+
+  /** A second config over the SAME `path` as `base` — simulates a reopen of an existing datadir under a (potentially
+    * different) `StorageProfile`.
+    */
+  private def reopenConfig(base: RocksDbConfig): RocksDbConfig =
+    new RocksDbConfig:
+      override val createIfMissing: Boolean = base.createIfMissing
+      override val paranoidChecks: Boolean = base.paranoidChecks
+      override val path: String = base.path
+      override val maxThreads: Int = base.maxThreads
+      override val maxOpenFiles: Int = base.maxOpenFiles
+      override val verifyChecksums: Boolean = base.verifyChecksums
+      override val levelCompaction: Boolean = base.levelCompaction
+      override val blockSize: Long = base.blockSize
+      override val blockCacheSize: Long = base.blockCacheSize
+
+  it should "reject reopening a datadir under a mismatched StorageProfile with a typed error, before RocksDB ever sees a missing/extra CF" in {
+    val config = RocksDbTestConfig()
+    val firstOpen = RocksDbDataSource(config, StorageProfile.TipServer) // path-keyed (Bonsai-equivalent)
+    firstOpen.close() // close only — the datadir and its CFs remain on disk
+
+    try
+      val ex = intercept[SchemaMarker.SchemaMismatchException] {
+        RocksDbDataSource(reopenConfig(config), StorageProfile.ArchivalDApp) // hash-keyed (Forest-equivalent)
+      }
+      ex.getMessage should (include("column-family set").or(include("marker mismatch")))
+    finally
+      // Manual cleanup: the rejected reopen never produced a live instance to call destroy() on.
+      val cleanup = RocksDbDataSource(reopenConfig(config), StorageProfile.TipServer)
+      cleanup.destroy()
+  }
+
+  it should "reopen a datadir under the SAME StorageProfile without error, marker unchanged" in {
+    val config = RocksDbTestConfig()
+    val firstOpen = RocksDbDataSource(config, StorageProfile.TipServer)
+    firstOpen.update(
+      Seq(DataSourceUpdateOptimized(Namespace.StateTriePath, Seq(), Seq(Array[Byte](1) -> Array[Byte](2))))
+    )
+    firstOpen.close()
+
+    val reopened = RocksDbDataSource(reopenConfig(config), StorageProfile.TipServer)
+    try
+      reopened.openNamespaces shouldBe StorageProfile.namespacesFor(StorageProfile.TipServer)
+      reopened.getOptimized(Namespace.StateTriePath, Array[Byte](1)).map(_.toSeq) shouldBe Some(Seq[Byte](2))
+    finally reopened.destroy()
+  }
+
+  it should "open with the default profile exactly as before S2 — the full Namespace.values CF set, unconditionally" in {
+    val db = RocksDbDataSource(RocksDbTestConfig()) // no profile argument — the pre-S2 call shape
+    try db.openNamespaces shouldBe Namespace.values.toSet
+    finally db.destroy()
+  }
