@@ -158,7 +158,8 @@ Until a layer lands, its `plan/L{n}.md` *is* the breadcrumb.
 | Module (when built) | Breadcrumb | Plan |
 |------|-----------|------|
 | `modules/domain` (L1) — **built** | [`modules/domain/AGENTS.md`](modules/domain/AGENTS.md) | [`02-L1-domain.md`](docs/architecture/fukuii-rebuild/implementation-reports/02-L1-domain.md) — value types, `enum Transaction` + EIP-2718 dispatch, sender recovery (EIP-155/H-1/N-1/7702), fork-variant `BlockHeader` + Block/Body + Receipt |
-| `modules/storage`, `modules/trie` (L2) | (added when built) | [`plan/L2.md`](docs/architecture/fukuii-rebuild/plan/L2.md) — RocksDB `DataSource` + MPT, byte-pure storage seam |
+| `modules/storage` (L2) — **built** | [`modules/storage/AGENTS.md`](modules/storage/AGENTS.md) | [`03-L2-storage-trie.md`](docs/architecture/fukuii-rebuild/implementation-reports/03-L2-storage-trie.md) — byte-pure `DataSource`/RocksDB + `enum Namespace`, `StorageProfile`, `INodeStorage` scheme-indirection `(owner,path)`, `ChainWeight` + BUG-W7, composable pruning, `ColdStore`/era1 |
+| `modules/trie` (L2) — **built** | [`modules/trie/AGENTS.md`](modules/trie/AGENTS.md) | [`03-L2-storage-trie.md`](docs/architecture/fukuii-rebuild/implementation-reports/03-L2-storage-trie.md) — MPT (`enum MptNode`, state-root core), `HexPrefix`, `MptStorage` seam, root-neutral path threading, `TrieLog` leaf-diff |
 | `modules/consensus` (L5) | (added when built) | [`plan/L5.md`](docs/architecture/fukuii-rebuild/plan/L5.md) — PoW/PoS dual-family dispatch + `NetworkFamily`; mandatory gate, see `consensus-change-protocol.md` |
 | `modules/sync` (L7) | (added when built) | [`plan/L7.md`](docs/architecture/fukuii-rebuild/plan/L7.md) — fast/regular/SNAP/checkpoint strategies |
 
