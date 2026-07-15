@@ -68,8 +68,75 @@ class MerklePatriciaTrieSpec extends AnyFlatSpec with Matchers:
     proof.get should not be empty
   }
 
+  // -- EIP-1186 non-inclusion (go-ethereum trie/proof.go `Prove`) ------------
+
+  it should "anchor the non-inclusion proof at the state root (first node hashes to the root)" in {
+    val trie = emptyTrie
+      .put(bytes("do"), bytes("verb"))
+      .put(bytes("dog"), bytes("puppy"))
+      .put(bytes("horse"), bytes("stallion"))
+    // A key that diverges at the top branch — the walk stops on the absence-proving node.
+    val proof = trie.getProof(bytes("cat")).get
+    proof.head.hash shouldBe trie.getRootHash
+  }
+
+  it should "end a non-inclusion proof on the node that proves absence (empty branch slot)" in {
+    // "do"/"dog" share the "do" prefix; "z" diverges at the very first branch nibble, whose slot is empty.
+    val trie = emptyTrie.put(bytes("do"), bytes("verb")).put(bytes("dog"), bytes("puppy"))
+    val proof = trie.getProof(bytes("z")).get
+    proof.head.hash shouldBe trie.getRootHash
+    // The proof must not contain a value leaf for the absent key.
+    proof.last match
+      case MptNode.Leaf(_, value) => new String(value.toArray) should not be "verb"
+      case _                      => succeed
+  }
+
+  it should "diverge at a leaf whose key mismatches (non-inclusion terminal is that leaf/extension)" in {
+    // Single stored key: the root is a leaf; an absent sibling proves absence via that same leaf.
+    val trie = emptyTrie.put(bytes("dog"), bytes("puppy"))
+    val proof = trie.getProof(bytes("cat")).get
+    proof.head.hash shouldBe trie.getRootHash
+    proof should have size 1 // just the root leaf, which proves the absence
+  }
+
+  it should "always include the root even when its RLP is < 32 bytes (resident and committed)" in {
+    // A single short entry: the root node's own RLP is well under 32 bytes, yet it must appear in the proof.
+    val resident = emptyTrie.put(bytes("a"), bytes("b"))
+    resident.rootNode.get.encoded.length should be < MptNode.MaxEncodedNodeLength
+    val residentProof = resident.getProof(bytes("a")).get
+    residentProof.head.hash shouldBe resident.getRootHash
+
+    // Same after a store-backed commit (root force-hashed into storage, resolved back on the walk).
+    val storage = new InMemoryMptStorage
+    val committed = MerklePatriciaTrie[Array[Byte], Array[Byte]](storage).put(bytes("a"), bytes("b")).commit()
+    val committedProof = committed.getProof(bytes("a")).get
+    committedProof.head.hash shouldBe committed.getRootHash
+    // Non-inclusion on the committed short-root trie still yields a root-anchored proof.
+    committed.getProof(bytes("c")).get.head.hash shouldBe committed.getRootHash
+  }
+
   it should "return None for a proof on an empty trie" in {
     emptyTrie.getProof(bytes("x")) shouldBe None
+  }
+
+  // -- L2-F3: loud decode when a node resolved mid-traversal is malformed ----
+
+  it should "fail loud when a node resolved during a get/proof traversal decodes malformed" in {
+    // A structurally-valid RLP list of the wrong arity (3 items) stored under the root hash: the traversal decode
+    // (storage.get -> MptNode.decode) must reject it, not silently mis-decode.
+    val storage = new InMemoryMptStorage
+    val rootHash = ByteString(Array.fill[Byte](32)(0x42.toByte))
+    val malformed = com.chipprbots.fukuii.rlp.encode(
+      com.chipprbots.fukuii.rlp.RLPList(
+        com.chipprbots.fukuii.rlp.RLPValue(Array[Byte](1)),
+        com.chipprbots.fukuii.rlp.RLPValue(Array[Byte](2)),
+        com.chipprbots.fukuii.rlp.RLPValue(Array[Byte](3))
+      )
+    )
+    storage.storeNode(Location.Root, NodeHash(rootHash), NodeEncoded(malformed))
+    val trie = MerklePatriciaTrie[Array[Byte], Array[Byte]](rootHash, storage)
+    a[MptNodeDecodeException] should be thrownBy trie.getProof(bytes("anything"))
+    a[MptNodeDecodeException] should be thrownBy trie.get(bytes("anything"))
   }
 
   it should "round-trip through a store-backed commit (same root, same values)" in {
