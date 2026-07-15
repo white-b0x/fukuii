@@ -155,15 +155,63 @@ enum Namespace(
   case PruneSnapshot
       extends Namespace('x'.toByte, containsStaticData = true, isStaticDataGarbageCollectionEnabled = true)
 
+  /** Frozen block headers (S3b, [[ColdStore]]): number-addressed, append-only, one fixed-block-range shard is a single
+    * [[DataSource.deleteRange]] away from being dropped whole (RX-L2-21/22). Schema-reserved per the L2-F1 precedent —
+    * `namespacesFor` does not gate CF-open on [[Profile.Freezer]] yet; that occupancy is deferred alongside the
+    * `freezer` [[StorageProfile]] axis itself.
+    */
+  case ColdHeader
+      extends Namespace(
+        'H'.toByte,
+        profiles = Set(Namespace.Profile.Base, Namespace.Profile.Freezer),
+        containsStaticData = true,
+        isStaticDataGarbageCollectionEnabled = true
+      )
+
+  /** Frozen block bodies — see [[ColdHeader]]. */
+  case ColdBody
+      extends Namespace(
+        'B'.toByte,
+        profiles = Set(Namespace.Profile.Base, Namespace.Profile.Freezer),
+        containsStaticData = true,
+        isStaticDataGarbageCollectionEnabled = true
+      )
+
+  /** Frozen block receipts — see [[ColdHeader]]. */
+  case ColdReceipts
+      extends Namespace(
+        'R'.toByte,
+        profiles = Set(Namespace.Profile.Base, Namespace.Profile.Freezer),
+        containsStaticData = true,
+        isStaticDataGarbageCollectionEnabled = true
+      )
+
+  /** Frozen per-block total difficulty — the ETC PoW fork-choice invariant a cold store MUST retain (core-geth
+    * `ancient_scheme.go:35-36` `ChainFreezerDifficultyTable = "diffs"`, retained `:46`; the post-merge ETH freezer
+    * drops this table, the wrong template for a PoW successor). See [[ColdHeader]].
+    */
+  case ColdChainWeight
+      extends Namespace(
+        'W'.toByte,
+        profiles = Set(Namespace.Profile.Base, Namespace.Profile.Freezer),
+        containsStaticData = true,
+        isStaticDataGarbageCollectionEnabled = true
+      )
+
+  /** [[ColdStore]] bookkeeping (S3b): the lowest/highest frozen block-number markers. Small, updated once per
+    * [[ColdStore.freeze]] call.
+    */
+  case ColdShardMeta extends Namespace('M'.toByte, profiles = Set(Namespace.Profile.Base, Namespace.Profile.Freezer))
+
 object Namespace:
 
-  /** Storage-profile tags a namespace's column family may belong to. `Base` = every profile (the default); `Snap` and
-    * `PathScheme` mark the two schema reservations from L2-F1 / L2-S0. This is deliberately NOT S2's full
+  /** Storage-profile tags a namespace's column family may belong to. `Base` = every profile (the default); `Snap`,
+    * `PathScheme`, and `Freezer` mark schema reservations (L2-F1 / L2-S0 / S3b). This is deliberately NOT S2's full
     * `StorageProfile` (5 live axes + 1 reserved `engine`) — it is the minimal membership tag S1 needs to reserve CF
-    * slots without building S2's profile-gating machinery.
+    * slots without building the full profile-gating machinery for every axis.
     */
   enum Profile:
-    case Base, Snap, PathScheme
+    case Base, Snap, PathScheme, Freezer
 
   private val duplicateIds: Set[Byte] =
     values.toList.groupBy(_.id).collect { case (id, cases) if cases.sizeIs > 1 => id }.toSet
