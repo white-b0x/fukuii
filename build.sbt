@@ -133,6 +133,13 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[?]] = Seq(
     val reportsDir = (Test / target).value / "test-reports"
     Tests.Setup(() => IO.createDirectory(reportsDir))
   },
+  // sbt 2's built-in `test` task delegates to `testQuick` (see Defaults.scala:1269), which is a
+  // no-op once target/streams/ has on-disk tracking that a suite last succeeded against its current
+  // sources — a warm dev machine or CI cache reports exit 0 with ZERO tests executed. Redefine
+  // `test` itself to always run `testOnly *` so a bare `sbt <module>/test` can never silently
+  // false-green. See the historical NOTE at the `testAll` alias in this file for the full
+  // empirical trail (`sbt inspect <module>/Test/test`) that led to this fix.
+  (Test / test) := (Test / testOnly).toTask(" *").value,
   // Only publish selected libraries.
   (publish / skip) := true
 )
@@ -426,10 +433,33 @@ lazy val node = {
     .settings(
       executableScriptName := name.value
     )
-    .settings(inConfig(Integration)(Defaults.testSettings :+ (Test / parallelExecution := false))*)
-    .settings(inConfig(Benchmark)(Defaults.testSettings :+ (Test / parallelExecution := true))*)
-    .settings(inConfig(Evm)(Defaults.testSettings :+ (Test / parallelExecution := true))*)
-    .settings(inConfig(Rpc)(Defaults.testSettings :+ (Test / parallelExecution := true))*)
+    // Defaults.testSettings defines a local `test` key per config that also delegates to
+    // `testQuick` (the same sbt-2 false-green bug fixed above for the `Test` config) — each of
+    // these configs gets its own bare-config-scoped override so `sbt node/<config>/test` is safe too.
+    .settings(
+      inConfig(Integration)(
+        Defaults.testSettings :+ (Test / parallelExecution := false) :+
+          (Integration / test := (Integration / testOnly).toTask(" *").value)
+      )*
+    )
+    .settings(
+      inConfig(Benchmark)(
+        Defaults.testSettings :+ (Test / parallelExecution := true) :+
+          (Benchmark / test := (Benchmark / testOnly).toTask(" *").value)
+      )*
+    )
+    .settings(
+      inConfig(Evm)(
+        Defaults.testSettings :+ (Test / parallelExecution := true) :+
+          (Evm / test := (Evm / testOnly).toTask(" *").value)
+      )*
+    )
+    .settings(
+      inConfig(Rpc)(
+        Defaults.testSettings :+ (Test / parallelExecution := true) :+
+          (Rpc / test := (Rpc / testOnly).toTask(" *").value)
+      )*
+    )
     .settings(
       // Packaging
       maintainer := "chippr-robotics@github.com",
@@ -537,7 +567,7 @@ addCommandAlias(
     |; sync / scalafmtAll
     |; rpc / scalafmtAll
     |; scalafmtAll
-    |; testQuick
+    |; test
     |""".stripMargin
 )
 
@@ -586,20 +616,29 @@ addCommandAlias(
 )
 
 // testAll
-// NOTE (sbt-2 gotcha, verified empirically via `sbt inspect bytes/Test/test`): in sbt 2.0.2 the
-// `test` task ITSELF is redefined to delegate to `testQuick` — its "Provided by" is `<scope> /
-// test`, but `Dependencies:` shows only `<scope> / testQuick`, and its description reads "Executes
-// the tests that ... were not run or whose transitive dependencies changed" — i.e. `test` IS
-// `testQuick` now, for every scope (`Test /`, `Integration /`, etc). Explicit `Test /` scoping (the
-// previous fix attempt here) does NOT help — the delegation happens at the task-key level, not the
-// scope level. Once `target/streams/` has on-disk tracking that a suite last succeeded against its
-// current sources (the normal state on a warm dev machine or CI cache), `test` silently reports
-// exit 0 with ZERO tests executed ("No tests to run for .../testQuick") in ~1 second — a false
-// green, not a real pass. `testOnly *` does NOT delegate to `testQuick` (its own `inspect` shows
-// "Executes the tests provided as arguments or all tests if no arguments are provided", with no
-// `testQuick` in its Dependencies) — it always executes matched tests for real, so every task below
-// is `Test / testOnly *` (or `<config> / testOnly` with no pattern, which also means "all tests")
-// instead of bare `test`.
+// NOTE (sbt-2 gotcha, FIXED AT THE SOURCE — verified empirically via `sbt inspect bytes/Test/test`):
+// in sbt 2.0.2 the built-in `test` task ITSELF is redefined to delegate to `testQuick` — its
+// "Provided by" is `<scope> / test`, but `Dependencies:` shows only `<scope> / testQuick`, and its
+// description reads "Executes the tests that ... were not run or whose transitive dependencies
+// changed" — i.e. `test` IS `testQuick` for every scope (`Test /`, `Integration /`, etc). Once
+// `target/streams/` has on-disk tracking that a suite last succeeded against its current sources
+// (the normal state on a warm dev machine or CI cache), `test` used to silently report exit 0 with
+// ZERO tests executed ("No tests to run for .../testQuick") in ~1 second — a false green, not a
+// real pass.
+//
+// `commonSettings` (above) now redefines `Test / test := (Test / testOnly).toTask(" *").value` for
+// every module, and the `node` project's `Integration`/`Benchmark`/`Evm`/`Rpc` configs get the same
+// config-scoped override — so a bare `sbt <module>/test` (or `<module>/<config>/test`) is safe
+// again and can no longer silently no-op. `sbt inspect <module>/Test/test` now shows
+// `Dependencies: <module> / Test / testOnly` with no `testQuick` in the chain.
+//
+// The aliases below still spell out `Test / testOnly *` per module rather than switching to the
+// now-safe bare `test` — this is a deliberate choice, not leftover caution: the tag-filtered
+// variants a few sections down (`testEssential`/`testStandard`) MUST use `testOnly ... -- -l Tag`
+// syntax (bare `test` cannot take ScalaTest tag-filter arguments), so keeping every alias in this
+// file on the same `testOnly` idiom avoids a two-styles-that-do-the-same-thing split. `pp`'s final
+// step was changed from `testQuick` to plain `test` instead, specifically to exercise the new safe
+// default end-to-end on every `pp` run.
 addCommandAlias(
   "testAll",
   """; compile-all
