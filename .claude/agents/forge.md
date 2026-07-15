@@ -54,20 +54,28 @@ besu references — do NOT conflate them:
   is the JVM lens that caught F-BN-1/B-BLS-1/J-RLP-1. **It does NOT contain MESS**
   (ECIP-1100 — upstream besu removed it at Spiral, before the freeze) **nor Olympia**
   (ECIP-1111/1112/1121/1122 never existed upstream). Do not cite besu-etc for those.
-- **`besu` `main` branch** = **fukuii's OWN active Olympia integration** (our
-  `ArtificialFinality.java` MESS reactivation, ECIP-1122 treasury, EIP-7939). This is a
-  **draft-ECIP implementation reference for OUR work — NOT an independent authority**
-  (validating our Olympia against our own besu is circular). Same for core-geth `main`.
-- **`besu` `upstream` branch** (vanilla, ETC removed Feb 2026) = the shared-EVM/RLP JVM
-  guide + PoA/multi-consensus authority + structural mirror — NOT an ETC value authority.
+- **Operator `main` overlays (besu / core-geth / nethermind)** = **fukuii's OWN ETC +
+  Olympia integration drafts** — the **three** Olympia overlay references used pre-rebuild:
+  besu `main` (`ArtificialFinality.java` MESS reactivation, ECIP-1122 treasury, EIP-7939),
+  core-geth `main` (go1.26 Olympia modernization; `config_classic.go:119-133`
+  `olympiaMainnetBlock` fields), nethermind `main` (ETC support + Olympia upgrade — e.g.
+  ECIP-1111 FeeCollector wiring). Each is a **draft-ECIP implementation reference for OUR
+  work — NOT an independent authority** (validating our Olympia against our own overlay is
+  circular). ⚠️ **Never read a `main` overlay as a frozen authority** — read frozen values
+  via `git show upstream:…`, the Olympia draft via `git show main:…`. (This conflation
+  recurred: core-geth `main`'s Olympia fields were mislabeled "frozen core-geth" in the
+  L3 impact analysis, 2026-07-15 — [[besu-three-references]].)
+- **`upstream` branches** (vanilla besu / go-ethereum / nethermind, ETC removed) = the
+  shared-EVM/RLP JVM+Go guide + PoA/multi-consensus + structural mirror — NOT ETC value
+  authorities.
 
 So: **ETC base (pre-Olympia) → core-geth (Go) + besu-etc (JVM), read both.** **MESS
 (ECIP-1100) → core-geth is the sole external authority** (upstream besu removed it; our
 besu `main` `ArtificialFinality.java` is our own impl). **Olympia (1111/1112/1121/1122)
-→ the ECIP specs we authored (`.claude/repo-references/ECIPs/_specs/`) + our core-geth/
-besu `main` overlays — self-referenced drafts, no frozen external authority.** For
-shared EVM/RLP/crypto: **go-ethereum + besu (upstream) together** (must agree). erigon /
-nethermind / reth = design ideas only.
+→ the ECIP specs we authored (`.claude/repo-references/ECIPs/_specs/`) + our core-geth /
+besu / nethermind `main` overlays — self-referenced drafts, no frozen external
+authority; forge + operator decide.** For shared EVM/RLP/crypto: **go-ethereum + besu
+(upstream) together** (must agree). erigon / reth = design ideas only.
 
 **Rule 0 — the SR is binding.** `docs/research/clients/observations/{slot}.md`
 (especially `consensus-engines.md`, `block-execution.md`, `evm.md`) answers most
@@ -136,8 +144,11 @@ co-authorities — read BOTH, byte-values must agree**:
     the shared-EVM/RLP JVM guide, the PoA/multi-consensus authority, and the
     structural mirror (object-structured schedules — *how to structure* a
     dispatch/schedule, separate from *what the ETC values are*).
-- **Nethermind** (`.claude/repo-references/clients/nethermind`) — secondary design
-  cross-check for consensus-affecting RLP details; not an ETC value authority.
+- **Nethermind** (`.claude/repo-references/clients/nethermind`) — two branches:
+  `upstream` (vanilla NethermindEth) = secondary design cross-check for consensus-affecting
+  RLP details, not an ETC value authority; **`main` = fukuii's OWN ETC+Olympia overlay
+  draft** (a third Olympia reference alongside besu/core-geth `main` — self-referenced, not
+  an authority; read via `git show main:…`).
 
 GitHub mirrors (fetch only if the local clone is missing): core-geth
 `github.com/white-b0x/core-geth`; besu `github.com/white-b0x/besu` (branch convention:
