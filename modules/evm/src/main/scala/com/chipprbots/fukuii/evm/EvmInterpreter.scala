@@ -77,18 +77,23 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
               else context.world
             val context1: PC = context.copy(world = world1)
 
-            // NOTE(P5): the AS-IS `PrecompiledContracts` short-circuit goes here — build the precompile registry in P5
-            // and branch to it before the code path. Until then every call runs the resolved account code.
-            val code = resolveCode(world1, recipientAddr)
-            val env = execEnvOf(context1, code, ownerAddr)
+            // Precompile short-circuit: a call whose target is a precompile in the fork-resolved set runs the wrapper
+            // (charge its gas, exec, return) instead of resolving/running account code — precompile addresses carry no
+            // code. Relocation remap (`precompileRelocations`) is an L4 simulation concern, not wired here (default
+            // empty). Byte-authorities: go-ethereum `core/vm/interpreter.go`, besu `MessageCallProcessor`.
+            context1.evmConfig.precompiles.get(recipientAddr) match
+              case Some(precompile) => precompile.run(context1)
+              case None =>
+                val code = resolveCode(world1, recipientAddr)
+                val env = execEnvOf(context1, code, ownerAddr)
 
-            // EIP-7702: if the callee's code is a delegation designator, warm the delegation target (it was already
-            // charged opcode-side); the resolved `code` above is the delegate's code.
-            val initialState: PS = initialProgramState(context1, env)
-            val warmState = Eip7702.parseDelegation(world1.getCode(recipientAddr)) match
-              case Some(target) => initialState.addAccessedAddress(target)
-              case None         => initialState
-            exec(warmState).toResult
+                // EIP-7702: if the callee's code is a delegation designator, warm the delegation target (it was already
+                // charged opcode-side); the resolved `code` above is the delegate's code.
+                val initialState: PS = initialProgramState(context1, env)
+                val warmState = Eip7702.parseDelegation(world1.getCode(recipientAddr)) match
+                  case Some(target) => initialState.addAccessedAddress(target)
+                  case None         => initialState
+                exec(warmState).toResult
         exitResult = r
         r
       finally

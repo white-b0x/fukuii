@@ -96,7 +96,8 @@ class EvmProposalFoldIdentitySpec extends AnyFunSuite:
       actual.noEmptyAccounts == oracle.noEmptyAccounts &&
       actual.exceptionalFailedCodeDeposit == oracle.exceptionalFailedCodeDeposit &&
       actual.chargeSelfDestructForNewAccount == oracle.chargeSelfDestructForNewAccount &&
-      actual.maxCodeSize == oracle.maxCodeSize
+      actual.maxCodeSize == oracle.maxCodeSize &&
+      actual.precompiles == oracle.precompiles
 
   private def mkHeader(number: BigInt, timestamp: Long): BlockHeader =
     BlockHeader(

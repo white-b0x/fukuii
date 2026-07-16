@@ -1,5 +1,6 @@
 package com.chipprbots.fukuii.evm
 
+import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.domain.BlockHeader
 import com.chipprbots.fukuii.evm.ProposalId.Eip
 
@@ -28,7 +29,8 @@ final case class EvmConfig(
     noEmptyAccounts: Boolean = false,
     exceptionalFailedCodeDeposit: Boolean = false,
     chargeSelfDestructForNewAccount: Boolean = false,
-    maxCodeSize: Option[BigInt] = None
+    maxCodeSize: Option[BigInt] = None,
+    precompiles: Map[Address, PrecompiledContracts.PrecompiledContract] = Map.empty
 ):
 
   /** Raw proposal membership. The intent-named getters (`eip2929Enabled`, `eip6780Enabled`, …) are the fork-name-free
@@ -78,7 +80,10 @@ object EvmConfig:
       EvmProposals.evmApplicationOrder.iterator.filter(active.contains).flatMap(EvmProposals.byId.get).toList
     val opcodes = proposals.foldLeft(OpCodes.FrontierOpCodes)((ops, p) => p.opcodeDelta(ops))
     val gas = proposals.foldLeft(GasCalculator.Frontier)((gc, p) => p.gasDelta.getOrElse(gc))
-    val base = EvmConfig(active, gas, OpCodes.denseTable(opcodes))
+    // The precompile set folds in from the Frontier base (0x01–0x04, present from genesis) through each proposal's
+    // configDelta; the resolved map is immutable once built (R2).
+    val base =
+      EvmConfig(active, gas, OpCodes.denseTable(opcodes), precompiles = PrecompiledContracts.FrontierPrecompiles)
     proposals.foldLeft(base)((cfg, p) => p.configDelta(cfg))
 
   // -- intent-named getters (RX-L3-12): the interpreter reads a neutral EIP-keyed intent, never a fork name -----------
@@ -111,6 +116,22 @@ object EvmConfig:
     /** EIP-6780 — SELFDESTRUCT only destroys a same-transaction-created contract (a *semantic*, not a new opcode). */
     def eip6780Enabled: Boolean = c.isActive(Eip(6780))
 
+    /** EIP-1108 — alt-bn128 (`0x06`/`0x07`/`0x08`) gas repricing (Istanbul / ETC Phoenix); selects the cheaper
+      * ECADD/ECMUL/ECPAIRING cost in the precompile wrappers.
+      */
+    def eip1108Enabled: Boolean = c.isActive(Eip(1108))
+
+    /** EIP-2565 — ModExp (`0x05`) gas repricing (Berlin / ETC Magneto). */
+    def eip2565Enabled: Boolean = c.isActive(Eip(2565))
+
+    /** EIP-7823 — ModExp operand-length upper bound (≤ 1024 bytes / 8192 bits; ETH Osaka, ETC Olympia); enforced at
+      * entry in the ModExp wrapper.
+      */
+    def eip7823Enabled: Boolean = c.isActive(Eip(7823))
+
+    /** EIP-7883 — ModExp (`0x05`) gas increase (ETH Osaka, ETC Olympia); supersedes the EIP-2565 cost. */
+    def eip7883Enabled: Boolean = c.isActive(Eip(7883))
+
     /** EIP-3860 max initcode size — twice [[EvmConfig.maxCodeSize]] when EIP-3860 is active, else `None`. */
     def maxInitCodeSize: Option[BigInt] =
       if c.eip3860Enabled then c.maxCodeSize.map(_ * 2) else None
@@ -126,14 +147,21 @@ object EvmConfig:
   private val CodeSizeLimit: Option[BigInt] = Some(BigInt(24576))
 
   /** The shared opcode/behavior EIPs a modern (post-Spiral/Shanghai) fork has active — the markers the intent getters
-    * and the shared bundle bases reference (opcode EIPs + the 2929/2200/3529/3855 gas/metering markers).
+    * and the shared bundle bases reference (opcode EIPs + the 2929/2200/3529/3855 gas/metering markers). Includes the
+    * precompile-gas markers EIP-1108 (alt-bn128 repricing) and EIP-2565 (ModExp repricing) so the named bundles are
+    * self-consistent for `eip1108Enabled`/`eip2565Enabled` when used directly, not only via the fold.
     */
   private val ModernSharedProposals: Set[ProposalId] =
-    Set(7, 140, 214, 211, 1052, 1014, 145, 1344, 1884, 3855, 2929, 2200, 3529, 3860).map(Eip.apply)
+    Set(7, 140, 214, 211, 1052, 1014, 145, 1344, 1884, 3855, 2929, 2200, 3529, 3860, 1108, 2565).map(Eip.apply)
 
-  /** Frontier — the genesis config (membership-empty, no modern flags). */
+  /** Frontier — the genesis config (membership-empty, no modern flags; the `0x01–0x04` genesis precompiles). */
   val Frontier: EvmConfig =
-    EvmConfig(Set.empty, GasCalculator.Frontier, OpCodes.denseTable(OpCodes.FrontierOpCodes))
+    EvmConfig(
+      Set.empty,
+      GasCalculator.Frontier,
+      OpCodes.denseTable(OpCodes.FrontierOpCodes),
+      precompiles = PrecompiledContracts.FrontierPrecompiles
+    )
 
   /** ETH Cancun — Shanghai base + EIP-1153/4844/5656/7516 + EIP-6780 semantics + EIP-3198 BASEFEE. */
   val EthCancun: EvmConfig =
@@ -144,23 +172,30 @@ object EvmConfig:
       noEmptyAccounts = true,
       exceptionalFailedCodeDeposit = true,
       chargeSelfDestructForNewAccount = true,
-      maxCodeSize = CodeSizeLimit
+      maxCodeSize = CodeSizeLimit,
+      precompiles = PrecompiledContracts.EthCancunPrecompiles
     )
 
-  /** ETH Prague — Cancun + EIP-2537/7702/7623/7691 (+ CL-side EIP-6110/7251/7002/7685); no new opcode. */
+  /** ETH Prague — Cancun + EIP-2537/7702/7623/7691 (+ CL-side EIP-6110/7251/7002/7685); no new opcode. Adds the
+    * BLS12-381 (`0x0b–0x11`) precompiles.
+    */
   val EthPrague: EvmConfig =
     EthCancun.copy(
       activeProposals = EthCancun.activeProposals ++ Set(2537, 7702, 7623, 7691).map(Eip.apply),
       gasCalculator = GasCalculator.EthPrague,
-      opCodes = OpCodes.denseTable(OpCodes.EthPragueOpCodes)
+      opCodes = OpCodes.denseTable(OpCodes.EthPragueOpCodes),
+      precompiles = PrecompiledContracts.EthPraguePrecompiles
     )
 
-  /** ETH Osaka — Prague + CLZ (EIP-7939) + P256VERIFY (EIP-7951) + MODEXP EIP-7823/7883 + EIP-7918/7892. */
+  /** ETH Osaka — Prague + CLZ (EIP-7939) + P256VERIFY (EIP-7951) + MODEXP EIP-7823/7883 + EIP-7918/7892. Adds the
+    * P256VERIFY (`0x0100`) precompile.
+    */
   val EthOsaka: EvmConfig =
     EthPrague.copy(
       activeProposals = EthPrague.activeProposals ++ Set(7939, 7951, 7883, 7823, 7918, 7892).map(Eip.apply),
       gasCalculator = GasCalculator.EthOsaka,
-      opCodes = OpCodes.denseTable(OpCodes.EthOsakaOpCodes)
+      opCodes = OpCodes.denseTable(OpCodes.EthOsakaOpCodes),
+      precompiles = PrecompiledContracts.EthOsakaPrecompiles
     )
 
   /** ETC Olympia (ECIP-1121) — Spiral base + EIP-3198/1153/5656/7939 opcodes, EIP-6780 semantics, EIP-2537/7951
@@ -176,5 +211,6 @@ object EvmConfig:
       noEmptyAccounts = true,
       exceptionalFailedCodeDeposit = true,
       chargeSelfDestructForNewAccount = true,
-      maxCodeSize = CodeSizeLimit
+      maxCodeSize = CodeSizeLimit,
+      precompiles = PrecompiledContracts.EtcOlympiaPrecompiles
     )

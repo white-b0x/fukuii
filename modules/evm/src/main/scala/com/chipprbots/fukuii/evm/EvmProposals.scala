@@ -1,5 +1,6 @@
 package com.chipprbots.fukuii.evm
 
+import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.evm.ProposalId.Ecip
 import com.chipprbots.fukuii.evm.ProposalId.Eip
 
@@ -43,6 +44,14 @@ object EvmProposals:
   )
 
   private def eips(ns: Int*): Set[ProposalId] = ns.iterator.map(Eip.apply).toSet
+
+  /** A `configDelta` that adds `ps` to the resolved config's precompile set (union — precompile addresses are disjoint
+    * across proposals, and the resolved [[EvmConfig.precompiles]] map stays immutable once folded, R2).
+    */
+  private def addPrecompiles(
+      ps: Map[Address, PrecompiledContracts.PrecompiledContract]
+  ): EvmConfig => EvmConfig =
+    cfg => cfg.copy(precompiles = cfg.precompiles ++ ps)
 
   /** EIP-170 contract code-size limit (24576) — the modern `maxCodeSize`, set at Spurious Dragon. */
   private val CodeSizeLimit: Option[BigInt] = Some(BigInt(24576))
@@ -101,6 +110,28 @@ object EvmProposals:
   val Eip214StaticCall: EvmProposal =
     EvmProposal(Eip(214))
 
+  /** EIP-198 — ModExp precompile `0x05` (Byzantium / ETC Atlantis). */
+  val Eip198Modexp: EvmProposal =
+    EvmProposal(Eip(198), configDelta = addPrecompiles(PrecompiledContracts.Eip198Precompiles))
+
+  /** EIP-196 — alt-bn128 ECADD `0x06` / ECMUL `0x07` precompiles (Byzantium / ETC Atlantis). */
+  val Eip196Bn128: EvmProposal =
+    EvmProposal(Eip(196), configDelta = addPrecompiles(PrecompiledContracts.Eip196Precompiles))
+
+  /** EIP-197 — alt-bn128 ECPAIRING `0x08` precompile (Byzantium / ETC Atlantis). */
+  val Eip197Bn128Pairing: EvmProposal =
+    EvmProposal(Eip(197), configDelta = addPrecompiles(PrecompiledContracts.Eip197Precompiles))
+
+  /** EIP-152 — BLAKE2F precompile `0x09` (Istanbul / ETC Phoenix). */
+  val Eip152Blake2f: EvmProposal =
+    EvmProposal(Eip(152), configDelta = addPrecompiles(PrecompiledContracts.Eip152Precompiles))
+
+  /** EIP-1108 — alt-bn128 gas repricing (Istanbul / ETC Phoenix); the cheaper ECADD/ECMUL/ECPAIRING cost gated by
+    * `eip1108Enabled`, membership-only here.
+    */
+  val Eip1108AltBn128Gas: EvmProposal =
+    EvmProposal(Eip(1108))
+
   /** EIP-1052 — EXTCODEHASH (Constantinople / ETC Agharta). */
   val Eip1052ExtCodeHash: EvmProposal =
     EvmProposal(Eip(1052), opcodeDelta = EXTCODEHASH :: _)
@@ -141,6 +172,12 @@ object EvmProposals:
   val Eip2930: EvmProposal =
     EvmProposal(Eip(2930))
 
+  /** EIP-2565 — ModExp `0x05` gas repricing (Berlin / ETC Magneto); the reduced-cost model gated by `eip2565Enabled`,
+    * membership-only here.
+    */
+  val Eip2565Modexp: EvmProposal =
+    EvmProposal(Eip(2565))
+
   /** EIP-3198 — BASEFEE (ETH London; ETC Olympia). */
   val Eip3198BaseFee: EvmProposal =
     EvmProposal(Eip(3198), opcodeDelta = BASEFEE :: _)
@@ -178,9 +215,16 @@ object EvmProposals:
 
   // -- Cancun / Olympia shared opcodes + semantics ------------------------------------------------------------------
 
-  /** EIP-4844 — BLOBHASH (ETH Cancun; **ETH-only**), and the ETH Cancun gas leaf selector. */
+  /** EIP-4844 — BLOBHASH (ETH Cancun; **ETH-only**), the ETH Cancun gas leaf selector, and the KZG point-evaluation
+    * precompile `0x0a`. **ETH-only** — ETC never activates EIP-4844, so `0x0a` never enters an ETC precompile set.
+    */
   val Eip4844BlobHash: EvmProposal =
-    EvmProposal(Eip(4844), opcodeDelta = BLOBHASH :: _, gasDelta = Some(GasCalculator.EthCancun))
+    EvmProposal(
+      Eip(4844),
+      opcodeDelta = BLOBHASH :: _,
+      gasDelta = Some(GasCalculator.EthCancun),
+      configDelta = addPrecompiles(PrecompiledContracts.Eip4844Precompiles)
+    )
 
   /** EIP-7516 — BLOBBASEFEE (ETH Cancun; **ETH-only**). */
   val Eip7516BlobBaseFee: EvmProposal =
@@ -204,9 +248,9 @@ object EvmProposals:
   val Eip7939Clz: EvmProposal =
     EvmProposal(Eip(7939), opcodeDelta = CLZ :: _)
 
-  /** EIP-2537 — BLS12-381 precompiles 0x0b–0x11 (Prague; ETC Olympia); the wrappers are P5. */
+  /** EIP-2537 — BLS12-381 precompiles `0x0b–0x11` (seven; ETH Prague, ETC Olympia). */
   val Eip2537Bls: EvmProposal =
-    EvmProposal(Eip(2537))
+    EvmProposal(Eip(2537), configDelta = addPrecompiles(PrecompiledContracts.BlsPrecompiles))
 
   /** EIP-7702 — set-code (Type-4) transaction call/create path (Prague; ETC Olympia); membership at L3. */
   val Eip7702SetCode: EvmProposal =
@@ -220,9 +264,11 @@ object EvmProposals:
   val Eip7691BlobThroughput: EvmProposal =
     EvmProposal(Eip(7691), gasDelta = Some(GasCalculator.EthPrague))
 
-  /** EIP-7951 — P256VERIFY precompile 0x0100 (Osaka; ETC Olympia); the wrapper is P5. */
+  /** EIP-7951 — P256VERIFY precompile `0x0100` (ETH Osaka, ETC Olympia — the dual-activation asymmetry vs `0x0a` KZG,
+    * which ETC excludes).
+    */
   val Eip7951P256: EvmProposal =
-    EvmProposal(Eip(7951))
+    EvmProposal(Eip(7951), configDelta = addPrecompiles(PrecompiledContracts.P256Precompiles))
 
   /** EIP-7883 — MODEXP gas increase (Osaka; ETC Olympia); enforced in the P5 MODEXP wrapper. */
   val Eip7883Modexp: EvmProposal =
@@ -270,15 +316,21 @@ object EvmProposals:
     Eip(140),
     Eip(211),
     Eip(214),
+    Eip(198),
+    Eip(196),
+    Eip(197),
     Eip(1052),
     Eip(1014),
     Eip(145),
+    Eip(152),
+    Eip(1108),
     Eip(1344),
     Eip(1884),
     Eip(2028),
     Eip(2200),
     Eip(2929),
     Eip(2930),
+    Eip(2565),
     Eip(3198),
     Eip(3529),
     Eip(3541),
@@ -318,15 +370,21 @@ object EvmProposals:
     Eip140Revert,
     Eip211ReturnData,
     Eip214StaticCall,
+    Eip198Modexp,
+    Eip196Bn128,
+    Eip197Bn128Pairing,
     Eip1052ExtCodeHash,
     Eip1014Create2,
     Eip145Shifts,
+    Eip152Blake2f,
+    Eip1108AltBn128Gas,
     Eip1344ChainId,
     Eip1884,
     Eip2028,
     Eip2200,
     Eip2929,
     Eip2930,
+    Eip2565Modexp,
     Eip3198BaseFee,
     Eip3529Refund,
     Eip3541RejectEF,
@@ -363,10 +421,13 @@ object EvmProposals:
   val eip150Set: Set[ProposalId] = homesteadSet + Eip(150)
   val eip160Set: Set[ProposalId] = eip150Set + Eip(160)
   val spuriousDragonSet: Set[ProposalId] = eip160Set ++ eips(161, 170)
-  val byzantiumSet: Set[ProposalId] = spuriousDragonSet ++ eips(140, 211, 214)
+  // Byzantium/Atlantis add the ModExp (198) + alt-bn128 (196/197) precompiles alongside REVERT/returndata/staticcall.
+  val byzantiumSet: Set[ProposalId] = spuriousDragonSet ++ eips(140, 211, 214, 198, 196, 197)
   val constantinopleSet: Set[ProposalId] = byzantiumSet ++ eips(1052, 1014, 145)
-  val istanbulSet: Set[ProposalId] = constantinopleSet ++ eips(1344, 1884, 2028, 2200)
-  val berlinSet: Set[ProposalId] = istanbulSet ++ eips(2929, 2930)
+  // Istanbul/Phoenix add BLAKE2F (152) + the alt-bn128 gas repricing (1108).
+  val istanbulSet: Set[ProposalId] = constantinopleSet ++ eips(1344, 1884, 2028, 2200, 152, 1108)
+  // Berlin/Magneto add the ModExp EIP-2565 gas repricing (2565) alongside 2929/2930.
+  val berlinSet: Set[ProposalId] = istanbulSet ++ eips(2929, 2930, 2565)
 
   // ETH branch: London adds BASEFEE + reduced-refund gas + EIP-1559; Shanghai adds PUSH0; Cancun adds the
   // blob/transient/mcopy opcodes; Prague/Osaka add precompile/gas/tx EIPs (opcode: only CLZ at Osaka).
