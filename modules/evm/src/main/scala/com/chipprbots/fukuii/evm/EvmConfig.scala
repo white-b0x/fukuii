@@ -98,6 +98,16 @@ object EvmConfig:
     /** EIP-3860 initcode word metering + size limit. */
     def eip3860Enabled: Boolean = c.isActive(Eip(3860))
 
+    /** EIP-3541 — reject a deployed contract whose code begins with the `0xEF` byte (London / ETC Mystique onward);
+      * enforced at code-deposit time in [[EvmInterpreter.create]].
+      */
+    def eip3541Enabled: Boolean = c.isActive(Eip(3541))
+
+    /** EIP-3651 — the block's `COINBASE` starts warm (Shanghai / ETC Spiral onward); seeds the top-of-call EIP-2929
+      * accessed-address set.
+      */
+    def eip3651Enabled: Boolean = c.isActive(Eip(3651))
+
     /** EIP-6780 — SELFDESTRUCT only destroys a same-transaction-created contract (a *semantic*, not a new opcode). */
     def eip6780Enabled: Boolean = c.isActive(Eip(6780))
 
@@ -106,6 +116,11 @@ object EvmConfig:
       if c.eip3860Enabled then c.maxCodeSize.map(_ * 2) else None
 
   // -- named per-fork bundles (direct per-fork construction; the fold is P3) ------------------------------------------
+
+  /** The maximum EVM call/create re-entry depth (EIP-150 / YP `1024`). A sub-call at a deeper depth fails as an invalid
+    * call (`InvalidCall`) rather than executing — the [[EvmInterpreter.isValidCall]] guard.
+    */
+  val MaxCallDepth: Int = 1024
 
   /** EIP-170 contract code-size limit (24576) — the modern `maxCodeSize`. */
   private val CodeSizeLimit: Option[BigInt] = Some(BigInt(24576))
