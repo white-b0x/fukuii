@@ -65,19 +65,22 @@ val scala3Options = Seq(
   "-Wconf:id=E198:error", // Ratchet step 4/4: unused symbols are build errors (Scala 3: id=E198, cat=unused is not valid)
   "-Wconf:cat=feature:s", // Suppress adhocExtensions feature warnings (extending non-open Pekko/library classes)
   "-Wconf:cat=unchecked:error", // Ratchet step 4/4: unchecked patterns are build errors
+  "-Wconf:id=E176:error", // Ratchet step 4/4: value-discard / non-Unit-statement is a build error (paired with scala3ValueDiscardOptions)
+  "-Wconf:id=E175:error", // Ratchet step 4/4: value-discard (companion of E176) is a build error
   "-Ykind-projector", // Scala 3 replacement for kind-projector plugin
   "-Xmax-inlines:64" // Increase inline depth limit for complex boopickle/circe derivations
 )
 
-// Scapegoat-successor warnings (sbt-2 cutover dropped sbt-scapegoat, no sbt-2 artifact exists —
-// see project/plugins.sbt). Compile-only, not applied to Test: empirically verified against
-// modules/bytes + modules/common — zero warnings on main code, but 46 warnings on ScalaTest specs
-// where a mid-block `assert(...)`/`intercept[...](...)` call's non-Unit result is idiomatically
-// discarded (multiple assertions per test body is normal ScalaTest style, not a bug) — the same
-// "too many false positives on this specific pattern" tradeoff that led this project to disable
-// scapegoat's UnsafeTraversableMethods inspection. Warning-level only, not yet promoted to error
-// via -Wconf — that's a future warning-ratchet decision, not part of this build-tool cutover.
-val scala3CompileOnlyOptions = Seq(
+// Strict value-discard warnings (scapegoat-successor; the sbt-2 cutover dropped sbt-scapegoat, no
+// sbt-2 artifact exists — see project/plugins.sbt). Applied to BOTH Compile and Test (below).
+// They flag discarded non-Unit expression results (~scapegoat "ignored computation" bugs). These
+// were historically Compile-only because ScalaTest specs idiomatically discarded mid-block
+// `assert(...)` Assertion values (E176) — but that pattern was refactored out across every module
+// (single trailing / `&&`-combined assertions), so Test is now gated too, per the warning-ratchet
+// rule (refactor the pattern, never `-Wconf`-suppress it). Promoted to a hard build error via
+// `-Wconf:id=E176:error` / `id=E175:error` in scala3Options above (same mechanism as E198/unchecked;
+// -Xfatal-warnings is NOT in this build's option set, so the -Wconf:id:error rule is the actual gate).
+val scala3ValueDiscardOptions = Seq(
   "-Wvalue-discard", // flags discarded non-Unit expression results ~ scapegoat-class "ignored computation" bugs
   "-Wnonunit-statement" // flags non-Unit statements whose value is silently dropped in a block
 )
@@ -108,7 +111,8 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[?]] = Seq(
     val optimizations = if (fukuiiDev) Seq.empty else scala3OptimizationsForProd
     base ++ scala3Options ++ optimizations
   },
-  (Compile / scalacOptions) ++= scala3CompileOnlyOptions,
+  (Compile / scalacOptions) ++= scala3ValueDiscardOptions,
+  (Test / scalacOptions) ++= scala3ValueDiscardOptions,
   (Compile / console / scalacOptions) ~= (_.filterNot(
     Set(
       "-Xfatal-warnings"
