@@ -36,5 +36,6 @@ final case class ProgramResult[W <: WorldState[W, S], S <: AccountStorage[S]](
     error: Option[HaltReason],
     accessedAddresses: Set[Address],
     accessedStorageKeys: Set[(Address, UInt256)],
-    transientStorage: Map[(Address, UInt256), BigInt] = Map.empty
+    transientStorage: Map[(Address, UInt256), BigInt] = Map.empty,
+    createdAddresses: Set[Address] = Set.empty
 )

@@ -148,11 +148,16 @@ object EvmConfig:
 
   /** The shared opcode/behavior EIPs a modern (post-Spiral/Shanghai) fork has active — the markers the intent getters
     * and the shared bundle bases reference (opcode EIPs + the 2929/2200/3529/3855 gas/metering markers). Includes the
-    * precompile-gas markers EIP-1108 (alt-bn128 repricing) and EIP-2565 (ModExp repricing) so the named bundles are
-    * self-consistent for `eip1108Enabled`/`eip2565Enabled` when used directly, not only via the fold.
+    * precompile-gas markers EIP-1108 (alt-bn128 repricing) and EIP-2565 (ModExp repricing), and the behavior markers
+    * EIP-3541 (reject 0xEF) + EIP-3651 (warm COINBASE), so the named bundles are self-consistent for
+    * `eip1108Enabled`/`eip2565Enabled`/`eip3541Enabled`/`eip3651Enabled` when used directly, not only via the fold.
+    * Both consumers (ETH Cancun+, ETC Olympia) are post-London/Mystique (EIP-3541) and post-Shanghai/Spiral (EIP-3651),
+    * so both carry these; EIP-6049 (SELFDESTRUCT deprecation) is ETC-Spiral-only in the fold and is added to
+    * [[EtcOlympia]] alone (the ETH fold sets do not yet include it — drift risk noted: keep in sync with the fold).
     */
   private val ModernSharedProposals: Set[ProposalId] =
-    Set(7, 140, 214, 211, 1052, 1014, 145, 1344, 1884, 3855, 2929, 2200, 3529, 3860, 1108, 2565).map(Eip.apply)
+    Set(7, 140, 214, 211, 1052, 1014, 145, 1344, 1884, 3855, 2929, 2200, 3529, 3860, 1108, 2565, 3541, 3651)
+      .map(Eip.apply)
 
   /** Frontier — the genesis config (membership-empty, no modern flags; the `0x01–0x04` genesis precompiles). */
   val Frontier: EvmConfig =
@@ -205,7 +210,7 @@ object EvmConfig:
   val EtcOlympia: EvmConfig =
     EvmConfig(
       activeProposals = ModernSharedProposals ++
-        Set(3198, 1153, 5656, 7939, 6780, 2537, 7951, 7883, 7823, 7623, 7702, 1559).map(Eip.apply),
+        Set(3198, 1153, 5656, 7939, 6780, 2537, 7951, 7883, 7823, 7623, 7702, 1559, 6049).map(Eip.apply),
       gasCalculator = GasCalculator.EtcOlympia,
       opCodes = OpCodes.denseTable(OpCodes.EtcOlympiaOpCodes),
       noEmptyAccounts = true,

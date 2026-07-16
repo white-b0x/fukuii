@@ -47,6 +47,7 @@ final case class ProgramState[W <: WorldState[W, S], S <: AccountStorage[S]](
     originalWorld: W,
     accessedAddresses: Set[Address],
     accessedStorageKeys: Set[(Address, UInt256)],
+    createdAddresses: Set[Address] = Set.empty,
     transientStorage: Map[(Address, UInt256), BigInt] = Map.empty,
     opcodeGasCost: BigInt = 0,
     stateGasReservoir: BigInt = 0
@@ -129,6 +130,17 @@ final case class ProgramState[W <: WorldState[W, S], S <: AccountStorage[S]](
   def addAccessedStorageKeys(storageKeys: Set[(Address, UInt256)]): ProgramState[W, S] =
     copy(accessedStorageKeys = accessedStorageKeys ++ storageKeys)
 
+  /** EIP-6780: register a contract address as created in the current transaction. Populated at create-frame start (the
+    * contract's own address) — mirrors go-ethereum `StateDB.CreateContract` (core/vm/evm.go, set before the initcode
+    * runs) and besu `MessageFrame.addCreate` (ContractCreationProcessor, before `CODE_EXECUTING`) — so a contract that
+    * SELFDESTRUCTs inside its own constructor is seen as same-tx-created.
+    */
+  def addCreatedAddress(addr: Address): ProgramState[W, S] =
+    copy(createdAddresses = createdAddresses + addr)
+
+  def addCreatedAddresses(addresses: Set[Address]): ProgramState[W, S] =
+    copy(createdAddresses = createdAddresses ++ addresses)
+
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](
       returnData,
@@ -141,5 +153,6 @@ final case class ProgramState[W <: WorldState[W, S], S <: AccountStorage[S]](
       error,
       accessedAddresses,
       accessedStorageKeys,
-      transientStorage
+      transientStorage,
+      createdAddresses
     )

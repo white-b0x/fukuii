@@ -753,6 +753,7 @@ abstract class CreateOp(opcode: Int, delta: Int) extends OpCode(opcode, delta, 1
         originalWorld = state.originalWorld,
         warmAddresses = state.accessedAddresses,
         warmStorage = state.accessedStorageKeys,
+        createdAddresses = state.createdAddresses,
         transientStorage = state.transientStorage,
         precompileRelocations = state.env.precompileRelocations,
         blobVersionedHashes = state.env.blobVersionedHashes,
@@ -800,6 +801,9 @@ abstract class CreateOp(opcode: Int, delta: Int) extends OpCode(opcode, delta, 1
             .withReturnData(ByteString.empty)
             .addAccessedStorageKeys(result.accessedStorageKeys)
             .addAccessedAddresses(result.accessedAddresses + newAddress)
+            // EIP-6780: a successful create commits its whole subtree's created addresses to the parent frame (the
+            // reverted case is the `Some(error)` arm above, which drops them — mirrors geth journal-revert / besu UndoSet).
+            .addCreatedAddresses(result.createdAddresses)
             .copy(transientStorage = result.transientStorage)
             .step()
 
@@ -870,6 +874,7 @@ abstract class CallOp(opcode: Int, delta: Int, alpha: Int) extends OpCode(opcode
       originalWorld = state.originalWorld,
       warmAddresses = stateWithDelegationWarming.accessedAddresses,
       warmStorage = state.accessedStorageKeys,
+      createdAddresses = state.createdAddresses,
       transientStorage = state.transientStorage,
       precompileRelocations = state.env.precompileRelocations,
       blobVersionedHashes = state.env.blobVersionedHashes,
@@ -915,6 +920,9 @@ abstract class CallOp(opcode: Int, delta: Int, alpha: Int) extends OpCode(opcode
           .withReturnData(result.returnData)
           .addAccessedStorageKeys(result.accessedStorageKeys)
           .addAccessedAddresses(result.accessedAddresses + toAddr)
+          // EIP-6780: propagate any contracts created inside the sub-call up to the parent (tx-global created set); the
+          // error arm above intentionally drops them.
+          .addCreatedAddresses(result.createdAddresses)
           .copy(transientStorage = result.transientStorage)
           .step()
 
@@ -1065,8 +1073,13 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct):
       if state.addressesToDelete.contains(state.ownAddress) then 0 else state.config.gasCalculator.R_selfdestruct
 
     // EIP-6780: post-Olympia SELFDESTRUCT only destroys contracts created in the same transaction; a pre-existing
-    // contract only has its balance transferred.
-    val createdInThisTx = !state.originalWorld.accountExists(state.ownAddress)
+    // contract only has its balance transferred. Membership in the per-tx created set is the oracle — go-ethereum
+    // `StateDB.IsNewContract` (core/vm/instructions.go:943, the journaled `newContract` flag) and besu
+    // `frame.wasCreatedInTransaction` (SelfDestructOperation.java:125, the UndoSet `creates`). It must NOT be
+    // approximated by `originalWorld.accountExists`: `originalWorld` is `initialiseAccount`'d on the CREATE path
+    // (EvmInterpreter.create), so that check is true inside a constructor frame and would wrongly spare a contract
+    // that SELFDESTRUCTs in its own constructor.
+    val createdInThisTx = state.createdAddresses.contains(state.ownAddress)
     val shouldDelete = !state.config.eip6780Enabled || createdInThisTx
 
     val world =

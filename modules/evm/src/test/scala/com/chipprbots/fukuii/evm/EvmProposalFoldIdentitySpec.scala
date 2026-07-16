@@ -162,7 +162,9 @@ class EvmProposalFoldIdentitySpec extends AnyFunSuite:
     )
     assert(ladder.forall((set, ops) => opcodesEquiv(EvmConfig.deriveEvmConfigAt(set).opCodes, ops)))
 
-  // -- gas-ladder fold identity (every named GasCalculator; ETH London/Shanghai are field-identical to Eip3529) ------
+  // -- gas-ladder fold identity (every named GasCalculator). ETH London / ETC Mystique are field-identical to Eip3529
+  // (reduced refund, no initcode metering); ETH Shanghai / ETC Spiral first select Eip3860 (initcode word = 2), one fork
+  // later than EIP-3529 — go-ethereum `newShanghaiInstructionSet` enable3860, core-geth `EIP3860FBlock` = 19_250_000. ---
 
   test("fold identity — gas schedule at every activation height on both fork clocks"):
     val ladder: List[(Set[ProposalId], GasCalculator)] = List(
@@ -173,8 +175,9 @@ class EvmProposalFoldIdentitySpec extends AnyFunSuite:
       istanbulSet -> GasCalculator.Eip1884,
       berlinSet -> GasCalculator.Eip2929,
       etcMystiqueSet -> GasCalculator.Eip3529,
+      etcSpiralSet -> GasCalculator.Eip3860,
       ethLondonSet -> GasCalculator.EthLondon,
-      ethShanghaiSet -> GasCalculator.EthLondon,
+      ethShanghaiSet -> GasCalculator.Eip3860,
       ethCancunSet -> GasCalculator.EthCancun,
       ethPragueSet -> GasCalculator.EthPrague,
       ethOsakaSet -> GasCalculator.EthOsaka,

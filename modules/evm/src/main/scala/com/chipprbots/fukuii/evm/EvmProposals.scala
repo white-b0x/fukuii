@@ -190,11 +190,12 @@ object EvmProposals:
   val Eip3541RejectEF: EvmProposal =
     EvmProposal(Eip(3541))
 
-  /** EIP-3860 — initcode word metering + size limit (membership → `eip3860Enabled`; the gas value is on
-    * [[GasCalculator.Eip3529]]).
+  /** EIP-3860 — initcode word metering + size limit (membership → `eip3860Enabled`). Selects the
+    * [[GasCalculator.Eip3860]] gas leaf (`G_initcode_word = 2`), which the fold applies at ETH Shanghai / ETC Spiral —
+    * one fork later than EIP-3529 (go-ethereum `newShanghaiInstructionSet`; core-geth `EIP3860FBlock` 19_250_000).
     */
   val Eip3860: EvmProposal =
-    EvmProposal(Eip(3860))
+    EvmProposal(Eip(3860), gasDelta = Some(GasCalculator.Eip3860))
 
   /** EIP-3855 — PUSH0 (ETC Spiral; ETH Shanghai). */
   val Eip3855Push0: EvmProposal =
@@ -429,16 +430,20 @@ object EvmProposals:
   // Berlin/Magneto add the ModExp EIP-2565 gas repricing (2565) alongside 2929/2930.
   val berlinSet: Set[ProposalId] = istanbulSet ++ eips(2929, 2930, 2565)
 
-  // ETH branch: London adds BASEFEE + reduced-refund gas + EIP-1559; Shanghai adds PUSH0; Cancun adds the
+  // ETH branch: London adds BASEFEE + reduced-refund gas + EIP-1559 (NOT EIP-3860 — go-ethereum activates initcode
+  // metering at Shanghai: `newLondonInstructionSet` enable3529/enable3198 only, `newShanghaiInstructionSet` adds
+  // enable3860, core/vm/jump_table.go:136-162). Shanghai adds PUSH0 + warm-COINBASE + EIP-3860; Cancun adds the
   // blob/transient/mcopy opcodes; Prague/Osaka add precompile/gas/tx EIPs (opcode: only CLZ at Osaka).
-  val ethLondonSet: Set[ProposalId] = berlinSet ++ eips(3198, 3529, 3541, 3860, 1559)
-  val ethShanghaiSet: Set[ProposalId] = ethLondonSet ++ eips(3855, 3651)
+  val ethLondonSet: Set[ProposalId] = berlinSet ++ eips(3198, 3529, 3541, 1559)
+  val ethShanghaiSet: Set[ProposalId] = ethLondonSet ++ eips(3855, 3651, 3860)
   val ethCancunSet: Set[ProposalId] = ethShanghaiSet ++ eips(4844, 7516, 1153, 5656, 6780)
   val ethPragueSet: Set[ProposalId] = ethCancunSet ++ eips(2537, 7702, 7623, 7691)
   val ethOsakaSet: Set[ProposalId] = ethPragueSet ++ eips(7939, 7951, 7883, 7823, 7918, 7892)
 
-  // ETC branch: Mystique adds reduced-refund gas WITHOUT EIP-1559 (ETC adopts base-fee only at Olympia);
-  // Spiral adds PUSH0 (no BASEFEE — that arrives at Olympia). Olympia = Spiral + Ecip(1121) + its closure.
-  val etcMystiqueSet: Set[ProposalId] = berlinSet ++ eips(3529, 3541, 3860)
-  val etcSpiralSet: Set[ProposalId] = etcMystiqueSet ++ eips(3855, 3651, 6049)
+  // ETC branch: Mystique adds reduced-refund gas + EIP-3541 WITHOUT EIP-1559 and WITHOUT EIP-3860 (core-geth
+  // config_classic.go: EIP3529FBlock/EIP3541FBlock = 14_525_000 Mystique, but EIP3860FBlock = 19_250_000 Spiral,
+  // lines 101-108). Spiral adds PUSH0 + warm-COINBASE + EIP-3860 + SELFDESTRUCT-deprecation (no BASEFEE — that
+  // arrives at Olympia). Olympia = Spiral + Ecip(1121) + its closure.
+  val etcMystiqueSet: Set[ProposalId] = berlinSet ++ eips(3529, 3541)
+  val etcSpiralSet: Set[ProposalId] = etcMystiqueSet ++ eips(3855, 3651, 3860, 6049)
   val etcOlympiaSet: Set[ProposalId] = etcSpiralSet ++ Set(Ecip(1121)) ++ Ecip1121Olympia.requires

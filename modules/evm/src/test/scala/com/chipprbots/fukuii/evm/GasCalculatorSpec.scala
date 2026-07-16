@@ -52,26 +52,35 @@ class GasCalculatorSpec extends AnyFunSuite:
         m.G_sload == BigInt(100) && m.G_sreset == BigInt(2900) && m.G_sset == BigInt(20000)
     )
 
-  test("EIP-3529 (London) applies refund reductions and EIP-3860 initcode metering"):
+  test("EIP-3529 applies refund reductions but NOT EIP-3860 initcode metering (metering is one fork later)"):
+    // EIP-3860 activates a fork after EIP-3529 on both clocks (ETH Shanghai vs London; ETC Spiral 19_250_000 vs
+    // Mystique 14_525_000), so G_initcode_word stays 0 at the EIP-3529 base and is 2 only on the EIP-3860 leaf.
     val m = GasCalculator.Eip3529
-    assert(m.R_sclear == BigInt(4800) && m.R_selfdestruct == BigInt(0) && m.G_initcode_word == BigInt(2))
+    val i = GasCalculator.Eip3860
+    assert(
+      m.R_sclear == BigInt(4800) && m.R_selfdestruct == BigInt(0) && m.G_initcode_word == BigInt(0) &&
+        i.R_sclear == BigInt(4800) && i.R_selfdestruct == BigInt(0) && i.G_initcode_word == BigInt(2)
+    )
 
-  test("EtcOlympia gas fields are field-identical to EIP-3529 (ETC-only leaf)"):
+  test("EtcOlympia gas fields are field-identical to EIP-3860 (ETC-only leaf; initcode metering active by Olympia)"):
     val o = GasCalculator.EtcOlympia
-    val m = GasCalculator.Eip3529
+    val m = GasCalculator.Eip3860
     assert(
       o.R_sclear == m.R_sclear && o.R_selfdestruct == m.R_selfdestruct &&
-        o.G_initcode_word == m.G_initcode_word && o.G_sload == m.G_sload &&
+        o.G_initcode_word == m.G_initcode_word && o.G_initcode_word == BigInt(2) && o.G_sload == m.G_sload &&
         o.accountAccessCost(o.G_call, isWarm = false) == BigInt(2600)
     )
 
-  test("ETH London→Osaka carry the EIP-3529/3860 values (ETH-only leaves)"):
-    val leaves = Seq(GasCalculator.EthLondon, GasCalculator.EthCancun, GasCalculator.EthPrague, GasCalculator.EthOsaka)
+  test("ETH London carries EIP-3529 refunds without EIP-3860 metering; Cancun→Osaka add the metering"):
+    val london = GasCalculator.EthLondon
+    val metered = Seq(GasCalculator.EthCancun, GasCalculator.EthPrague, GasCalculator.EthOsaka)
     assert(
-      leaves.forall(g =>
-        g.R_sclear == BigInt(4800) && g.R_selfdestruct == BigInt(0) && g.G_initcode_word == BigInt(2) &&
-          g.accountAccessCost(g.G_call, isWarm = true) == BigInt(100)
-      )
+      london.R_sclear == BigInt(4800) && london.R_selfdestruct == BigInt(0) &&
+        london.G_initcode_word == BigInt(0) && london.accountAccessCost(london.G_call, isWarm = true) == BigInt(100) &&
+        metered.forall(g =>
+          g.R_sclear == BigInt(4800) && g.R_selfdestruct == BigInt(0) && g.G_initcode_word == BigInt(2) &&
+            g.accountAccessCost(g.G_call, isWarm = true) == BigInt(100)
+        )
     )
 
   test("wordsForBytes is ceil(n/32)"):

@@ -145,6 +145,7 @@ object GasCalculator:
   val Eip1884: GasCalculator = new Eip1884GasCalculator
   val Eip2929: GasCalculator = new Eip2929GasCalculator
   val Eip3529: GasCalculator = new Eip3529GasCalculator
+  val Eip3860: GasCalculator = new Eip3860GasCalculator
 
   /** ETC-only. */
   val EtcOlympia: GasCalculator = new EtcOlympiaGasCalculator
@@ -255,14 +256,24 @@ class Eip2929GasCalculator extends Eip1884GasCalculator:
   override def storageAccessCost(preGas: BigInt, isWarm: Boolean): BigInt =
     if isWarm then G_warm_storage_read else G_cold_sload
 
-/** EIP-3529 — reduced refunds (EIP-3529) + EIP-3860 initcode word metering value. Shared ETC/ETH base for the
-  * reduced-refund era (the network-prefixed EtcOlympia / EthLondon leaves extend the appropriate base).
+/** EIP-3529 — reduced refunds. Shared ETC/ETH base for the reduced-refund era (Berlin→London on ETH, Magneto→Mystique
+  * on ETC). **Carries NO initcode metering**: EIP-3860 activates one fork later than EIP-3529 on BOTH clocks (ETH
+  * Shanghai vs London — go-ethereum `newShanghaiInstructionSet` enable3860, core/vm/jump_table.go:136-142; ETC Spiral
+  * 19_250_000 vs Mystique 14_525_000 — core-geth `EIP3860FBlock` config_classic.go:108), so `G_initcode_word` stays at
+  * the base 0 here and is raised only by [[Eip3860GasCalculator]].
   */
 class Eip3529GasCalculator extends Eip2929GasCalculator:
   // EIP-3529: R_sclear = SSTORE_RESET_GAS (2900) + ACCESS_LIST_STORAGE_KEY_COST (1900) = 4800.
   override def R_sclear: BigInt = 4800
   // EIP-3529: remove the SELFDESTRUCT refund.
   override def R_selfdestruct: BigInt = 0
+
+/** EIP-3860 — initcode word metering (`G_initcode_word = 2`), over the reduced-refund [[Eip3529GasCalculator]] base.
+  * The EIP-keyed shared base for the initcode-metering era; activated at ETH Shanghai / ETC Spiral (see
+  * [[Eip3529GasCalculator]] for the divergent activation heights vs EIP-3529). Both family leaves (EtcOlympia,
+  * EthCancun) root on this so the metering value is carried without an Etc*↔Eth* cross-reference.
+  */
+class Eip3860GasCalculator extends Eip3529GasCalculator:
   // EIP-3860: initcode word metering.
   override def G_initcode_word: BigInt = 2
 
@@ -271,26 +282,27 @@ class Eip3529GasCalculator extends Eip2929GasCalculator:
 // and vice versa, and neither is ever a shared base. Both extend an EIP-keyed shared base, never each other.
 // ---------------------------------------------------------------------------------------------------------------------
 
-/** ETC Olympia (ECIP-1121) — field-identical to [[Eip3529GasCalculator]] (the reduced-refund gas base). The Olympia-era
-  * gas deltas (EIP-7883 MODEXP, EIP-2537 BLS, EIP-7951 P256, EIP-7623 calldata floor) are precompile / intrinsic-gas
-  * rules enforced in the P5 precompile wrappers and L4 intrinsic-gas, not per-opcode tier fields — so the opcode gas
-  * schedule is EIP-3529's. **ETC-only.**
+/** ETC Olympia (ECIP-1121) — field-identical to [[Eip3860GasCalculator]] (the reduced-refund base plus EIP-3860
+  * initcode metering, both active by Olympia — Olympia = Spiral + Ecip(1121)). The remaining Olympia-era gas deltas
+  * (EIP-7883 MODEXP, EIP-2537 BLS, EIP-7951 P256, EIP-7623 calldata floor) are precompile / intrinsic-gas rules
+  * enforced in the P5 precompile wrappers and L4 intrinsic-gas, not per-opcode tier fields. **ETC-only.**
   */
-class EtcOlympiaGasCalculator extends Eip3529GasCalculator
+class EtcOlympiaGasCalculator extends Eip3860GasCalculator
 
-/** ETH London — EIP-3529 refund reduction + EIP-3860 initcode metering, over [[Eip2929GasCalculator]]. The ETH-named
-  * root of the post-London ETH fee lineage (Cancun → Prague → Osaka); field-identical to [[Eip3529GasCalculator]] but
-  * rooted on an ETH-named class so the ETH chain never references an ETC leaf. **ETH-only.**
+/** ETH London — EIP-3529 refund reduction over [[Eip2929GasCalculator]], WITHOUT EIP-3860 initcode metering (that
+  * arrives at Shanghai — see [[Eip3860GasCalculator]]). The ETH-named root of the post-London ETH fee lineage;
+  * field-identical to [[Eip3529GasCalculator]] but rooted on an ETH-named class so the ETH chain never references an
+  * ETC leaf. **ETH-only.**
   */
 class EthLondonGasCalculator extends Eip2929GasCalculator:
   override def R_sclear: BigInt = 4800
   override def R_selfdestruct: BigInt = 0
-  override def G_initcode_word: BigInt = 2
 
-/** ETH Cancun — same opcode gas fields as London (EIP-1153/4844/5656/7516 are opcode/blob mechanics, not per-op tier
-  * fields). **ETH-only.**
+/** ETH Cancun — the reduced-refund fields plus EIP-3860 initcode metering (active since Shanghai), so it roots on the
+  * EIP-keyed [[Eip3860GasCalculator]] (which extends [[Eip3529GasCalculator]], preserving London's EIP-3529 refund
+  * fields). EIP-1153/4844/5656/7516 are opcode/blob mechanics, not per-op tier fields. **ETH-only.**
   */
-class EthCancunGasCalculator extends EthLondonGasCalculator
+class EthCancunGasCalculator extends Eip3860GasCalculator
 
 /** ETH Prague — EIP-7623 adds a calldata *floor* (an L4 block-level `max(...)`, not a tier field), so the opcode gas
   * schedule is unchanged from Cancun. **ETH-only.**

@@ -170,9 +170,14 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
               val code = if conflict then ByteString(INVALID.code) else context.inputData
               val env = execEnvOf(context.copy(world = world1), code, contractAddr).copy(inputData = ByteString.empty)
 
+              // EIP-6780: register the new contract's address in the per-tx created set *before* running the initcode —
+              // matches go-ethereum `StateDB.CreateContract` (core/vm/evm.go:587, set prior to initcode) and besu
+              // `MessageFrame.addCreate` (ContractCreationProcessor.java:149, before CODE_EXECUTING) — so a SELFDESTRUCT
+              // in the constructor frame sees the account as same-tx-created and is honoured.
               val initialState: PS =
                 initialProgramState(context.copy(world = world1, originalWorld = originInitialisedAccount), env)
                   .addAccessedAddress(contractAddr)
+                  .addCreatedAddress(contractAddr)
 
               val execResult = exec(initialState).toResult
               (saveNewContract(contractAddr, execResult, env.evmConfig), contractAddr)
@@ -276,6 +281,7 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
         context.recipientAddr.getOrElse(context.callerAddr)
       ) ++ context.warmAddresses ++ coinbase,
       accessedStorageKeys = context.warmStorage,
+      createdAddresses = context.createdAddresses,
       transientStorage = context.transientStorage
     )
 

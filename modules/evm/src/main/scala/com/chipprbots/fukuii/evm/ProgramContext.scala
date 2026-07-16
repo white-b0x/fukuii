@@ -54,6 +54,7 @@ final case class ProgramContext[W <: WorldState[W, S], S <: AccountStorage[S]](
     originalWorld: W,
     warmAddresses: Set[Address],
     warmStorage: Set[(Address, UInt256)],
+    createdAddresses: Set[Address] = Set.empty,
     transientStorage: Map[(Address, UInt256), BigInt] = Map.empty,
     precompileRelocations: Map[Address, Address] = Map.empty,
     blobVersionedHashes: Seq[ByteString] = Seq.empty,
