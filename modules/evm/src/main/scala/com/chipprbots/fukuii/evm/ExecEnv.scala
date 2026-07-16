@@ -5,6 +5,7 @@ import org.apache.pekko.util.ByteString
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.domain.BlockHeader
+import com.chipprbots.fukuii.domain.ChainId
 
 /** Execution environment constants of an EVM program. See section 9.3 in the Yellow Paper for more detail.
   *
@@ -37,6 +38,17 @@ import com.chipprbots.fukuii.domain.BlockHeader
   *   gas provided for execution
   * @param evmConfig
   *   EVM configuration (forks)
+  * @param chainId
+  *   I_chainId — the EIP-155 chain id the `CHAINID` opcode reads. Threaded as an L1 [[ChainId]] value on the per-call
+  *   environment (geth `opChainID` reads `evm.chainConfig.ChainID`), **not** carried on the fork-resolved [[EvmConfig]]
+  *   — chain identity is per-instance runtime config, never a property of the fork schedule (R2).
+  * @param blobBaseFee
+  *   the block's **precomputed** blob base fee that `BLOBBASEFEE` (EIP-7516) pushes (geth `opBlobBaseFee` reads
+  *   `evm.Context.BlobBaseFee`). Computed by the caller (L4) so the EVM stays free of the blob-schedule timestamp
+  *   lookups; `Zero` pre-blob.
+  * @param prevRandao
+  *   the block's `prevRandao` (EIP-4399) that `DIFFICULTY`/`PREVRANDAO` (0x44) returns post-Merge (geth `opRandom`
+  *   reads `evm.Context.Random`); `None` pre-Merge, where 0x44 returns the header difficulty instead.
   */
 final case class ExecEnv(
     ownerAddr: Address,
@@ -50,6 +62,9 @@ final case class ExecEnv(
     callDepth: Int,
     startGas: BigInt,
     evmConfig: EvmConfig,
+    chainId: ChainId,
+    blobBaseFee: UInt256 = UInt256.Zero,
+    prevRandao: Option[UInt256] = None,
     precompileRelocations: Map[Address, Address] = Map.empty,
     blobVersionedHashes: Seq[ByteString] = Seq.empty,
     traceTransfers: Boolean = false

@@ -5,6 +5,7 @@ import org.apache.pekko.util.ByteString
 import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.domain.BlockHeader
+import com.chipprbots.fukuii.domain.ChainId
 
 /** Input parameters to a program executed on the EVM. Apart from the code itself it holds all (interfaces to) the data
   * accessible from the EVM. Execution constants, see section 9.3 in the Yellow Paper for more detail.
@@ -48,6 +49,7 @@ final case class ProgramContext[W <: WorldState[W, S], S <: AccountStorage[S]](
     world: W,
     initialAddressesToDelete: Set[Address],
     evmConfig: EvmConfig,
+    chainId: ChainId,
     staticCtx: Boolean = false,
     originalWorld: W,
     warmAddresses: Set[Address],
@@ -55,5 +57,7 @@ final case class ProgramContext[W <: WorldState[W, S], S <: AccountStorage[S]](
     transientStorage: Map[(Address, UInt256), BigInt] = Map.empty,
     precompileRelocations: Map[Address, Address] = Map.empty,
     blobVersionedHashes: Seq[ByteString] = Seq.empty,
+    blobBaseFee: UInt256 = UInt256.Zero,
+    prevRandao: Option[UInt256] = None,
     traceTransfers: Boolean = false
 )
