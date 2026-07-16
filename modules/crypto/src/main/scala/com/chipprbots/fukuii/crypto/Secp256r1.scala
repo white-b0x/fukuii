@@ -21,8 +21,7 @@ import org.bouncycastle.crypto.signers.ECDSASigner
   * point at infinity `(0, 0)`, reject a public key not on the curve, and reject a signature that does not verify.
   * Signature malleability is intentionally NOT rejected — high-`s` signatures verify (EIP-7951, matching besu
   * `verifySignature` with the default `ECDSASigner` and geth). This object is primitive-only — gas, input framing (the
-  * 160-byte `hash || r
-  * \|| s || qx || qy` layout) and the address live in the L3 precompile wrapper.
+  * 160-byte `hash || r \|| s || qx || qy` layout) and the address live in the L3 precompile wrapper.
   */
 object Secp256r1:
 

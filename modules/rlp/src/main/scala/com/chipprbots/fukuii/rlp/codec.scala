@@ -75,15 +75,16 @@ object RLPCodec:
   /** Type-directed RLP codec for a product's heterogeneous field tuple.
     *
     * Recurses on the tuple's `H *: T` cons structure so every field keeps its precise static type through the fold
-    * (`head: RLPCodec[H]` is summoned per element, `tail` handles the rest) — no field is ever erased to an
-    * existential `RLPCodec[?]`/`Any`, which is exactly what lets [[productCodec]] run with zero `asInstanceOf`. Field
-    * resolution is identical to the old per-element `summonInline[RLPCodec[head]]`: the same `given RLPCodec[H]` for
-    * each field type, in the same declaration order.
+    * (`head: RLPCodec[H]` is summoned per element, `tail` handles the rest) — no field is ever erased to an existential
+    * `RLPCodec[?]`/`Any`, which is exactly what lets [[productCodec]] run with zero `asInstanceOf`. Field resolution is
+    * identical to the old per-element `summonInline[RLPCodec[head]]`: the same `given RLPCodec[H]` for each field type,
+    * in the same declaration order.
     *
-    * Public because it is part of the derivation surface: `derived` is `inline`, so its `summonInline[TupleRLPCodec[…]]`
-    * resolves against the *call site's* implicit scope in whichever module writes `derives RLPCodec`. These givens live
-    * in this companion (always in implicit scope for a `TupleRLPCodec[_]` search, no import needed) and therefore must be
-    * accessible from those sites — the same reason a field's `given RLPCodec[H]` must be. Not intended for direct use.
+    * Public because it is part of the derivation surface: `derived` is `inline`, so its
+    * `summonInline[TupleRLPCodec[…]]` resolves against the *call site's* implicit scope in whichever module writes
+    * `derives RLPCodec`. These givens live in this companion (always in implicit scope for a `TupleRLPCodec[_]` search,
+    * no import needed) and therefore must be accessible from those sites — the same reason a field's `given
+    * RLPCodec[H]` must be. Not intended for direct use.
     */
   trait TupleRLPCodec[T <: Tuple]:
     def encode(t: T): List[RLPEncodeable]
