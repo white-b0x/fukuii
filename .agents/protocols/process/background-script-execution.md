@@ -182,9 +182,9 @@ An orphaned container or stalled JVM process is exactly the kind of resource dra
 
 | Script | Covers | Notes |
 |--------|--------|-------|
-| `scripts/agent-tooling/sbt-run.sh` | Any `sbt` task or space-separated sequence of tasks (`compile-all`, `scalafmtAll`, `formatAll`, `pp`, `testEssential`, `testStandard`, `testComprehensive`, `"IntegrationTest / test"`, etc.) | Already generic across sbt tasks — pass the task name(s) as arguments; no per-task wrapper needed. Validated live for `scalafmtAll`, `compile-all`, and (2026-07-02) `"IntegrationTest / compile"` — the multi-word slash-syntax argument form. Hardened 2026-07-16 against the stale-detached-server false-green below — do not treat its exit code as sbt's raw exit code without reading this note. |
+| `scripts/agent-tooling/sbt-run.sh` | Any `sbt` task or space-separated sequence of tasks (`compile-all`, `scalafmtAll`, `formatAll`, `pp`, `testEssential`, `testStandard`, `testComprehensive`, `"IntegrationTest / test"`, etc.) | Already generic across sbt tasks — pass the task name(s) as arguments; no per-task wrapper needed. Validated live for `scalafmtAll`, `compile-all`, and (2026-07-02) `"IntegrationTest / compile"` — the multi-word slash-syntax argument form. Hardened 2026-07-16 against the two false-green shapes below — do not treat its exit code as sbt's raw exit code without reading this note. Always use module-scoped `<mod>/<task>` syntax (`evm/clean`, `evm/compile`), never a bare `project <id>` selector chained with further tasks — see incident 2 below. |
 
-### Stale-detached-sbt-server false-green (2026-07-16 incident)
+### Stale-detached-sbt-server false-green (2026-07-16, incident 1)
 
 During L3 EVM validation, a long-lived detached sbt server left over from a prior
 session answered `clean ; compile ; Test/compile` requests with a fast `[success]`
@@ -198,25 +198,54 @@ incident was `show <mod>/Compile/compile`'s printed `Analysis: N Scala sources`
 summary — it does not reliably report the target module's own scope even
 against a freshly-started server, so don't use it to judge staleness.)
 
-`sbt-run.sh` now closes this with two guards, so a hollow/no-op run can no
-longer report success:
+`sbt-run.sh` closes this with a pre-run guard: if the server registered in
+`project/target/active.json` started before the newest build-definition file's
+mtime, it is killed so the sbt invocation that follows starts fresh and reloads.
 
-1. **Pre-run:** if the server registered in `project/target/active.json` started
-   before the newest build-definition file's mtime, it is killed so the sbt
-   invocation that follows starts fresh and reloads.
-2. **Post-run:** if the task list included a `clean` task (which always
-   invalidates cached compile state — a legitimate no-op is impossible after a
-   real clean) and sbt exited 0, the script verifies something under `target/`
-   actually has a newer mtime than before the run. If nothing changed, the
-   script overrides the exit code to **97** with a loud banner in the log,
-   instead of passing through sbt's own (wrong) 0. This check is scoped to
-   `clean`-including runs specifically so a genuine "nothing changed since last
-   incremental compile" success — which legitimately leaves `target/` untouched
-   — is never flagged.
+### `project <id>` lead-form swallows chained tasks (2026-07-16, incident 2)
+
+A second, distinct hollow-success shape slipped past incident 1's guard during
+L3 P4 validation: `sbt-run.sh <name> "project evm" "clean" "compile" "Test/compile"`
+— an sbt `project <id>` selector followed by chained tasks in the same
+semicolon-joined command string — silently runs **only** the project switch.
+`clean`/`compile`/`Test/compile` never execute, yet sbt still exits 0. Confirmed
+by reproducing directly against sbt: the log shows exactly
+`[info] set current project to fukuii-evm` then `[success]`, with no compiling
+evidence and no compile-output change.
+
+The first cut of the post-run freshness check (incident 1) did **not** catch
+this, because it scanned the whole `target/` tree for "did anything change."
+`target/` contains files — `target/global-logging/sbt-global-log*.log`, and
+every project's own `streams`/`update`/`meta` dirs — that get touched by **any**
+sbt invocation, including a bare `project X` switch that does nothing else.
+Confirmed empirically: `project evm` alone touches `target/global-logging` but
+never touches the real compile-output paths. That produced a false "something
+changed" reading that masked the hollow run.
+
+`sbt-run.sh` now closes both gaps:
+
+1. **Pre-run, reject outright (no sbt invocation at all):** the joined command
+   string is split on `;`; if any token except the last is a `project <id>`
+   selector, the run is rejected before sbt ever starts (exit **3**, with a
+   message pointing at the safe `<mod>/<task>` form). This shape is unsafe by
+   construction — module-scoped syntax never needs a project switch and does
+   not exhibit this failure mode, so there is no legitimate reason to allow it
+   through `sbt-run.sh`.
+2. **Post-run, correctly scoped freshness check:** when the task list includes
+   a `clean` task (which always invalidates cached compile state — a
+   legitimate no-op is impossible after a real clean) and sbt exited 0, the
+   script verifies the **real compile-output paths** —
+   `target/out/*/scala-*/*/{classes,test-classes,zinc,test-zinc}` (the sbt 2.x
+   content-addressed-store layout; per-module `modules/*/target/scala-*/...` is
+   checked too for back-compat) — actually advanced. It never scans the whole
+   `target/` tree. If the compile-output paths didn't advance, the exit code is
+   overridden to **97** with a loud banner in the log, instead of passing
+   through sbt's own (wrong) 0.
 
 Trust `sbt-run.sh`'s gate results on this basis: exit 0 with `clean` in the task
-list means real compilation was independently verified to have happened, not
-just that sbt itself said so.
+list means real compilation was independently verified to have happened at the
+correct output path, not just that sbt itself said so, and any `project <id>`
+lead-form is refused before it can run at all.
 
 **`fukuii-test` retired (2026-07-02):** it was fully superseded by `sbt-run.sh` — every
 sbt task it could invoke (`testEssential`, `testStandard`, `testOnly ...`), `sbt-run.sh`
