@@ -27,7 +27,7 @@ import com.chipprbots.fukuii.rlp.encode
   * the world-state seam (besu `MutableAccount`/`WorldUpdater`), never on the value record. The seam stays **abstract**
   * — the concrete state-backed implementation is L4; the DAG stays `domain`/`crypto`/`rlp` (no `storage` edge).
   */
-trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]]:
+trait WorldState[WS <: WorldState[WS, S], S <: AccountStorage[S]]:
   self: WS =>
 
   def getAccount(address: Address): Option[Account]

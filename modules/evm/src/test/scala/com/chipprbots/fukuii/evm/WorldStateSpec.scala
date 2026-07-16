@@ -11,15 +11,15 @@ import com.chipprbots.fukuii.crypto.kec256
 import com.chipprbots.fukuii.domain.Account
 import com.chipprbots.fukuii.domain.Wei
 
-/** Coverage for the P2-filled [[WorldStateProxy]] default helpers — value transfer, EIP-161 emptiness (which does NOT
+/** Coverage for the P2-filled [[WorldState]] default helpers — value transfer, EIP-161 emptiness (which does NOT
   * consult the storage root), EIP-7610 storage-aware collision, and the CREATE/CREATE2 address derivations. Uses a
   * minimal in-memory test double; the concrete state-backed implementation is L4.
   *
   * One `assert` per test — the `-Wnonunit-statement` build gate rejects a discarded intermediate `Assertion`.
   */
-class WorldStateProxySpec extends AnyFunSuite:
+class WorldStateSpec extends AnyFunSuite:
 
-  final private case class TestStorage(data: Map[UInt256, BigInt] = Map.empty) extends Storage[TestStorage]:
+  final private case class TestStorage(data: Map[UInt256, BigInt] = Map.empty) extends AccountStorage[TestStorage]:
     def store(offset: UInt256, value: BigInt): TestStorage = copy(data = data.updated(offset, value))
     def load(offset: UInt256): BigInt = data.getOrElse(offset, BigInt(0))
 
@@ -29,7 +29,7 @@ class WorldStateProxySpec extends AnyFunSuite:
       storages: Map[Address, TestStorage] = Map.empty,
       touched: Set[Address] = Set.empty,
       eip161: Boolean = true
-  ) extends WorldStateProxy[TestWorld, TestStorage]:
+  ) extends WorldState[TestWorld, TestStorage]:
     def getAccount(address: Address): Option[Account] = accounts.get(address)
     def saveAccount(address: Address, account: Account): TestWorld = copy(accounts = accounts.updated(address, account))
     protected def deleteAccount(address: Address): TestWorld = copy(accounts = accounts - address)

@@ -28,7 +28,7 @@ import com.chipprbots.fukuii.domain.Log
   *   so the deferred EIP-8037 work (an Amsterdam EIP, not built) does not retrofit this class. Also the L3 carrier for
   *   heterogeneous-family (ZK-EVM) custom cost models behind the same seam.
   */
-final case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
+final case class ProgramState[W <: WorldState[W, S], S <: AccountStorage[S]](
     vm: VM[W, S],
     env: ExecEnv,
     gas: BigInt,
@@ -43,7 +43,7 @@ final case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
     logs: Vector[Log] = Vector.empty,
     halted: Boolean = false,
     staticCtx: Boolean = false,
-    error: Option[ProgramError] = None,
+    error: Option[HaltReason] = None,
     originalWorld: W,
     accessedAddresses: Set[Address],
     accessedStorageKeys: Set[(Address, UInt256)],
@@ -90,7 +90,7 @@ final case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def withMemory(memory: Memory): ProgramState[W, S] =
     copy(memory = memory)
 
-  def withError(error: ProgramError): ProgramState[W, S] =
+  def withError(error: HaltReason): ProgramState[W, S] =
     copy(error = Some(error), returnData = ByteString.empty, halted = true)
 
   def withReturnData(data: ByteString): ProgramState[W, S] =

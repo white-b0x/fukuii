@@ -9,6 +9,6 @@ import com.chipprbots.fukuii.bytes.UInt256
   * the word itself, and the concrete `trie`/`storage` (L2) implementation lives behind this seam at L4 (the VM is
   * parameterized over `S`, never importing storage).
   */
-trait Storage[S <: Storage[S]]:
+trait AccountStorage[S <: AccountStorage[S]]:
   def store(offset: UInt256, value: BigInt): S
   def load(offset: UInt256): BigInt

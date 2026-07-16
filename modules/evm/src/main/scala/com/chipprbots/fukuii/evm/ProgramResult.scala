@@ -25,7 +25,7 @@ import com.chipprbots.fukuii.domain.Log
   * @param error
   *   defined when the program terminated abnormally
   */
-final case class ProgramResult[W <: WorldStateProxy[W, S], S <: Storage[S]](
+final case class ProgramResult[W <: WorldState[W, S], S <: AccountStorage[S]](
     returnData: ByteString,
     gasRemaining: BigInt,
     world: W,
@@ -33,7 +33,7 @@ final case class ProgramResult[W <: WorldStateProxy[W, S], S <: Storage[S]](
     logs: Seq[Log],
     internalTxs: Seq[InternalTransaction],
     gasRefund: BigInt,
-    error: Option[ProgramError],
+    error: Option[HaltReason],
     accessedAddresses: Set[Address],
     accessedStorageKeys: Set[(Address, UInt256)],
     transientStorage: Map[(Address, UInt256), BigInt] = Map.empty
