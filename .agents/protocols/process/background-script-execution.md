@@ -182,7 +182,41 @@ An orphaned container or stalled JVM process is exactly the kind of resource dra
 
 | Script | Covers | Notes |
 |--------|--------|-------|
-| `scripts/agent-tooling/sbt-run.sh` | Any `sbt` task or space-separated sequence of tasks (`compile-all`, `scalafmtAll`, `formatAll`, `pp`, `testEssential`, `testStandard`, `testComprehensive`, `"IntegrationTest / test"`, etc.) | Already generic across sbt tasks — pass the task name(s) as arguments; no per-task wrapper needed. Validated live for `scalafmtAll`, `compile-all`, and (2026-07-02) `"IntegrationTest / compile"` — the multi-word slash-syntax argument form. |
+| `scripts/agent-tooling/sbt-run.sh` | Any `sbt` task or space-separated sequence of tasks (`compile-all`, `scalafmtAll`, `formatAll`, `pp`, `testEssential`, `testStandard`, `testComprehensive`, `"IntegrationTest / test"`, etc.) | Already generic across sbt tasks — pass the task name(s) as arguments; no per-task wrapper needed. Validated live for `scalafmtAll`, `compile-all`, and (2026-07-02) `"IntegrationTest / compile"` — the multi-word slash-syntax argument form. Hardened 2026-07-16 against the stale-detached-server false-green below — do not treat its exit code as sbt's raw exit code without reading this note. |
+
+### Stale-detached-sbt-server false-green (2026-07-16 incident)
+
+During L3 EVM validation, a long-lived detached sbt server left over from a prior
+session answered `clean ; compile ; Test/compile` requests with a fast `[success]`
+while doing **no real recompilation** — nothing under `target/` changed across two
+full cycles. Root cause: sbt's persistent server does not reload
+`build.sbt`/`project/*.scala`/`project/build.properties` changes on its own: a
+server that has been sitting since before the last build-definition edit is
+running a stale settings graph, and can answer requests without them meaning
+what they look like they mean. (A tempting but **wrong** diagnostic during this
+incident was `show <mod>/Compile/compile`'s printed `Analysis: N Scala sources`
+summary — it does not reliably report the target module's own scope even
+against a freshly-started server, so don't use it to judge staleness.)
+
+`sbt-run.sh` now closes this with two guards, so a hollow/no-op run can no
+longer report success:
+
+1. **Pre-run:** if the server registered in `project/target/active.json` started
+   before the newest build-definition file's mtime, it is killed so the sbt
+   invocation that follows starts fresh and reloads.
+2. **Post-run:** if the task list included a `clean` task (which always
+   invalidates cached compile state — a legitimate no-op is impossible after a
+   real clean) and sbt exited 0, the script verifies something under `target/`
+   actually has a newer mtime than before the run. If nothing changed, the
+   script overrides the exit code to **97** with a loud banner in the log,
+   instead of passing through sbt's own (wrong) 0. This check is scoped to
+   `clean`-including runs specifically so a genuine "nothing changed since last
+   incremental compile" success — which legitimately leaves `target/` untouched
+   — is never flagged.
+
+Trust `sbt-run.sh`'s gate results on this basis: exit 0 with `clean` in the task
+list means real compilation was independently verified to have happened, not
+just that sbt itself said so.
 
 **`fukuii-test` retired (2026-07-02):** it was fully superseded by `sbt-run.sh` — every
 sbt task it could invoke (`testEssential`, `testStandard`, `testOnly ...`), `sbt-run.sh`
