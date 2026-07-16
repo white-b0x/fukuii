@@ -20,8 +20,11 @@ class BloomSpec extends AnyFunSuite:
     assert(got == "c8d3ca65cdb4874300a9e39475508f23ed6da09fdbc487f89a2dcf50b09eb263")
 
   test("Empty is 256 zero bytes"):
-    assert(Bloom.Empty.toArray.length == Bloom.Length)
-    assert(Bloom.Empty.toArray.forall(_ == (0: Byte)))
+    assert(
+      Bloom.Empty.toArray.length == Bloom.Length &&
+        Bloom.Empty.toArray.forall(_ == (0: Byte)),
+      "Bloom.Empty must be exactly Bloom.Length bytes, all zero"
+    )
 
   test("of(logs) aggregates every log's address and topics into one filter"):
     val addr1 = Address.fromHex("0x00000000000000000000000000000000000011")
@@ -52,10 +55,13 @@ class BloomSpec extends AnyFunSuite:
     val viaLog = Bloom.of(List(log))
     // the go-ethereum CreateBloom composition, expressed via the byte-golden raw-add primitive
     val viaComposition = Bloom.Empty.add(addr.toArray).add(topicA.toArray).add(topicB.toArray)
-    assert(viaLog.toArray.sameElements(viaComposition.toArray))
-    // and it is genuinely non-empty (exactly 3 bits per distinct add) — not a degenerate all-zero pass
-    assert(viaLog.toArray.exists(_ != (0: Byte)))
+    assert(
+      viaLog.toArray.sameElements(viaComposition.toArray) &&
+        // and it is genuinely non-empty (exactly 3 bits per distinct add) — not a degenerate all-zero pass
+        viaLog.toArray.exists(_ != (0: Byte)),
+      "a log's bloom must match the raw-add composition and be genuinely non-empty"
+    )
 
   test("apply is strict — wrong-length input fails loud"):
-    intercept[IllegalArgumentException](Bloom(Array.fill[Byte](255)(0)))
+    val _ = intercept[IllegalArgumentException](Bloom(Array.fill[Byte](255)(0)))
     intercept[IllegalArgumentException](Bloom(Array.fill[Byte](257)(0)))

@@ -25,14 +25,19 @@ class CheckpointArchiveSpec extends AnyFunSuite:
   test("CheckpointAccumulator.build is deterministic and order-sensitive"):
     val a = CheckpointAccumulator.build(entries, hash)
     val b = CheckpointAccumulator.build(entries, hash)
-    assert(a.root == b.root)
     val reordered = CheckpointAccumulator.build(entries.reverse, hash)
-    assert(reordered.root != a.root)
+    assert(
+      a.root == b.root && reordered.root != a.root,
+      "the accumulator root must be deterministic for the same order and differ when entries are reordered"
+    )
 
   test("CheckpointAccumulator.verify accepts the correct root and rejects a wrong one"):
     val acc = CheckpointAccumulator.build(entries, hash)
-    assert(CheckpointAccumulator.verify(acc, hash, acc.root))
-    assert(!CheckpointAccumulator.verify(acc, hash, IndexedSeq(0.toByte, 0.toByte)))
+    assert(
+      CheckpointAccumulator.verify(acc, hash, acc.root) &&
+        !CheckpointAccumulator.verify(acc, hash, IndexedSeq(0.toByte, 0.toByte)),
+      "verify must accept the correct root and reject a wrong one"
+    )
 
   test("export -> import round-trips every state record byte-exact when the trusted root matches"):
     val archive = CheckpointArchive.exportFrom(pivotBlockNumber = 42, entries, records, hash)
@@ -40,8 +45,11 @@ class CheckpointArchiveSpec extends AnyFunSuite:
 
     CheckpointArchive.importInto(ds, archive, archive.accumulator.root, hash)
 
-    assert(ds.get(Namespace.Node, IndexedSeq(1.toByte)).contains(stateRoot))
-    assert(ds.get(Namespace.Code, IndexedSeq(2.toByte)).contains(IndexedSeq(0xc0.toByte)))
+    assert(
+      ds.get(Namespace.Node, IndexedSeq(1.toByte)).contains(stateRoot) &&
+        ds.get(Namespace.Code, IndexedSeq(2.toByte)).contains(IndexedSeq(0xc0.toByte)),
+      "every state record must be imported byte-exact"
+    )
 
   test("import rejects a mismatched trusted root BEFORE writing a single record (fail-closed)"):
     val archive = CheckpointArchive.exportFrom(pivotBlockNumber = 42, entries, records, hash)
@@ -51,19 +59,25 @@ class CheckpointArchiveSpec extends AnyFunSuite:
     val ex = intercept[CheckpointArchive.CheckpointVerificationException] {
       CheckpointArchive.importInto(ds, archive, wrongRoot, hash)
     }
-    assert(ex.getMessage.contains("does not match trusted root"))
-    // Fail-closed: the datadir is untouched, not partially populated.
-    assert(ds.get(Namespace.Node, IndexedSeq(1.toByte)).isEmpty)
-    assert(ds.get(Namespace.Code, IndexedSeq(2.toByte)).isEmpty)
+    assert(
+      ex.getMessage.contains("does not match trusted root") &&
+        // Fail-closed: the datadir is untouched, not partially populated.
+        ds.get(Namespace.Node, IndexedSeq(1.toByte)).isEmpty &&
+        ds.get(Namespace.Code, IndexedSeq(2.toByte)).isEmpty,
+      "a mismatched trusted root must be rejected and leave the datadir completely untouched"
+    )
 
   test("import applies every record as one atomic batch spanning multiple namespaces"):
     val archive = CheckpointArchive.exportFrom(pivotBlockNumber = 7, entries, records, hash)
     val ds = EphemDataSource()
     CheckpointArchive.importInto(ds, archive, archive.accumulator.root, hash)
-    // Both namespaces' records are visible together — never one without the other (the atomicity a crash
-    // mid-import must preserve; DataSource.update/updateSync back this with a single native batch).
-    assert(ds.get(Namespace.Node, IndexedSeq(1.toByte)).isDefined)
-    assert(ds.get(Namespace.Code, IndexedSeq(2.toByte)).isDefined)
+    assert(
+      // Both namespaces' records are visible together — never one without the other (the atomicity a crash
+      // mid-import must preserve; DataSource.update/updateSync back this with a single native batch).
+      ds.get(Namespace.Node, IndexedSeq(1.toByte)).isDefined &&
+        ds.get(Namespace.Code, IndexedSeq(2.toByte)).isDefined,
+      "both namespaces' records must be visible together after one atomic import"
+    )
 
   // -- Byte-canonical archive encoding (operator-committed extension: checkpoints distributed via BitTorrent/HTTP,
   // same infrastructure as the era1 history shards) ---------------------------------------------------------------
@@ -71,11 +85,14 @@ class CheckpointArchiveSpec extends AnyFunSuite:
   test("encode -> decode round-trips a CheckpointArchive exactly"):
     val archive = CheckpointArchive.exportFrom(pivotBlockNumber = 42, entries, records, hash)
     val decoded = CheckpointArchive.decode(CheckpointArchive.encode(archive))
-    assert(decoded.pivotBlockNumber == archive.pivotBlockNumber)
-    assert(decoded.accumulator.root == archive.accumulator.root)
-    assert(decoded.accumulator.entries == archive.accumulator.entries)
-    // records are canonically SORTED by encode, so compare as sets, not as the original (unsorted) input order.
-    assert(decoded.records.toSet == archive.records.toSet)
+    assert(
+      decoded.pivotBlockNumber == archive.pivotBlockNumber &&
+        decoded.accumulator.root == archive.accumulator.root &&
+        decoded.accumulator.entries == archive.accumulator.entries &&
+        // records are canonically SORTED by encode, so compare as sets, not as the original (unsorted) input order.
+        decoded.records.toSet == archive.records.toSet,
+      "encode -> decode must round-trip every field of the archive exactly"
+    )
 
   test("two independent exports of the same checkpoint pivot produce BYTE-IDENTICAL archive bytes (canonicity)"):
     // The load-bearing property: a BitTorrent infohash is over the file's exact bytes. Build the "same logical
@@ -100,7 +117,7 @@ class CheckpointArchiveSpec extends AnyFunSuite:
 
     // A good encoding verifies against the known-good root.
     val decodedGood = CheckpointArchive.decode(goodBytes)
-    assert(CheckpointAccumulator.verify(decodedGood.accumulator, hash, trustedRoot))
+    val goodVerifies = CheckpointAccumulator.verify(decodedGood.accumulator, hash, trustedRoot)
 
     // Simulate a peer serving a checkpoint with one corrupted chain-of-trust entry (a flipped blockHash byte) —
     // re-encoded so the "tampered" bytes are a structurally valid, decodable container, exactly what a real
@@ -109,12 +126,15 @@ class CheckpointArchiveSpec extends AnyFunSuite:
       entries.updated(0, entries.head.copy(blockHash = entries.head.blockHash.updated(0, 0xff.toByte)))
     val tamperedArchive = CheckpointArchive.exportFrom(pivotBlockNumber = 42, tamperedEntries, records, hash)
     val decodedTampered = CheckpointArchive.decode(CheckpointArchive.encode(tamperedArchive))
+    val tamperedRejected = !CheckpointAccumulator.verify(decodedTampered.accumulator, hash, trustedRoot)
 
-    assert(!CheckpointAccumulator.verify(decodedTampered.accumulator, hash, trustedRoot))
     val ex = intercept[CheckpointArchive.CheckpointVerificationException] {
       CheckpointArchive.importInto(EphemDataSource(), decodedTampered, trustedRoot, hash)
     }
-    assert(ex.getMessage.contains("does not match trusted root"))
+    assert(
+      goodVerifies && tamperedRejected && ex.getMessage.contains("does not match trusted root"),
+      "a good checkpoint must verify, a tampered one must be rejected, and import must fail with the trusted-root mismatch error"
+    )
 
   test("encode rejects an archive with two records for the same (namespace, key)"):
     val duplicateKeyRecords = records :+ (Namespace.Node, IndexedSeq(1.toByte), IndexedSeq(0xff.toByte))
@@ -131,9 +151,12 @@ class CheckpointArchiveSpec extends AnyFunSuite:
     val checkpointId = IndexedSeq(0xc0.toByte, 0xde.toByte)
     val manifestEntry = CheckpointArchive.manifestEntry(checkpointId, archive)
 
-    assert(manifestEntry.pivotBlockNumber == BigInt(42))
-    assert(manifestEntry.checkpointId == checkpointId)
-    assert(manifestEntry.accumulatorRoot == archive.accumulator.root)
+    assert(
+      manifestEntry.pivotBlockNumber == BigInt(42) &&
+        manifestEntry.checkpointId == checkpointId &&
+        manifestEntry.accumulatorRoot == archive.accumulator.root,
+      "manifestEntry must carry the pivot, caller-supplied id, and the archive's own root"
+    )
 
   test("ShardManifest carries checkpoint entries alongside shard entries and round-trips both"):
     val archive = CheckpointArchive.exportFrom(pivotBlockNumber = 42, entries, records, hash)

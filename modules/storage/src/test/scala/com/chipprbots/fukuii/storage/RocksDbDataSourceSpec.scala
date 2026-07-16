@@ -62,8 +62,10 @@ class RocksDbDataSourceSpec extends AnyFlatSpec with Matchers with DataSourceCon
       // cancellation boundary in unboundedScan is between IO.eval calls, not inside one, so this
       // should already be zero synchronously — asserting it directly is the deterministic
       // replacement for the old "does the JVM survive" smoke check).
-      db.liveIteratorCount shouldBe 0L
-      db.iterate(Namespace.Node).compile.toList.unsafeRunSync().size shouldBe n
+      assert(
+        db.liveIteratorCount == 0L && db.iterate(Namespace.Node).compile.toList.unsafeRunSync().size == n,
+        s"no native iterator must leak after cancellation, and all $n entries must still be readable"
+      )
     finally db.destroy()
   }
 
@@ -98,8 +100,10 @@ class RocksDbDataSourceSpec extends AnyFlatSpec with Matchers with DataSourceCon
       }
       db.update(batchOfUpdates)
       db.iterate().take(1).compile.drain.unsafeRunSync()
-      db.liveIteratorCount shouldBe 0L
-      db.iterate().compile.toList.unsafeRunSync().size shouldBe n
+      assert(
+        db.liveIteratorCount == 0L && db.iterate().compile.toList.unsafeRunSync().size == n,
+        s"no native iterator must leak after cancellation, and all $n entries must still be readable"
+      )
     finally db.destroy()
   }
 
@@ -130,10 +134,13 @@ class RocksDbDataSourceSpec extends AnyFlatSpec with Matchers with DataSourceCon
     db.close()
     try
       val result = db.iterate(Namespace.Node).compile.toList.unsafeRunSync()
-      result.size shouldBe 1
-      result.head match
-        case Left(DataSource.IterationError(_: RocksDbDataSource.RocksDbDataSourceClosedException)) => succeed
+      val isClosedException = result.head match
+        case Left(DataSource.IterationError(_: RocksDbDataSource.RocksDbDataSourceClosedException)) => true
         case other => fail(s"expected a single IterationError(RocksDbDataSourceClosedException), got: $other")
+      assert(
+        result.size == 1 && isClosedException,
+        "iterate() after close() must surface a single IterationError(RocksDbDataSourceClosedException) element"
+      )
     finally db.destroy()
   }
 
@@ -171,11 +178,15 @@ class RocksDbDataSourceSpec extends AnyFlatSpec with Matchers with DataSourceCon
 
     val reopened = RocksDbDataSource(reopenConfig(config))
     try
-      // All three co-committed keys are present TOGETHER after the close/reopen boundary — the heaviest-chain
-      // decision on restart can never observe a block without its total difficulty, or a dangling TD with no block.
-      reopened.getOptimized(Namespace.Header, blockKey).map(_.toSeq) shouldBe Some(headerValue.toSeq)
-      reopened.getOptimized(Namespace.Body, blockKey).map(_.toSeq) shouldBe Some(bodyValue.toSeq)
-      reopened.getOptimized(Namespace.ChainWeight, blockKey).map(_.toSeq) shouldBe Some(chainWeightValue.toSeq)
+      assert(
+        // All three co-committed keys are present TOGETHER after the close/reopen boundary — the heaviest-chain
+        // decision on restart can never observe a block without its total difficulty, or a dangling TD with no
+        // block.
+        reopened.getOptimized(Namespace.Header, blockKey).map(_.toSeq) == Some(headerValue.toSeq) &&
+          reopened.getOptimized(Namespace.Body, blockKey).map(_.toSeq) == Some(bodyValue.toSeq) &&
+          reopened.getOptimized(Namespace.ChainWeight, blockKey).map(_.toSeq) == Some(chainWeightValue.toSeq),
+        "the header, body, and chain-weight must all be present together after a close/reopen"
+      )
     finally reopened.destroy()
   }
 
@@ -222,8 +233,11 @@ class RocksDbDataSourceSpec extends AnyFlatSpec with Matchers with DataSourceCon
 
     val reopened = RocksDbDataSource(reopenConfig(config), StorageProfile.TipServer)
     try
-      reopened.openNamespaces shouldBe StorageProfile.namespacesFor(StorageProfile.TipServer)
-      reopened.getOptimized(Namespace.StateTriePath, Array[Byte](1)).map(_.toSeq) shouldBe Some(Seq[Byte](2))
+      assert(
+        reopened.openNamespaces == StorageProfile.namespacesFor(StorageProfile.TipServer) &&
+          reopened.getOptimized(Namespace.StateTriePath, Array[Byte](1)).map(_.toSeq) == Some(Seq[Byte](2)),
+        "reopening under the same profile must keep the same open namespaces and preserve prior data"
+      )
     finally reopened.destroy()
   }
 

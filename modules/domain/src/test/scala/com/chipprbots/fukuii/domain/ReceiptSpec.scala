@@ -42,20 +42,24 @@ class ReceiptSpec extends AnyFunSuite:
 
   test("legacy success receipt: bare 4-element list, status encodes as 0x01"):
     val r = statusReceipt(succeeded = true)
-    rawDecode(rlpEncode(r)) match
-      case RLPList(status, _, _, _) =>
-        assert(rlpEncode(status).sameElements(Array[Byte](0x01)))
-      case other => fail(s"expected a 4-element RLPList, got $other")
-    assert(roundTripLegacy(r) == r)
+    val statusEncodesTo01 = rawDecode(rlpEncode(r)) match
+      case RLPList(status, _, _, _) => rlpEncode(status).sameElements(Array[Byte](0x01))
+      case other                    => fail(s"expected a 4-element RLPList, got $other")
+    assert(
+      statusEncodesTo01 && roundTripLegacy(r) == r,
+      "a legacy success receipt's status must encode as 0x01 and the receipt must round-trip"
+    )
 
   test("legacy failure receipt: status encodes as the RLP empty string (0x80)"):
     val r = statusReceipt(succeeded = false)
-    rawDecode(rlpEncode(r)) match
-      case RLPList(status, _, _, _) =>
-        // empty-string RLP is the single byte 0x80
-        assert(rlpEncode(status).sameElements(Array[Byte](0x80.toByte)))
-      case other => fail(s"expected a 4-element RLPList, got $other")
-    assert(roundTripLegacy(r) == r)
+    // empty-string RLP is the single byte 0x80
+    val statusEncodesTo80 = rawDecode(rlpEncode(r)) match
+      case RLPList(status, _, _, _) => rlpEncode(status).sameElements(Array[Byte](0x80.toByte))
+      case other                    => fail(s"expected a 4-element RLPList, got $other")
+    assert(
+      statusEncodesTo80 && roundTripLegacy(r) == r,
+      "a legacy failure receipt's status must encode as the RLP empty string (0x80) and the receipt must round-trip"
+    )
 
   test("pre-fork receipt: a 32-byte post-state root, NOT a status byte (the union switch)"):
     val logs = List(sampleLog)
@@ -65,14 +69,17 @@ class ReceiptSpec extends AnyFunSuite:
       logsBloom = Bloom.of(logs),
       logs = logs
     )
-    rawDecode(rlpEncode(r)) match
+    val statusBytesOk = rawDecode(rlpEncode(r)) match
       case RLPList(status, _, _, _) =>
-        assert(rlpEncode(status).length == 33, "a 32-byte string RLP-encodes to 33 bytes (0xa0 + 32)")
-        assert(Hash(ByteString(rlpEncode(status).drop(1))) == postStateRoot)
+        rlpEncode(status).length == 33 && Hash(ByteString(rlpEncode(status).drop(1))) == postStateRoot
       case other => fail(s"expected a 4-element RLPList, got $other")
     val decoded = roundTripLegacy(r)
-    assert(decoded.status == ReceiptStatus.PostStateRoot(postStateRoot))
-    assert(decoded == r)
+    assert(
+      statusBytesOk &&
+        decoded.status == ReceiptStatus.PostStateRoot(postStateRoot) &&
+        decoded == r,
+      "the status must RLP-encode to a 33-byte string (0xa0 + 32) carrying the post-state root, and the receipt must round-trip"
+    )
 
   test("post-state and status forms are mutually exclusive and distinct on the wire"):
     val logs = List(sampleLog)
@@ -84,14 +91,18 @@ class ReceiptSpec extends AnyFunSuite:
   test("typed receipt (0x01): type ‖ RLP prefix, round-trips through the binary dispatch"):
     val r = statusReceipt(succeeded = true, txType = 0x01)
     val bytes = rlpEncode(r)
-    assert((bytes(0) & 0xff) == 0x01, "typed receipt starts with its type byte, not a list header")
-    assert(roundTripBinary(r) == r)
+    assert(
+      (bytes(0) & 0xff) == 0x01 && roundTripBinary(r) == r,
+      "typed receipt must start with its type byte, not a list header, and must round-trip"
+    )
 
   test("typed receipts for each EIP-2718 type (0x01-0x04) round-trip"):
     for t <- List[Byte](0x01, 0x02, 0x03, 0x04) do
       val r = statusReceipt(succeeded = true, txType = t)
-      assert((rlpEncode(r)(0) & 0xff) == (t & 0xff))
-      assert(roundTripBinary(r) == r)
+      assert(
+        (rlpEncode(r)(0) & 0xff) == (t & 0xff) && roundTripBinary(r) == r,
+        s"typed receipt of type $t must start with its own type byte and round-trip"
+      )
 
   test("binary dispatch rejects an unknown receipt type byte (0x05), never treats it as legacy"):
     val bogus = Array[Byte](0x05, 0xc0.toByte)
@@ -101,9 +112,12 @@ class ReceiptSpec extends AnyFunSuite:
     val logs = List(sampleLog, Log(contract, Nil, ByteString.empty))
     val r = Receipt(ReceiptStatus.Status(true), 21000, Bloom.of(logs), logs)
     val decoded = roundTripLegacy(r)
-    assert(decoded.logsBloom == Bloom.of(logs))
-    // the bloom is 256 bytes and survives the round-trip byte-for-byte
-    assert(decoded.logsBloom.toArray.sameElements(r.logsBloom.toArray))
+    assert(
+      decoded.logsBloom == Bloom.of(logs) &&
+        // the bloom is 256 bytes and survives the round-trip byte-for-byte
+        decoded.logsBloom.toArray.sameElements(r.logsBloom.toArray),
+      "the decoded receipt's bloom must equal CreateBloom over its logs and survive the round-trip byte-for-byte"
+    )
 
   test("an invalid PostStateOrStatus length (e.g. 5 bytes) is rejected"):
     // Build a receipt body list whose status element is an out-of-spec 5-byte string.

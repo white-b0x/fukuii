@@ -14,15 +14,21 @@ class INodeStorageSpec extends AnyFunSuite:
     val ds = EphemDataSource()
     val store = new HashKeyedNodeStorage(ds)
     store.put(NodeLocation.Root, EmptyNode.hash, someValue)
-    assert(store.get(NodeLocation.Root, EmptyNode.hash).contains(EmptyNode.encoded))
-    assert(ds.get(Namespace.Node, EmptyNode.hash).isEmpty)
+    assert(
+      store.get(NodeLocation.Root, EmptyNode.hash).contains(EmptyNode.encoded) &&
+        ds.get(Namespace.Node, EmptyNode.hash).isEmpty,
+      "the empty-node encoding must be returned without ever being persisted"
+    )
 
   test("PathKeyedNodeStorage returns the known empty-node encoding without ever persisting it"):
     val ds = EphemDataSource()
     val store = new PathKeyedNodeStorage(ds)
     store.put(NodeLocation.Root, EmptyNode.hash, someValue)
-    assert(store.get(NodeLocation.Root, EmptyNode.hash).contains(EmptyNode.encoded))
-    assert(ds.get(Namespace.StateTriePath, EmptyNode.hash).isEmpty)
+    assert(
+      store.get(NodeLocation.Root, EmptyNode.hash).contains(EmptyNode.encoded) &&
+        ds.get(Namespace.StateTriePath, EmptyNode.hash).isEmpty,
+      "the empty-node encoding must be returned without ever being persisted"
+    )
 
   // -- physical key layout ------------------------------------------------------------------------------------------
 
@@ -33,10 +39,13 @@ class INodeStorageSpec extends AnyFunSuite:
     val storageLoc = NodeLocation(Some(someOwner), IndexedSeq(1, 2))
     store.put(stateLoc, nodeHash(1), someValue)
     store.put(storageLoc, nodeHash(2), someValue)
-    assert(store.get(stateLoc, nodeHash(1)).contains(someValue))
-    assert(store.get(storageLoc, nodeHash(2)).contains(someValue))
-    assert(ds.get(Namespace.StateTriePath, stateLoc.path ++ nodeHash(1)).contains(someValue))
-    assert(ds.get(Namespace.StorageTriePath, someOwner ++ storageLoc.path ++ nodeHash(2)).contains(someValue))
+    assert(
+      store.get(stateLoc, nodeHash(1)).contains(someValue) &&
+        store.get(storageLoc, nodeHash(2)).contains(someValue) &&
+        ds.get(Namespace.StateTriePath, stateLoc.path ++ nodeHash(1)).contains(someValue) &&
+        ds.get(Namespace.StorageTriePath, someOwner ++ storageLoc.path ++ nodeHash(2)).contains(someValue),
+      "a None-owner location must route to StateTriePath and a Some-owner location must route to StorageTriePath, keyed as expected"
+    )
 
   // -- directional dual-read + RequirePath carve-out ------------------------------------------------------------------
 
@@ -63,8 +72,10 @@ class INodeStorageSpec extends AnyFunSuite:
     // Write directly to the hash-keyed store, bypassing the seam.
     hashStore.put(NodeLocation.Root, nodeHash(5), someValue)
     val seam = new SchemeIndirectedNodeStorage(hashStore, pathStore, Scheme.Path, migrationInProgress = true)
-    assert(seam.currentScheme == Scheme.Path)
-    assert(seam.get(NodeLocation.Root, nodeHash(5)).contains(someValue))
+    assert(
+      seam.currentScheme == Scheme.Path && seam.get(NodeLocation.Root, nodeHash(5)).contains(someValue),
+      "the active scheme must be Path and a miss must fall back to the node written under Hash"
+    )
 
   test("directional dual-read is directional: Hash-active probes hash first, falls back to path"):
     val ds = EphemDataSource()
@@ -80,8 +91,11 @@ class INodeStorageSpec extends AnyFunSuite:
     val pathStore = new PathKeyedNodeStorage(ds)
     val seam = new SchemeIndirectedNodeStorage(hashStore, pathStore, Scheme.Path, migrationInProgress = true)
     seam.put(NodeLocation.Root, nodeHash(7), someValue)
-    assert(pathStore.get(NodeLocation.Root, nodeHash(7)).contains(someValue))
-    assert(hashStore.get(NodeLocation.Root, nodeHash(7)).isEmpty)
+    assert(
+      pathStore.get(NodeLocation.Root, nodeHash(7)).contains(someValue) &&
+        hashStore.get(NodeLocation.Root, nodeHash(7)).isEmpty,
+      "a write must land only in the active (Path) scheme, never the inactive (Hash) scheme"
+    )
 
   // -- D3 delete asymmetry ---------------------------------------------------------------------------------------
 
@@ -94,5 +108,8 @@ class INodeStorageSpec extends AnyFunSuite:
     pathStore.put(NodeLocation.Root, nodeHash(8), someValue)
     val seam = new SchemeIndirectedNodeStorage(hashStore, pathStore, Scheme.Path, migrationInProgress = false)
     seam.remove(NodeLocation.Root, nodeHash(8))
-    assert(pathStore.get(NodeLocation.Root, nodeHash(8)).isEmpty)
-    assert(hashStore.get(NodeLocation.Root, nodeHash(8)).contains(someValue))
+    assert(
+      pathStore.get(NodeLocation.Root, nodeHash(8)).isEmpty &&
+        hashStore.get(NodeLocation.Root, nodeHash(8)).contains(someValue),
+      "removing under the active Path scheme must delete only the path-keyed copy, leaving the hash-keyed copy intact"
+    )

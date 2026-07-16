@@ -35,17 +35,23 @@ class BN128FpSpec extends AnyFunSuite:
 
   test("P + P == 2 * P"):
     points.foreach { p =>
-      assert(BN128Fp.isOnCurve(p) && p.isValid)
-      assert(BN128Fp.add(p, p) == BN128Fp.mul(p, 2))
+      assert(
+        BN128Fp.isOnCurve(p) && p.isValid && BN128Fp.add(p, p) == BN128Fp.mul(p, 2),
+        s"point $p must be on-curve/valid and P + P must equal 2 * P"
+      )
     }
 
   test("P + P + P == 3 * P, and the sum stays on-curve"):
     points.foreach { p =>
       val added = BN128Fp.add(BN128Fp.add(p, p), p)
       val multiplied = BN128Fp.mul(p, 3)
-      assert(added == multiplied)
-      assert(BN128Fp.isOnCurve(added) && BN128Fp.isOnCurve(multiplied))
-      assert(BN128Fp.isOnCurve(BN128Fp.toEthNotation(added)))
+      assert(
+        added == multiplied &&
+          BN128Fp.isOnCurve(added) &&
+          BN128Fp.isOnCurve(multiplied) &&
+          BN128Fp.isOnCurve(BN128Fp.toEthNotation(added)),
+        s"P + P + P must equal 3 * P for $p and both forms must remain on-curve"
+      )
     }
 
   test("createPoint rejects an off-curve point"):
@@ -53,5 +59,8 @@ class BN128FpSpec extends AnyFunSuite:
     import org.apache.pekko.util.ByteString
     import com.chipprbots.fukuii.bytes.ByteUtils
     def bs(n: Int): ByteString = ByteString(ByteUtils.bigIntToBytes(BigInt(n), 32))
-    assert(BN128Fp.createPoint(bs(1), bs(3)).isEmpty)
-    assert(BN128Fp.createPoint(bs(1), bs(2)).isDefined)
+    assert(
+      BN128Fp.createPoint(bs(1), bs(3)).isEmpty &&
+        BN128Fp.createPoint(bs(1), bs(2)).isDefined,
+      "an off-curve point must be rejected and an on-curve point must be accepted"
+    )

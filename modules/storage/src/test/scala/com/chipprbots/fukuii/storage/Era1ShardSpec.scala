@@ -25,20 +25,23 @@ class Era1ShardSpec extends AnyFunSuite:
     val store = new PersistedColdStore(EphemDataSource())
     val (start, endExclusive) = Era1Shard.epochBounds(epochIndex)
     val records = (start.toLong until endExclusive.toLong).map(n => BigInt(n) -> record(n))
-    store.freeze(records).unsafeRunSync()
+    val _ = store.freeze(records).unsafeRunSync()
     store
 
   test("Era1Shard.epochBounds/epochIndexOf are epoch-aligned to the 8192-block ERA1 epoch"):
-    assert(Era1Shard.EpochSize == BigInt(8192))
-    assert(Era1Shard.epochBounds(0) == (BigInt(0), BigInt(8192)))
-    assert(Era1Shard.epochBounds(1) == (BigInt(8192), BigInt(16384)))
-    assert(Era1Shard.epochIndexOf(0) == BigInt(0))
-    assert(Era1Shard.epochIndexOf(8191) == BigInt(0))
-    assert(Era1Shard.epochIndexOf(8192) == BigInt(1))
+    assert(
+      Era1Shard.EpochSize == BigInt(8192) &&
+        Era1Shard.epochBounds(0) == (BigInt(0), BigInt(8192)) &&
+        Era1Shard.epochBounds(1) == (BigInt(8192), BigInt(16384)) &&
+        Era1Shard.epochIndexOf(0) == BigInt(0) &&
+        Era1Shard.epochIndexOf(8191) == BigInt(0) &&
+        Era1Shard.epochIndexOf(8192) == BigInt(1),
+      "epoch size, bounds, and index-of must all be aligned to the 8192-block ERA1 epoch"
+    )
 
   test("exportShard requires a COMPLETE epoch — an incomplete range raises ShardIncompleteException"):
     val store = new PersistedColdStore(EphemDataSource())
-    store.freeze(Seq(BigInt(0) -> record(0))).unsafeRunSync() // only block 0 of epoch 0's 8192 blocks
+    val _ = store.freeze(Seq(BigInt(0) -> record(0))).unsafeRunSync() // only block 0 of epoch 0's 8192 blocks
     intercept[Era1Shard.ShardIncompleteException] {
       store.exportShard(0, hash)
     }
@@ -48,10 +51,10 @@ class Era1ShardSpec extends AnyFunSuite:
     val shardBytes = store.exportShard(0, hash)
 
     val imported = new PersistedColdStore(EphemDataSource())
-    imported.importShard(shardBytes, expectedEpochIndex = 0, hash).unsafeRunSync()
+    val _ = imported.importShard(shardBytes, expectedEpochIndex = 0, hash).unsafeRunSync()
 
     val reExported = imported.exportShard(0, hash)
-    assert(reExported == shardBytes)
+    val _ = assert(reExported == shardBytes)
     // And every individual record round-trips.
     val (start, endExclusive) = Era1Shard.epochBounds(0)
     (start.toLong until endExclusive.toLong).foreach(n => assert(imported.get(BigInt(n)).contains(record(n))))
@@ -69,8 +72,8 @@ class Era1ShardSpec extends AnyFunSuite:
 
     // A good shard imports cleanly.
     val goodImporter = new PersistedColdStore(EphemDataSource())
-    goodImporter.importShard(shardBytes, expectedEpochIndex = 2, hash).unsafeRunSync()
-    assert(goodImporter.get(Era1Shard.epochBounds(2)._1).isDefined)
+    val _ = goodImporter.importShard(shardBytes, expectedEpochIndex = 2, hash).unsafeRunSync()
+    val goodShardIsQueryable = goodImporter.get(Era1Shard.epochBounds(2)._1).isDefined
 
     // Flip the very last byte — the tail of the embedded accumulator root itself (tag(1)+length(4)+root(N) is the
     // final record in the container). This corrupts the STORED root while leaving every block record untouched, so
@@ -82,7 +85,10 @@ class Era1ShardSpec extends AnyFunSuite:
     val ex = intercept[Era1Shard.ShardTamperedException] {
       new PersistedColdStore(EphemDataSource()).importShard(tampered, expectedEpochIndex = 2, hash).unsafeRunSync()
     }
-    assert(ex.getMessage.contains("does not match its own embedded accumulator root"))
+    assert(
+      goodShardIsQueryable && ex.getMessage.contains("does not match its own embedded accumulator root"),
+      "a good shard must import cleanly and be queryable, while a tampered shard must be rejected with the embedded-root mismatch error"
+    )
 
   test(
     "importShard also rejects a shard whose (self-consistent) embedded root doesn't match a caller-supplied trusted root"
@@ -96,7 +102,7 @@ class Era1ShardSpec extends AnyFunSuite:
         .importShard(shardBytes, expectedEpochIndex = 3, hash, Some(wrongTrustedRoot))
         .unsafeRunSync()
     }
-    assert(ex.getMessage.contains("trusted root"))
+    val _ = assert(ex.getMessage.contains("trusted root"))
 
     // The correct trusted root (the manifest-driven happy path) succeeds.
     val (_, _, embeddedRoot) = Era1Shard.decodeShard(shardBytes)
@@ -120,8 +126,11 @@ class Era1ShardSpec extends AnyFunSuite:
     // Version record — exactly what a malicious peer relabeling a genuine shard would send.
     val relabeledAsEpoch8 = Era1Shard.encodeShard(epochIndex = 8, records, hash)
     val (relabeledClaim, _, relabeledRoot) = Era1Shard.decodeShard(relabeledAsEpoch8)
-    assert(relabeledClaim == BigInt(8)) // sanity: the mislabel took
-    assert(relabeledRoot == embeddedRoot) // sanity: content (and thus the accumulator) is untouched
+    val _ = assert(
+      relabeledClaim == BigInt(8) && // sanity: the mislabel took
+        relabeledRoot == embeddedRoot, // sanity: content (and thus the accumulator) is untouched
+      "the relabel must take effect on the epoch claim while the accumulator root (content) stays untouched"
+    )
 
     // The caller expected epoch 7 (e.g. filling manifest slot 7) and even supplies epoch 7's trustedRoot — both the
     // shard's own self-consistency AND the external trust anchor would pass if the epoch label were not checked.
@@ -130,8 +139,10 @@ class Era1ShardSpec extends AnyFunSuite:
         .importShard(relabeledAsEpoch8, expectedEpochIndex = 7, hash, Some(embeddedRoot))
         .unsafeRunSync()
     }
-    assert(ex.getMessage.contains("claims epoch 8"))
-    assert(ex.getMessage.contains("expected epoch 7"))
+    val _ = assert(
+      ex.getMessage.contains("claims epoch 8") && ex.getMessage.contains("expected epoch 7"),
+      "the epoch-mismatch error must name both the claimed and the expected epoch"
+    )
 
     // The SAME bytes import cleanly when the caller's expectation matches the shard's actual label (epoch 8).
     new PersistedColdStore(EphemDataSource())
@@ -143,9 +154,12 @@ class Era1ShardSpec extends AnyFunSuite:
     val (_, _, embeddedRoot) = Era1Shard.decodeShard(store.exportShard(4, hash))
     val entry = store.manifestEntry(4, hash)
 
-    assert(entry.epochIndex == BigInt(4))
-    assert((entry.rangeStart, entry.rangeEndExclusive) == Era1Shard.epochBounds(4))
-    assert(entry.accumulatorRoot == embeddedRoot)
+    assert(
+      entry.epochIndex == BigInt(4) &&
+        (entry.rangeStart, entry.rangeEndExclusive) == Era1Shard.epochBounds(4) &&
+        entry.accumulatorRoot == embeddedRoot,
+      "manifestEntry must report the epoch index, the epoch-aligned range, and a root matching the exported shard's own root"
+    )
 
   test("ShardManifest encode/decode round-trips a multi-shard-entry listing"):
     val store1 = freezeFullEpoch(5)

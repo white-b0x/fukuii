@@ -27,11 +27,14 @@ class TrieLogSpec extends AnyFlatSpec with Matchers:
   // -- LeafChange semantics (besu LogTuple) ---------------------------------
 
   "LeafChange" should "classify insert / update / delete / unchanged" in {
-    LeafChange(None, Some(bs("v"))).isUnchanged shouldBe false
-    LeafChange(Some(bs("a")), Some(bs("b"))).isUnchanged shouldBe false
-    LeafChange(Some(bs("a")), Some(bs("a"))).isUnchanged shouldBe true
-    LeafChange(Some(bs("a")), None).isCleared shouldBe true
-    LeafChange(None, Some(bs("v"))).isCleared shouldBe false
+    assert(
+      !LeafChange(None, Some(bs("v"))).isUnchanged &&
+        !LeafChange(Some(bs("a")), Some(bs("b"))).isUnchanged &&
+        LeafChange(Some(bs("a")), Some(bs("a"))).isUnchanged &&
+        LeafChange(Some(bs("a")), None).isCleared &&
+        !LeafChange(None, Some(bs("v"))).isCleared,
+      "LeafChange must correctly classify insert, update, delete, and unchanged transitions"
+    )
   }
 
   // -- serialize -> deserialize round-trip ----------------------------------
@@ -45,9 +48,12 @@ class TrieLogSpec extends AnyFlatSpec with Matchers:
       .build
     val blob = log.serialized
     val restored = TrieLog.deserialize(blob)
-    restored shouldBe log
-    // Re-serialising the restored log yields the identical bytes (canonical form is stable).
-    restored.serialized shouldBe blob
+    assert(
+      restored == log &&
+        // Re-serialising the restored log yields the identical bytes (canonical form is stable).
+        restored.serialized == blob,
+      "a TrieLog must round-trip through serialize -> deserialize byte-stably"
+    )
   }
 
   it should "serialize identically regardless of the order changes were recorded (canonical sort)" in {
@@ -99,10 +105,13 @@ class TrieLogSpec extends AnyFlatSpec with Matchers:
     val log = TrieLog.diff(prior, updated, Seq(bs("k1"), bs("k2"), bs("k3")))
     val reverted = log.rollBack(updated)
 
-    reverted.getRootHash shouldBe prior.getRootHash
-    new String(reverted.get(bytes("k1")).get) shouldBe "v1"
-    new String(reverted.get(bytes("k2")).get) shouldBe "v2"
-    reverted.get(bytes("k3")) shouldBe None
+    assert(
+      reverted.getRootHash == prior.getRootHash &&
+        new String(reverted.get(bytes("k1")).get) == "v1" &&
+        new String(reverted.get(bytes("k2")).get) == "v2" &&
+        reverted.get(bytes("k3")).isEmpty,
+      "rollBack must restore the exact prior root and leaf values"
+    )
   }
 
   it should "round-trip a state through deserialize before rolling (the out-of-process consumer path)" in {
@@ -112,8 +121,11 @@ class TrieLogSpec extends AnyFlatSpec with Matchers:
 
     // Simulate crossing a process boundary: serialize, ship bytes, rehydrate, then roll.
     val shipped = TrieLog.deserialize(log.serialized)
-    shipped.rollForward(prior).getRootHash shouldBe updated.getRootHash
-    shipped.rollBack(updated).getRootHash shouldBe prior.getRootHash
+    assert(
+      shipped.rollForward(prior).getRootHash == updated.getRootHash &&
+        shipped.rollBack(updated).getRootHash == prior.getRootHash,
+      "a deserialized (rehydrated) TrieLog must roll forward and back byte-exactly, same as the in-process log"
+    )
   }
 
   // -- root-neutrality: journaling never perturbs the observed trie ----------
@@ -126,16 +138,21 @@ class TrieLogSpec extends AnyFlatSpec with Matchers:
 
     val _ = TrieLog.diff(prior, updated, Seq(bs("do"), bs("dog"), bs("doge")))
 
-    prior.getRootHash shouldBe priorRootBefore
-    updated.getRootHash shouldBe updatedRootBefore
+    assert(
+      prior.getRootHash == priorRootBefore && updated.getRootHash == updatedRootBefore,
+      "capturing a TrieLog must not change either observed trie's root (root-neutral side-journal)"
+    )
   }
 
   it should "drop entries that netted out unchanged" in {
     val t = emptyTrie.put(bytes("x"), bytes("1"))
-    // Same trie on both sides: nothing changed.
-    TrieLog.diff(t, t, Seq(bs("x"))).changes shouldBe empty
-    // Builder coalesces a no-op transition.
-    TrieLog.Builder().record(bs("x"), Some(bs("1")), Some(bs("1"))).build.changes shouldBe empty
+    assert(
+      // Same trie on both sides: nothing changed.
+      TrieLog.diff(t, t, Seq(bs("x"))).changes.isEmpty &&
+        // Builder coalesces a no-op transition.
+        TrieLog.Builder().record(bs("x"), Some(bs("1")), Some(bs("1"))).build.changes.isEmpty,
+      "both a same-trie diff and a Builder no-op transition must drop the entry entirely"
+    )
   }
 
   // -- L2-F3: loud decode on a malformed journal blob -----------------------

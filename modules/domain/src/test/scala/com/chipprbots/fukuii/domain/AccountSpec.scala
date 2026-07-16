@@ -26,11 +26,14 @@ class AccountSpec extends AnyFunSuite:
     val account = Account(UInt256(7), Wei(UInt256(1000000)), emptyRoot, emptyCode)
     rawDecode(encode(account)) match
       case RLPList(nonce, balance, root, codeHash, rest*) =>
-        assert(rest.isEmpty)
-        assert(decode[UInt256](nonce) == UInt256(7))
-        assert(decode[UInt256](balance) == UInt256(1000000))
-        assert(decode[Hash](root) == emptyRoot)
-        assert(decode[Hash](codeHash) == emptyCode)
+        assert(
+          rest.isEmpty &&
+            decode[UInt256](nonce) == UInt256(7) &&
+            decode[UInt256](balance) == UInt256(1000000) &&
+            decode[Hash](root) == emptyRoot &&
+            decode[Hash](codeHash) == emptyCode,
+          "the RLPList must have exactly 4 elements decoding to nonce, balance, storage root, and code hash in order"
+        )
       case other => fail(s"expected a 4-element RLPList, got $other")
 
   test("balance encodes as a 32-byte-bounded quantity, not an unbounded BigInt"):
@@ -38,8 +41,11 @@ class AccountSpec extends AnyFunSuite:
     // value one past it is impossible to construct (UInt256.apply rejects out-of-range BigInt),
     // which is itself the width-boundedness guarantee this test is pinning down.
     val account = Account(UInt256.Zero, Wei(UInt256.MaxValue), emptyRoot, emptyCode)
-    assert(decode[Account](encode(account)) == account)
-    assert(account.balance.bytes.length == UInt256.Size)
+    assert(
+      decode[Account](encode(account)) == account &&
+        account.balance.bytes.length == UInt256.Size,
+      "a max-balance account must RLP round-trip and stay bounded to UInt256's byte size"
+    )
 
   test("balance zero encodes as the RLP empty string, matching a minimal-length scalar"):
     val account = Account(UInt256.Zero, Wei.Zero, emptyRoot, emptyCode)

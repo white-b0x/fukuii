@@ -66,11 +66,17 @@ trait DataSourceContractBehaviors:
             DataSourceUpdateOptimized(Namespace.Code, Seq(), Seq(k -> vCode))
           )
         )
-        assert(ds.getOptimized(Namespace.Node, k).map(_.toSeq).contains(vNode.toSeq))
-        assert(ds.getOptimized(Namespace.Code, k).map(_.toSeq).contains(vCode.toSeq))
+        val _ = assert(
+          ds.getOptimized(Namespace.Node, k).map(_.toSeq).contains(vNode.toSeq) &&
+            ds.getOptimized(Namespace.Code, k).map(_.toSeq).contains(vCode.toSeq),
+          "the same key must resolve to its own value independently in each namespace"
+        )
         ds.update(Seq(DataSourceUpdateOptimized(Namespace.Code, Seq(k), Seq())))
-        assert(ds.getOptimized(Namespace.Node, k).map(_.toSeq).contains(vNode.toSeq))
-        assert(ds.getOptimized(Namespace.Code, k).isEmpty)
+        assert(
+          ds.getOptimized(Namespace.Node, k).map(_.toSeq).contains(vNode.toSeq) &&
+            ds.getOptimized(Namespace.Code, k).isEmpty,
+          "removing the key from one namespace must not affect its value in the other namespace"
+        )
       finally ds.destroy()
     }
 
@@ -81,8 +87,10 @@ trait DataSourceContractBehaviors:
         val k2 = randomBytes(32)
         ds.update(Seq(DataSourceUpdateOptimized(Namespace.Node, Seq(), Seq(k1 -> k1, k2 -> k2))))
         ds.update(Seq(DataSourceUpdateOptimized(Namespace.Node, Seq(k1), Seq())))
-        assert(ds.getOptimized(Namespace.Node, k1).isEmpty)
-        assert(ds.getOptimized(Namespace.Node, k2).isDefined)
+        assert(
+          ds.getOptimized(Namespace.Node, k1).isEmpty && ds.getOptimized(Namespace.Node, k2).isDefined,
+          "removing k1 must leave it absent while k2 remains present"
+        )
       finally ds.destroy()
     }
 
@@ -108,8 +116,11 @@ trait DataSourceContractBehaviors:
             DataSourceUpdateOptimized(Namespace.ChainWeight, Seq(), Seq(blockKey -> weightValue))
           )
         )
-        assert(ds.getOptimized(Namespace.Header, blockKey).map(_.toSeq).contains(blockValue.toSeq))
-        assert(ds.getOptimized(Namespace.ChainWeight, blockKey).map(_.toSeq).contains(weightValue.toSeq))
+        assert(
+          ds.getOptimized(Namespace.Header, blockKey).map(_.toSeq).contains(blockValue.toSeq) &&
+            ds.getOptimized(Namespace.ChainWeight, blockKey).map(_.toSeq).contains(weightValue.toSeq),
+          "both co-committed namespace entries must be visible after the single update() call"
+        )
       finally ds.destroy()
     }
 
@@ -125,7 +136,7 @@ trait DataSourceContractBehaviors:
       try
         val blockKey = randomBytes(32)
         val blockValue = randomBytes(32)
-        assertThrows[RuntimeException](
+        val _ = assertThrows[RuntimeException](
           ds.update(
             Seq(
               DataSourceUpdateOptimized(Namespace.Header, Seq(), Seq(blockKey -> blockValue)),
@@ -149,7 +160,7 @@ trait DataSourceContractBehaviors:
         val missing = key(999)
         ds.update(Seq(DataSourceUpdateOptimized(Namespace.Node, Seq(), present.map(k => k -> k))))
         val results = ds.multiGetOptimized(Namespace.Node, present :+ missing)
-        assert(results.size == 6)
+        val _ = assert(results.size == 6)
         present.zip(results.init).foreach { case (k, opt) => assert(opt.map(_.toSeq).contains(k.toSeq)) }
         assert(results.last.isEmpty)
       finally ds.destroy()
@@ -195,8 +206,10 @@ trait DataSourceContractBehaviors:
         val ks = (0 until 25).map(key).toList
         ds.update(Seq(DataSourceUpdateOptimized(Namespace.Node, Seq(), ks.map(k => k -> value(0)))))
         val all = ds.iterate(Namespace.Node).compile.toList.unsafeRunSync()
-        assert(all.forall(_.isRight))
-        assert(all.size == ks.size)
+        assert(
+          all.forall(_.isRight) && all.size == ks.size,
+          "every entry must decode successfully and the count must match what was written"
+        )
       finally ds.destroy()
     }
 
@@ -218,7 +231,7 @@ trait DataSourceContractBehaviors:
           )
         )
         val all = ds.iterate().compile.toList.unsafeRunSync()
-        assert(all.forall(_.isRight))
+        val _ = assert(all.forall(_.isRight))
         val pairs = all.map(_.toOption.get).map { case (k, v) => (k.toSeq, v.toSeq) }.toSet
         assert(pairs == Set((headerKV._1.toSeq, headerKV._2.toSeq), (codeKV._1.toSeq, codeKV._2.toSeq)))
       finally ds.destroy()

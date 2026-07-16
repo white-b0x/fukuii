@@ -14,11 +14,12 @@ class HashesSpec extends AnyFunSuite:
   private def hex(b: Array[Byte]): String = Hex.toHexString(b)
 
   test("sha256 matches FIPS-180 vectors"):
-    assert(hex(sha256(Array.emptyByteArray)) == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
-    assert(hex(sha256(ascii("abc"))) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
     assert(
-      hex(sha256(ascii("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"))) ==
-        "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
+      hex(sha256(Array.emptyByteArray)) == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" &&
+        hex(sha256(ascii("abc"))) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" &&
+        hex(sha256(ascii("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"))) ==
+        "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+      "sha256 must match all three FIPS-180 known-answer vectors"
     )
 
   test("ripemd160 matches Bosselaers reference vectors"):

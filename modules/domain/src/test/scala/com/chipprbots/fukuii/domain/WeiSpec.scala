@@ -11,16 +11,22 @@ class WeiSpec extends AnyFunSuite:
 
   test("Wei round-trips through RLP as a minimal-length scalar, matching UInt256"):
     val amount = Wei(UInt256(1000000))
-    assert(decode[Wei](encode(amount)) == amount)
-    assert(encode(amount).sameElements(encode(amount.toUInt256)))
+    assert(
+      decode[Wei](encode(amount)) == amount &&
+        encode(amount).sameElements(encode(amount.toUInt256)),
+      "Wei must RLP round-trip and encode identically to its underlying UInt256"
+    )
 
   test("Wei.Zero encodes as the empty string (RLP scalar rule)"):
     assert(encode(Wei.Zero).sameElements(encode(UInt256.Zero)))
 
   test("Wei is 32-byte-bounded — the full UInt256 range round-trips"):
     val max = Wei(UInt256.MaxValue)
-    assert(decode[Wei](encode(max)) == max)
-    assert(max.bytes.length == UInt256.Size)
+    assert(
+      decode[Wei](encode(max)) == max &&
+        max.bytes.length == UInt256.Size,
+      "the max Wei value must RLP round-trip and stay bounded to UInt256's byte size"
+    )
 
   test("Wei is type-distinct from a raw UInt256"):
     assertDoesNotCompile("val w: Wei = UInt256(1)")

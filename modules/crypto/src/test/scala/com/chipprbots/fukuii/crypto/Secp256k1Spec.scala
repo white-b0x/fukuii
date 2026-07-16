@@ -46,11 +46,16 @@ class Secp256k1Spec extends AnyFunSuite:
     val rebuilt = keyPairFromPrvKey(prv)
     assert(pubKeyFromKeyPair(rebuilt).sameElements(pub))
 
-  test("decodeAndValidatePoint accepts the generator and rejects the point at infinity"):
+  test("decodeAndValidatePoint accepts the generator"):
     val g = curve.getG.getEncoded(false)
     assert(decodeAndValidatePoint(g).equals(curve.getG))
+
+  test("decodeAndValidatePoint rejects the point at infinity"):
     intercept[IllegalArgumentException](decodeAndValidatePoint(Array[Byte](0x00))) // encoded infinity
 
   test("secureRandomByteArray returns the requested length"):
-    assert(secureRandomByteArray(secureRandom, 32).length == 32)
-    assert(secureRandomByteString(secureRandom, 16).length == 16)
+    assert(
+      secureRandomByteArray(secureRandom, 32).length == 32 &&
+        secureRandomByteString(secureRandom, 16).length == 16,
+      "both secureRandomByteArray and secureRandomByteString must return the requested length"
+    )

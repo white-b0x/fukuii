@@ -110,18 +110,18 @@ class RLPCanonicalDecodeSpec extends AnyFunSuite:
     assert(ex.getClass != classOf[ArrayIndexOutOfBoundsException])
 
   test("J-RLP-1 does not raise ArrayIndexOutOfBoundsException on the overflow vectors"):
-    intercept[RLPException](rawDecode(bytes(overflowString)))
+    val _ = intercept[RLPException](rawDecode(bytes(overflowString)))
     intercept[RLPException](rawDecode(bytes(overflowList)))
 
   test("J-RLP-1 rejects the overflow vectors on the strict path too"):
-    intercept[RLPException](rawDecodeStrict(bytes(overflowString)))
+    val _ = intercept[RLPException](rawDecodeStrict(bytes(overflowString)))
     intercept[RLPException](rawDecodeStrict(bytes(overflowList)))
 
   test("J-RLP-1 does not regress ordinary large-but-valid long-form items"):
     // 56-byte payload -> smallest canonical long-form string header (0xb8 0x38 ...).
     val payload = "01" * 56
     val decoded = rawDecode(bytes("b838" + payload))
-    decoded match
+    val _ = decoded match
       case value: RLPValue => assert(value.bytes.sameElements(bytes(payload)))
       case other           => fail(s"expected RLPValue, got $other")
     // 56-byte long-form list of 56 single-byte items round-trips.
@@ -149,10 +149,13 @@ class RLPCanonicalDecodeSpec extends AnyFunSuite:
     intercept[RLPException](decode[UInt256](bytes("820005")))
 
   test("F-RLP-2 canonical scalars still decode (empty ⇒ 0, self-byte ⇒ value)"):
-    assert(decode[Int](encode(0)) == 0)
-    assert(decode[Int](encode(5)) == 5)
-    assert(decode[BigInt](encode(BigInt(0))) == BigInt(0))
-    assert(decode[UInt256](encode(UInt256(258))) == UInt256(258))
+    assert(
+      decode[Int](encode(0)) == 0 &&
+        decode[Int](encode(5)) == 5 &&
+        decode[BigInt](encode(BigInt(0))) == BigInt(0) &&
+        decode[UInt256](encode(UInt256(258))) == UInt256(258),
+      "canonical scalars must decode: empty ⇒ 0, self-byte ⇒ value"
+    )
 
   // --- B-RLP-N2: Byte/Short decoders carry the same ErrCanonInt guard as the other int kinds ---
 
@@ -166,7 +169,10 @@ class RLPCanonicalDecodeSpec extends AnyFunSuite:
     intercept[RLPException](decode[Short](bytes("820005")))
 
   test("B-RLP-N2 canonical Byte/Short scalars still decode (empty ⇒ 0, self-byte ⇒ value)"):
-    assert(decode[Byte](encode(0: Byte)) == (0: Byte))
-    assert(decode[Byte](encode(5: Byte)) == (5: Byte))
-    assert(decode[Short](encode(0: Short)) == (0: Short))
-    assert(decode[Short](encode(258: Short)) == (258: Short))
+    assert(
+      decode[Byte](encode(0: Byte)) == (0: Byte) &&
+        decode[Byte](encode(5: Byte)) == (5: Byte) &&
+        decode[Short](encode(0: Short)) == (0: Short) &&
+        decode[Short](encode(258: Short)) == (258: Short),
+      "canonical Byte/Short scalars must decode: empty ⇒ 0, self-byte ⇒ value"
+    )

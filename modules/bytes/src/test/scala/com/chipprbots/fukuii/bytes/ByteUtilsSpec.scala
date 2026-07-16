@@ -14,12 +14,17 @@ class ByteUtilsSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("bytesToBigInt / bigIntToBytes round-trip at fixed width"):
     forAll(nonNegBigIntGen): n =>
       val bytes = ByteUtils.bigIntToBytes(n, 32)
-      assert(bytes.length == 32)
-      assert(ByteUtils.bytesToBigInt(bytes) == n)
+      assert(
+        bytes.length == 32 && ByteUtils.bytesToBigInt(bytes) == n,
+        "the fixed-width encoding must be 32 bytes and round-trip back to the original value"
+      )
 
   test("bytesToBigInt treats bytes as unsigned big-endian"):
-    assert(ByteUtils.bytesToBigInt(Array(0xff.toByte)) == BigInt(255))
-    assert(ByteUtils.bytesToBigInt(Array(0x01, 0x00).map(_.toByte)) == BigInt(256))
+    assert(
+      ByteUtils.bytesToBigInt(Array(0xff.toByte)) == BigInt(255) &&
+        ByteUtils.bytesToBigInt(Array(0x01, 0x00).map(_.toByte)) == BigInt(256),
+      "bytesToBigInt must treat bytes as unsigned big-endian"
+    )
 
   test("bytesToBigInt of empty array is zero"):
     assert(ByteUtils.bytesToBigInt(Array.emptyByteArray) == BigInt(0))
@@ -33,26 +38,38 @@ class ByteUtilsSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
   test("bigIntToBytes handles a value whose top bit is set (no stray sign byte)"):
     val v = BigInt(1) << 255
     val bytes = ByteUtils.bigIntToBytes(v, 32)
-    assert(bytes.length == 32)
-    assert(bytes(0) == 0x80.toByte)
-    assert(ByteUtils.bytesToBigInt(bytes) == v)
+    assert(
+      bytes.length == 32 &&
+        bytes(0) == 0x80.toByte &&
+        ByteUtils.bytesToBigInt(bytes) == v,
+      "a top-bit-set value must encode as 32 bytes with no stray sign byte and round-trip"
+    )
 
   test("bigIntToBytes rejects a negative input"):
     intercept[IllegalArgumentException](ByteUtils.bigIntToBytes(BigInt(-1), 32))
 
   test("bigIntToUnsignedBytes is minimal-length and empty for zero"):
-    assert(ByteUtils.bigIntToUnsignedBytes(BigInt(0)).isEmpty)
-    assert(ByteUtils.bigIntToUnsignedBytes(BigInt(255)).sameElements(Array[Byte](0xff.toByte)))
-    assert(ByteUtils.bigIntToUnsignedBytes(BigInt(256)).sameElements(Array[Byte](0x01, 0x00)))
+    assert(
+      ByteUtils.bigIntToUnsignedBytes(BigInt(0)).isEmpty &&
+        ByteUtils.bigIntToUnsignedBytes(BigInt(255)).sameElements(Array[Byte](0xff.toByte)) &&
+        ByteUtils.bigIntToUnsignedBytes(BigInt(256)).sameElements(Array[Byte](0x01, 0x00)),
+      "bigIntToUnsignedBytes must be minimal-length and empty for zero"
+    )
 
   test("padLeft prepends up to length and is a no-op past it"):
-    assert(ByteUtils.padLeft(ByteString(1, 2), 4, 0).sameElements(Array[Byte](0, 0, 1, 2)))
-    assert(ByteUtils.padLeft(ByteString(1, 2, 3), 2, 0).sameElements(Array[Byte](1, 2, 3)))
+    assert(
+      ByteUtils.padLeft(ByteString(1, 2), 4, 0).sameElements(Array[Byte](0, 0, 1, 2)) &&
+        ByteUtils.padLeft(ByteString(1, 2, 3), 2, 0).sameElements(Array[Byte](1, 2, 3)),
+      "padLeft must prepend up to the target length and be a no-op past it"
+    )
 
   test("matchingLength counts the shared prefix"):
-    assert(ByteUtils.matchingLength(Array(1, 2, 3), Array(1, 2, 9)) == 2)
-    assert(ByteUtils.matchingLength(Array(1, 2), Array(9, 9)) == 0)
-    assert(ByteUtils.matchingLength(Array.emptyByteArray, Array[Byte](1)) == 0)
+    assert(
+      ByteUtils.matchingLength(Array(1, 2, 3), Array(1, 2, 9)) == 2 &&
+        ByteUtils.matchingLength(Array(1, 2), Array(9, 9)) == 0 &&
+        ByteUtils.matchingLength(Array.emptyByteArray, Array[Byte](1)) == 0,
+      "matchingLength must count the shared prefix"
+    )
 
   test("xor of two arrays"):
     val out = ByteUtils.xor(Array(0x0f, 0xf0).map(_.toByte), Array(0xff, 0x0f).map(_.toByte))
@@ -65,14 +82,13 @@ class ByteUtilsSpec extends AnyFunSuite with ScalaCheckPropertyChecks:
     assert(
       ByteUtils
         .or(Array(0x01, 0x00).map(_.toByte), Array(0x00, 0x02).map(_.toByte))
-        .sameElements(Array[Byte](0x01, 0x02))
-    )
-    assert(
-      ByteUtils
-        .and(Array(0x0f, 0xff).map(_.toByte), Array(0x01, 0x0f).map(_.toByte))
-        .sameElements(Array[Byte](0x01, 0x0f))
+        .sameElements(Array[Byte](0x01, 0x02)) &&
+        ByteUtils
+          .and(Array(0x0f, 0xff).map(_.toByte), Array(0x01, 0x0f).map(_.toByte))
+          .sameElements(Array[Byte](0x01, 0x0f)),
+      "or/and must combine equal-length arrays bitwise"
     )
 
   test("or / and reject a length mismatch and an empty varargs"):
-    intercept[IllegalArgumentException](ByteUtils.or(Array[Byte](1), Array[Byte](1, 2)))
+    val _ = intercept[IllegalArgumentException](ByteUtils.or(Array[Byte](1), Array[Byte](1, 2)))
     intercept[IllegalArgumentException](ByteUtils.and())

@@ -41,11 +41,14 @@ class PruningStoreSpec extends AnyFunSuite:
     engine.commitBlock(commit1)
 
     val report = engine.prune(1000).unsafeRunSync()
-    assert(report == PruneReport(0, 0))
-    assert(nodeStorage.get(loc, hash(1)).isDefined)
-    assert(nodeStorage.get(loc, hash(2)).isDefined)
-    assert(nodeStorage.get(loc, hash(3)).isDefined)
-    assert(nodeStorage.get(loc, hash(4)).isDefined)
+    assert(
+      report == PruneReport(0, 0) &&
+        nodeStorage.get(loc, hash(1)).isDefined &&
+        nodeStorage.get(loc, hash(2)).isDefined &&
+        nodeStorage.get(loc, hash(3)).isDefined &&
+        nodeStorage.get(loc, hash(4)).isDefined,
+      "Archive mode must never remove any node regardless of prune(safeHeight)"
+    )
 
   // -- Basic: refcount GC, horizon, barrier, rollback ------------------------------------------------------------
 
@@ -62,20 +65,26 @@ class PruningStoreSpec extends AnyFunSuite:
 
     // Barrier: a consumer registered at height 1 must keep everything orphaned in (1, head] alive.
     val barrierReport = engine.prune(1).unsafeRunSync()
-    assert(barrierReport == PruneReport(0, 2)) // R0, L0 on death row but not yet removable
-    assert(nodeStorage.get(loc, hash(1)).isDefined)
-    assert(nodeStorage.get(loc, hash(2)).isDefined)
+    val _ = assert(
+      barrierReport == PruneReport(0, 2) && // R0, L0 on death row but not yet removable
+        nodeStorage.get(loc, hash(1)).isDefined &&
+        nodeStorage.get(loc, hash(2)).isDefined,
+      "before the barrier passes the orphaning block, R0/L0 must be on death row but not yet removed"
+    )
 
     // Once the barrier passes the orphaning block, the orphaned subtree is physically removed...
     val report = engine.prune(2).unsafeRunSync()
-    assert(report == PruneReport(2, 0))
-    assert(nodeStorage.get(loc, hash(1)).isEmpty) // R0
-    assert(nodeStorage.get(loc, hash(2)).isEmpty) // L0
-    // ...but the still-retained roots (R1/L1, R2/L2) are untouched — state-root preserved for every live root.
-    assert(nodeStorage.get(loc, hash(3)).contains(IndexedSeq(9)))
-    assert(nodeStorage.get(loc, hash(4)).contains(IndexedSeq(9)))
-    assert(nodeStorage.get(loc, hash(5)).contains(IndexedSeq(9)))
-    assert(nodeStorage.get(loc, hash(6)).contains(IndexedSeq(9)))
+    assert(
+      report == PruneReport(2, 0) &&
+        nodeStorage.get(loc, hash(1)).isEmpty && // R0
+        nodeStorage.get(loc, hash(2)).isEmpty && // L0
+        // ...but the still-retained roots (R1/L1, R2/L2) are untouched — state-root preserved for every live root.
+        nodeStorage.get(loc, hash(3)).contains(IndexedSeq(9)) &&
+        nodeStorage.get(loc, hash(4)).contains(IndexedSeq(9)) &&
+        nodeStorage.get(loc, hash(5)).contains(IndexedSeq(9)) &&
+        nodeStorage.get(loc, hash(6)).contains(IndexedSeq(9)),
+      "once the barrier passes, the orphaned R0/L0 must be removed while every still-retained root is untouched"
+    )
 
   test("Basic mode rollback replays the undo-log: a reorg resurrects the released root, state-root preserved"):
     val ds = EphemDataSource()
@@ -92,15 +101,18 @@ class PruningStoreSpec extends AnyFunSuite:
 
     // R0/L0 must survive ANY future prune — they were never truly orphaned once block 2 is undone.
     val afterRollback = engine.prune(10).unsafeRunSync()
-    assert(nodeStorage.get(loc, hash(1)).contains(IndexedSeq(9))) // R0 resurrected
-    assert(nodeStorage.get(loc, hash(2)).contains(IndexedSeq(9))) // L0 resurrected (cascade, not just the root)
-    // R1/L1 (never touched by block 2 or its rollback) remain live regardless.
-    assert(nodeStorage.get(loc, hash(3)).contains(IndexedSeq(9)))
-    assert(nodeStorage.get(loc, hash(4)).contains(IndexedSeq(9)))
-    // R2/L2 (block 2's own retracted contribution) are now orphaned and were swept by the prune(10) above.
-    assert(nodeStorage.get(loc, hash(5)).isEmpty)
-    assert(nodeStorage.get(loc, hash(6)).isEmpty)
-    assert(afterRollback.removed == 2)
+    assert(
+      nodeStorage.get(loc, hash(1)).contains(IndexedSeq(9)) && // R0 resurrected
+        nodeStorage.get(loc, hash(2)).contains(IndexedSeq(9)) && // L0 resurrected (cascade, not just the root)
+        // R1/L1 (never touched by block 2 or its rollback) remain live regardless.
+        nodeStorage.get(loc, hash(3)).contains(IndexedSeq(9)) &&
+        nodeStorage.get(loc, hash(4)).contains(IndexedSeq(9)) &&
+        // R2/L2 (block 2's own retracted contribution) are now orphaned and were swept by the prune(10) above.
+        nodeStorage.get(loc, hash(5)).isEmpty &&
+        nodeStorage.get(loc, hash(6)).isEmpty &&
+        afterRollback.removed == 2,
+      "rollback must resurrect R0/L0, leave R1/L1 untouched, and orphan-then-sweep R2/L2"
+    )
 
   test("prune(safeHeight) never removes a node whose orphaning block is above safeHeight"):
     val ds = EphemDataSource()
@@ -112,15 +124,21 @@ class PruningStoreSpec extends AnyFunSuite:
 
     // A registered consumer at height H = 0: everything orphaned in (0, head] must survive.
     val guarded = engine.prune(0).unsafeRunSync()
-    assert(guarded.removed == 0)
-    assert(nodeStorage.get(loc, hash(1)).isDefined)
-    assert(nodeStorage.get(loc, hash(2)).isDefined)
+    val _ = assert(
+      guarded.removed == 0 &&
+        nodeStorage.get(loc, hash(1)).isDefined &&
+        nodeStorage.get(loc, hash(2)).isDefined,
+      "a barrier at the orphaning block itself must guard the orphaned nodes from removal"
+    )
 
     // Advancing the barrier past the orphaning block allows the sweep.
     val released = engine.prune(1).unsafeRunSync()
-    assert(released.removed == 2)
-    assert(nodeStorage.get(loc, hash(1)).isEmpty)
-    assert(nodeStorage.get(loc, hash(2)).isEmpty)
+    assert(
+      released.removed == 2 &&
+        nodeStorage.get(loc, hash(1)).isEmpty &&
+        nodeStorage.get(loc, hash(2)).isEmpty,
+      "advancing the barrier past the orphaning block must allow the sweep"
+    )
 
   // -- InMemory: same algebra, process-resident bookkeeping ------------------------------------------------------
 
@@ -136,13 +154,16 @@ class PruningStoreSpec extends AnyFunSuite:
     engine.rollback(2)
     val report = engine.prune(10).unsafeRunSync()
 
-    assert(nodeStorage.get(loc, hash(1)).contains(IndexedSeq(9)))
-    assert(nodeStorage.get(loc, hash(2)).contains(IndexedSeq(9)))
-    assert(nodeStorage.get(loc, hash(3)).contains(IndexedSeq(9)))
-    assert(nodeStorage.get(loc, hash(4)).contains(IndexedSeq(9)))
-    assert(nodeStorage.get(loc, hash(5)).isEmpty)
-    assert(nodeStorage.get(loc, hash(6)).isEmpty)
-    assert(report.removed == 2)
+    assert(
+      nodeStorage.get(loc, hash(1)).contains(IndexedSeq(9)) &&
+        nodeStorage.get(loc, hash(2)).contains(IndexedSeq(9)) &&
+        nodeStorage.get(loc, hash(3)).contains(IndexedSeq(9)) &&
+        nodeStorage.get(loc, hash(4)).contains(IndexedSeq(9)) &&
+        nodeStorage.get(loc, hash(5)).isEmpty &&
+        nodeStorage.get(loc, hash(6)).isEmpty &&
+        report.removed == 2,
+      "InMemory mode's changelog rollback must preserve the state root exactly as Basic mode does"
+    )
 
   // -- Composability: an eviction × persistence pair genuinely governs behavior ------------------------------------
 
@@ -163,9 +184,12 @@ class PruningStoreSpec extends AnyFunSuite:
     engine.commitBlock(writeBlock(nodeStorage, 5, 6, IndexedSeq(9)).copy(blockNumber = 2))
 
     val report = engine.prune(2).unsafeRunSync()
-    assert(report.removed == 2)
-    assert(nodeStorage.get(loc, hash(1)).isEmpty)
-    assert(nodeStorage.get(loc, hash(2)).isEmpty)
+    assert(
+      report.removed == 2 &&
+        nodeStorage.get(loc, hash(1)).isEmpty &&
+        nodeStorage.get(loc, hash(2)).isEmpty,
+      "the composed Basic-mode eviction x persistence pair must pass the same GC + rollback shape as Basic mode alone"
+    )
 
   test("a genuinely different eviction policy produces a genuinely different outcome (real composition, not cosmetic)"):
     val ds = EphemDataSource()
@@ -184,9 +208,12 @@ class PruningStoreSpec extends AnyFunSuite:
 
     // With eviction disabled, nothing is ever filed on death row — prune has nothing to remove, ever.
     val report = engine.prune(1000).unsafeRunSync()
-    assert(report == PruneReport(0, 0))
-    assert(nodeStorage.get(loc, hash(1)).isDefined)
-    assert(nodeStorage.get(loc, hash(2)).isDefined)
+    assert(
+      report == PruneReport(0, 0) &&
+        nodeStorage.get(loc, hash(1)).isDefined &&
+        nodeStorage.get(loc, hash(2)).isDefined,
+      "with eviction disabled, prune must never remove anything"
+    )
 
   // -- Coverage hardening: shared subtrees, cascade-guard isolation, new-parent resurrection, depth ----------------
   //
@@ -217,14 +244,20 @@ class PruningStoreSpec extends AnyFunSuite:
     engine.commitBlock(BlockCommit(1, Seq(NodeCommit(loc, r1, Seq(c))), r1))
     // historyBlocks = 1 releases R0 (retained at block 0) when block 1 commits.
 
-    assert(bookkeeping.getEntry(r0).map(_.refCount).contains(0)) // R0 correctly orphaned
-    assert(bookkeeping.deathRowBlockOf(c).isEmpty) // C must NOT be filed — R1 still holds it
-    assert(bookkeeping.getEntry(c).map(_.refCount).contains(1)) // refcount reflects R1's sole remaining hold
+    val _ = assert(
+      bookkeeping.getEntry(r0).map(_.refCount).contains(0) && // R0 correctly orphaned
+        bookkeeping.deathRowBlockOf(c).isEmpty && // C must NOT be filed — R1 still holds it
+        bookkeeping.getEntry(c).map(_.refCount).contains(1), // refcount reflects R1's sole remaining hold
+      "releasing R0 must not orphan C, which R1 still holds"
+    )
 
     val report = engine.prune(1).unsafeRunSync()
-    assert(report.removed == 1) // only R0
-    assert(nodeStorage.get(loc, r0).isEmpty)
-    assert(nodeStorage.get(loc, c).contains(value)) // C survives and still resolves to its value
+    assert(
+      report.removed == 1 && // only R0
+        nodeStorage.get(loc, r0).isEmpty &&
+        nodeStorage.get(loc, c).contains(value), // C survives and still resolves to its value
+      "pruning must remove only R0 while the shared child C survives and still resolves to its value"
+    )
 
   test("a brand-new node's anchor-hold increment must not double-cascade into a child already reference-counted"):
     val ds = EphemDataSource()
@@ -246,8 +279,11 @@ class PruningStoreSpec extends AnyFunSuite:
     // cascaded into its children (the bug the `wasOnDeathRow` gate prevents), leaf would be over-counted to 2 and —
     // needing two decrements instead of one to ever reach zero — would never be garbage collected by a single
     // legitimate release.
-    assert(bookkeeping.getEntry(leaf).map(_.refCount).contains(1))
-    assert(bookkeeping.getEntry(root).map(_.refCount).contains(1))
+    assert(
+      bookkeeping.getEntry(leaf).map(_.refCount).contains(1) &&
+        bookkeeping.getEntry(root).map(_.refCount).contains(1),
+      "leaf must be referenced exactly once, not double-cascaded by root's own anchor-hold increment"
+    )
 
   test("a death-row node re-referenced by a NEW block's parent (not a rollback) resurrects with its own subtree"):
     val ds = EphemDataSource()
@@ -277,26 +313,35 @@ class PruningStoreSpec extends AnyFunSuite:
     engine.commitBlock(BlockCommit(1, Seq(NodeCommit(loc, r1, Nil)), r1))
     // historyBlocks = 1 releases orphanRoot at block 1, cascading through orphanChild and orphanGrandchild — all
     // three filed on death row at block 1.
-    assert(bookkeeping.deathRowBlockOf(orphanChild).contains(BigInt(1)))
-    assert(bookkeeping.deathRowBlockOf(orphanGrandchild).contains(BigInt(1)))
+    val _ = assert(
+      bookkeeping.deathRowBlockOf(orphanChild).contains(BigInt(1)) &&
+        bookkeeping.deathRowBlockOf(orphanGrandchild).contains(BigInt(1)),
+      "releasing orphanRoot must cascade the death-row filing through orphanChild and orphanGrandchild"
+    )
 
     // Block 2: a brand-new parent references orphanChild directly — NOT a rollback, a fresh forward reference.
     engine.commitBlock(BlockCommit(2, Seq(NodeCommit(loc, newParent, Seq(orphanChild))), newParent))
 
     // orphanChild AND its own child (orphanGrandchild) must resurrect off death row with correct refcounts...
-    assert(bookkeeping.deathRowBlockOf(orphanChild).isEmpty)
-    assert(bookkeeping.getEntry(orphanChild).map(_.refCount).contains(1))
-    assert(bookkeeping.deathRowBlockOf(orphanGrandchild).isEmpty)
-    assert(bookkeeping.getEntry(orphanGrandchild).map(_.refCount).contains(1))
+    val _ = assert(
+      bookkeeping.deathRowBlockOf(orphanChild).isEmpty &&
+        bookkeeping.getEntry(orphanChild).map(_.refCount).contains(1) &&
+        bookkeeping.deathRowBlockOf(orphanGrandchild).isEmpty &&
+        bookkeeping.getEntry(orphanGrandchild).map(_.refCount).contains(1),
+      "a fresh forward reference to a death-row node must resurrect it and its own subtree off death row"
+    )
     // ...while orphanRoot — never re-referenced by anyone — correctly remains orphaned and is swept by prune. (A
     // size-1 retention window also releases r1's own anchor the moment block 2 commits — its natural, unrelated
     // removal alongside orphanRoot, not a second orphaning of the subtree under test.)
     val report = engine.prune(2).unsafeRunSync()
-    assert(report.removed == 2)
-    assert(nodeStorage.get(loc, orphanRoot).isEmpty)
-    assert(nodeStorage.get(loc, r1).isEmpty)
-    assert(nodeStorage.get(loc, orphanChild).contains(value))
-    assert(nodeStorage.get(loc, orphanGrandchild).contains(value))
+    assert(
+      report.removed == 2 &&
+        nodeStorage.get(loc, orphanRoot).isEmpty &&
+        nodeStorage.get(loc, r1).isEmpty &&
+        nodeStorage.get(loc, orphanChild).contains(value) &&
+        nodeStorage.get(loc, orphanGrandchild).contains(value),
+      "orphanRoot and r1 must be swept while the resurrected orphanChild/orphanGrandchild subtree survives"
+    )
 
   test("the refcount cascade propagates correctly through 3+ levels on both release and resurrection"):
     val ds = EphemDataSource()
@@ -322,21 +367,27 @@ class PruningStoreSpec extends AnyFunSuite:
     engine.commitBlock(BlockCommit(1, Seq(NodeCommit(loc, r1, Nil)), r1)) // releases root at block 1
 
     // Decrement cascade must propagate through all 3 levels on release: root, mid, AND leaf all reach zero.
-    assert(bookkeeping.getEntry(root).map(_.refCount).contains(0))
-    assert(bookkeeping.getEntry(mid).map(_.refCount).contains(0))
-    assert(bookkeeping.getEntry(leaf).map(_.refCount).contains(0))
-    assert(bookkeeping.deathRowBlockOf(root).contains(BigInt(1)))
-    assert(bookkeeping.deathRowBlockOf(mid).contains(BigInt(1)))
-    assert(bookkeeping.deathRowBlockOf(leaf).contains(BigInt(1)))
+    val _ = assert(
+      bookkeeping.getEntry(root).map(_.refCount).contains(0) &&
+        bookkeeping.getEntry(mid).map(_.refCount).contains(0) &&
+        bookkeeping.getEntry(leaf).map(_.refCount).contains(0) &&
+        bookkeeping.deathRowBlockOf(root).contains(BigInt(1)) &&
+        bookkeeping.deathRowBlockOf(mid).contains(BigInt(1)) &&
+        bookkeeping.deathRowBlockOf(leaf).contains(BigInt(1)),
+      "the decrement cascade must propagate through all 3 levels on release, reaching zero and death row at every level"
+    )
 
     // Reorg: undo block 1. The increment cascade must equally propagate through all 3 levels on resurrection.
     engine.rollback(1)
-    assert(bookkeeping.getEntry(root).map(_.refCount).contains(1))
-    assert(bookkeeping.getEntry(mid).map(_.refCount).contains(1))
-    assert(bookkeeping.getEntry(leaf).map(_.refCount).contains(1))
-    assert(bookkeeping.deathRowBlockOf(root).isEmpty)
-    assert(bookkeeping.deathRowBlockOf(mid).isEmpty)
-    assert(bookkeeping.deathRowBlockOf(leaf).isEmpty)
-    assert(nodeStorage.get(loc, root).contains(value))
-    assert(nodeStorage.get(loc, mid).contains(value))
-    assert(nodeStorage.get(loc, leaf).contains(value))
+    assert(
+      bookkeeping.getEntry(root).map(_.refCount).contains(1) &&
+        bookkeeping.getEntry(mid).map(_.refCount).contains(1) &&
+        bookkeeping.getEntry(leaf).map(_.refCount).contains(1) &&
+        bookkeeping.deathRowBlockOf(root).isEmpty &&
+        bookkeeping.deathRowBlockOf(mid).isEmpty &&
+        bookkeeping.deathRowBlockOf(leaf).isEmpty &&
+        nodeStorage.get(loc, root).contains(value) &&
+        nodeStorage.get(loc, mid).contains(value) &&
+        nodeStorage.get(loc, leaf).contains(value),
+      "the increment cascade must equally propagate through all 3 levels on resurrection, off death row and back into storage"
+    )

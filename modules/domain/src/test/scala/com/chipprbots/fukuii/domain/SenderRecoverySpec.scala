@@ -41,10 +41,13 @@ class SenderRecoverySpec extends AnyFunSuite with Matchers:
     )
     val tx = Transaction.decode(bytes)
     val expected = Address.fromHex("0x58d79230fc81a042315da7d243272798e27cb40c")
-    // unprotected is Homestead-era in this fixture -> homestead = true
-    assert(tx.getSender(homestead = true) == Right(expected))
-    // recovery id is not chainId-encoded, so the block-context flag does not change the recovered address here
-    assert(tx.getSender(homestead = false) == Right(expected))
+    assert(
+      // unprotected is Homestead-era in this fixture -> homestead = true
+      tx.getSender(homestead = true) == Right(expected) &&
+        // recovery id is not chainId-encoded, so the block-context flag does not change the recovered address here
+        tx.getSender(homestead = false) == Right(expected),
+      "the recorded sender must be recovered regardless of the homestead block-context flag"
+    )
 
   test("Legacy EIP-155 protected chainId 1 (ETH) recovers the sender — the canonical EIP-155 example vector"):
     // EIP-155 spec example: privkey 0x4646..46, chainId 1, v = 0x25 = 37 = 0 + 35 + 2*1.
@@ -52,9 +55,14 @@ class SenderRecoverySpec extends AnyFunSuite with Matchers:
       "0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83"
     )
     val tx = Transaction.decode(bytes)
-    tx shouldBe a[Transaction.Legacy]
     val expected = Address.fromHex("0x9d8a62f656a8d1615c1294fd71e9cfb3e4855a4f")
-    assert(tx.getSender(homestead = true) == Right(expected))
+    assert(
+      (tx match
+        case _: Transaction.Legacy => true; case _ => false
+      ) &&
+        tx.getSender(homestead = true) == Right(expected),
+      "the decoded tx must be a Legacy transaction and recover the canonical EIP-155 example sender"
+    )
 
   test("AccessList (0x01) recovers the recorded sender — TransactionTests/ttEIP2930/accessListStorage32Bytes"):
     val bytes = Hex.decode(
@@ -122,9 +130,12 @@ class SenderRecoverySpec extends AnyFunSuite with Matchers:
 
   test("H-1 direct: validateSignatureValues accepts full-N s under homestead=false, rejects under homestead=true"):
     val highS = halfN + 1 // > N/2, a malleable high-S value, still < N
-    assert(SenderRecovery.validateSignatureValues(0, r = BigInt(1), s = highS, homestead = false).isEmpty)
     assert(
-      SenderRecovery.validateSignatureValues(0, r = BigInt(1), s = highS, homestead = true).contains(SigError.HighS)
+      SenderRecovery.validateSignatureValues(0, r = BigInt(1), s = highS, homestead = false).isEmpty &&
+        SenderRecovery
+          .validateSignatureValues(0, r = BigInt(1), s = highS, homestead = true)
+          .contains(SigError.HighS),
+      "full-N s must be accepted pre-homestead and rejected as HighS from homestead onward"
     )
 
   test("H-1 end-to-end: a high-S legacy tx recovers under homestead=false but is rejected under homestead=true"):
@@ -147,8 +158,11 @@ class SenderRecoverySpec extends AnyFunSuite with Matchers:
     val vHigh = BigInt(27 + (1 - yParityLow)) // flipped parity recovers the same pubkey
     val highTx = base.copy(signature = ECDSASignature(lowSig.r, sHigh, vHigh))
 
-    assert(highTx.getSender(homestead = false) == Right(expectedAddr)) // accepted pre-homestead, recovers the key
-    assert(highTx.getSender(homestead = true) == Left(SigError.HighS)) // rejected homestead-and-later
+    assert(
+      highTx.getSender(homestead = false) == Right(expectedAddr) && // accepted pre-homestead, recovers the key
+        highTx.getSender(homestead = true) == Left(SigError.HighS), // rejected homestead-and-later
+      "a high-S tx must recover pre-homestead and be rejected as HighS from homestead onward"
+    )
 
   // --- N-1 fail-set (ValidateSignatureValues rejection vectors) ---------------------------------------------------
 
@@ -156,36 +170,33 @@ class SenderRecoverySpec extends AnyFunSuite with Matchers:
     assert(
       SenderRecovery
         .validateSignatureValues(0, r = BigInt(0), s = BigInt(1), homestead = true)
-        .contains(SigError.InvalidRange)
+        .contains(SigError.InvalidRange) &&
+        SenderRecovery
+          .validateSignatureValues(0, r = BigInt(1), s = BigInt(0), homestead = true)
+          .contains(SigError.InvalidRange) &&
+        SenderRecovery
+          .validateSignatureValues(0, r = N, s = BigInt(1), homestead = true)
+          .contains(SigError.InvalidRange) &&
+        // s=N must use homestead=false to isolate the range check: geth evaluates `homestead && s>halfN` BEFORE
+        // `s<N` (crypto.go), so s=N under homestead=true is (correctly) caught by the high-S branch first — both
+        // reject.
+        SenderRecovery
+          .validateSignatureValues(0, r = BigInt(1), s = N, homestead = false)
+          .contains(SigError.InvalidRange) &&
+        // ...and the same s=N under homestead=true IS caught by the high-S branch FIRST — asserting the evaluation
+        // order at the exact s=N boundary that lines above only narrate (crypto.go: `homestead && s>halfN` before
+        // `s<N`):
+        SenderRecovery.validateSignatureValues(0, r = BigInt(1), s = N, homestead = true).contains(SigError.HighS) &&
+        SenderRecovery
+          .validateSignatureValues(0, r = BigInt(1), s = halfN + 1, homestead = true)
+          .contains(SigError.HighS) &&
+        SenderRecovery
+          .validateSignatureValues(2, r = BigInt(1), s = BigInt(1), homestead = true)
+          .contains(SigError.InvalidRecoveryId) &&
+        // a valid canonical low-S with a good recovery id passes the gate
+        SenderRecovery.validateSignatureValues(1, r = BigInt(1), s = halfN, homestead = true).isEmpty,
+      "every N-1 fail-set vector must be rejected with the expected SigError, and the valid low-S vector must pass"
     )
-    assert(
-      SenderRecovery
-        .validateSignatureValues(0, r = BigInt(1), s = BigInt(0), homestead = true)
-        .contains(SigError.InvalidRange)
-    )
-    assert(
-      SenderRecovery.validateSignatureValues(0, r = N, s = BigInt(1), homestead = true).contains(SigError.InvalidRange)
-    )
-    // s=N must use homestead=false to isolate the range check: geth evaluates `homestead && s>halfN` BEFORE `s<N`
-    // (crypto.go), so s=N under homestead=true is (correctly) caught by the high-S branch first — both reject.
-    assert(
-      SenderRecovery.validateSignatureValues(0, r = BigInt(1), s = N, homestead = false).contains(SigError.InvalidRange)
-    )
-    // ...and the same s=N under homestead=true IS caught by the high-S branch FIRST — asserting the evaluation
-    // order at the exact s=N boundary that lines above only narrate (crypto.go: `homestead && s>halfN` before `s<N`):
-    assert(
-      SenderRecovery.validateSignatureValues(0, r = BigInt(1), s = N, homestead = true).contains(SigError.HighS)
-    )
-    assert(
-      SenderRecovery.validateSignatureValues(0, r = BigInt(1), s = halfN + 1, homestead = true).contains(SigError.HighS)
-    )
-    assert(
-      SenderRecovery
-        .validateSignatureValues(2, r = BigInt(1), s = BigInt(1), homestead = true)
-        .contains(SigError.InvalidRecoveryId)
-    )
-    // a valid canonical low-S with a good recovery id passes the gate
-    assert(SenderRecovery.validateSignatureValues(1, r = BigInt(1), s = halfN, homestead = true).isEmpty)
 
   test("N-1 through getSender: a legacy tx with an out-of-range legacy v is rejected as InvalidRecoveryId"):
     val badV = Transaction.Legacy(
@@ -216,7 +227,6 @@ class SenderRecoverySpec extends AnyFunSuite with Matchers:
       r = UInt256(sig.r),
       s = UInt256(sig.s)
     )
-    assert(auth.authority == Right(expectedAddr))
 
     // Build an outer SetCode tx signed by a DIFFERENT key; its sender must differ from the auth's authority,
     // proving the two recovery surfaces are independent.
@@ -238,9 +248,13 @@ class SenderRecoverySpec extends AnyFunSuite with Matchers:
     val outerSh = SenderRecovery.signingHash(setCodeBase)
     val outerSig = ECDSASignature.sign(ByteString(outerSh), outerKey)
     val outerTx = setCodeBase.copy(signature = ECDSASignature(outerSig.r, outerSig.s, BigInt(outerSig.v.toInt - 27)))
-    assert(outerTx.getSender(homestead = true) == Right(outerAddr))
-    assert(outerTx.getSender(homestead = true) != auth.authority)
-    assert(expectedAddr != outerAddr) // the two surfaces recovered two different accounts
+    assert(
+      auth.authority == Right(expectedAddr) &&
+        outerTx.getSender(homestead = true) == Right(outerAddr) &&
+        outerTx.getSender(homestead = true) != auth.authority &&
+        expectedAddr != outerAddr, // the two surfaces recovered two different accounts
+      "the authorization must recover its authority, the outer tx must recover its own distinct sender, and the two surfaces must never collide"
+    )
 
   // --- tx.hash (consensus hash) — legacy vs typed, blob uses consensus form --------------------------------------
 

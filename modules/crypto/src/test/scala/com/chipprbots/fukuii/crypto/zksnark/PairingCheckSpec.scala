@@ -32,8 +32,11 @@ class PairingCheckSpec extends AnyFunSuite:
   private val g2: BN128G2 = BN128G2(bs(g2x0), bs(g2x1), bs(g2y0), bs(g2y1)).get
 
   test("the standard generators are valid on-curve group elements"):
-    assert(BN128G1(bs(1), bs(2)).isDefined)
-    assert(BN128G2(bs(g2x0), bs(g2x1), bs(g2y0), bs(g2y1)).isDefined)
+    assert(
+      BN128G1(bs(1), bs(2)).isDefined &&
+        BN128G2(bs(g2x0), bs(g2x1), bs(g2y0), bs(g2y1)).isDefined,
+      "both the G1 and G2 standard generators must be valid on-curve group elements"
+    )
 
   // An on-curve G2 point that is NOT in the order-r pairing subgroup (twist cofactor > 1).
   // X = 0 + 1·u ; Y computed as the curve-equation square root; verified off-subgroup ([r]P != ∞)
@@ -56,8 +59,10 @@ class PairingCheckSpec extends AnyFunSuite:
     val x = Fp2(bs(offSubX0), bs(offSubX1))
     val y = Fp2(bs(offSubY0), bs(offSubY1))
     val p = Point(x, y, FiniteField[Fp2].one)
-    assert(BN128Fp2.isOnCurve(p))
-    assert(!BN128G2.isInSubGroup(p))
+    assert(
+      BN128Fp2.isOnCurve(p) && !BN128G2.isInSubGroup(p),
+      "the point must be on-curve yet outside the order-r subgroup"
+    )
 
   test("empty pairing set checks true (empty product = 1)"):
     assert(PairingCheck.pairingCheck(Seq.empty))

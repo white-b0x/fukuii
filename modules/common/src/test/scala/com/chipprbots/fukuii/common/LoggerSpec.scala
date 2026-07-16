@@ -13,8 +13,8 @@ class LoggerSpec extends AnyFunSuite:
 
   test("Logger mix-in provides a usable, class-named logger"):
     val subject = new EagerSubject
-    assert(subject.loggerName == subject.getClass.getName)
     subject.emit()
+    assert(subject.loggerName == subject.getClass.getName)
 
   test("LazyLogger mix-in provides a usable logger"):
     val subject = new LazySubject

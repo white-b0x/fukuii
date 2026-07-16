@@ -50,8 +50,11 @@ class PersistedMptStorageSpec extends AnyFlatSpec with Matchers:
     val expected = "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
     val hashRoot = rootOverStorage(new PersistedMptStorage(new HashKeyedNodeStorage(EphemDataSource())), Seq.empty)
     val pathRoot = rootOverStorage(new PersistedMptStorage(new PathKeyedNodeStorage(EphemDataSource())), Seq.empty)
-    com.chipprbots.fukuii.bytes.Hex.toHexString(hashRoot.toArray) shouldBe expected
-    com.chipprbots.fukuii.bytes.Hex.toHexString(pathRoot.toArray) shouldBe expected
+    assert(
+      com.chipprbots.fukuii.bytes.Hex.toHexString(hashRoot.toArray) == expected &&
+        com.chipprbots.fukuii.bytes.Hex.toHexString(pathRoot.toArray) == expected,
+      "an empty trie must have the canonical empty root under both hash-keyed and path-keyed storage"
+    )
   }
 
   it should "round-trip after being reloaded from persisted (non-resident) storage" in {

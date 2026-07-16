@@ -12,11 +12,14 @@ class FlatStorageSpec extends AnyFunSuite:
     val key = IndexedSeq(1.toByte, 2.toByte)
     val value = IndexedSeq(9.toByte)
 
-    assert(flat.get(key).isEmpty)
+    val _ = assert(flat.get(key).isEmpty)
     flat.put(key, value)
-    assert(flat.get(key).contains(value))
-    // The primitive is a real dedicated CF, not a prefix convention over an existing one.
-    assert(ds.get(Namespace.FlatAccount, key).contains(value))
+    val _ = assert(
+      flat.get(key).contains(value) &&
+        // The primitive is a real dedicated CF, not a prefix convention over an existing one.
+        ds.get(Namespace.FlatAccount, key).contains(value),
+      "after put, both the storage's own get and a direct read of Namespace.FlatAccount must return the value"
+    )
 
     flat.remove(key)
     assert(flat.get(key).isEmpty)
@@ -46,12 +49,18 @@ class FlatStorageSpec extends AnyFunSuite:
     flat.put(ownerA, slot, IndexedSeq(111.toByte))
     flat.put(ownerB, slot, IndexedSeq(222.toByte))
 
-    assert(flat.get(ownerA, slot).contains(IndexedSeq(111.toByte)))
-    assert(flat.get(ownerB, slot).contains(IndexedSeq(222.toByte)))
+    val _ = assert(
+      flat.get(ownerA, slot).contains(IndexedSeq(111.toByte)) &&
+        flat.get(ownerB, slot).contains(IndexedSeq(222.toByte)),
+      "each owner's slot value must be independently retrievable after both puts"
+    )
 
     flat.remove(ownerA, slot)
-    assert(flat.get(ownerA, slot).isEmpty)
-    assert(flat.get(ownerB, slot).contains(IndexedSeq(222.toByte))) // untouched
+    assert(
+      flat.get(ownerA, slot).isEmpty &&
+        flat.get(ownerB, slot).contains(IndexedSeq(222.toByte)), // untouched
+      "removing owner A's slot must clear only that owner's entry, leaving owner B's slot untouched"
+    )
 
   test("FlatSlotStorage.seekStorageRange bounds the scan to one owner and strips the owner prefix back off"):
     val ds = EphemDataSource()

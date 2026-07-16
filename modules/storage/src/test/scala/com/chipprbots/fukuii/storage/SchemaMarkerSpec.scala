@@ -28,9 +28,12 @@ class SchemaMarkerSpec extends AnyFunSuite:
     val ex = intercept[SchemaMarker.SchemaMismatchException] {
       SchemaMarker.ensureCompatible(ds, wrongOpenSet, hashProfile)
     }
-    assert(ex.getMessage.contains("column-family set"))
-    // And the marker CF was never written, since the CF-set check fails first.
-    assert(ds.get(Namespace.SchemaMeta, IndexedSeq(0.toByte)).isEmpty)
+    assert(
+      ex.getMessage.contains("column-family set") &&
+        // And the marker CF was never written, since the CF-set check fails first.
+        ds.get(Namespace.SchemaMeta, IndexedSeq(0.toByte)).isEmpty,
+      "a column-family-set mismatch must be rejected before the marker CF is ever written"
+    )
 
   test("SchemaMarker encode/decode round-trips every axis"):
     val marker = SchemaMarker(StorageFormat.V1, 7, pathProfile)

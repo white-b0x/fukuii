@@ -27,10 +27,13 @@ class LogSpec extends AnyFunSuite:
     val log = Log(address, List(topic1), ByteString.empty)
     rawDecode(encode(log)) match
       case RLPList(addr, topics, data, rest*) =>
-        assert(rest.isEmpty)
-        assert(decode[Address](addr) == address)
-        assert(decode[List[Hash]](topics) == List(topic1))
-        assert(decode[ByteString](data).isEmpty)
+        assert(
+          rest.isEmpty &&
+            decode[Address](addr) == address &&
+            decode[List[Hash]](topics) == List(topic1) &&
+            decode[ByteString](data).isEmpty,
+          "the RLPList must have exactly 3 elements decoding to the address, topics, and empty data"
+        )
       case other => fail(s"expected a 3-element RLPList, got $other")
 
   test("a log with no topics round-trips (empty topics list)"):

@@ -42,7 +42,7 @@ class Bls12381Spec extends AnyFunSuite:
 
   private def checkSuccess(resource: String, run: Array[Byte] => Either[String, Array[Byte]]): Unit =
     val vecs = loadVectors(resource)
-    assert(vecs.nonEmpty, s"no vectors loaded from $resource")
+    val _ = assert(vecs.nonEmpty, s"no vectors loaded from $resource")
     vecs.foreach { v =>
       val expected = v.expected.getOrElse(fail(s"vector ${v.name} has no Expected"))
       run(Hex.decode(v.input)) match
@@ -55,7 +55,7 @@ class Bls12381Spec extends AnyFunSuite:
     */
   private def checkFailure(resource: String, run: Array[Byte] => Either[String, Array[Byte]]): Unit =
     val vecs = loadVectors(resource)
-    assert(vecs.nonEmpty, s"no vectors loaded from $resource")
+    val _ = assert(vecs.nonEmpty, s"no vectors loaded from $resource")
     vecs.foreach { v =>
       assert(run(Hex.decode(v.input)).isLeft, s"expected rejection for ${v.name}")
     }
@@ -96,8 +96,11 @@ class Bls12381Spec extends AnyFunSuite:
     val identity = vecs.find(_.name.contains("e(0,0)")).getOrElse(vecs.head)
     Bls12381.pairing(Hex.decode(identity.input)) match
       case Right(out) =>
-        assert(out.length == 32)
-        assert(Hex.toHexString(out) == "0000000000000000000000000000000000000000000000000000000000000001")
+        assert(
+          out.length == 32 &&
+            Hex.toHexString(out) == "0000000000000000000000000000000000000000000000000000000000000001",
+          "pairing identity output must be the 32-byte GT '01' word"
+        )
       case Left(err) => fail(s"pairing identity vector failed: $err")
 
   test("malformed G1 add input is rejected (fail KAT)"):

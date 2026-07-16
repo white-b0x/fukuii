@@ -95,14 +95,20 @@ class ECDSASignatureSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val n = BigInt(curve.getN)
     val lowS = halfCurveOrder - 1
     val highS = halfCurveOrder + 1
-    ECDSASignature.toCanonicalS(lowS) shouldBe lowS
-    ECDSASignature.toCanonicalS(highS) shouldBe (n - highS)
+    assert(
+      ECDSASignature.toCanonicalS(lowS) == lowS &&
+        ECDSASignature.toCanonicalS(highS) == (n - highS),
+      "canonicalisation must leave low-S untouched and reflect high-S to N - s"
+    )
   }
 
   it should "round-trip through the 65-byte r||s||v encoding" in {
     val keys = generateKeyPair(secureRandom)
     val sig = ECDSASignature.sign(kec256("encode-me".getBytes("US-ASCII")), keys)
     val bytes = sig.toBytes
-    bytes.length shouldBe ECDSASignature.EncodedLength
-    ECDSASignature.fromBytes(bytes) shouldBe Some(sig)
+    assert(
+      bytes.length == ECDSASignature.EncodedLength &&
+        ECDSASignature.fromBytes(bytes) == Some(sig),
+      "encoded length must match EncodedLength and round-trip decode to the original signature"
+    )
   }

@@ -20,41 +20,49 @@ class RLPSpec extends AnyFunSuite:
     assert(hex("") == "80")
 
   test("single low bytes encode as themselves"):
-    assert(hex(new String(Array[Byte](0))) == "00")
-    assert(hex(new String(Array[Byte](1))) == "01")
-    assert(hex(new String(Array[Byte](0x7f))) == "7f")
+    assert(
+      hex(new String(Array[Byte](0))) == "00" &&
+        hex(new String(Array[Byte](1))) == "01" &&
+        hex(new String(Array[Byte](0x7f))) == "7f",
+      "single low bytes must encode as themselves"
+    )
 
   test("short string 'dog' encodes to 0x83646f67"):
     assert(hex("dog") == "83646f67")
 
   test("55-byte string uses the short-string header (0xb7 boundary)"):
     val s = "Lorem ipsum dolor sit amet, consectetur adipisicing eli"
-    assert(s.length == 55)
     assert(
-      hex(
-        s
-      ) == "b74c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c69"
+      s.length == 55 &&
+        hex(
+          s
+        ) == "b74c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c69",
+      "a 55-byte string must use the short-string header (0xb7 boundary)"
     )
 
   test("56-byte string crosses to the long-string header (0xb838)"):
     val s = "Lorem ipsum dolor sit amet, consectetur adipisicing elit"
-    assert(s.length == 56)
     assert(
-      hex(
-        s
-      ) == "b8384c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c6974"
+      s.length == 56 &&
+        hex(
+          s
+        ) == "b8384c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c6974",
+      "a 56-byte string must cross to the long-string header (0xb838)"
     )
 
   // --- canonical integer scalar vectors -----------------------------------
 
   test("integer scalars are minimal-length big-endian"):
-    assert(hex(0) == "80") // zero ⇒ empty string
-    assert(hex(1) == "01")
-    assert(hex(16) == "10")
-    assert(hex(127) == "7f")
-    assert(hex(128) == "8180")
-    assert(hex(1000) == "8203e8")
-    assert(hex(100000) == "830186a0")
+    assert(
+      hex(0) == "80" && // zero ⇒ empty string
+        hex(1) == "01" &&
+        hex(16) == "10" &&
+        hex(127) == "7f" &&
+        hex(128) == "8180" &&
+        hex(1000) == "8203e8" &&
+        hex(100000) == "830186a0",
+      "integer scalars must be minimal-length big-endian"
+    )
 
   // --- canonical list vectors ---------------------------------------------
 
@@ -74,11 +82,12 @@ class RLPSpec extends AnyFunSuite:
     val bytes = encode(nested)
     assert(
       Hex.toHexString(bytes) ==
-        "f840cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376"
+        "f840cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376" &&
+        // round-trip proof is byte-equality: re-encoding the decoded AST reproduces the input exactly
+        // (RLPValue is array-backed, so AST `==` is reference equality — bytes are the invariant)
+        encode(rawDecode(bytes)).sameElements(bytes),
+      "the nested list must match the canonical encoding and round-trip byte-for-byte through the AST"
     )
-    // round-trip proof is byte-equality: re-encoding the decoded AST reproduces the input exactly
-    // (RLPValue is array-backed, so AST `==` is reference equality — bytes are the invariant)
-    assert(encode(rawDecode(bytes)).sameElements(bytes))
 
   // --- base-type round-trips ----------------------------------------------
 
@@ -96,34 +105,48 @@ class RLPSpec extends AnyFunSuite:
       assert(decode[BigInt](encode(n)) == n)
 
   test("round-trip: String / Array[Byte] / ByteString"):
-    assert(decode[String](encode("EthereumJ Client")) == "EthereumJ Client")
     val arr = Array[Byte](1, 2, 3, 4, 5)
-    assert(decode[Array[Byte]](encode(arr)).sameElements(arr))
     val bs = ByteString(Array.tabulate[Byte](40)(_.toByte))
-    assert(decode[ByteString](encode(bs)) == bs)
+    assert(
+      decode[String](encode("EthereumJ Client")) == "EthereumJ Client" &&
+        decode[Array[Byte]](encode(arr)).sameElements(arr) &&
+        decode[ByteString](encode(bs)) == bs,
+      "String / Array[Byte] / ByteString must round-trip through RLP"
+    )
 
   test("round-trip: Boolean"):
-    assert(hex(false) == "80")
-    assert(hex(true) == "01")
-    assert(decode[Boolean](encode(true)))
-    assert(!decode[Boolean](encode(false)))
+    assert(
+      hex(false) == "80" &&
+        hex(true) == "01" &&
+        decode[Boolean](encode(true)) &&
+        !decode[Boolean](encode(false)),
+      "Boolean must encode as 0x80/0x01 and round-trip"
+    )
 
   test("round-trip: Option (empty list vs single-element list)"):
-    assert(Hex.toHexString(encode(Option.empty[Int])) == "c0")
-    assert(decode[Option[Int]](encode(Option(42))).contains(42))
-    assert(decode[Option[Int]](encode(Option.empty[Int])).isEmpty)
+    assert(
+      Hex.toHexString(encode(Option.empty[Int])) == "c0" &&
+        decode[Option[Int]](encode(Option(42))).contains(42) &&
+        decode[Option[Int]](encode(Option.empty[Int])).isEmpty,
+      "Option must encode as an empty list vs a single-element list and round-trip"
+    )
 
   test("round-trip: Seq / List"):
     val xs = Seq(1, 2, 3, 100000)
-    assert(decode[Seq[Int]](encode(xs)) == xs)
     val ys = List("a", "bb", "ccc")
-    assert(decode[List[String]](encode(ys)) == ys)
+    assert(
+      decode[Seq[Int]](encode(xs)) == xs && decode[List[String]](encode(ys)) == ys,
+      "Seq / List must round-trip through RLP"
+    )
 
   test("round-trip: tuples 2..5"):
-    assert(decode[(Int, String)](encode((1, "x"))) == (1, "x"))
-    assert(decode[(Int, String, Boolean)](encode((1, "x", true))) == (1, "x", true))
-    assert(decode[(Int, Int, Int, Int)](encode((1, 2, 3, 4))) == (1, 2, 3, 4))
-    assert(decode[(Int, Int, Int, Int, Int)](encode((1, 2, 3, 4, 5))) == (1, 2, 3, 4, 5))
+    assert(
+      decode[(Int, String)](encode((1, "x"))) == (1, "x") &&
+        decode[(Int, String, Boolean)](encode((1, "x", true))) == (1, "x", true) &&
+        decode[(Int, Int, Int, Int)](encode((1, 2, 3, 4))) == (1, 2, 3, 4) &&
+        decode[(Int, Int, Int, Int, Int)](encode((1, 2, 3, 4, 5))) == (1, 2, 3, 4, 5),
+      "tuples of arity 2 through 5 must round-trip through RLP"
+    )
 
   // --- EIP-2718 typed envelope --------------------------------------------
 
@@ -143,10 +166,10 @@ class RLPSpec extends AnyFunSuite:
 
   test("decoding an RLPList where a scalar is expected fails"):
     val listBytes = encode(RLPList(RLPEncoder.encode("cat")))
-    intercept[RLPException](decode[Int](listBytes))
+    val _ = intercept[RLPException](decode[Int](listBytes))
     intercept[RLPException](decode[Byte](listBytes))
 
   test("decoding an oversized scalar into a fixed-width type fails"):
     val big = encode(BigInt(2).pow(72))
-    intercept[RLPException](decode[Int](big))
+    val _ = intercept[RLPException](decode[Int](big))
     intercept[RLPException](decode[Long](big))

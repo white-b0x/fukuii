@@ -31,10 +31,13 @@ class KeyValueStorageSpec extends AnyFunSuite:
     val storage = new IntStorage(EphemDataSource())
     val withData = storage.update(Nil, Seq(1 -> 10, 2 -> 20, 3 -> 30))
     val afterRemove = withData.update(Seq(2), Nil)
-    assert(afterRemove.get(1).contains(10))
-    assert(afterRemove.get(2).isEmpty)
-    assert(afterRemove.get(3).contains(30))
-    assert(afterRemove.dataSource eq withData.dataSource)
+    assert(
+      afterRemove.get(1).contains(10) &&
+        afterRemove.get(2).isEmpty &&
+        afterRemove.get(3).contains(30) &&
+        (afterRemove.dataSource eq withData.dataSource),
+      "update must remove key 2, keep keys 1 and 3, and reuse the same underlying DataSource"
+    )
 
   test("remove deletes a single key"):
     val storage = new IntStorage(EphemDataSource()).put(5, 50)
@@ -44,5 +47,8 @@ class KeyValueStorageSpec extends AnyFunSuite:
     import cats.effect.unsafe.implicits.global
     val storage = new IntStorage(EphemDataSource()).update(Nil, Seq(1 -> 10, 2 -> 20))
     val content = storage.storageContent.compile.toList.unsafeRunSync()
-    assert(content.forall(_.isRight))
-    assert(content.map(_.toOption.get).toSet == Set(1 -> 10, 2 -> 20))
+    assert(
+      content.forall(_.isRight) &&
+        content.map(_.toOption.get).toSet == Set(1 -> 10, 2 -> 20),
+      "storageContent must stream every entry in the namespace as Right values matching the stored set"
+    )

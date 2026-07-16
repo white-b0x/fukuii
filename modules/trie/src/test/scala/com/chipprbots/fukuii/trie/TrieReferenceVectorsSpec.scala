@@ -69,16 +69,18 @@ class TrieReferenceVectorsSpec extends AnyFlatSpec with Matchers:
   private def runFixture(name: String, secure: Boolean, ordered: Boolean): Unit =
     readFixture(name) match
       case TrieJson.JObj(tests) =>
-        tests.foreach { case (testName, TrieJson.JObj(body)) =>
-          val bodyMap = body.toMap
-          val in = bodyMap("in")
-          val expectedRoot = bodyMap("root") match
-            case TrieJson.JStr(r) => r.toLowerCase
-            case other            => fail(s"$name/$testName: bad root $other")
-          val pairs = if ordered then orderedPairs(in) else unorderedPairs(in)
-          withClue(s"$name / $testName: ") {
-            rootOf(pairs, secure).toLowerCase shouldBe expectedRoot
-          }
+        tests.foreach {
+          case (testName, TrieJson.JObj(body)) =>
+            val bodyMap = body.toMap
+            val in = bodyMap("in")
+            val expectedRoot = bodyMap("root") match
+              case TrieJson.JStr(r) => r.toLowerCase
+              case other            => fail(s"$name/$testName: bad root $other")
+            val pairs = if ordered then orderedPairs(in) else unorderedPairs(in)
+            withClue(s"$name / $testName: ") {
+              rootOf(pairs, secure).toLowerCase shouldBe expectedRoot
+            }
+          case (testName, other) => fail(s"$name/$testName: expected a JSON object test body, got $other")
         }
       case other => fail(s"$name: expected top-level object, got $other")
 

@@ -24,10 +24,13 @@ class MerklePatriciaTrieSpec extends AnyFlatSpec with Matchers:
   it should "put and get values" in {
     val trie =
       emptyTrie.put(bytes("do"), bytes("verb")).put(bytes("dog"), bytes("puppy")).put(bytes("doge"), bytes("coin"))
-    trie.get(bytes("do")).map(new String(_)) shouldBe Some("verb")
-    trie.get(bytes("dog")).map(new String(_)) shouldBe Some("puppy")
-    trie.get(bytes("doge")).map(new String(_)) shouldBe Some("coin")
-    trie.get(bytes("cat")) shouldBe None
+    assert(
+      trie.get(bytes("do")).map(new String(_)) == Some("verb") &&
+        trie.get(bytes("dog")).map(new String(_)) == Some("puppy") &&
+        trie.get(bytes("doge")).map(new String(_)) == Some("coin") &&
+        trie.get(bytes("cat")).isEmpty,
+      "every put key must read back its own value, and an absent key must read as None"
+    )
   }
 
   it should "update an existing key" in {
@@ -39,9 +42,12 @@ class MerklePatriciaTrieSpec extends AnyFlatSpec with Matchers:
     val base = emptyTrie.put(bytes("do"), bytes("verb")).put(bytes("dog"), bytes("puppy"))
     val added = base.put(bytes("doge"), bytes("coin"))
     val removed = added.remove(bytes("doge"))
-    removed.getRootHash shouldBe base.getRootHash
-    removed.get(bytes("doge")) shouldBe None
-    removed.get(bytes("dog")).map(new String(_)) shouldBe Some("puppy")
+    assert(
+      removed.getRootHash == base.getRootHash &&
+        removed.get(bytes("doge")).isEmpty &&
+        removed.get(bytes("dog")).map(new String(_)) == Some("puppy"),
+      "removing the added key must restore the prior root and the prior key's value, and the removed key must read as None"
+    )
   }
 
   it should "return to the empty root when all keys are removed" in {
@@ -53,19 +59,25 @@ class MerklePatriciaTrieSpec extends AnyFlatSpec with Matchers:
     val trie =
       emptyTrie.put(bytes("do"), bytes("verb")).put(bytes("dog"), bytes("puppy")).put(bytes("doge"), bytes("coin"))
     val proof = trie.getProof(bytes("dog"))
-    proof shouldBe defined
-    proof.get should not be empty
-    proof.get.last match
-      case MptNode.Leaf(_, value)        => new String(value.toArray) shouldBe "puppy"
-      case MptNode.Branch(_, Some(term)) => new String(term.toArray) shouldBe "puppy"
+    val terminalValueOk = proof.get.last match
+      case MptNode.Leaf(_, value)        => new String(value.toArray) == "puppy"
+      case MptNode.Branch(_, Some(term)) => new String(term.toArray) == "puppy"
       case other                         => fail(s"expected value-bearing terminal, got $other")
+    assert(
+      proof.isDefined &&
+        proof.get.nonEmpty &&
+        terminalValueOk,
+      "the inclusion proof must be defined, non-empty, and end in a value-bearing terminal matching the stored value"
+    )
   }
 
   it should "produce a non-inclusion proof (root included) for an absent key on a non-empty trie" in {
     val trie = emptyTrie.put(bytes("do"), bytes("verb")).put(bytes("dog"), bytes("puppy"))
     val proof = trie.getProof(bytes("cat"))
-    proof shouldBe defined
-    proof.get should not be empty
+    assert(
+      proof.isDefined && proof.get.nonEmpty,
+      "a non-inclusion proof must still be defined and non-empty (the root is always included)"
+    )
   }
 
   // -- EIP-1186 non-inclusion (go-ethereum trie/proof.go `Prove`) ------------
@@ -84,35 +96,44 @@ class MerklePatriciaTrieSpec extends AnyFlatSpec with Matchers:
     // "do"/"dog" share the "do" prefix; "z" diverges at the very first branch nibble, whose slot is empty.
     val trie = emptyTrie.put(bytes("do"), bytes("verb")).put(bytes("dog"), bytes("puppy"))
     val proof = trie.getProof(bytes("z")).get
-    proof.head.hash shouldBe trie.getRootHash
     // The proof must not contain a value leaf for the absent key.
-    proof.last match
-      case MptNode.Leaf(_, value) => new String(value.toArray) should not be "verb"
-      case _                      => succeed
+    val lastNotVerb = proof.last match
+      case MptNode.Leaf(_, value) => new String(value.toArray) != "verb"
+      case _                      => true
+    assert(
+      proof.head.hash == trie.getRootHash && lastNotVerb,
+      "the non-inclusion proof must be anchored at the root and must not terminate in a value leaf for the absent key"
+    )
   }
 
   it should "diverge at a leaf whose key mismatches (non-inclusion terminal is that leaf/extension)" in {
     // Single stored key: the root is a leaf; an absent sibling proves absence via that same leaf.
     val trie = emptyTrie.put(bytes("dog"), bytes("puppy"))
     val proof = trie.getProof(bytes("cat")).get
-    proof.head.hash shouldBe trie.getRootHash
-    proof should have size 1 // just the root leaf, which proves the absence
+    assert(
+      proof.head.hash == trie.getRootHash && proof.size == 1, // just the root leaf, which proves the absence
+      "the non-inclusion proof must be anchored at the root and contain just the single root leaf"
+    )
   }
 
   it should "always include the root even when its RLP is < 32 bytes (resident and committed)" in {
     // A single short entry: the root node's own RLP is well under 32 bytes, yet it must appear in the proof.
     val resident = emptyTrie.put(bytes("a"), bytes("b"))
-    resident.rootNode.get.encoded.length should be < MptNode.MaxEncodedNodeLength
     val residentProof = resident.getProof(bytes("a")).get
-    residentProof.head.hash shouldBe resident.getRootHash
 
     // Same after a store-backed commit (root force-hashed into storage, resolved back on the walk).
     val storage = new InMemoryMptStorage
     val committed = MerklePatriciaTrie[Array[Byte], Array[Byte]](storage).put(bytes("a"), bytes("b")).commit()
     val committedProof = committed.getProof(bytes("a")).get
-    committedProof.head.hash shouldBe committed.getRootHash
-    // Non-inclusion on the committed short-root trie still yields a root-anchored proof.
-    committed.getProof(bytes("c")).get.head.hash shouldBe committed.getRootHash
+
+    assert(
+      resident.rootNode.get.encoded.length < MptNode.MaxEncodedNodeLength &&
+        residentProof.head.hash == resident.getRootHash &&
+        committedProof.head.hash == committed.getRootHash &&
+        // Non-inclusion on the committed short-root trie still yields a root-anchored proof.
+        committed.getProof(bytes("c")).get.head.hash == committed.getRootHash,
+      "the root must always appear in the proof even when its RLP is < 32 bytes, both resident and store-backed committed"
+    )
   }
 
   it should "return None for a proof on an empty trie" in {
@@ -135,7 +156,7 @@ class MerklePatriciaTrieSpec extends AnyFlatSpec with Matchers:
     )
     storage.storeNode(Location.Root, NodeHash(rootHash), NodeEncoded(malformed))
     val trie = MerklePatriciaTrie[Array[Byte], Array[Byte]](rootHash, storage)
-    a[MptNodeDecodeException] should be thrownBy trie.getProof(bytes("anything"))
+    val _ = a[MptNodeDecodeException] should be thrownBy trie.getProof(bytes("anything"))
     a[MptNodeDecodeException] should be thrownBy trie.get(bytes("anything"))
   }
 
@@ -149,15 +170,18 @@ class MerklePatriciaTrieSpec extends AnyFlatSpec with Matchers:
     val rootHash = resident.getRootHash
 
     val committed = resident.commit()
-    committed.getRootHash shouldBe rootHash
 
     // Reconstruct a fresh trie from the persisted root hash and read every value back.
     val reopened = MerklePatriciaTrie[Array[Byte], Array[Byte]](rootHash, storage)
-    reopened.getRootHash shouldBe rootHash
-    reopened.get(bytes("do")).map(new String(_)) shouldBe Some("verb")
-    reopened.get(bytes("dog")).map(new String(_)) shouldBe Some("puppy")
-    reopened.get(bytes("doge")).map(new String(_)) shouldBe Some("coin")
-    reopened.get(bytes("horse")).map(new String(_)) shouldBe Some("stallion")
+    assert(
+      committed.getRootHash == rootHash &&
+        reopened.getRootHash == rootHash &&
+        reopened.get(bytes("do")).map(new String(_)) == Some("verb") &&
+        reopened.get(bytes("dog")).map(new String(_)) == Some("puppy") &&
+        reopened.get(bytes("doge")).map(new String(_)) == Some("coin") &&
+        reopened.get(bytes("horse")).map(new String(_)) == Some("stallion"),
+      "a store-backed commit and a fresh reopen from the persisted root must preserve the root hash and every value"
+    )
   }
 
   it should "fail loud when a referenced node is missing from storage" in {

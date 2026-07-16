@@ -18,14 +18,20 @@ class MptNodeSpec extends AnyFlatSpec with Matchers:
   private def nibbles(bs: Int*): ByteString = ByteString(bs.map(_.toByte).toArray)
 
   "MptNode" should "produce the canonical empty-trie root keccak(0x80)" in {
-    Hex.toHexString(MptNode.EmptyRootHash.toArray) shouldBe
-      "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
-    MptNode.EmptyEncoded shouldBe Array(0x80.toByte)
+    assert(
+      Hex.toHexString(MptNode.EmptyRootHash.toArray) ==
+        "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421" &&
+        MptNode.EmptyEncoded.sameElements(Array(0x80.toByte)),
+      "the empty-trie root hash must be keccak(0x80) and EmptyEncoded must be the bare byte 0x80"
+    )
   }
 
   it should "encode Null as the bare RLP empty string 0x80, never a 1-item list" in {
-    MptNode.toRlp(MptNode.Null) shouldBe RLPValue(Array.emptyByteArray)
-    encodeRlp(MptNode.toRlp(MptNode.Null)) shouldBe Array(0x80.toByte)
+    assert(
+      MptNode.toRlp(MptNode.Null) == RLPValue(Array.emptyByteArray) &&
+        encodeRlp(MptNode.toRlp(MptNode.Null)).sameElements(Array(0x80.toByte)),
+      "MptNode.Null must encode as the bare RLP empty string 0x80, never a 1-item list"
+    )
   }
 
   it should "round-trip a leaf node through RLP encode/decode" in {
@@ -48,8 +54,10 @@ class MptNodeSpec extends AnyFlatSpec with Matchers:
   it should "inline a child whose RLP is < 32 bytes and hash-ref a child whose RLP is >= 32 bytes" in {
     val smallLeaf = MptNode.Leaf(nibbles(1), ByteString(Array[Byte](2)))
     val bigLeaf = MptNode.Leaf(nibbles(2), ByteString(Array.fill[Byte](40)(7)))
-    smallLeaf.encoded.length should be < 32
-    bigLeaf.encoded.length should be >= 32
+    val _ = assert(
+      smallLeaf.encoded.length < 32 && bigLeaf.encoded.length >= 32,
+      "the small leaf must encode under 32 bytes and the big leaf at 32 bytes or more"
+    )
 
     val children = Vector.tabulate(16) {
       case 1 => smallLeaf
@@ -59,8 +67,11 @@ class MptNodeSpec extends AnyFlatSpec with Matchers:
     val branch = MptNode.Branch(children, None)
     val decoded = MptNode.decode(branch.encoded)
     inside(decoded) { case MptNode.Branch(dc, None) =>
-      dc(1) shouldBe smallLeaf // inlined, resident
-      dc(2) shouldBe MptNode.Hash(ByteString(com.chipprbots.fukuii.crypto.kec256(bigLeaf.encoded))) // hash-ref
+      assert(
+        dc(1) == smallLeaf && // inlined, resident
+          dc(2) == MptNode.Hash(ByteString(com.chipprbots.fukuii.crypto.kec256(bigLeaf.encoded))), // hash-ref
+        "the small child must be inlined and the big child must be hash-referenced"
+      )
     }
   }
 
@@ -85,8 +96,10 @@ class MptNodeSpec extends AnyFlatSpec with Matchers:
       isLeaf <- Seq(true, false)
     do
       val (decoded, leaf) = HexPrefix.decode(HexPrefix.encode(key, isLeaf))
-      decoded shouldBe key
-      leaf shouldBe isLeaf
+      assert(
+        decoded.sameElements(key) && leaf == isLeaf,
+        s"HexPrefix must round-trip nibbles ${key.toSeq} (isLeaf=$isLeaf)"
+      )
   }
 
   "MptNode.decode (L2-F3 fail-loud)" should "raise on a wrong-arity list (3 items)" in {

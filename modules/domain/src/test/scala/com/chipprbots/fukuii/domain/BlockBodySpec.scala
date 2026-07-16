@@ -51,43 +51,64 @@ class BlockBodySpec extends AnyFunSuite with Matchers:
 
   test("ETC / pre-Shanghai body: withdrawals omitted → 2 elements, round-trips with None"):
     val body = BlockBody(List(legacyTx), Nil, None)
-    rawDecode(rlpEncode(body)) match
-      case list: RLPList => assert(list.items.length == 2)
+    val itemCount = rawDecode(rlpEncode(body)) match
+      case list: RLPList => list.items.length
       case other         => fail(s"expected a 2-element RLPList, got $other")
     val decoded = roundTrip(body)
-    assert(decoded.withdrawals.isEmpty)
-    assert(decoded == body)
+    assert(
+      itemCount == 2 &&
+        decoded.withdrawals.isEmpty &&
+        decoded == body,
+      "the RLP-encoded body must have exactly 2 elements and round-trip with no withdrawals"
+    )
 
   test("post-Shanghai body: withdrawals present → 3 elements, round-trips with Some"):
     val body = BlockBody(List(legacyTx), Nil, Some(List(withdrawal(0), withdrawal(1))))
-    rawDecode(rlpEncode(body)) match
-      case list: RLPList => assert(list.items.length == 3)
+    val itemCount = rawDecode(rlpEncode(body)) match
+      case list: RLPList => list.items.length
       case other         => fail(s"expected a 3-element RLPList, got $other")
     val decoded = roundTrip(body)
-    assert(decoded.withdrawals.contains(List(withdrawal(0), withdrawal(1))))
-    assert(decoded == body)
+    assert(
+      itemCount == 3 &&
+        decoded.withdrawals.contains(List(withdrawal(0), withdrawal(1))) &&
+        decoded == body,
+      "the RLP-encoded body must have exactly 3 elements and round-trip with its withdrawals"
+    )
 
   test("empty post-Shanghai body: withdrawals present but empty is distinct from omitted"):
     val present = BlockBody(Nil, Nil, Some(Nil))
     val omitted = BlockBody(Nil, Nil, None)
-    assert(rlpEncode(present).sameElements(rlpEncode(omitted)) == false)
-    assert(roundTrip(present).withdrawals.contains(Nil))
-    assert(roundTrip(omitted).withdrawals.isEmpty)
+    assert(
+      rlpEncode(present).sameElements(rlpEncode(omitted)) == false &&
+        roundTrip(present).withdrawals.contains(Nil) &&
+        roundTrip(omitted).withdrawals.isEmpty,
+      "an empty-but-present withdrawals list must encode differently from an omitted one and each must round-trip distinctly"
+    )
 
   test("a legacy tx nests as a bare RLP list item; a typed tx nests as an RLP byte string"):
     val body = BlockBody(List(legacyTx, accessListTx), Nil, None)
     rawDecode(rlpEncode(body)) match
       case RLPList(txs: RLPList, _, _*) =>
-        assert(txs.items.length == 2)
-        withClue("legacy tx should be a bare list: ")(txs.items(0) shouldBe a[RLPList])
-        withClue("typed tx should be a wrapped byte string: ")(txs.items(1) shouldBe a[RLPValue])
+        assert(
+          txs.items.length == 2 &&
+            (txs.items(0) match
+              case _: RLPList => true; case _ => false
+            ) &&
+            (txs.items(1) match
+              case _: RLPValue => true; case _ => false
+            ),
+          "legacy tx must nest as a bare RLPList and typed tx must nest as a wrapped RLPValue byte string"
+        )
       case other => fail(s"expected [txs, uncles], got $other")
 
   test("mixed legacy + typed transaction body round-trips"):
     val body = BlockBody(List(legacyTx, accessListTx), Nil, Some(List(withdrawal(0))))
     val decoded = roundTrip(body)
-    assert(decoded.transactionList == List(legacyTx, accessListTx))
-    assert(decoded == body)
+    assert(
+      decoded.transactionList == List(legacyTx, accessListTx) &&
+        decoded == body,
+      "the round-tripped body must preserve the mixed legacy/typed transaction list and equal the original"
+    )
 
   test("uncle headers nest and round-trip inside the body"):
     val uncle = BlockHeaderSpecFixtures.sampleHeader
@@ -98,12 +119,16 @@ class BlockBodySpec extends AnyFunSuite with Matchers:
     val header = BlockHeaderSpecFixtures.sampleHeader
     val body = BlockBody(List(legacyTx, accessListTx), Nil, Some(List(withdrawal(0))))
     val block = Block(header, body)
-    rawDecode(rlpEncode(block)) match
-      case list: RLPList => assert(list.items.length == 4) // header + txs + uncles + withdrawals
+    val itemCount = rawDecode(rlpEncode(block)) match
+      case list: RLPList => list.items.length
       case other         => fail(s"expected a 4-element RLPList, got $other")
     val decoded = summon[RLPCodec[Block]].decode(rawDecode(rlpEncode(block)))
-    assert(decoded == block)
-    assert(decoded.hash == header.hash)
+    assert(
+      itemCount == 4 && // header + txs + uncles + withdrawals
+        decoded == block &&
+        decoded.hash == header.hash,
+      "the RLP-encoded block must have exactly 4 elements, round-trip, and its hash must follow the header"
+    )
 
 /** Shared header fixture so the body/block tests do not re-derive a header. */
 object BlockHeaderSpecFixtures:

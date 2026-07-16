@@ -55,23 +55,32 @@ class BlockHeaderSpec extends AnyFunSuite:
 
   test("legacy header: 15 elements (zero trailing) and round-trips"):
     val h = legacyHeader
-    assert(elementCount(h) == 15)
-    assert(summon[RLPCodec[BlockHeader]].decode(rawDecode(rlpEncode(h))) == h)
+    assert(
+      elementCount(h) == 15 &&
+        summon[RLPCodec[BlockHeader]].decode(rawDecode(rlpEncode(h))) == h,
+      "a legacy header must encode to 15 elements and round-trip"
+    )
 
   test("ETC pre-Olympia header stays at zero trailing fields (a base-fee field would be a consensus bug)"):
     // A network-neutral header with no populated trailing-optionals — the ETC-family shape — is exactly the bare 15.
-    assert(legacyHeader.baseFeePerGas.isEmpty)
-    assert(elementCount(legacyHeader) == 15)
+    assert(
+      legacyHeader.baseFeePerGas.isEmpty && elementCount(legacyHeader) == 15,
+      "an ETC pre-Olympia header must have no baseFee and encode to the bare 15 elements"
+    )
 
   test("London header: +baseFee → 16 elements, tail = [baseFee]"):
     val h = legacyHeader.withBaseFeePerGas(BigInt(0x042c1d80L))
-    assert(elementCount(h) == 16)
-    assert(roundTrip(h) == h)
+    assert(
+      elementCount(h) == 16 && roundTrip(h) == h,
+      "a London header must encode to 16 elements and round-trip"
+    )
 
   test("Shanghai header: +withdrawalsRoot → 17 elements"):
     val h = legacyHeader.withBaseFeePerGas(BigInt(7)).withWithdrawalsRoot(hB)
-    assert(elementCount(h) == 17)
-    assert(roundTrip(h) == h)
+    assert(
+      elementCount(h) == 17 && roundTrip(h) == h,
+      "a Shanghai header must encode to 17 elements and round-trip"
+    )
 
   test("Cancun header: +blobGasUsed,+excessBlobGas,+parentBeaconRoot → 20 elements"):
     val h = legacyHeader
@@ -79,18 +88,24 @@ class BlockHeaderSpec extends AnyFunSuite:
       .withWithdrawalsRoot(hB)
       .withBlobGas(used = 131072, excess = 262144)
       .withParentBeaconBlockRoot(h0)
-    assert(elementCount(h) == 20)
-    assert(roundTrip(h) == h)
+    assert(
+      elementCount(h) == 20 && roundTrip(h) == h,
+      "a Cancun header must encode to 20 elements and round-trip"
+    )
 
   test("Prague header: +requestsHash → 21 elements"):
     val h = cancunHeader.withRequestsHash(hB)
-    assert(elementCount(h) == 21)
-    assert(roundTrip(h) == h)
+    assert(
+      elementCount(h) == 21 && roundTrip(h) == h,
+      "a Prague header must encode to 21 elements and round-trip"
+    )
 
   test("Osaka+ header: +blockAccessListHash,+slotNumber → 23 elements (the current full 8-field tail)"):
     val h = cancunHeader.withRequestsHash(hB).withBlockAccessListHash(hA).withSlotNumber(99)
-    assert(elementCount(h) == 23)
-    assert(roundTrip(h) == h)
+    assert(
+      elementCount(h) == 23 && roundTrip(h) == h,
+      "an Osaka+ header must encode to 23 elements and round-trip"
+    )
 
   test("mid-run gap is rejected on encode (excessBlobGas present without blobGasUsed)"):
     // Construct an illegal in-memory tail: baseFee present (slot 0), then a gap, then excessBlobGas (slot 3).
@@ -111,8 +126,11 @@ class BlockHeaderSpec extends AnyFunSuite:
         val extended = RLPList((list.items :+ RLPValue(Array[Byte](0x2a)))*)
         val decoded = summon[RLPCodec[BlockHeader]].decode(extended)
         // The eight known fields survive intact; the unknown 9th is tolerated, not decoded.
-        assert(decoded.slotNumber.contains(99L))
-        assert(decoded.blockAccessListHash.contains(hA))
+        assert(
+          decoded.slotNumber.contains(99L) &&
+            decoded.blockAccessListHash.contains(hA),
+          "the eight known trailing fields must survive intact even with an unknown 9th field appended"
+        )
       case other => fail(s"expected an RLPList, got $other")
 
   test("the codec asserts no fixed max field count — decodes a header with more trailing items than known fields"):
@@ -139,16 +157,19 @@ class BlockHeaderSpec extends AnyFunSuite:
 
   test("golden Cancun vector: decoded header re-hashes to go-ethereum's published block hash"):
     val block = summon[RLPCodec[Block]].decode(rawDecode(Hex.decode(genesisRlpHex)))
-    // The five-field contiguous Cancun tail decoded correctly.
-    assert(block.header.baseFeePerGas.contains(BigInt(0x042c1d80L)))
-    assert(block.header.withdrawalsRoot.isDefined)
-    assert(block.header.blobGasUsed.contains(0L))
-    assert(block.header.excessBlobGas.contains(0L))
-    assert(block.header.parentBeaconBlockRoot.isDefined)
-    assert(block.header.requestsHash.isEmpty)
-    // The hash matches — proves the fixed-15 + 5-field-tail RLP is byte-exact to go-ethereum.
-    assert(block.header.hash == genesisHash)
-    assert(block.hash == genesisHash)
+    assert(
+      // The five-field contiguous Cancun tail decoded correctly.
+      block.header.baseFeePerGas.contains(BigInt(0x042c1d80L)) &&
+        block.header.withdrawalsRoot.isDefined &&
+        block.header.blobGasUsed.contains(0L) &&
+        block.header.excessBlobGas.contains(0L) &&
+        block.header.parentBeaconBlockRoot.isDefined &&
+        block.header.requestsHash.isEmpty &&
+        // The hash matches — proves the fixed-15 + 5-field-tail RLP is byte-exact to go-ethereum.
+        block.header.hash == genesisHash &&
+        block.hash == genesisHash,
+      "the golden Cancun tail must decode correctly and the header/block hash must match go-ethereum's published hash"
+    )
 
   test("golden Cancun vector: header re-encodes byte-for-byte (round-trip stability)"):
     val block = summon[RLPCodec[Block]].decode(rawDecode(Hex.decode(genesisRlpHex)))

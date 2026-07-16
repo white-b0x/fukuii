@@ -149,35 +149,47 @@ class TransactionSpec extends AnyFunSuite with Matchers:
     val wrapperBytes = com.chipprbots.fukuii.rlp.encode(
       Transaction.BlobNetworkWrapper.blobNetworkWrapperCodec.encode(withSidecar)
     )
-    assert(!consensusBytes.sameElements(wrapperBytes))
-    // the wrapper is strictly longer — it nests the same body list plus the blobs/commitments/proofs tail
-    assert(wrapperBytes.length > consensusBytes.length)
-    // both are 0x03-prefixed EIP-2718 envelopes
-    assert(consensusBytes(0) == 0x03 && wrapperBytes(0) == 0x03)
+    assert(
+      !consensusBytes.sameElements(wrapperBytes) &&
+        // the wrapper is strictly longer — it nests the same body list plus the blobs/commitments/proofs tail
+        wrapperBytes.length > consensusBytes.length &&
+        // both are 0x03-prefixed EIP-2718 envelopes
+        consensusBytes(0) == 0x03 && wrapperBytes(0) == 0x03,
+      "the consensus and network-wrapper forms must differ, the wrapper must be strictly longer, and both must be 0x03-prefixed"
+    )
 
   test("tx.hash (consensus encoding) is STABLE regardless of the sidecar"):
     val withoutSidecar = rlpEncode(blobTx: Transaction)
     val withSidecar = rlpEncode(blobTx.copy(sidecar = Some(blobSidecar)): Transaction)
-    // the aggregate codec always uses the consensus form, so the hashed bytes are identical
-    assert(withoutSidecar.sameElements(withSidecar))
-    assert(kec256(withoutSidecar).sameElements(kec256(withSidecar)))
+    assert(
+      // the aggregate codec always uses the consensus form, so the hashed bytes are identical
+      withoutSidecar.sameElements(withSidecar) &&
+        kec256(withoutSidecar).sameElements(kec256(withSidecar)),
+      "the consensus encoding and its hash must be identical with or without a sidecar"
+    )
 
   test("the network wrapper round-trips back to the same Blob, recovering the v0 sidecar"):
     val withSidecar = blobTx.copy(sidecar = Some(blobSidecar))
     val codec = Transaction.BlobNetworkWrapper.blobNetworkWrapperCodec
     val encoded = com.chipprbots.fukuii.rlp.encode(codec.encode(withSidecar))
-    assert((encoded(0) & 0xff) == 0x03)
     val decoded = codec.decode(rawDecode(encoded.tail))
-    assert(decoded == withSidecar)
-    assert(decoded.sidecar.map(_.version).contains(BlobSidecar.Version0))
+    assert(
+      (encoded(0) & 0xff) == 0x03 &&
+        decoded == withSidecar &&
+        decoded.sidecar.map(_.version).contains(BlobSidecar.Version0),
+      "the network wrapper must be 0x03-prefixed and round-trip back to the same Blob with its v0 sidecar"
+    )
 
   test("versionedHash = 0x01 || sha256(commitment)[1:], with the fixed KZG 0x01 leading byte"):
     val commitment = ByteString(Array.fill[Byte](48)(0x22))
     val vh = BlobSidecar.versionedHash(commitment)
     val expected = com.chipprbots.fukuii.crypto.sha256(commitment.toArray).clone()
     expected(0) = 0x01
-    assert(vh.toArray.sameElements(expected))
-    assert(vh.toArray.head == 0x01) // fixed KZG version byte, NOT the sidecar version field
+    assert(
+      vh.toArray.sameElements(expected) &&
+        vh.toArray.head == 0x01, // fixed KZG version byte, NOT the sidecar version field
+      "versionedHash must equal 0x01 || sha256(commitment)[1:]"
+    )
 
   // --- SetCodeAuthorization SigHash: magic byte 0x05, NOT the tx-type 0x04 ----------------------------------------
 
@@ -188,11 +200,14 @@ class TransactionSpec extends AnyFunSuite with Matchers:
       summon[com.chipprbots.fukuii.rlp.RLPCodec[UInt256]].encode(setCodeAuth.nonce)
     )
     val expected = kec256(0x05.toByte +: com.chipprbots.fukuii.rlp.encode(body))
-    assert(setCodeAuth.sigHash.toArray.sameElements(expected))
-    assert(SetCodeAuthorization.MagicByte == 0x05)
     // a byte-0x04 (tx-type) prefix would give a DIFFERENT hash — prove the magic byte is not conflated
     val wrong = kec256(0x04.toByte +: com.chipprbots.fukuii.rlp.encode(body))
-    assert(!setCodeAuth.sigHash.toArray.sameElements(wrong))
+    assert(
+      setCodeAuth.sigHash.toArray.sameElements(expected) &&
+        SetCodeAuthorization.MagicByte == 0x05 &&
+        !setCodeAuth.sigHash.toArray.sameElements(wrong),
+      "sigHash must use magic byte 0x05 and must NOT collide with a byte-0x04-prefixed hash"
+    )
 
   // --- byte-exact Blob (0x03) vector from ethereum/tests BlockchainTests -------------------------------------------
   // Extracted (tx index 3) from ValidBlocks/bcEIP4844-blobtransactions/blockWithAllTransactionTypes.json — the
@@ -206,18 +221,24 @@ class TransactionSpec extends AnyFunSuite with Matchers:
         "b4214dd273d83f73b5e1"
     )
     val tx = Transaction.decode(vectorBytes)
-    tx shouldBe a[Transaction.Blob]
-    assert(tx.txType == 0x03)
-    tx match
+    val blobFieldsOk = tx match
       case b: Transaction.Blob =>
-        assert(b.chainId == ChainId(1))
-        assert(b.nonce == UInt256(3))
-        assert(b.maxFeePerBlobGas == Wei(UInt256(10)))
-        assert(b.blobVersionedHashes.length == 1)
-        assert(b.blobVersionedHashes.head.toArray.head == 0x01) // KZG versioned hash leading byte
-        assert(b.sidecar.isEmpty) // consensus form has no sidecar
+        b.chainId == ChainId(1) &&
+        b.nonce == UInt256(3) &&
+        b.maxFeePerBlobGas == Wei(UInt256(10)) &&
+        b.blobVersionedHashes.length == 1 &&
+        b.blobVersionedHashes.head.toArray.head == 0x01 && // KZG versioned hash leading byte
+        b.sidecar.isEmpty // consensus form has no sidecar
       case other => fail(s"expected a Blob, got $other")
-    assert(rlpEncode(tx).sameElements(vectorBytes))
+    assert(
+      (tx match
+        case _: Transaction.Blob => true; case _ => false
+      ) &&
+        tx.txType == 0x03 &&
+        blobFieldsOk &&
+        rlpEncode(tx).sameElements(vectorBytes),
+      "the decoded tx must be a type-0x03 Blob with the vector's fields and byte-exact re-encoding"
+    )
 
   // --- byte-exact reference vectors (ethereum/tests TransactionTests) — the consensus gate -------------------------
   // A structural round-trip alone cannot catch a field-order or width bug that happens to be self-consistent; these
@@ -234,10 +255,15 @@ class TransactionSpec extends AnyFunSuite with Matchers:
     val expectedHash = Hex.decode("0x1cbb233404f49e96cb795d0ea74f485eca2c41a216e0ce80694cef4dd7a45b50")
 
     val tx = Transaction.decode(vectorBytes)
-    tx shouldBe a[Transaction.Legacy]
-    assert(tx.txType == 0x00)
-    assert(rlpEncode(tx).sameElements(vectorBytes))
-    assert(kec256(vectorBytes).sameElements(expectedHash))
+    assert(
+      (tx match
+        case _: Transaction.Legacy => true; case _ => false
+      ) &&
+        tx.txType == 0x00 &&
+        rlpEncode(tx).sameElements(vectorBytes) &&
+        kec256(vectorBytes).sameElements(expectedHash),
+      "the decoded tx must be a type-0x00 Legacy tx that re-encodes and hashes byte-exact to the vector"
+    )
 
   test(
     "byte-exact AccessList (0x01) vector (TransactionTests/ttEIP2930/accessListStorage32Bytes.json) round-trips and hashes correctly"
@@ -250,10 +276,15 @@ class TransactionSpec extends AnyFunSuite with Matchers:
     val expectedHash = Hex.decode("0xb4f8b14a7aaf85ec2f76be9fbe4155deae1f87b2da95af73be3c27ed8d4c8cb7")
 
     val tx = Transaction.decode(vectorBytes)
-    tx shouldBe a[Transaction.AccessList]
-    assert(tx.txType == 0x01)
-    assert(rlpEncode(tx).sameElements(vectorBytes))
-    assert(kec256(vectorBytes).sameElements(expectedHash))
+    assert(
+      (tx match
+        case _: Transaction.AccessList => true; case _ => false
+      ) &&
+        tx.txType == 0x01 &&
+        rlpEncode(tx).sameElements(vectorBytes) &&
+        kec256(vectorBytes).sameElements(expectedHash),
+      "the decoded tx must be a type-0x01 AccessList tx that re-encodes and hashes byte-exact to the vector"
+    )
 
   test(
     "byte-exact DynamicFee (0x02) vector (TransactionTests/ttEIP1559/GasLimitPriceProductOverflowtMinusOneFiller.json) round-trips and hashes correctly"
@@ -266,37 +297,67 @@ class TransactionSpec extends AnyFunSuite with Matchers:
     val expectedHash = Hex.decode("0xdad8bff3ecfcf95169b1d5625b47f3372be795802bc4fe570991cf332f609334")
 
     val tx = Transaction.decode(vectorBytes)
-    tx shouldBe a[Transaction.DynamicFee]
-    assert(tx.txType == 0x02)
-    assert(rlpEncode(tx).sameElements(vectorBytes))
-    assert(kec256(vectorBytes).sameElements(expectedHash))
+    assert(
+      (tx match
+        case _: Transaction.DynamicFee => true; case _ => false
+      ) &&
+        tx.txType == 0x02 &&
+        rlpEncode(tx).sameElements(vectorBytes) &&
+        kec256(vectorBytes).sameElements(expectedHash),
+      "the decoded tx must be a type-0x02 DynamicFee tx that re-encodes and hashes byte-exact to the vector"
+    )
 
   // --- EIP-2718 first-byte dispatch ---------------------------------------------------------------------------
 
   test("a bare legacy list (first byte >= 0xc0) dispatches to Legacy"):
     val bytes = rlpEncode(legacyTx: Transaction)
-    assert((bytes(0) & 0xff) >= 0xc0)
-    Transaction.decode(bytes) shouldBe a[Transaction.Legacy]
+    assert(
+      (bytes(0) & 0xff) >= 0xc0 &&
+        (Transaction.decode(bytes) match
+          case _: Transaction.Legacy => true; case _ => false
+        ),
+      "a bare legacy list must have a first byte >= 0xc0 and dispatch to Legacy"
+    )
 
   test("type byte 0x01 dispatches to AccessList"):
     val bytes = rlpEncode(accessListTx: Transaction)
-    assert(bytes(0) == 0x01)
-    Transaction.decode(bytes) shouldBe a[Transaction.AccessList]
+    assert(
+      bytes(0) == 0x01 &&
+        (Transaction.decode(bytes) match
+          case _: Transaction.AccessList => true; case _ => false
+        ),
+      "type byte 0x01 must dispatch to AccessList"
+    )
 
   test("type byte 0x02 dispatches to DynamicFee"):
     val bytes = rlpEncode(dynamicFeeTx: Transaction)
-    assert(bytes(0) == 0x02)
-    Transaction.decode(bytes) shouldBe a[Transaction.DynamicFee]
+    assert(
+      bytes(0) == 0x02 &&
+        (Transaction.decode(bytes) match
+          case _: Transaction.DynamicFee => true; case _ => false
+        ),
+      "type byte 0x02 must dispatch to DynamicFee"
+    )
 
   test("type byte 0x03 dispatches to Blob (consensus form)"):
     val bytes = rlpEncode(blobTx: Transaction)
-    assert(bytes(0) == 0x03)
-    Transaction.decode(bytes) shouldBe a[Transaction.Blob]
+    assert(
+      bytes(0) == 0x03 &&
+        (Transaction.decode(bytes) match
+          case _: Transaction.Blob => true; case _ => false
+        ),
+      "type byte 0x03 must dispatch to Blob"
+    )
 
   test("type byte 0x04 dispatches to SetCode"):
     val bytes = rlpEncode(setCodeTx: Transaction)
-    assert(bytes(0) == 0x04)
-    Transaction.decode(bytes) shouldBe a[Transaction.SetCode]
+    assert(
+      bytes(0) == 0x04 &&
+        (Transaction.decode(bytes) match
+          case _: Transaction.SetCode => true; case _ => false
+        ),
+      "type byte 0x04 must dispatch to SetCode"
+    )
 
   test("type byte 0x05 is REJECTED, not silently treated as legacy"):
     intercept[RLPException](Transaction.decode(Array[Byte](0x05)))
@@ -320,13 +381,16 @@ class TransactionSpec extends AnyFunSuite with Matchers:
     val bytes = rlpEncode(creationTx)
 
     // RLPValue is array-backed, so AST `==` is reference equality (see RLPSpec) — compare `.bytes` instead.
-    rawDecode(bytes) match
-      case RLPList(_, _, _, to: RLPValue, _*) => assert(to.bytes.isEmpty)
+    val toIsEmptyString = rawDecode(bytes) match
+      case RLPList(_, _, _, to: RLPValue, _*) => to.bytes.isEmpty
       case other                              => fail(s"expected a Legacy RLPList with an RLPValue `to`, got $other")
-
-    Transaction.decode(bytes) match
-      case Transaction.Legacy(_, _, _, to, _, _, _) => assert(to == None)
+    val decodedToIsNone = Transaction.decode(bytes) match
+      case Transaction.Legacy(_, _, _, to, _, _, _) => to == None
       case other                                    => fail(s"expected a Legacy transaction, got $other")
+    assert(
+      toIsEmptyString && decodedToIsNone,
+      "contract-creation must encode `to` as the RLP empty string, not an empty list, and round-trip to None"
+    )
 
   test("a present `to` (call, not creation) round-trips back to Some(address)"):
     val bytes = rlpEncode(legacyTx: Transaction)

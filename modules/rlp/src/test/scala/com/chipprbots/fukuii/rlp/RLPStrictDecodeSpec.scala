@@ -13,10 +13,10 @@ class RLPStrictDecodeSpec extends AnyFunSuite:
   test("decodeStrict rejects trailing bytes; decode ignores them"):
     val clean = encode(42)
     val withTrailing = clean ++ Array[Byte](0x01, 0x02)
+    // strict path fails loud
+    val _ = intercept[RLPException](decodeStrict[Int](withTrailing))
     // lenient path decodes the first item and ignores the rest
     assert(decode[Int](withTrailing) == 42)
-    // strict path fails loud
-    intercept[RLPException](decodeStrict[Int](withTrailing))
 
   test("decodeStrict accepts a buffer consumed exactly"):
     val bytes = encode("dog")
