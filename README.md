@@ -322,7 +322,7 @@ git submodule update --init --recursive
 sbt dist
 ```
 
-The distribution archive is placed under `target/universal/`. See the [Contributing Guide](CONTRIBUTING.md) for development-environment setup.
+The distribution archive is placed under `target/universal/`. See the [Contributing Guide](docs/development/contributing.md) for development-environment setup.
 
 ---
 
@@ -360,7 +360,7 @@ See [Operations Runbooks](docs/runbooks/README.md) for complete operational docu
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, code standards, pre-commit hooks, and PR guidelines. Run `sbt pp` before submitting a PR to check formatting, style, and tests locally.
+Contributions are welcome. See [Contributing Guide](docs/development/contributing.md) for environment setup, code standards, pre-commit hooks, and PR guidelines. Run `sbt pp` before submitting a PR to check formatting, style, and tests locally.
 
 **Quick links:**
 - [Documentation Site](https://chippr-robotics.github.io/fukuii/)

@@ -152,4 +152,4 @@ curl -X POST http://localhost:8545 \
 
 ## Contributing
 
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines on contributing to Fukuii's MCP implementation.
+See [Contributing Guide](../../docs/development/contributing.md) for guidelines on contributing to Fukuii's MCP implementation.
