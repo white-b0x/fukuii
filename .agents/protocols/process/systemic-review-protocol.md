@@ -226,6 +226,11 @@ per-unit rollup.
 
 ## Reference-client authority model
 
+**This table answers *which* external client is authoritative for a given concern. For the
+separate, mandatory rule that a consensus co-sign must cite one of these — never fukuii's own
+prior code — see `reference-client-authority.md`; that doc is the one forge/beacon/eye actually
+apply at co-sign time, this table is what they cite from.**
+
 | Client | Authority role | Notes |
 |---|---|---|
 | **go-ethereum** | Primary ETH/EIP authority | Default tie-breaker when ETH-side clients disagree |

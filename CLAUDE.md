@@ -23,6 +23,7 @@ Tracked protocols that all agents reference are read at `.claude/agent-protocols
 | `testing-protocol.md` | Per-phase test cadence (compile-all per file, testOnly after logic, testEssential once at end) |
 | `risk-stratified-commit.md` | Bucket A/B/C commit discipline for sweep changes |
 | `consensus-change-protocol.md` | Hard stop + routing table before touching consensus paths |
+| `reference-client-authority.md` | Any `fukuii/*` branch (e.g. `fukuii/july-fourth`) is a self-reference, never a consensus-review authority — "AS-IS" is a banned review label for exactly this reason (it hides which branch is meant); every forge/beacon co-sign of a fork-schedule/activation-height/byte-value claim must cite an external reference client or spec/vector, naming the branch explicitly if a fukuii source must be mentioned at all |
 | `inline-cleanup.md` | "Hunt and seek" — what to fix opportunistically, what to log to the queue |
 | `finding-resolution.md` | Every audit/review finding gets scheduled (existing IP, new IP, or a real future-batch entry) — never left as a bare flagged-but-unscheduled note |
 | `logging-standards.md` | Preferred logging API, levels, message format, SLF4J patterns |

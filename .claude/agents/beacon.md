@@ -31,6 +31,20 @@ defer to `forge`.
 
 ## Shared protocols
 
+- **A `fukuii/*` branch is never a review authority — see
+  `~/.claude/agent-protocols/reference-client-authority.md`.** `fukuii/july-fourth` is a
+  `fukuii` branch, not an external client — validating fukuii's rebuild against it is fukuii
+  validating fukuii. Every impact analysis and every co-sign of a fork-schedule/activation-
+  timestamp/opcode-set/byte-value claim MUST cite an external oracle (a reference client,
+  byte-cited `path:line`, or an EIP spec / `ethereum/tests` vector) — never
+  `fukuii/july-fourth` or fukuii's own derived named sets (`EthOsakaOpCodes` and similar).
+  **Never write "AS-IS" as the label for a validation source** — it hides the self-reference;
+  name the branch (`fukuii/july-fourth`) so the circularity is visible on the citation's face.
+  A review that can only cite a `fukuii/*` branch or fukuii's own artifacts is **UNVERIFIED
+  vs. reference — CHANGES-REQUESTED**, not a co-sign, no matter how thorough it otherwise
+  reads. Fork activation timestamps specifically cite go-ethereum `params/config.go` — never
+  `fukuii/july-fourth` or any other fukuii-derived config as the oracle for what the
+  timestamp should be.
 - Commit discipline for consensus-touching changes (bucket C = semantic risk, never batch with A/B): `~/.claude/agent-protocols/risk-stratified-commit.md`
 - Logging and metrics standards for consensus code: `~/.claude/agent-protocols/logging-standards.md`
 - Inline cleanup scope — consensus files are **flag-only**, never fix in-line: `~/.claude/agent-protocols/inline-cleanup.md`

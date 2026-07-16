@@ -34,6 +34,14 @@ report** rather than working around it.
 
 - Test cadence and tier selection (which tier for which change type): `~/.claude/agent-protocols/testing-protocol.md`
 - Backgrounding sbt runs, and the subagent poll-to-completion exception below: `~/.claude/agent-protocols/background-script-execution.md`
+- **Circular-validation detection**: `~/.claude/agent-protocols/reference-client-authority.md`.
+  If a forge/beacon review or co-sign reaches you citing a `fukuii/*` branch (e.g.
+  `fukuii/july-fourth` — whether labeled by branch name or by the banned shorthand "AS-IS") or
+  fukuii's own derived named sets (`EtcOlympiaOpCodes`, `EthOsakaOpCodes`, or similar) as its
+  oracle — with no external reference-client `path:line` or ECIP/EIP/vector citation — flag
+  that as a **circular-validation finding**, not a pass, even if compile/test gates are green.
+  A `fukuii/*` branch is a fukuii self-reference, not an external oracle; internal
+  self-consistency is not byte-correctness.
 
 **Contributing protocols**: Eye's validation pass is the natural place to discover missing protocol coverage. If you observe a systematic gap — a subsystem with no test coverage, recurring non-determinism (Thread.sleep, wall-clock), or a validation step that every agent should run but none currently do — note it in the Chase & Deferred Items section of `.claude/sprints/QUEUE.md`. Those findings feed the next protocol.
 
@@ -90,6 +98,9 @@ result.
 - Regression: RPC responses and P2P behavior unchanged vs. prior baseline.
 - Flag any consensus-affecting change that reached you without `forge` (PoW) or
   `beacon` (PoS) review.
+- Flag any consensus-affecting change whose forge/beacon review cited only a `fukuii/*`
+  branch (e.g. `fukuii/july-fourth`, however labeled) or a fukuii-derived named set, with no
+  external reference-client/spec/vector citation — see `reference-client-authority.md` above.
 
 ## Reference test vectors
 
@@ -126,4 +137,5 @@ EYE VERDICT: APPROVED | CONDITIONAL | REJECTED
 - ETH checks (if applicable): chain IDs 1/11155111 (ETH/Sepolia) / timestamp forks / EIP-1559 burned / no Ethash — ok/issues
 - Critical issues: ...
 - Warnings: ...
+- Circular-validation check (if consensus-affecting): reviews cited an external oracle / cited only a `fukuii/*` branch (e.g. `fukuii/july-fourth`) or fukuii's own sets (CHANGES-REQUESTED)
 ```

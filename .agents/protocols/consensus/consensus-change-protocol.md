@@ -118,7 +118,11 @@ banksy approach it from opposite sides.
 
 1. STOP — do not write a single line of implementation
 2. Identify which specialist applies (FORGE / BEACON / HERALD / VAULT)
-3. Produce an impact analysis: what changes, what invariants must hold, what tests cover it
+3. Produce an impact analysis: what changes, what invariants must hold, what tests cover it —
+   grounded in an **external** oracle (reference client / ECIP / EIP / vector), never a
+   `fukuii/*` branch (e.g. `fukuii/july-fourth`) or fukuii's own derived named sets as the
+   source of truth for correctness. See `reference-client-authority.md` — a co-sign that only
+   cites a `fukuii/*` branch is fukuii validating fukuii, not a gate.
 4. Get specialist review or hand off entirely
 
 **This applies even for "obvious" changes:**
