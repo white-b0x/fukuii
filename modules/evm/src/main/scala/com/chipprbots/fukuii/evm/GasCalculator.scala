@@ -16,7 +16,7 @@ import com.chipprbots.fukuii.bytes.UInt256
   *
   * **EIP-2929 warm/cold access cost lands here (T3 / RX-L3-09), not on the retired enum-fork read-path.** The base
   * calculator's [[accountAccessCost]]/[[storageAccessCost]] are the pre-2929 pass-through (the opcode's own base tier);
-  * [[MagnetoGasCalculator]] onward override them to the warm/cold split (besu's
+  * [[Eip2929GasCalculator]] onward override them to the warm/cold split (besu's
   * `getColdAccountAccessCost`/`getWarmStorageReadCost`). The override *is* the enablement — there is no separate
   * `eip2929Enabled` fork lookup.
   *
@@ -79,22 +79,22 @@ trait GasCalculator:
 
   // -- EIP-2929 warm/cold access cost (in-calculator, T3 / RX-L3-09) --
 
-  /** The cost of touching `address` given whether it is already warm. Pre-2929 (Frontier→Phoenix) this is the opcode's
-    * own base tier (`preGas`, unchanged by warmth); [[MagnetoGasCalculator]] onward overrides it to the EIP-2929
-    * warm/cold split. besu `getColdAccountAccessCost`/`getWarmStorageReadCost`.
+  /** The cost of touching `address` given whether it is already warm. Pre-2929 (Frontier→[[Eip1884GasCalculator]]) this
+    * is the opcode's own base tier (`preGas`, unchanged by warmth); [[Eip2929GasCalculator]] onward overrides it to the
+    * EIP-2929 warm/cold split. besu `getColdAccountAccessCost`/`getWarmStorageReadCost`.
     */
   def accountAccessCost(preGas: BigInt, @unused isWarm: Boolean): BigInt = preGas
 
   /** The cost of touching storage slot `(address, key)` given whether it is already warm. Pre-2929 the opcode base
-    * tier; Magneto+ the EIP-2929 cold-sload / warm-read split.
+    * tier; [[Eip2929GasCalculator]]+ the EIP-2929 cold-sload / warm-read split.
     */
   def storageAccessCost(preGas: BigInt, @unused isWarm: Boolean): BigInt = preGas
 
   // -- Gas-cap divisor (EIP-150 "all but one 64th", YP eq. 224) --
 
   /** `None` pre-EIP-150 (Frontier/Homestead — the full remaining gas is forwarded to a sub-call); `Some(64)` from
-    * [[PostEIP150GasCalculator]] onward (all-but-one-64th retained). Owned here rather than on `EvmConfig` because it
-    * is a per-fork gas rule.
+    * [[Eip150GasCalculator]] onward (all-but-one-64th retained). Owned here rather than on `EvmConfig` because it is a
+    * per-fork gas rule.
     */
   def subGasCapDivisor: Option[Long] = None
 
@@ -117,8 +117,8 @@ trait GasCalculator:
     else if memNeeded <= memSize then BigInt(0)
     else c(memNeeded) - c(memSize)
 
-  /** EIP-3860 initcode word-metering cost — `G_initcode_word * ceil(len / 32)`. Zero pre-Spiral/London
-    * (`G_initcode_word == 0`).
+  /** EIP-3860 initcode word-metering cost — `G_initcode_word * ceil(len / 32)`. Zero pre-EIP-3860 (`G_initcode_word ==
+    * 0`).
     */
   def calcInitCodeCost(codeSize: BigInt): BigInt =
     G_initcode_word * wordsForBytes(codeSize)
@@ -136,16 +136,15 @@ object GasCalculator:
   private[evm] val MemoryCostBlocker: BigInt = UInt256.MaxValue.toBigInt / 2
 
   // Singleton instances — the P2 direct per-fork construction (the fold that selects the active calculator at
-  // (header, schedule) is P3). Ordered along the shared → ETC-lineage / ETH-lineage split.
+  // (header, schedule) is P3). Ordered along the shared → ETC-lineage / ETH-lineage split. Shared bases are keyed by
+  // their defining gas EIP; only the family-local leaves carry a network fork name (nomenclature.md).
   val Frontier: GasCalculator = new FrontierGasCalculator
   val Homestead: GasCalculator = new HomesteadGasCalculator
-  val PostEIP150: GasCalculator = new PostEIP150GasCalculator
-  val PostEIP160: GasCalculator = new PostEIP160GasCalculator
-  val Byzantium: GasCalculator = new ByzantiumGasCalculator
-  val Constantinople: GasCalculator = new ConstantinopleGasCalculator
-  val Phoenix: GasCalculator = new PhoenixGasCalculator
-  val Magneto: GasCalculator = new MagnetoGasCalculator
-  val Mystique: GasCalculator = new MystiqueGasCalculator
+  val Eip150: GasCalculator = new Eip150GasCalculator
+  val Eip160: GasCalculator = new Eip160GasCalculator
+  val Eip1884: GasCalculator = new Eip1884GasCalculator
+  val Eip2929: GasCalculator = new Eip2929GasCalculator
+  val Eip3529: GasCalculator = new Eip3529GasCalculator
 
   /** ETC-only. */
   val EtcOlympia: GasCalculator = new EtcOlympiaGasCalculator
@@ -157,9 +156,12 @@ object GasCalculator:
   val EthOsaka: GasCalculator = new EthOsakaGasCalculator
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The shared (network-neutral) lineage: Frontier → Homestead → EIP-150 → EIP-160 → Byzantium → Constantinople →
-// Phoenix → Magneto → Mystique. Bare fork names (no Etc*/Eth* prefix) because pre-London ETH and ETC share these gas
-// values byte-for-byte (Berlin ≡ Magneto, Istanbul ≡ Phoenix); the network divergence is only the activation height.
+// The shared (network-neutral) lineage, keyed by defining gas EIP: Frontier → Homestead → EIP-150 → EIP-160 →
+// EIP-1884 → EIP-2929 → EIP-3529. EIP-keyed rather than fork-named because a shared base must carry no network fork
+// codename (nomenclature.md): the ETH and ETC families share these gas values byte-for-byte, the network divergence
+// being only the activation height. The two opcode-only forks between EIP-160 and EIP-1884 activate no gas-fee EIP
+// (no gas-schedule delta), so they have no defining gas EIP to key on and are omitted from the gas spine (their opcode
+// layers live on the separate P2 opcode spine).
 //
 // Class inheritance (not `export`) is used deliberately: Scala 3 `export` creates forwarder members that do NOT
 // implement a parent trait's abstract members, so a fork diff must `override` inherited concrete `def`s.
@@ -202,22 +204,22 @@ class FrontierGasCalculator extends GasCalculator:
   def G_copy: BigInt = 3
   def G_blockhash: BigInt = 20
   def G_extcode: BigInt = 20
-  // EIP-2929 cold/warm and access-list costs do not apply until Magneto/Berlin — the values exist but the
-  // access-cost methods pass through the pre-2929 base until MagnetoGasCalculator overrides them.
+  // EIP-2929 cold/warm and access-list costs do not apply until EIP-2929 — the values exist but the
+  // access-cost methods pass through the pre-2929 base until Eip2929GasCalculator overrides them.
   def G_cold_sload: BigInt = 2100
   def G_cold_account_access: BigInt = 2600
   def G_warm_storage_read: BigInt = 100
   def G_access_list_address: BigInt = 2400
   def G_access_list_storage: BigInt = 1900
-  // EIP-3860 initcode metering does not exist until Spiral/London (EIP-3860).
+  // EIP-3860 initcode metering does not exist until EIP-3860.
   def G_initcode_word: BigInt = 0
 
 /** Homestead — EIP-2/7; the only gas-schedule delta is the `G_txcreate` intrinsic. */
 class HomesteadGasCalculator extends FrontierGasCalculator:
   override def G_txcreate: BigInt = 32000
 
-/** EIP-150 (Tangerine Whistle) — repricing of state-access opcodes + the all-but-one-64th gas cap. */
-class PostEIP150GasCalculator extends HomesteadGasCalculator:
+/** EIP-150 — repricing of state-access opcodes + the all-but-one-64th gas cap. */
+class Eip150GasCalculator extends HomesteadGasCalculator:
   override def G_sload: BigInt = 200
   override def G_call: BigInt = 700
   override def G_balance: BigInt = 400
@@ -225,26 +227,23 @@ class PostEIP150GasCalculator extends HomesteadGasCalculator:
   override def G_extcode: BigInt = 700
   override def subGasCapDivisor: Option[Long] = Some(64)
 
-/** EIP-160 (Spurious Dragon) — EXP byte cost increase. */
-class PostEIP160GasCalculator extends PostEIP150GasCalculator:
+/** EIP-160 — EXP byte cost increase. */
+class Eip160GasCalculator extends Eip150GasCalculator:
   override def G_expbyte: BigInt = 50
 
-/** Byzantium / Atlantis — no gas-schedule delta over EIP-160 (opcode-only fork). */
-class ByzantiumGasCalculator extends PostEIP160GasCalculator
-
-/** Constantinople / Agharta — no gas-schedule delta over Byzantium (opcode-only fork). */
-class ConstantinopleGasCalculator extends ByzantiumGasCalculator
-
-/** Phoenix / Istanbul — EIP-1884 (repriced SLOAD/BALANCE) + EIP-2028 (cheaper calldata). */
-class PhoenixGasCalculator extends ConstantinopleGasCalculator:
+/** EIP-1884 — repriced SLOAD/BALANCE (EIP-1884) + cheaper calldata (EIP-2028); EIP-2200 SSTORE net metering lands in
+  * the same generation but is a metering algorithm, not a tier field. Extends [[Eip160GasCalculator]] directly: no
+  * gas-fee EIP activates between EIP-160 and here (the intervening opcode-only forks carry no gas-schedule delta).
+  */
+class Eip1884GasCalculator extends Eip160GasCalculator:
   override def G_sload: BigInt = 800
   override def G_balance: BigInt = 700
   override def G_txdatanonzero: BigInt = 16
 
-/** Magneto / Berlin — EIP-2929 (warm/cold access) + EIP-2930 (access lists). The warm/cold access cost lands here (T3 /
+/** EIP-2929 — warm/cold state access (EIP-2929) + access lists (EIP-2930). The warm/cold access cost lands here (T3 /
   * RX-L3-09): the base pass-through is replaced by the cold/warm split, so no separate fork lookup gates it.
   */
-class MagnetoGasCalculator extends PhoenixGasCalculator:
+class Eip2929GasCalculator extends Eip1884GasCalculator:
   override def G_sload: BigInt = G_warm_storage_read
   // EIP-2929: SSTORE_RESET_GAS = 5000 - COLD_SLOAD_COST (cold access charged separately in SSTORE).
   override def G_sreset: BigInt = 5000 - G_cold_sload
@@ -256,10 +255,10 @@ class MagnetoGasCalculator extends PhoenixGasCalculator:
   override def storageAccessCost(preGas: BigInt, isWarm: Boolean): BigInt =
     if isWarm then G_warm_storage_read else G_cold_sload
 
-/** Mystique / London-refund-lineage — EIP-3529 (reduced refunds) + EIP-3860 initcode metering value. Shared ETC/ETH
-  * base for the reduced-refund era (the network-prefixed EtcOlympia / EthLondon leaves extend the appropriate base).
+/** EIP-3529 — reduced refunds (EIP-3529) + EIP-3860 initcode word metering value. Shared ETC/ETH base for the
+  * reduced-refund era (the network-prefixed EtcOlympia / EthLondon leaves extend the appropriate base).
   */
-class MystiqueGasCalculator extends MagnetoGasCalculator:
+class Eip3529GasCalculator extends Eip2929GasCalculator:
   // EIP-3529: R_sclear = SSTORE_RESET_GAS (2900) + ACCESS_LIST_STORAGE_KEY_COST (1900) = 4800.
   override def R_sclear: BigInt = 4800
   // EIP-3529: remove the SELFDESTRUCT refund.
@@ -269,22 +268,21 @@ class MystiqueGasCalculator extends MagnetoGasCalculator:
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Network-prefixed leaves — the Etc*/Eth* scala3-style.md ratchet boundary: an Etc* never extends/references an Eth*
-// and vice versa. Both extend a bare-named shared base, never each other.
+// and vice versa, and neither is ever a shared base. Both extend an EIP-keyed shared base, never each other.
 // ---------------------------------------------------------------------------------------------------------------------
 
-/** ETC Olympia (ECIP-1121) — field-identical to [[MystiqueGasCalculator]] (the ETC-lineage reduced-refund base). The
-  * Olympia-era gas deltas (EIP-7883 MODEXP, EIP-2537 BLS, EIP-7951 P256, EIP-7623 calldata floor) are precompile /
-  * intrinsic-gas rules enforced in the P5 precompile wrappers and L4 intrinsic-gas, not per-opcode tier fields — so the
-  * opcode gas schedule is Mystique's. **ETC-only.**
+/** ETC Olympia (ECIP-1121) — field-identical to [[Eip3529GasCalculator]] (the reduced-refund gas base). The Olympia-era
+  * gas deltas (EIP-7883 MODEXP, EIP-2537 BLS, EIP-7951 P256, EIP-7623 calldata floor) are precompile / intrinsic-gas
+  * rules enforced in the P5 precompile wrappers and L4 intrinsic-gas, not per-opcode tier fields — so the opcode gas
+  * schedule is EIP-3529's. **ETC-only.**
   */
-class EtcOlympiaGasCalculator extends MystiqueGasCalculator
+class EtcOlympiaGasCalculator extends Eip3529GasCalculator
 
-/** ETH London — EIP-3529 refund reduction + EIP-3860 initcode metering, over [[MagnetoGasCalculator]] (Berlin). The
-  * ETH-named root of the post-London ETH fee lineage (Cancun → Prague → Osaka); field-identical to
-  * [[MystiqueGasCalculator]] but rooted on an ETH-named class so the ETH chain never references an ETC leaf.
-  * **ETH-only.**
+/** ETH London — EIP-3529 refund reduction + EIP-3860 initcode metering, over [[Eip2929GasCalculator]]. The ETH-named
+  * root of the post-London ETH fee lineage (Cancun → Prague → Osaka); field-identical to [[Eip3529GasCalculator]] but
+  * rooted on an ETH-named class so the ETH chain never references an ETC leaf. **ETH-only.**
   */
-class EthLondonGasCalculator extends MagnetoGasCalculator:
+class EthLondonGasCalculator extends Eip2929GasCalculator:
   override def R_sclear: BigInt = 4800
   override def R_selfdestruct: BigInt = 0
   override def G_initcode_word: BigInt = 2

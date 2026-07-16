@@ -20,7 +20,7 @@ class GasCalculatorSpec extends AnyFunSuite:
     )
 
   test("EIP-150 reprices state access and enables the all-but-one-64th gas cap"):
-    val g = GasCalculator.PostEIP150
+    val g = GasCalculator.Eip150
     assert(
       g.G_sload == BigInt(200) && g.G_call == BigInt(700) && g.G_balance == BigInt(400) &&
         g.G_extcode == BigInt(700) && g.subGasCapDivisor.contains(64L) &&
@@ -28,22 +28,22 @@ class GasCalculatorSpec extends AnyFunSuite:
     )
 
   test("EIP-160 raises the EXP byte cost to 50"):
-    assert(GasCalculator.PostEIP160.G_expbyte == BigInt(50))
+    assert(GasCalculator.Eip160.G_expbyte == BigInt(50))
 
-  test("Phoenix/Istanbul reprices SLOAD/BALANCE and cheapens calldata"):
-    val p = GasCalculator.Phoenix
+  test("EIP-1884 (Istanbul) reprices SLOAD/BALANCE and cheapens calldata"):
+    val p = GasCalculator.Eip1884
     assert(p.G_sload == BigInt(800) && p.G_balance == BigInt(700) && p.G_txdatanonzero == BigInt(16))
 
   test("pre-EIP-2929 access cost is the opcode base tier (warmth ignored)"):
-    val p = GasCalculator.Phoenix
+    val p = GasCalculator.Eip1884
     assert(
       p.accountAccessCost(p.G_call, isWarm = true) == p.G_call &&
         p.accountAccessCost(p.G_call, isWarm = false) == p.G_call &&
         p.storageAccessCost(p.G_sload, isWarm = true) == p.G_sload
     )
 
-  test("Magneto/Berlin moves EIP-2929 warm/cold access cost into the calculator (T3/RX-L3-09)"):
-    val m = GasCalculator.Magneto
+  test("EIP-2929 (Berlin) moves warm/cold access cost into the calculator (T3/RX-L3-09)"):
+    val m = GasCalculator.Eip2929
     assert(
       m.accountAccessCost(m.G_call, isWarm = true) == BigInt(100) &&
         m.accountAccessCost(m.G_call, isWarm = false) == BigInt(2600) &&
@@ -52,13 +52,13 @@ class GasCalculatorSpec extends AnyFunSuite:
         m.G_sload == BigInt(100) && m.G_sreset == BigInt(2900) && m.G_sset == BigInt(20000)
     )
 
-  test("Mystique applies EIP-3529 (refund reductions) and EIP-3860 initcode metering"):
-    val m = GasCalculator.Mystique
+  test("EIP-3529 (London) applies refund reductions and EIP-3860 initcode metering"):
+    val m = GasCalculator.Eip3529
     assert(m.R_sclear == BigInt(4800) && m.R_selfdestruct == BigInt(0) && m.G_initcode_word == BigInt(2))
 
-  test("EtcOlympia gas fields are field-identical to Mystique (ETC-only leaf)"):
+  test("EtcOlympia gas fields are field-identical to EIP-3529 (ETC-only leaf)"):
     val o = GasCalculator.EtcOlympia
-    val m = GasCalculator.Mystique
+    val m = GasCalculator.Eip3529
     assert(
       o.R_sclear == m.R_sclear && o.R_selfdestruct == m.R_selfdestruct &&
         o.G_initcode_word == m.G_initcode_word && o.G_sload == m.G_sload &&
