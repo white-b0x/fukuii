@@ -11,11 +11,11 @@ import com.chipprbots.fukuii.evm.ProposalId.Eip
   * blobBaseFee, prevRandao) — those are per-instance runtime values threaded through [[ExecEnv]]/[[ProgramContext]]
   * (geth `BlockContext`/`TxContext`), never a property of the fork schedule (R2, RX-L3-13).
   *
-  * **P2 shape.** The [[opCodes]] dense table + the per-fork [[gasCalculator]] land here now, populated by **direct
-  * per-fork construction** (the named [[EvmConfig.EthCancun]]/[[EvmConfig.EthOsaka]]/[[EvmConfig.EtcOlympia]]/…
-  * bundles). The ordered `deriveEvmConfigAt` fold that derives them at `(header, schedule)` — and the `forBlock`
-  * collapse onto it — is **P3**; [[forBlock]] here keeps its P0 membership-only shape (the two headline fields default
-  * to a loud-failing all-[[InvalidOp]] table + Frontier gas until P3 wires the fold).
+  * **P3 shape.** [[EvmConfig.forBlock]] resolves this value via the ordered [[EvmConfig.deriveEvmConfigAt]] fold over
+  * the [[EvmProposals]] registry — the production path. The named per-fork bundles
+  * ([[EvmConfig.EthCancun]]/[[EvmConfig.EthOsaka]]/[[EvmConfig.EtcOlympia]]/…), built by **direct per-fork
+  * construction**, remain the fold-identity **oracle** (`EvmProposalFoldIdentitySpec`) — what the fold must reproduce
+  * byte-for-byte at every activation height on both fork clocks.
   *
   * **R2 (multi-instance isolation):** immutable and freely shareable — two `ChainInstance`s in one binary may share a
   * cached `header → EvmConfig` safely (the `IArray` table is immutable). No `object … { var … }` / process-global EVM
@@ -48,14 +48,38 @@ object EvmConfig:
 
   /** The single fork-dispatch entry point — resolve the EVM config active at `header` under `schedule`.
     *
-    * Replaces the two AS-IS `EvmConfig.forBlock` overloads with **one** `forBlock(header, schedule)`: the header
-    * supplies both number and timestamp, and each proposal's [[ForkActivation]] case decides its own boundary (besu's
-    * single `getByBlockHeader`). **P0/P2 resolves the active proposal *set* only** (order-independent membership); the
-    * ordered `deriveEvmConfigAt` fold that populates the [[EvmConfig.gasCalculator]] + [[EvmConfig.opCodes]] from this
-    * set — and proves byte-identity with the two-overload AS-IS — is **P3**'s fold-identity gate (Chesterton's Fence).
+    * **One** `forBlock(header, schedule)` — never the two AS-IS overloads, never a `forTimestamp`: the header supplies
+    * both number and timestamp, and each proposal's [[ForkActivation]] case decides its own boundary (besu's single
+    * `getByBlockHeader` over `MilestoneType.{BLOCK_NUMBER,TIMESTAMP}`, the axes staying type-distinct as enum cases).
+    * `schedule.activeAt` resolves the active `Set[ProposalId]`; [[deriveEvmConfigAt]] folds it into the resolved
+    * `(opCodes, gasCalculator, flags)` bundle.
+    *
+    * **P3 wires this onto the fold** (P0/P2 stubbed it to a membership-only [[EvmConfig]] with the all-[[InvalidOp]]
+    * table + Frontier gas). The named per-fork bundles ([[EthCancun]]/[[EthOsaka]]/[[EtcOlympia]]/…) remain the
+    * byte-identity **oracle** proven by `EvmProposalFoldIdentitySpec` at every activation height on both fork clocks
+    * (Chesterton's Fence, L3 plan §8/§9) — production dispatch reads the fold, not the bundles.
     */
   def forBlock(header: BlockHeader, schedule: ForkSchedule): EvmConfig =
-    EvmConfig(schedule.activeAt(header.number, header.unixTimestamp))
+    deriveEvmConfigAt(schedule.activeAt(header.number, header.unixTimestamp))
+
+  /** Fold an active proposal set into the resolved [[EvmConfig]] — the single ordered fold both [[forBlock]] and the
+    * fold-identity oracle go through (L3 plan §5, SR DEFAULT(ETC path)).
+    *
+    * **Iterates [[EvmProposals.evmApplicationOrder]] filtered by set-membership, NEVER the `Set` directly.** Scala
+    * `Set` iteration order is unspecified; gas-leaf selection is last-wins and two proposals can touch the same opcode
+    * slot, so folding over `Set` iteration would be a latent byte-divergence (forge's P0 obligation — the load-bearing
+    * correctness point of P3). The three axes fold over the one canonically-ordered proposal list:
+    *   1. opcodes — additive over [[OpCodes.FrontierOpCodes]], then `denseTable`d (order-neutral: keyed by `op.code`);
+    *      2. gas — the **last** `gasDelta` selection wins (chronological last-wins over the pinned order); 3. config
+    *      flags — each `configDelta` applied in order.
+    */
+  def deriveEvmConfigAt(active: Set[ProposalId]): EvmConfig =
+    val proposals: List[EvmProposals.EvmProposal] =
+      EvmProposals.evmApplicationOrder.iterator.filter(active.contains).flatMap(EvmProposals.byId.get).toList
+    val opcodes = proposals.foldLeft(OpCodes.FrontierOpCodes)((ops, p) => p.opcodeDelta(ops))
+    val gas = proposals.foldLeft(GasCalculator.Frontier)((gc, p) => p.gasDelta.getOrElse(gc))
+    val base = EvmConfig(active, gas, OpCodes.denseTable(opcodes))
+    proposals.foldLeft(base)((cfg, p) => p.configDelta(cfg))
 
   // -- intent-named getters (RX-L3-12): the interpreter reads a neutral EIP-keyed intent, never a fork name -----------
 
