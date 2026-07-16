@@ -1,4 +1,6 @@
-Copyright 2019 Input Output (Hong Kong) Ltd.
+Fukuii
+Copyright 2025-present Chippr Robotics LLC
+Copyright 2026-present White B0x Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,22 +16,44 @@ limitations under the License.
 
 ================================================================================
 
-MODIFICATIONS AND DERIVATIVE WORK
+LINEAGE & ACKNOWLEDGMENTS
 
-This software has been modified and is maintained as a derivative work by
-Chippr Robotics, LLC (2025-present) under the project name "Fukuii".
+Fukuii is an independent, ground-up execution client — Ethereum Classic's first
+native client built for connectivity to the greater EVM ecosystem. It is written
+from scratch, but it stands on a lineage of vision and craft it is proud to name:
 
-The original software, known as "Mantis", was developed by Input Output
-(Hong Kong) Ltd. This derivative work has been rebranded and continues
-development under new management while maintaining compatibility with the
-Ethereum Classic network.
+  ETCDEV — Orbita (2018)
+    Igor Artamonov ("splix") and the ETCDEV team presented Orbita at ETC Summit
+    2018 in Seoul: a standardized sidechain framework for Ethereum Classic and an
+    early vision of a multi-network client. The Sidekick prototype was never
+    finished. Fukuii carries that vision forward — an "orbita" is a chain instance
+    within the fukuii runtime.
 
-Modifications include:
-- Rebranding from "Mantis" to "Fukuii"
-- Package restructuring from io.iohk to com.chipprbots
-- Ongoing maintenance and feature development
+  IOHK — Mantis
+    Input Output (HK) built Mantis, a Scala client for Ethereum Classic, and chose
+    the JVM and Scala for the task — then set it down. Fukuii owes Mantis the
+    inspiration for its tech stack. "Mantis" is a trademark of IOHK, named here
+    only for that inspiration and this project's origin story.
 
-The derivative work continues to be licensed under the Apache License,
-Version 2.0, as required by the original license terms.
+  Chippr Robotics LLC and White B0x Inc. — Fukuii
+    The Fukuii developers, who realized the dream: Ethereum Classic's first native
+    client with a bridge to the wider EVM world.
+
+  -- the story --
+    Chordodes fukuii is a nematomorph — a parasitic worm that infects a mantis,
+    rewires its nervous system, and drives it toward water, where the worm
+    completes its lifecycle. The mantis becomes a vehicle for something else
+    entirely. Mantis was abandoned; from it, Fukuii emerged — rebuilt from the
+    ground up, wearing the name, driven toward consensus. 🪱🧠
+
+================================================================================
+
+Fukuii is an original, ground-up rewrite. It contains no source code from IOHK's
+Mantis client and is not a derivative work of Mantis; it is therefore not subject
+to the copyright or license terms of Mantis. The Mantis and Orbita names are
+acknowledged above for lineage and inspiration only.
+
+Fukuii is distributed under the Apache License, Version 2.0. See the LICENSE file
+for the full license text.
 
 For more information about Fukuii, visit: https://github.com/chippr-robotics/fukuii
