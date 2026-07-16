@@ -7,8 +7,9 @@ Claude Code-specific orchestration (named subagents, Spec Kit, sprint tooling) l
 `docs/agentic-tooling/agents-md-decision-2026.md` for why this split exists and what
 stays out of this file on purpose._
 
-`fukuii` is a **multi-network EVM client** (forked from IOHK Mantis, repackaged
-under `com.chipprbots`), running on **Scala 3.x LTS** with Pekko actors.
+`fukuii` is a **multi-network EVM client** — an independent, ground-up client
+inspired by IOHK Mantis, in the `com.chipprbots.fukuii.*` namespace — running on
+**Scala 3.x LTS** with Pekko actors.
 It supports two independent consensus families, each of which can host more
 than one network — currently one network pair per family:
 
