@@ -6,7 +6,7 @@
 
 ### The multi-EVM execution client. From home miners to enterprise infrastructure.
 
-Fukuii is an execution layer client for EVM-compatible networks — an independent continuation of IOHK's Mantis client, maintained by Chippr Robotics LLC. Built as production-grade infrastructure for the full range of EVM deployment scenarios.
+Fukuii is an independent, ground-up execution layer client for EVM-compatible networks, built by Chippr Robotics LLC and White B0x Inc. Production-grade infrastructure for the full range of EVM deployment scenarios — from home miners to enterprise.
 
 **Build & quality**
 
@@ -26,7 +26,7 @@ Fukuii is an execution layer client for EVM-compatible networks — an independe
 **Project metadata**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Scala](https://img.shields.io/badge/Scala-3.3.7%20LTS-DC322F?logo=scala&logoColor=white)](https://www.scala-lang.org/)
+[![Scala](https://img.shields.io/badge/Scala-3.3.8%20LTS-DC322F?logo=scala&logoColor=white)](https://www.scala-lang.org/)
 [![JDK](https://img.shields.io/badge/JDK-25%20LTS-orange?logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![Latest Release](https://img.shields.io/github/v/release/chippr-robotics/fukuii?include_prereleases&sort=semver)](https://github.com/chippr-robotics/fukuii/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/chipprbots/fukuii.svg)](https://hub.docker.com/r/chipprbots/fukuii)
@@ -68,7 +68,7 @@ From a home mining rig to multi-region enterprise infrastructure — same binary
 
 *Chordodes Fukuii* is a nematomorph parasite. It infects a mantis, takes over its nervous system, and compels the host toward water — where the worm completes its lifecycle. The mantis becomes a vehicle for something else entirely.
 
-Input Output (HK) built Mantis as a Scala client for the Ethereum Classic network, then abandoned it. Chippr Robotics LLC took the codebase, rewired it, and drove it to production.
+Input Output (HK) built Mantis as a Scala client for the Ethereum Classic network, then abandoned it. From that abandoned host, Fukuii emerged — rebuilt from the ground up by Chippr Robotics LLC and White B0x Inc., wearing the name, carrying forward ETCDEV's Orbita vision of a multi-network client, and driven toward consensus.
 
 ---
 
@@ -232,7 +232,7 @@ The Barad-dûr reference deployment is the enterprise topology: Kong API gateway
 
 **Supply Chain Security**
 - Cosign keyless image signing (GitHub OIDC — no long-lived signing keys)
-- Build provenance attestation on release container images (formal SLSA Level 3 attestation was removed 2026-04-27 after persistent CI startup failures — see `release.yml`; Cosign signing + this provenance attestation remain the current baseline)
+- Build provenance attestation on release container images (Cosign keyless signing and build provenance attestation are the baseline)
 - Software Bill of Materials in CycloneDX format attached to every release
 - Weekly automated dependency monitoring, plus PR-gated dependency review and a scheduled NVD CVE scan against the resolved dependency set
 - Semgrep static analysis (Scala-aware rulesets) on every push and PR, plus Trivy container-image scanning — CodeQL has no Scala extractor, so it does not run against fukuii's own code
@@ -291,7 +291,7 @@ Download the latest release from the [Releases page](https://github.com/chippr-r
 
 ## Getting Started
 
-> **ALPHA SOFTWARE — DO NOT USE IN PRODUCTION**
+> **BETA SOFTWARE — DO NOT USE IN PRODUCTION**
 
 ### Option 1: Docker (Recommended)
 
@@ -382,7 +382,7 @@ See [Operations Runbooks](docs/runbooks/README.md) for complete operational docu
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, code standards, pre-commit hooks, and PR guidelines. When modifying code derived from Mantis, include a notice in changed file headers with your own copyright line.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, code standards, pre-commit hooks, and PR guidelines.
 
 For contributors: run `sbt pp` before submitting a PR to check formatting, style, and tests locally.
 
@@ -395,10 +395,10 @@ For contributors: run `sbt pp` before submitting a PR to check formatting, style
 
 ## Important Notes
 
-<b>Licence:</b> This project continues to be distributed under the Apache 2.0 licence. A copy of the licence is included in the LICENSE file. The original NOTICE file from IOHK is preserved as required by the licence, and Chippr Robotics LLC has added its own attribution.
+<b>Licence:</b> Fukuii is distributed under the Apache 2.0 licence; a copy is included in the LICENSE file. Attribution and project lineage are recorded in the NOTICE file.
 
-<b>Origin:</b> Fukuii is derived from the Mantis client. Mantis is a trademark of IOHK; we use the name here only to describe the origin of this fork.
+<b>Origin:</b> Fukuii is an independent, ground-up client. It contains no Mantis source code and is not a derivative work of Mantis. "Mantis" is a trademark of IOHK, referenced only for lineage and the name-story; see the NOTICE file.
 
 ## Contact
 
-For questions or support, reach out to Chippr Robotics LLC via our GitHub repository.
+For questions or support, reach out to the Fukuii developers (Chippr Robotics LLC and White B0x Inc.) via our GitHub repository.
