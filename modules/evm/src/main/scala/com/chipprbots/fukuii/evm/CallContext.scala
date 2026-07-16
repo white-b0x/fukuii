@@ -34,7 +34,7 @@ import com.chipprbots.fukuii.domain.ChainId
   * @param originalWorld
   *   state of the world at the beginning of the current transaction, read-only (EIP-1283)
   */
-final case class ProgramContext[W <: WorldState[W, S], S <: AccountStorage[S]](
+final case class CallContext[W <: WorldState[W, S], S <: AccountStorage[S]](
     callerAddr: Address,
     originAddr: Address,
     recipientAddr: Option[Address],

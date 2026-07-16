@@ -9,7 +9,7 @@ import com.chipprbots.fukuii.evm.ProposalId.Eip
   *
   * Carries the active proposal set, the injected per-fork [[GasCalculator]], the dense opcode dispatch table, and the
   * per-fork config flags the opcodes read. It does **not** carry chain identity or block/tx context (chainId,
-  * blobBaseFee, prevRandao) — those are per-instance runtime values threaded through [[ExecEnv]]/[[ProgramContext]]
+  * blobBaseFee, prevRandao) — those are per-instance runtime values threaded through [[ExecutionEnv]]/[[CallContext]]
   * (geth `BlockContext`/`TxContext`), never a property of the fork schedule (R2, RX-L3-13).
   *
   * **P3 shape.** [[EvmConfig.forBlock]] resolves this value via the ordered [[EvmConfig.deriveEvmConfigAt]] fold over

@@ -510,8 +510,8 @@ class PrecompiledContractsSpec extends AnyFunSuite:
       input: ByteString = ByteString.empty,
       gas: BigInt = 1_000_000,
       config: EvmConfig = EvmConfig.EthCancun
-  ): ProgramContext[TestWorld, TestStorage] =
-    ProgramContext[TestWorld, TestStorage](
+  ): CallContext[TestWorld, TestStorage] =
+    CallContext[TestWorld, TestStorage](
       callerAddr = caller,
       originAddr = caller,
       recipientAddr = recipient,

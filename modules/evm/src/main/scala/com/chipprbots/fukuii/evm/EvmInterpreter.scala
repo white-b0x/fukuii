@@ -20,7 +20,7 @@ import com.chipprbots.fukuii.domain.BlockHeader
   *     forwarding (metered opcode-side via [[GasCalculator.gasCap]]), the depth-1024 guard, static write-protection
   *     (opcode-side), EIP-7702 delegated-code resolution, and — for create — CREATE/CREATE2 address derivation
   *     (delegated to the [[WorldState]] helpers), EIP-3860/684/7610/3541 gates and the code-deposit accounting.
-  *   - **The immutable [[ProgramState]] loop (`copy`-per-step).** Whether to keep this or move to a mutable frame is a
+  *   - **The immutable [[MessageFrame]] loop (`copy`-per-step).** Whether to keep this or move to a mutable frame is a
   *     benchmark-gated OPEN for **P7** (L3 plan §6) — byte-identical either way, so it does not gate consensus. Built
   *     immutable now.
   *
@@ -38,9 +38,9 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
     val tracer: ExecutionTracer = NoTracing
 ) extends VM[W, S]:
 
-  private type PC = ProgramContext[W, S]
-  private type PR = ProgramResult[W, S]
-  private type PS = ProgramState[W, S]
+  private type PC = CallContext[W, S]
+  private type PR = ExecutionResult[W, S]
+  private type PS = MessageFrame[W, S]
 
   /** Execute a top-level program: a message call when a recipient is present, otherwise a contract creation. */
   def run(context: PC): PR =
@@ -222,7 +222,7 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
       context.callDepth <= EvmConfig.MaxCallDepth
 
   private def invalidCallResult(context: PC): PR =
-    ProgramResult[W, S](
+    ExecutionResult[W, S](
       ByteString.empty,
       context.startGas,
       context.world,
@@ -235,18 +235,18 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
       Set.empty
     )
 
-  /** Build the execution environment for a sub-execution (AS-IS `ExecEnv.apply(context, code, ownerAddr)`). The built
-    * `ExecEnv` carries no tracer field — the tracer lives on the interpreter's single slot.
+  /** Build the execution environment for a sub-execution (AS-IS `ExecutionEnv.apply(context, code, ownerAddr)`). The
+    * built `ExecutionEnv` carries no tracer field — the tracer lives on the interpreter's single slot.
     */
-  private def execEnvOf(context: PC, code: ByteString, ownerAddr: Address): ExecEnv =
-    ExecEnv(
+  private def execEnvOf(context: PC, code: ByteString, ownerAddr: Address): ExecutionEnv =
+    ExecutionEnv(
       ownerAddr = ownerAddr,
       callerAddr = context.callerAddr,
       originAddr = context.originAddr,
       gasPrice = context.gasPrice,
       inputData = context.inputData,
       value = context.value,
-      program = Program(code),
+      program = EvmCode(code),
       blockHeader = context.blockHeader,
       callDepth = context.callDepth,
       startGas = context.startGas,
@@ -259,16 +259,16 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
       traceTransfers = context.traceTransfers
     )
 
-  /** Seed the initial [[ProgramState]] for a sub-execution (AS-IS `ProgramState.apply`). The EIP-2929 accessed-address
+  /** Seed the initial [[MessageFrame]] for a sub-execution (AS-IS `MessageFrame.apply`). The EIP-2929 accessed-address
     * set starts with origin, the executing account, the propagated `warmAddresses`, and — under EIP-3651 — the block
     * COINBASE. **The precompile addresses are NOT seeded here** (that registry is P5); at the re-entrant call level the
     * warm sets already arrive through `context.warmAddresses`.
     */
-  private def initialProgramState(context: PC, env: ExecEnv): PS =
+  private def initialProgramState(context: PC, env: ExecutionEnv): PS =
     val coinbase: Set[Address] =
       if context.evmConfig.eip3651Enabled then Set(context.blockHeader.beneficiary) else Set.empty
 
-    ProgramState[W, S](
+    MessageFrame[W, S](
       vm = this,
       env = env,
       gas = env.startGas,

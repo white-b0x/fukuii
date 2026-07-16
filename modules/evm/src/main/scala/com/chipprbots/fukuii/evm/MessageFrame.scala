@@ -28,9 +28,9 @@ import com.chipprbots.fukuii.domain.Log
   *   so the deferred EIP-8037 work (an Amsterdam EIP, not built) does not retrofit this class. Also the L3 carrier for
   *   heterogeneous-family (ZK-EVM) custom cost models behind the same seam.
   */
-final case class ProgramState[W <: WorldState[W, S], S <: AccountStorage[S]](
+final case class MessageFrame[W <: WorldState[W, S], S <: AccountStorage[S]](
     vm: VM[W, S],
-    env: ExecEnv,
+    env: ExecutionEnv,
     gas: BigInt,
     world: W,
     addressesToDelete: Set[Address],
@@ -63,71 +63,71 @@ final case class ProgramState[W <: WorldState[W, S], S <: AccountStorage[S]](
 
   def gasUsed: BigInt = env.startGas - gas
 
-  def withWorld(updated: W): ProgramState[W, S] =
+  def withWorld(updated: W): MessageFrame[W, S] =
     copy(world = updated)
 
-  def withStorage(updated: S): ProgramState[W, S] =
+  def withStorage(updated: S): MessageFrame[W, S] =
     withWorld(world.saveStorage(ownAddress, updated))
 
-  def program: Program = env.program
+  def program: EvmCode = env.program
 
   def inputData: ByteString = env.inputData
 
-  def spendGas(amount: BigInt): ProgramState[W, S] =
+  def spendGas(amount: BigInt): MessageFrame[W, S] =
     copy(gas = gas - amount)
 
-  def refundGas(amount: BigInt): ProgramState[W, S] =
+  def refundGas(amount: BigInt): MessageFrame[W, S] =
     copy(gasRefund = gasRefund + amount)
 
-  def step(i: Int = 1): ProgramState[W, S] =
+  def step(i: Int = 1): MessageFrame[W, S] =
     copy(pc = pc + i)
 
-  def goto(i: Int): ProgramState[W, S] =
+  def goto(i: Int): MessageFrame[W, S] =
     copy(pc = i)
 
-  def withStack(stack: Stack): ProgramState[W, S] =
+  def withStack(stack: Stack): MessageFrame[W, S] =
     copy(stack = stack)
 
-  def withMemory(memory: Memory): ProgramState[W, S] =
+  def withMemory(memory: Memory): MessageFrame[W, S] =
     copy(memory = memory)
 
-  def withError(error: HaltReason): ProgramState[W, S] =
+  def withError(error: HaltReason): MessageFrame[W, S] =
     copy(error = Some(error), returnData = ByteString.empty, halted = true)
 
-  def withReturnData(data: ByteString): ProgramState[W, S] =
+  def withReturnData(data: ByteString): MessageFrame[W, S] =
     copy(returnData = data)
 
-  def withAddressToDelete(addr: Address): ProgramState[W, S] =
+  def withAddressToDelete(addr: Address): MessageFrame[W, S] =
     copy(addressesToDelete = addressesToDelete + addr)
 
-  def withAddressesToDelete(addresses: Set[Address]): ProgramState[W, S] =
+  def withAddressesToDelete(addresses: Set[Address]): MessageFrame[W, S] =
     copy(addressesToDelete = addressesToDelete ++ addresses)
 
-  def withLog(log: Log): ProgramState[W, S] =
+  def withLog(log: Log): MessageFrame[W, S] =
     copy(logs = logs :+ log)
 
-  def withLogs(log: Seq[Log]): ProgramState[W, S] =
+  def withLogs(log: Seq[Log]): MessageFrame[W, S] =
     copy(logs = logs ++ log)
 
-  def withInternalTxs(txs: Seq[InternalTransaction]): ProgramState[W, S] =
+  def withInternalTxs(txs: Seq[InternalTransaction]): MessageFrame[W, S] =
     copy(internalTxs = internalTxs ++ txs)
 
-  def halt: ProgramState[W, S] =
+  def halt: MessageFrame[W, S] =
     copy(halted = true)
 
-  def revert(data: ByteString): ProgramState[W, S] =
+  def revert(data: ByteString): MessageFrame[W, S] =
     copy(error = Some(RevertOccurs), returnData = data, halted = true)
 
-  def addAccessedAddress(addr: Address): ProgramState[W, S] =
+  def addAccessedAddress(addr: Address): MessageFrame[W, S] =
     copy(accessedAddresses = accessedAddresses + addr)
 
-  def addAccessedStorageKey(addr: Address, key: UInt256): ProgramState[W, S] =
+  def addAccessedStorageKey(addr: Address, key: UInt256): MessageFrame[W, S] =
     copy(accessedStorageKeys = accessedStorageKeys + ((addr, key)))
 
-  def addAccessedAddresses(addresses: Set[Address]): ProgramState[W, S] =
+  def addAccessedAddresses(addresses: Set[Address]): MessageFrame[W, S] =
     copy(accessedAddresses = accessedAddresses ++ addresses)
 
-  def addAccessedStorageKeys(storageKeys: Set[(Address, UInt256)]): ProgramState[W, S] =
+  def addAccessedStorageKeys(storageKeys: Set[(Address, UInt256)]): MessageFrame[W, S] =
     copy(accessedStorageKeys = accessedStorageKeys ++ storageKeys)
 
   /** EIP-6780: register a contract address as created in the current transaction. Populated at create-frame start (the
@@ -135,14 +135,14 @@ final case class ProgramState[W <: WorldState[W, S], S <: AccountStorage[S]](
     * runs) and besu `MessageFrame.addCreate` (ContractCreationProcessor, before `CODE_EXECUTING`) — so a contract that
     * SELFDESTRUCTs inside its own constructor is seen as same-tx-created.
     */
-  def addCreatedAddress(addr: Address): ProgramState[W, S] =
+  def addCreatedAddress(addr: Address): MessageFrame[W, S] =
     copy(createdAddresses = createdAddresses + addr)
 
-  def addCreatedAddresses(addresses: Set[Address]): ProgramState[W, S] =
+  def addCreatedAddresses(addresses: Set[Address]): MessageFrame[W, S] =
     copy(createdAddresses = createdAddresses ++ addresses)
 
-  def toResult: ProgramResult[W, S] =
-    ProgramResult[W, S](
+  def toResult: ExecutionResult[W, S] =
+    ExecutionResult[W, S](
       returnData,
       if error.exists(_.useWholeGas) then BigInt(0) else gas,
       world,

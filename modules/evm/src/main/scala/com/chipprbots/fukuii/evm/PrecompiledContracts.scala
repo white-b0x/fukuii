@@ -156,10 +156,10 @@ object PrecompiledContracts:
     def exec(inputData: ByteString): Option[ByteString]
     def gas(inputData: ByteString, config: EvmConfig): BigInt
 
-    /** Charge [[gas]], run [[exec]], and package a [[ProgramResult]]: out-of-gas if the cost exceeds `startGas`, a
+    /** Charge [[gas]], run [[exec]], and package a [[ExecutionResult]]: out-of-gas if the cost exceeds `startGas`, a
       * [[PreCompiledContractFail]] if `exec` rejects the input, otherwise the returned data with the remaining gas.
       */
-    def run[W <: WorldState[W, S], S <: AccountStorage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
+    def run[W <: WorldState[W, S], S <: AccountStorage[S]](context: CallContext[W, S]): ExecutionResult[W, S] =
       val g = gas(context.inputData, context.evmConfig)
       val (result, error, gasRemaining): (ByteString, Option[HaltReason], BigInt) =
         if g <= context.startGas then
@@ -168,7 +168,7 @@ object PrecompiledContracts:
             case None             => (ByteString.empty, Some(PreCompiledContractFail), BigInt(0))
         else (ByteString.empty, Some(OutOfGas), BigInt(0))
 
-      ProgramResult(
+      ExecutionResult(
         result,
         gasRemaining,
         context.world,
@@ -240,8 +240,8 @@ object PrecompiledContracts:
     private val maxOperandLength = 1024
 
     override def run[W <: WorldState[W, S], S <: AccountStorage[S]](
-        context: ProgramContext[W, S]
-    ): ProgramResult[W, S] =
+        context: CallContext[W, S]
+    ): ExecutionResult[W, S] =
       val input = context.inputData
       val boundsViolated =
         context.evmConfig.eip7823Enabled && {
@@ -252,7 +252,7 @@ object PrecompiledContracts:
         }
 
       if boundsViolated then
-        ProgramResult[W, S](
+        ExecutionResult[W, S](
           ByteString.empty,
           BigInt(0),
           context.world,

@@ -42,9 +42,9 @@ final case class MockStorage(data: Map[UInt256, BigInt] = Map.empty) extends Acc
   */
 object MockWorldState:
   type TestVM = VM[MockWorldState, MockStorage]
-  type PS = ProgramState[MockWorldState, MockStorage]
-  type PC = ProgramContext[MockWorldState, MockStorage]
-  type PR = ProgramResult[MockWorldState, MockStorage]
+  type PS = MessageFrame[MockWorldState, MockStorage]
+  type PC = CallContext[MockWorldState, MockStorage]
+  type PR = ExecutionResult[MockWorldState, MockStorage]
 
 final case class MockWorldState(
     accounts: Map[Address, Account] = Map.empty,

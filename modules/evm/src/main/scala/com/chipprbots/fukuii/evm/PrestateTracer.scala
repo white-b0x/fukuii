@@ -71,8 +71,8 @@ class PrestateTracer[W <: WorldState[W, S], S <: AccountStorage[S]](
 
   override def onStep[W2 <: WorldState[W2, S2], S2 <: AccountStorage[S2]](
       opCode: OpCode,
-      prevState: ProgramState[W2, S2],
-      nextState: ProgramState[W2, S2]
+      prevState: MessageFrame[W2, S2],
+      nextState: MessageFrame[W2, S2]
   ): Unit =
     opCode match
       case SLOAD | SSTORE if prevState.stack.size >= 1 =>

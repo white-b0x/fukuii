@@ -25,7 +25,7 @@ import com.chipprbots.fukuii.domain.Log
   * @param error
   *   defined when the program terminated abnormally
   */
-final case class ProgramResult[W <: WorldState[W, S], S <: AccountStorage[S]](
+final case class ExecutionResult[W <: WorldState[W, S], S <: AccountStorage[S]](
     returnData: ByteString,
     gasRemaining: BigInt,
     world: W,

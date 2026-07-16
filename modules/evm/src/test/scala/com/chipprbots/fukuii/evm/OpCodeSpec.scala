@@ -50,17 +50,17 @@ class OpCodeSpec extends AnyFunSuite:
     * invoke them.
     */
   private object StubVM extends VM[TestWorld, TestStorage]:
-    def run(context: ProgramContext[TestWorld, TestStorage]): ProgramResult[TestWorld, TestStorage] =
+    def run(context: CallContext[TestWorld, TestStorage]): ExecutionResult[TestWorld, TestStorage] =
       throw new NotImplementedError("VM.run is P4")
     def call(
-        context: ProgramContext[TestWorld, TestStorage],
+        context: CallContext[TestWorld, TestStorage],
         ownerAddr: Address
-    ): ProgramResult[TestWorld, TestStorage] =
+    ): ExecutionResult[TestWorld, TestStorage] =
       throw new NotImplementedError("VM.call is P4")
     def create(
-        context: ProgramContext[TestWorld, TestStorage],
+        context: CallContext[TestWorld, TestStorage],
         salt: Option[UInt256]
-    ): (ProgramResult[TestWorld, TestStorage], Address) =
+    ): (ExecutionResult[TestWorld, TestStorage], Address) =
       throw new NotImplementedError("VM.create is P4")
 
   private val owner = Address.fromHex("0x1111111111111111111111111111111111111111")
@@ -102,15 +102,15 @@ class OpCodeSpec extends AnyFunSuite:
       prevRandao: Option[UInt256] = None,
       hdr: com.chipprbots.fukuii.domain.BlockHeader = header(),
       gas: BigInt = 1_000_000
-  ): ProgramState[TestWorld, TestStorage] =
-    val env = ExecEnv(
+  ): MessageFrame[TestWorld, TestStorage] =
+    val env = ExecutionEnv(
       ownerAddr = owner,
       callerAddr = owner,
       originAddr = owner,
       gasPrice = UInt256.Zero,
       inputData = ByteString.empty,
       value = UInt256.Zero,
-      program = Program(code),
+      program = EvmCode(code),
       blockHeader = hdr,
       callDepth = 0,
       startGas = gas,
@@ -118,7 +118,7 @@ class OpCodeSpec extends AnyFunSuite:
       chainId = chainId,
       prevRandao = prevRandao
     )
-    ProgramState[TestWorld, TestStorage](
+    MessageFrame[TestWorld, TestStorage](
       vm = StubVM,
       env = env,
       gas = gas,
@@ -130,7 +130,7 @@ class OpCodeSpec extends AnyFunSuite:
       accessedStorageKeys = Set.empty
     )
 
-  private def top(s: ProgramState[TestWorld, TestStorage]): UInt256 = s.stack.pop()._1
+  private def top(s: MessageFrame[TestWorld, TestStorage]): UInt256 = s.stack.pop()._1
 
   private def run(op: OpCode, stack: Seq[UInt256], config: EvmConfig = EvmConfig.EthCancun): UInt256 =
     top(op.execute(mkState(config = config, stack = stack)))

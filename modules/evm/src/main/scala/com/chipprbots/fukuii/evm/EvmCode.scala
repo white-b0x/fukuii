@@ -13,7 +13,7 @@ import com.chipprbots.fukuii.crypto.kec256
   * @param code
   *   the EVM bytecode as bytes
   */
-final case class Program(code: ByteString):
+final case class EvmCode(code: ByteString):
 
   def getByte(pc: Int): Byte =
     code.lift(pc).getOrElse(0.toByte)

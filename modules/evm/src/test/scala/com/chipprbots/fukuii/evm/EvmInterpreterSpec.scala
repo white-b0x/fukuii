@@ -87,8 +87,8 @@ class EvmInterpreterSpec extends AnyFunSuite:
       callDepth: Int = 0,
       staticCtx: Boolean = false,
       config: EvmConfig = EvmConfig.EthCancun
-  ): ProgramContext[TestWorld, TestStorage] =
-    ProgramContext[TestWorld, TestStorage](
+  ): CallContext[TestWorld, TestStorage] =
+    CallContext[TestWorld, TestStorage](
       callerAddr = alice,
       originAddr = alice,
       recipientAddr = recipient,
@@ -115,8 +115,8 @@ class EvmInterpreterSpec extends AnyFunSuite:
     var steps: Int = 0
     override def onStep[W <: WorldState[W, S], S <: AccountStorage[S]](
         opCode: OpCode,
-        before: ProgramState[W, S],
-        after: ProgramState[W, S]
+        before: MessageFrame[W, S],
+        after: MessageFrame[W, S]
     ): Unit = steps += 1
 
   private def funded(addr: Address, wei: BigInt, nonce: BigInt = 0): (Address, Account) =
@@ -165,7 +165,7 @@ class EvmInterpreterSpec extends AnyFunSuite:
 
   test("CREATE2 matches the EIP-1014 example-0 vector (address 0, salt 0, initcode 0x00)"):
     val zeroFunded = TestWorld(accounts = Map(Address.Zero -> Account.empty()))
-    val context = ProgramContext[TestWorld, TestStorage](
+    val context = CallContext[TestWorld, TestStorage](
       callerAddr = Address.Zero,
       originAddr = Address.Zero,
       recipientAddr = None,

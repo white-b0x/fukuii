@@ -24,13 +24,13 @@ import com.chipprbots.fukuii.bytes.UInt256
   */
 trait ExecutionTracer:
 
-  /** Fired after each opcode executes, with the pre- and post-step [[ProgramState]]. Generic in the world/storage type
+  /** Fired after each opcode executes, with the pre- and post-step [[MessageFrame]]. Generic in the world/storage type
     * params so a single tracer instance observes every fork's state.
     */
   def onStep[W <: WorldState[W, S], S <: AccountStorage[S]](
       opCode: OpCode,
-      before: ProgramState[W, S],
-      after: ProgramState[W, S]
+      before: MessageFrame[W, S],
+      after: MessageFrame[W, S]
   ): Unit = ()
 
   /** Fired on entry to a `CALL`/`CALLCODE`/`DELEGATECALL`/`STATICCALL`/`CREATE`/`CREATE2` sub-execution. */

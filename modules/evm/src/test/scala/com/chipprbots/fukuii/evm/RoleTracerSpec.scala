@@ -87,8 +87,8 @@ class RoleTracerSpec extends AnyFunSuite:
       recipient: Option[Address],
       world: TestWorld,
       gas: BigInt = 1_000_000
-  ): ProgramContext[TestWorld, TestStorage] =
-    ProgramContext[TestWorld, TestStorage](
+  ): CallContext[TestWorld, TestStorage] =
+    CallContext[TestWorld, TestStorage](
       callerAddr = alice,
       originAddr = alice,
       recipientAddr = recipient,

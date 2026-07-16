@@ -84,8 +84,8 @@ class Eip6780SelfDestructSpec extends AnyFunSuite:
       world: TestWorld,
       input: ByteString = ByteString.empty,
       config: EvmConfig = EvmConfig.EthCancun
-  ): ProgramContext[TestWorld, TestStorage] =
-    ProgramContext[TestWorld, TestStorage](
+  ): CallContext[TestWorld, TestStorage] =
+    CallContext[TestWorld, TestStorage](
       callerAddr = alice,
       originAddr = alice,
       recipientAddr = recipient,

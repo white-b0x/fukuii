@@ -56,8 +56,8 @@ class StructLogTracer(
 
   override def onStep[W <: WorldState[W, S], S <: AccountStorage[S]](
       opCode: OpCode,
-      prevState: ProgramState[W, S],
-      nextState: ProgramState[W, S]
+      prevState: MessageFrame[W, S],
+      nextState: MessageFrame[W, S]
   ): Unit =
     if limit > 0 && steps.size >= limit then ()
     else
