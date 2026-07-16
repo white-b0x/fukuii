@@ -106,6 +106,12 @@ sbt compile-all 2>&1 | grep -c "error:"                          # must be 0
 sbt compile-all 2>&1 | grep "warning:" | grep "<CATEGORY>"       # must be 0
 ```
 
+Run this verification in **non-dev mode** — never with `FUKUII_DEV`/`fukuiiDev` set. Dev mode
+changes which scalac flags apply, so a `-Wconf:id:error` ratchet can look clean under it while
+masking a real violation; a fresh non-dev `compile-all` is the only reliable check. See
+`testing-protocol.md`'s "Format + lint gate" section for the worked example (the E176/E175
+value-discard ratchet, same mechanism as this step applied to E198/unused-symbols).
+
 ---
 
 ## Consensus-safety hard stops

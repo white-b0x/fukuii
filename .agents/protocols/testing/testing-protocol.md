@@ -48,13 +48,14 @@ small output — run directly, no wrapper needed.
 
 ### Format + lint gate — before `git commit` of a phase (MANDATORY)
 ```bash
-sbt "<module>/scalafmtCheck" "<module>/Test/scalafmtCheck"   # formatting (syntactic)
-sbt "<module>/scalafixAll --check"                           # lint (semantic — reuses the phase's compile)
+sbt compile-all                        # 0 warnings, 0 errors — see the value-discard note below
+sbt "<module>/scalafmtCheckAll"        # formatting (syntactic) — one task, all configs (prefer over the older scalafmtCheck + Test/scalafmtCheck pair)
+sbt "<module>/scalafixAll --check"     # lint (semantic — reuses the phase's compile)
 ```
-Both **verify** without writing — run them before every phase commit (not `scalafmtAll`/
+All three **verify** without writing — run them before every phase commit (not `scalafmtAll`/
 `scalafixAll`, which write silently and can be forgotten). Fix-then-recheck: formatting via
 `sbt "<module>/scalafmt" "<module>/Test/scalafmt"`; lint by hand.
-`scalafmtCheck` is purely whitespace/wrap conformance to `.scalafmt.conf` (`runner.dialect =
+`scalafmtCheckAll` is purely whitespace/wrap conformance to `.scalafmt.conf` (`runner.dialect =
 scala3`). `scalafixAll --check` is the lint half — it verifies `.scalafix.conf` (DisableSyntax
 noNulls/noAsInstanceOf/noIsInstanceOf/noReturns/noFinalize, OrganizeImports, ExplicitResultTypes,
 RedundantSyntax, RemoveUnused, NoValInForComprehension). It is semantic, so it reuses the module's
@@ -71,6 +72,18 @@ CI now runs a `Check scalafix lint` step; catch both halves at the phase boundar
 checks — so neither formatting nor lint is ever a downstream catch. The code itself is written
 Scala-3-idiomatic from the start (`scala3-style.md` S1–S11); this gate is conformance, not
 idiom conversion.
+
+**Value-discards (E176/E175) are build errors — the `compile-all` half of this gate must run in
+non-dev mode.** `-Wconf:id=E176:error`/`id=E175:error` in `build.sbt`'s `scala3Options` promotes a
+discarded non-Unit expression result to a hard compile error, applied to both Compile and Test
+(`scala3ValueDiscardOptions`) — the same ratchet mechanism as the unused-symbol `-Wconf:id=E198:error`
+rule (`warning-ratchet.md` Step 4). The gate criterion this check must satisfy: **`compile-all`
+clean — 0 warnings, 0 errors — in NON-dev mode.** Never set `FUKUII_DEV`/`fukuiiDev` when running
+this gate: dev mode changes which scalac flags apply (`fukuiiDev` gates `scala3OptimizationsForProd`
+and filters `-Xfatal-warnings` in `commonSettings`), and the `-Wconf:id:error` ratchet-error
+precedence has only been verified reliable in a clean, non-dev recompile — a dev-mode compile can
+look clean while masking a real ratchet violation. Run the gate as a fresh, non-dev `compile-all`,
+not reused from a dev-mode session.
 
 ### Pre-push gate — before `git push origin`
 ```bash

@@ -24,6 +24,26 @@ interoperability with every tool, doc, and engineer that already speaks that voc
 inventing a parallel identifier for something that already has one is pure cost with no
 benefit.
 
+## A `fukuii/*` branch is not a naming authority either
+
+`reference-client-authority.md` establishes that `fukuii/july-fourth` (the pre-rebuild
+Mantis-lineage tree, `com.chipprbots.ethereum.*`) — or any other `fukuii/*` branch — is never a
+*correctness* oracle: fukuii validating fukuii is circular. The identical non-authority status
+applies to **naming**: a `fukuii/*` branch is a structural/transcription guide only (where did
+this logic live, what shape did it have) — never a source for what a rebuilt symbol should be
+*called*. Do not inherit a pre-rebuild type name into the rebuild by default just because the
+shape matches; that's importing an un-reviewed naming choice on the same "it's already there"
+basis the correctness rule already forbids for values.
+
+Name for clarity and reference-client-standard vocabulary instead — besu-leaning, since besu is
+the JVM implementation guide (`systemic-review-protocol.md`'s reference-client authority table;
+besu shares fukuii's JVM constraints, go-ethereum's Go idiom doesn't transfer as directly). Where
+a besu (or go-ethereum) name is clearer than the Mantis-era name for the same machine concept,
+prefer it — e.g. the L3 EVM machine renamed `ProgramState` → `MessageFrame` and `Program` →
+`EvmCode` to match besu's vocabulary for the same concepts. This is the same "consume the
+ecosystem's established nomenclature" principle below, applied specifically to the temptation to
+carry a name forward from fukuii's own prior tree rather than reaching for it.
+
 ## Identity comes from existing registries — don't invent parallel identifiers
 
 | Concept | Canonical identifier | Source |
@@ -80,6 +100,22 @@ silently mutated ETH's Cancun/Osaka opcode set through that shared name. Vocabul
 de-alias landed in Batch 5 Row 5.1 (`b46e21ea1`) — ETH's objects are now independently named
 `EthCancunOpCodes`/`EthOsakaOpCodes`, and the unprefixed `OlympiaOpCodes`/`OsakaOpCodes` names
 no longer exist. Don't wait for a repair next time — get the name right the first time.
+
+### The rule extends to comments, not just identifiers
+
+A shared/framework-level base's **scaladoc or inline comments** are just as capable of leaking
+Tier-2 vocabulary as its identifier — a shared base described in prose as "the Olympia opcode
+list" is the identical conflation risk as naming it `OlympiaOpCodes`, even if the identifier
+itself is correctly Tier-1. Write a shared base's documentation in Tier-1 vocabulary (EIP/ECIP
+numbers, neutral terms); reserve Tier-2 fork names for the family-local leaf's own scaladoc,
+where they correctly describe that family's release of the capability.
+
+**Worked example (L3, `modules/evm/.../GasCalculator.scala`):** the gas-calculator lineage is
+built as a chain of EIP-keyed shared bases — `Eip2929GasCalculator`, `Eip3529GasCalculator`,
+`Eip3860GasCalculator` — each named and documented by proposal number, not by fork name. Tier-2
+fork names (`EtcOlympiaGasCalculator`, `EthOsakaGasCalculator`) appear only on the family-local
+leaves at the bottom of the chain, each a thin sibling extending the shared EIP-keyed base. The
+shared chain's own scaladoc never says "Olympia" or "Osaka" — only the two leaves' scaladoc does.
 
 ## Watch-list + preferred substitutions
 

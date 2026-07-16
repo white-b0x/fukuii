@@ -85,7 +85,8 @@ record** (`plan/L{n}.md` is intent; `implementation-reports/NN-L{n}-*.md` is wha
 | [`01-L0-foundation.md`](implementation-reports/01-L0-foundation.md) | `bytes`, `common`, `crypto`, `rlp` — value types + byte utils, zero-cast `derives` RLP engine, keccak / secp256k1 ECDSA / alt-bn128 / ECIES / KZG / BLS, `CryptoBackend` seam, `constantTimeEquals` | `77da1da62`, `6f922f0aa`, `16502d72d` |
 | [`02-L1-domain.md`](implementation-reports/02-L1-domain.md) | `domain` — value types, `enum Transaction` (5 EIP-2718 variants + dispatch), sender recovery (EIP-155 + H-1 homestead + N-1 gate + 7702 authority), fork-variant `BlockHeader` (open tail) + Block/Body + Receipt | `5972aed58`…`494c42333` |
 | [`03-L2-storage-trie.md`](implementation-reports/03-L2-storage-trie.md) | `storage`, `trie` — MPT (`enum MptNode`, state-root core), `DataSource`/RocksDB + `enum Namespace`, `INodeStorage` scheme-indirection `(owner,path)`, `StorageProfile`, `ChainWeight` + BUG-W7 atomic write, composable pruning, `TrieLog`, `ColdStore`/era1 | `1cfb8e09f`…`54b51a4b7` |
-| … | L3→L10 as built | — |
+| [`04-L3-evm.md`](implementation-reports/04-L3-evm.md) | `evm` — sealed `OpCode` + unified per-fork `given GasCalculator`, `ProposalId` fold → single `forBlock(header, schedule)`, dense `IArray` dispatch + build-time `validate`, `@tailrec` interpreter + call/create + per-tx `createdAddresses`, precompiles→L0 crypto (ETC excludes KZG), branch-free `NoTracing` + role tracers, neutral EIP-keyed spine. Two consensus state-splits (EIP-3860 height, SELFDESTRUCT-6780) found by reference-client re-audit + fixed | `ee48e496a`…`025ad03cc` |
+| … | L4→L10 as built | — |
 
 **Note — commit SHAs are the `fukuii-rebuild` curated foundation series.** L0 was first built on the
 `july-mod-sprint` planning branch, then the clean cut off `upstream/staging` collapsed that granular
