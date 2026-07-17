@@ -47,15 +47,15 @@ enum SigError:
   * — a wrong sighash or a wrong `v`-unwind silently yields the wrong sender, which corrupts the tx-trie root and the
   * block hash (an F-BN-1-class chain split). Nothing here throws: recovery returns `Either[SigError, Address]`.
   *
-  * **The `homestead` flag is BLOCK-GATED, not hard-coded (H-1, forge gate 2026-07-14).** ETC and ETH share pre-DAO
-  * history, so blocks 0–1,149,999 are Frontier-era on both chains where high-S signatures are legal. All three
-  * reference clients select the signer by block number (`MakeSigner` → Frontier/Homestead/EIP155; go-ethereum
-  * `transaction_signing.go:52-57`, `FrontierSigner.Sender → recoverPlain(...,false):443`; core-geth `:40-56`
-  * identical). The caller therefore plumbs a `homestead: Boolean` derived from block context into [[getSender]]; a
-  * from-genesis archival node re-executing the pre-1.15M range MUST pass `homestead = false` for those blocks or it
-  * fails to reconstruct the canonical chain. Typed (EIP-2718) transactions did not exist before homestead, so —
-  * matching geth's per-type signers, which hard-code `recoverPlain(..., true)` — recovery forces `homestead = true` for
-  * every typed variant regardless of the plumbed flag; the flag governs the Legacy path only.
+  * **The `homestead` flag is BLOCK-GATED, not hard-coded (H-1).** ETC and ETH share pre-DAO history, so blocks
+  * 0–1,149,999 are Frontier-era on both chains where high-S signatures are legal. All three reference clients select
+  * the signer by block number (`MakeSigner` → Frontier/Homestead/EIP155; go-ethereum `transaction_signing.go:52-57`,
+  * `FrontierSigner.Sender → recoverPlain(...,false):443`; core-geth `:40-56` identical). The caller therefore plumbs a
+  * `homestead: Boolean` derived from block context into [[getSender]]; a from-genesis archival node re-executing the
+  * pre-1.15M range MUST pass `homestead = false` for those blocks or it fails to reconstruct the canonical chain. Typed
+  * (EIP-2718) transactions did not exist before homestead, so — matching geth's per-type signers, which hard-code
+  * `recoverPlain(..., true)` — recovery forces `homestead = true` for every typed variant regardless of the plumbed
+  * flag; the flag governs the Legacy path only.
   */
 object SenderRecovery:
 
