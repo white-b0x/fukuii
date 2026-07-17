@@ -64,7 +64,7 @@ class ProtocolSpecSpec extends AnyFunSuite:
   private val powSchedule: ProtocolSchedule =
     ProtocolSchedule(
       forkSchedule = schedule,
-      rewardScheme = RewardScheme.Ecip1017RewardScheme,
+      rewardScheme = RewardScheme.Ecip1017RewardScheme(),
       requests = RequestProcessors.noOp,
       withdrawals = None,
       feeDisposition = FeeDisposition.Absent
@@ -88,7 +88,7 @@ class ProtocolSpecSpec extends AnyFunSuite:
   test("the bundle carries the network's economics collaborators"):
     val spec = powSchedule.getByBlockHeader(mkHeader(number = 0, timestamp = 0))
     assert(
-      spec.rewardScheme == RewardScheme.Ecip1017RewardScheme &&
+      spec.rewardScheme == RewardScheme.Ecip1017RewardScheme() &&
         spec.feeDisposition == FeeDisposition.Absent &&
         spec.requests.isNoOp &&
         spec.withdrawals.isEmpty
@@ -124,7 +124,12 @@ class ProtocolSpecSpec extends AnyFunSuite:
         rewarded.stateRootHash == world.stateRootHash
     )
 
-  test("Ecip1017RewardScheme era math is deferred to P4 (fails loud, not a silent zero)"):
-    intercept[RuntimeException](
-      RewardScheme.Ecip1017RewardScheme.rewardBlock(emptyWorld, mkHeader(0, 0), Seq.empty)
-    )
+  test(
+    "Ecip1017RewardScheme is implemented (P4a) — era-0 credits the coinbase (full vectors in Ecip1017RewardSchemeSpec)"
+  ):
+    val coinbase = Address(ByteString(Array.fill[Byte](Address.Length)(0x33)))
+    val rewarded = RewardScheme
+      .Ecip1017RewardScheme()
+      .rewardBlock(emptyWorld, mkHeader(0, 0).copy(beneficiary = coinbase), Seq.empty)
+    // era 0 (block 0 → guard → era 0): the base 5 ETH.
+    assert(rewarded.getBalance(coinbase).toBigInt == BigInt(5) * BigInt(10).pow(18))
