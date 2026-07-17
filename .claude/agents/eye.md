@@ -61,6 +61,7 @@ sbt testStandard         # Tier 2 (<30 min): unit + integration
 sbt testComprehensive    # Tier 3 (<3 h): full ethereum/tests suite
 # Targeted tags when the change is localized:
 sbt testVM testCrypto testNetwork testRLP testMPT testEthereum
+sbt referenceTestEth referenceTestEtc   # BlockchainTest harness, ETH/ETC corpora (modules/execution, L4)
 sbt "IntegrationTest / test"
 ```
 
@@ -86,7 +87,14 @@ result.
 
 - Type-system changes (given/using, extensions): behavior identical to before.
 - Numerical / `UInt256` / gas: deterministic and overflow-correct.
-- EVM execution: state root, gas used, and logs match expected.
+- EVM execution (`modules/evm`, L3): state root, gas used, and logs match expected.
+- Block execution (`modules/execution`, L4): the `ProtocolSpec` bundle is resolved
+  once per header (not re-derived mid-loop); the reward seam (`RewardScheme`) fails
+  loud on an unresolved scheme, never a silent zero; ECIP-1017 era emission is
+  byte-exact vs core-geth (+besu-etc cross-check); ECIP-1111 base-fee floor/treasury
+  vs EIP-1559 burn diverge correctly per network; `sbt referenceTestEth` /
+  `referenceTestEtc` (the BlockchainTest harness, both fork schedules) is the
+  authoritative L4 gate — see `modules/execution/AGENTS.md`.
 - **ETC/Mordor path**: chain IDs 61 (ETC) / 63 (Mordor); ECIP-1017 rewards exact; hard-fork transitions
   (Atlantis/Agharta/Phoenix/Thanos/Magneto/Mystique/Olympia) correct; **no**
   EIP-1559 base-fee burn, PoS, blob, or withdrawal features present; block-number

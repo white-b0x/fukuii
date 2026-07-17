@@ -96,11 +96,14 @@ operator-tunable without a hard fork):
 **banksy does NOT own** (route elsewhere):
 
 - Consensus state — anything that changes the state root: **ECIP-1017 emission**
-  (miner balance, `BlockRewardCalculator.scala`), **ECIP-1111** base-fee floor +
-  Treasury redirect (`BlockPreparator.creditBaseFeeToTreasury`,
-  `BlockPreparator.scala:87`), **ECIP-1112** treasury contract, **ECIP-1121**
-  opcodes → **forge**. PoS equivalents (no block reward, base-fee burned) →
-  **beacon**.
+  (miner balance, `modules/execution/.../RewardScheme.scala` — `Ecip1017RewardScheme`,
+  core-geth SOLE byte-authority, besu-etc a second cross-check), **ECIP-1111**
+  base-fee floor + Treasury redirect (`modules/execution/.../CalcBaseFee.scala`),
+  **ECIP-1112** treasury contract, **ECIP-1121** opcodes → **forge**. PoS
+  equivalents (no block reward, base-fee burned via the same `CalcBaseFee` seam) →
+  **beacon**. See `modules/execution/AGENTS.md` (L4, built) for the current
+  invariants — the reward/fee-disposition code moved off the pre-rebuild
+  `ledger/BlockRewardCalculator.scala` / `BlockPreparator.scala` paths.
 - P2P wire / devp2p / RLPx / peer discovery / peer scoring → **herald**.
 - JSON-RPC / HTTP / WS / IPC transport (including the txpool RPC surface itself,
   `TxPoolService.scala` / `TxPoolJsonMethodsImplicits.scala`) → **conduit**.
@@ -121,7 +124,8 @@ the litmus. Two concrete directions apply today:
 
 2. **forge OWNS, banksy is a REQUIRED CONSULT: ECIP-1017 emission and ECIP-1111
    fee redirect/floor.** forge edits the state-affecting code
-   (`BlockRewardCalculator.scala`, `BlockPreparator.scala`), but banksy must be in
+   (`modules/execution/.../RewardScheme.scala`, `modules/execution/.../CalcBaseFee.scala`
+   — L4, built), but banksy must be in
    the room, because those consensus parameters define the *network
    security-budget economics* that banksy's tip-floor policy exists to backstop.
    ECIP-1122's own rationale makes the dependency explicit: `MIN_MINER_TIP` is

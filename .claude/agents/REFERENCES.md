@@ -498,7 +498,7 @@ find "$REFS" -maxdepth 3 -name .git -exec dirname {} \; \
 | **GitHub** | https://github.com/hyperledger/besu (fork: white-b0x/besu) |
 | **Clone as** | `repo-references/clients/besu` |
 | **Used by** | `beacon` (ETH JVM authority), `forge` (shared EVM/RLP + structural mirror), `herald`, `conduit` |
-| **Key paths** | `evm/src/main/java/org/hyperledger/besu/evm/` — opcodes, gas, precompiles · `consensus/` — PoW/PoS engine modules |
+| **Key paths** | `evm/src/main/java/org/hyperledger/besu/evm/` — opcodes, gas, precompiles · `consensus/` — PoW/PoS engine modules · `ethereum/core/src/main/java/org/hyperledger/besu/ethereum/mainnet/AbstractBlockProcessor.java` — the fork-agnostic block loop + `ProtocolSpec` seam (L4 structural mirror) · `ProtocolSpec.java`/`ProtocolSpecBuilder.java`/`MainnetProtocolSpecs.java` — the per-fork bundle |
 | **Branch convention** | `upstream` (checked out) = mirror of `hyperledger/besu` (vanilla — **ETC removed Feb 2026**; the ETH/shared JVM authority + structural mirror) · `main` = **fukuii's OWN Olympia integration** (our `ArtificialFinality.java` MESS reactivation, ECIP-1122, EIP-7939) — a **draft-ECIP implementation reference, NOT an independent authority** (validating our Olympia against our own besu is circular) |
 | **Why** | On `upstream`: the ETH JVM byte co-authority (with go-ethereum) + the JVM-implementation lens (caught F-BN-1/B-BLS-1/J-RLP-1) + the **architectural mirror** (closest kinship of the vendored clients — JVM, object-structured `ProtocolSchedule`/validator factories — for *how to structure* Scala). NOT an ETC value authority (no ETC). For pre-Olympia ETC values use `besu-etc` (below); for our Olympia work, `main` is our own draft. |
 
@@ -509,7 +509,7 @@ find "$REFS" -maxdepth 3 -name .git -exec dirname {} \; \
 | **GitHub** | white-b0x/besu, **frozen worktree @ `eb4248c997`** (upstream besu's last commit before it removed ETC) |
 | **Clone as** | `repo-references/clients/besu-etc` |
 | **Used by** | `forge` (ETC base JVM co-authority), `banksy`/`herald`/`conduit` (pre-Olympia ETC lookups) |
-| **Key paths** | `ethereum/core/.../mainnet/ClassicProtocolSpecs.java` · `EpochCalculator.Ecip1099EpochCalculator` · `config/src/main/resources/{classic,mordor}.json` |
+| **Key paths** | `ethereum/core/.../mainnet/ClassicProtocolSpecs.java` · `EpochCalculator.Ecip1099EpochCalculator` · `config/src/main/resources/{classic,mordor}.json` · `ethereum/core/.../mainnet/ClassicBlockProcessor.java` — the L4 ECIP-1017 second JVM authority (`getBlockEra`, `getBlockWinnerRewardByEra`, `calculateOmmerReward` — cross-check core-geth `rewards_classic.go`) |
 | **Branch convention** | **Detached, intentionally frozen @ `eb4248c997`** — do **NOT** re-point it or "update to main"; being 534 commits behind `origin/main` is correct (main is our Olympia overlay). |
 | **Why** | The external **JVM co-authority for the pre-Olympia ETC *base*** — read alongside core-geth (Go), byte-values must agree: EtcHash/ECIP-1099, ECIP-1017 emission, classic fork schedule through Spiral, chainId 61/63. **Does NOT contain MESS** (ECIP-1100 — upstream besu removed it at Spiral; grep `ArtificialFinality`, not core-geth's `ecbp1100`) **nor Olympia** (1111/1112/1121/1122 never existed upstream). For MESS → core-geth is the sole external authority; for Olympia → the ECIP specs + our own `main` overlays (self-referenced drafts). |
 
@@ -520,7 +520,7 @@ find "$REFS" -maxdepth 3 -name .git -exec dirname {} \; \
 | **GitHub** | https://github.com/ethereumclassic/core-geth |
 | **Clone as** | `repo-references/clients/core-geth` |
 | **Used by** | `forge` |
-| **Key paths** | `params/` — fork/chain config · `consensus/ethash/` — PoW · `core/vm/` — opcodes/gas |
+| **Key paths** | `params/` — fork/chain config · `consensus/ethash/` — PoW · `core/vm/` — opcodes/gas · `params/mutations/rewards_classic.go` — the L4 ECIP-1017 SOLE byte-authority (era index, separate integer `4^era`/`5^era`, Era-0-vs-≥1 uncle/nephew switch); `rewards_test.go` for the vector table |
 | **Branch convention** | **SPECIAL CASE** — `main` (checked out) = go1.26 Olympia modernization, written and syncing — the real ECIP reference · `upstream` = mirror of `ethereumclassic/core-geth`, but DEPRECATED (no changes since 2024) — not refreshed or diffed against, `main` is what conformance reads for this client instead |
 | **Why** | Authoritative ONLY for ETC-specific ECIPs (ECIP-1017/1099/1100/1111/1112/1121/1122) — NOT the EIP reference; core-geth may silently diverge from go-ethereum on EIP behavior, always verify against go-ethereum + Besu for EIP text. The extra `geth` remote (`ethereum/go-ethereum`) is a cross-check remote only — core-geth derives from multi-geth, not a go-ethereum fork. |
 
@@ -542,7 +542,7 @@ find "$REFS" -maxdepth 3 -name .git -exec dirname {} \; \
 | **GitHub** | https://github.com/ethereum/go-ethereum |
 | **Clone as** | `repo-references/clients/go-ethereum` |
 | **Used by** | `forge`, `beacon` |
-| **Key paths** | `core/vm/` — opcodes, `gas_table.go` · `core/vm/contracts.go` — precompiles · `params/protocol_params.go` — gas/fork constants |
+| **Key paths** | `core/vm/` — opcodes, `gas_table.go` · `core/vm/contracts.go` — precompiles · `params/protocol_params.go` — gas/fork constants · `core/state_processor.go` — the L4 ETH block/tx execution pipeline authority (`Process`, `ApplyTransaction`) · `consensus/misc/eip1559/eip1559.go` — EIP-1559 base-fee burn |
 | **Branch convention** | `upstream` (checked out) and `main` are currently identical — no ETC overlay written yet |
 | **Why** | Primary EIP reference — authoritative for ALL EIP behavior (EIP-1559 formula, opcodes, precompiles, gas schedules) per this project's reference-client authority model (see `QUEUE.md`'s PP-00 prompt). No ETC overlay yet (planned post-fukuii stabilization). |
 

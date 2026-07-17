@@ -29,6 +29,24 @@ Sepolia testnet (chain ID 11155111). As fukuii adds new PoS networks, they fall
 under this same scope. For PoW network consensus work (currently ETC/Mordor),
 defer to `forge`.
 
+## Rebuild context (read before any task)
+
+fukuii is being rebuilt from scratch, layer by layer, under `modules/`
+(`com.chipprbots.fukuii.*`). The old IOHK-Mantis tree (`com.chipprbots.ethereum.*`,
+formerly `src/`) is **reference-only** on branch `july-fourth` — it does not exist
+on the working branch. **Before any rebuild task, read the relevant
+`docs/architecture/fukuii-rebuild/plan/L{n}.md`** (and `plan/README.md` for the
+model). The EVM is at `modules/evm` (L3, **built** — `plan/L3.md`, record
+`implementation-reports/04-L3-evm.md`); block execution + withdrawals/requests
+(EIP-1559 burn, EIP-4895, EIP-6110/7002/7251) are at `modules/execution` (L4,
+**built** — `plan/L4.md`, record `implementation-reports/05-L4-execution.md`,
+breadcrumb `modules/execution/AGENTS.md`); domain types (Block, Header, Tx) are at
+`modules/domain` (L1, built, `plan/L1.md`). PoS consensus (fork-choice, the
+Engine-API driver) lands at `modules/consensus` (L5, `-pos` submodule, not yet
+built). Check `AGENTS.md`'s Key Directories table / `build.sbt` for current build
+status — "The PoS modules" section below still cites some pre-rebuild `src/`
+paths for context not yet re-landed.
+
 ## Shared protocols
 
 - **A `fukuii/*` branch is never a review authority — see
@@ -170,13 +188,24 @@ the codebase evolves quickly. If a path has moved, search for the file by name.
 
 ## The PoS modules (currently ETH / Sepolia)
 
-- EVM: `src/main/scala/com/chipprbots/ethereum/vm/`
+- EVM (BUILT, L3): `modules/evm/src/main/scala/com/chipprbots/fukuii/evm/`
   - `EthOsakaOpCodes` (ETH, timestamp-gated) — distinct from `EtcOlympiaOpCodes`
     (ETC, block-gated). Never merge their activation logic.
-- Domain: `Block.scala`, `BlockHeader.scala`, `Transaction.scala` — ETH-specific
+- Execution/ledger (BUILT, L4): `modules/execution/src/main/scala/com/chipprbots/fukuii/execution/`
+  — `BlockProcessor.processBlock`/`processBlockWithOutcome` (the single-block loop),
+  `TransactionProcessor` (per-tx engine, EIP-7702/2681/7623), `CalcBaseFee` (EIP-1559
+  burn — **never** redirect to any address, that's ETC's Olympia variant),
+  `CalcBlobFee` (EIP-4844 blob fee), `WithdrawalsProcessor` (EIP-4895),
+  `RequestProcessors`/`DepositRequestProcessor`/`SystemCallRequestProcessor`
+  (EIP-6110/7002/7251), `ProtocolSpec` (the per-fork bundle wrapping L3's
+  `EvmConfig.forBlock`). `RewardScheme` on the ETH path is zero/no-op (PoS pays no
+  block reward — validator rewards are consensus-layer, out of execution-layer scope).
+- Domain (BUILT, L1): `modules/domain/src/main/scala/com/chipprbots/fukuii/domain/`
+  — `Block`, `BlockHeader`, `Transaction` (fork-variant, EIP-2718 dispatch) — ETH-specific
   post-Cancun fields (`withdrawalsRoot`, `excessBlobGas`, etc.)
-- **No mining module** — never touch `consensus/mining/` for PoS work (PoW networks only)
-- Crypto: `crypto/src/main/scala/com/chipprbots/ethereum/crypto/` — shared
+- **No mining module** — never touch `consensus/mining/` (or the future L5 `-pow`
+  submodule) for PoS work (PoW networks only)
+- Crypto (BUILT): `modules/crypto/src/main/scala/com/chipprbots/fukuii/crypto/` — shared
 
 ## Hard constraints
 
@@ -211,12 +240,17 @@ are one-way doors — when in doubt, guard behind a fork timestamp rather than d
 
 ```bash
 sbt compile-all
-sbt testVM                       # EVM opcode/gas tests
-sbt testCrypto                   # crypto vectors
-sbt "testOnly *Osaka*"           # ETH Osaka opcode/fork tests
-sbt "testOnly *Sepolia*"         # ETH Sepolia config tests
-sbt "testOnly *EthOsakaOpCodes*" # ETH timestamp fork dispatch
-sbt "testOnly *Withdrawals*"     # EIP-4895 validator withdrawals
+sbt testVM                            # EVM opcode/gas tests (modules/evm, L3)
+sbt testCrypto                        # crypto vectors (modules/crypto)
+sbt testEthereum                      # ethereum/tests compliance, both fork schedules (evm+execution)
+sbt "testOnly *Osaka*"                # ETH Osaka opcode/fork tests (modules/evm, L3)
+sbt "testOnly *EthOsakaOpCodes*"      # ETH timestamp fork dispatch (modules/evm, L3)
+sbt "testOnly *WithdrawalsProcessor*" # EIP-4895 validator withdrawals (modules/execution, L4)
+sbt "testOnly *RequestProcessor*"     # EIP-6110/7002/7251 request phases (modules/execution, L4)
+sbt "testOnly *CalcBaseFee*"          # EIP-1559 burn vs ECIP-1111 treasury/floor (modules/execution, L4)
+sbt "testOnly *CalcBlobFee*"          # EIP-4844 blob fee (modules/execution, L4)
+sbt "testOnly *TransactionProcessor*" # per-tx application engine (modules/execution, L4)
+sbt referenceTestEth                  # BlockchainTest harness, ETH corpus (modules/execution, L4)
 ```
 
 Evidence required. "Probably works" is forbidden — show the test-vector result,
