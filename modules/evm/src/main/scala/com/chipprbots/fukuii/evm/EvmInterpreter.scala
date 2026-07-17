@@ -285,8 +285,10 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
       transientStorage = context.transientStorage
     )
 
-  /** PoS signal (post-Merge): difficulty is zero and a base fee is present — the AS-IS `BlockHeader.isPoS`, computed
-    * locally (the L1 record carries no behavior method). Selects EIP-7610 (PoS) vs EIP-684 (PoW) create conflict.
+  /** PoS signal (post-Merge): difficulty is zero and a base fee is present — computed locally over the L1 `BlockHeader`
+    * value (which carries no behavior method). Mirrors go-ethereum's post-merge test (`core/evm.go`
+    * `NewEVMBlockContext`: `Random` is set iff `header.Difficulty.Sign() == 0`). Selects EIP-7610 (PoS) vs EIP-684
+    * (PoW) create conflict.
     */
   private def isPoS(header: BlockHeader): Boolean =
     header.difficulty.signum == 0 && header.baseFeePerGas.isDefined
