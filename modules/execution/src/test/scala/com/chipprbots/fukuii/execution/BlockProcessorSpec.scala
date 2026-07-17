@@ -75,11 +75,15 @@ class BlockProcessorSpec extends AnyFunSuite:
 
   private def funded(balance: BigInt): Account = Account.empty().copy(balance = Wei(UInt256(balance)))
 
-  /** A funded [[sender]]-signed EIP-155 (chainId 61) legacy value transfer of `value` wei at `nonce`. */
-  private def signedTransfer(nonce: BigInt, value: BigInt = 1): Transaction.Legacy =
+  private val treasury: Address = addr(0x44)
+
+  /** A funded [[sender]]-signed EIP-155 (chainId 61) legacy value transfer of `value` wei at `nonce`, with an explicit
+    * `gasPrice` (so a base-fee/tip split can be exercised: `effectiveTip = gasPrice - baseFee`).
+    */
+  private def signedTransfer(nonce: BigInt, value: BigInt = 1, gasPrice: BigInt = 1): Transaction.Legacy =
     val base: Transaction.Legacy = Transaction.Legacy(
       nonce = UInt256(nonce),
-      gasPrice = Wei(UInt256(1)),
+      gasPrice = Wei(UInt256(gasPrice)),
       gasLimit = UInt256(21000),
       to = Some(recipient),
       value = Wei(UInt256(value)),
@@ -208,3 +212,76 @@ class BlockProcessorSpec extends AnyFunSuite:
     processor.execute(powSpec, b, w, chainId) match
       case Left(_: BlockExecutionError.SenderRecoveryFailed) => succeed
       case other                                             => fail(s"expected SenderRecoveryFailed, got $other")
+
+  // -- P4b: EIP-1559 base-fee disposition — ETH burn vs ECIP-1111 treasury (RX-L4-09/10) -----------------------------
+  //
+  // A base-fee/tip split: baseFee=10, gasPrice=13 ⇒ effectiveTip = 3. One 21000-gas tx ⇒ the lump-sum base-fee amount
+  // is 21000 * 10 = 210000; the coinbase tip is 21000 * 3 = 63000. The tests isolate the disposition with the PoS
+  // zero-reward scheme (no 5-ETH issuance noise); the treasury credit and miner reward are proven commutative
+  // separately with the ECIP-1017 scheme. Amounts cited to the ECIP-1111 draft :49-55 (`gasUsed * baseFee → treasury`).
+
+  private def blockWithBaseFee(number: BigInt, txs: List[Transaction], baseFee: BigInt): Block =
+    Block(header(number).copy(baseFeePerGas = Some(baseFee)), BlockBody(txs, Nil, None))
+
+  private def treasurySpec(scheme: RewardScheme): ProtocolSpec =
+    ProtocolSpec(
+      EvmConfig.EtcOlympia,
+      scheme,
+      RequestProcessors.noOp,
+      None,
+      FeeDisposition.RedirectToTreasury(treasury)
+    )
+  private def burnSpec(scheme: RewardScheme): ProtocolSpec =
+    ProtocolSpec(EvmConfig.EtcOlympia, scheme, RequestProcessors.noOp, None, FeeDisposition.Burn)
+
+  test("ECIP-1111 — the treasury is credited exactly gasUsed * baseFee (lump sum) on an ETC Olympia block"):
+    val w = world(sender -> funded(BigInt(10).pow(19)))
+    val b = blockWithBaseFee(1, List(signedTransfer(0, gasPrice = 13)), baseFee = 10)
+    val e = processor.execute(treasurySpec(RewardScheme.PosNoRewardScheme), b, w, chainId).toOption.get
+    assert(e.world.getBalance(treasury).toBigInt == BigInt(21000) * 10) // 210000
+
+  test("ECIP-1111 — value-conserving: total supply is unchanged (base fee redirected, not removed)"):
+    val start = BigInt(10).pow(19)
+    val w = world(sender -> funded(start))
+    val b = blockWithBaseFee(1, List(signedTransfer(0, value = 1, gasPrice = 13)), baseFee = 10)
+    val e = processor.execute(treasurySpec(RewardScheme.PosNoRewardScheme), b, w, chainId).toOption.get
+    val total = List(sender, recipient, coinbase, treasury).map(e.world.getBalance(_).toBigInt).sum
+    // what leaves the sender as base fee (gasUsed*baseFee) enters the treasury — supply is conserved.
+    assert(total == start && e.world.getBalance(treasury).toBigInt == BigInt(21000) * 10)
+
+  test("EIP-1559 (ETH) — the base fee is burned: coinbase receives only the tip, nothing else credited"):
+    val w = world(sender -> funded(BigInt(10).pow(19)))
+    val b = blockWithBaseFee(1, List(signedTransfer(0, gasPrice = 13)), baseFee = 10)
+    val e = processor.execute(burnSpec(RewardScheme.PosNoRewardScheme), b, w, chainId).toOption.get
+    // burn = no extra mutation: the coinbase got only gasUsed*effectiveTip; the base-fee portion was left uncredited.
+    assert(e.world.getBalance(coinbase).toBigInt == BigInt(21000) * 3 && e.world.getBalance(treasury).toBigInt == 0)
+
+  test("burn (ETH) vs treasury (ETC) diverge on the same base-fee input — treasury grows on ETC, supply drops on ETH"):
+    val start = BigInt(10).pow(19)
+    def run(spec: ProtocolSpec): ExecutedBlock =
+      val w = world(sender -> funded(start))
+      val b = blockWithBaseFee(1, List(signedTransfer(0, value = 1, gasPrice = 13)), baseFee = 10)
+      processor.execute(spec, b, w, chainId).toOption.get
+    val etc = run(treasurySpec(RewardScheme.PosNoRewardScheme))
+    val eth = run(burnSpec(RewardScheme.PosNoRewardScheme))
+    val accounts = List(sender, recipient, coinbase, treasury)
+    val etcSupply = accounts.map(etc.world.getBalance(_).toBigInt).sum
+    val ethSupply = accounts.map(eth.world.getBalance(_).toBigInt).sum
+    val baseFeeAmount = BigInt(21000) * 10
+    assert(
+      etc.world.getBalance(treasury).toBigInt == baseFeeAmount && // ETC: treasury grows
+        eth.world.getBalance(treasury).toBigInt == 0 && // ETH: nothing routed
+        ethSupply == etcSupply - baseFeeAmount // ETH: the base fee is removed from supply
+    )
+
+  test("ECIP-1111 — treasury credit and miner reward commute: the same state root either finalize order (RX-L4-10 i)"):
+    // The consensus axes are the amount and the floor, NOT the sequence: treasury and miner are distinct addresses and
+    // both credits are additive addBalance's, so disposition-then-reward and reward-then-disposition yield one root.
+    val w = world(sender -> funded(BigInt(10).pow(19)))
+    val hdr = header(1).copy(baseFeePerGas = Some(10))
+    val disp = FeeDisposition.RedirectToTreasury(treasury)
+    val scheme = RewardScheme.Ecip1017RewardScheme()
+    val amount = BigInt(21000) * 10
+    val dispositionThenReward = scheme.rewardBlock(disp.dispose(w, amount), hdr, Nil).persist
+    val rewardThenDisposition = disp.dispose(scheme.rewardBlock(w, hdr, Nil), amount).persist
+    assert(dispositionThenReward.stateRootHash == rewardThenDisposition.stateRootHash)

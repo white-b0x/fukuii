@@ -337,3 +337,51 @@ class TransactionProcessorSpec extends AnyFunSuite:
       floorActive = true
     )
     assert(settled.gasUsed == BigInt(25000) && settled.gasLeft == BigInt(75000))
+
+  // -- F-L4-3: EIP-4844 blob upfront balance component (go-ethereum buyGas, state_transition.go:456-465) --------------
+  // Under Cancun+ the upfront balance must also cover `blobGas * blobGasFeeCap` where blobGas = GAS_PER_BLOB(2^17) *
+  // #blobs. ETH-only (ETC never activates 4844 → the component is 0 on the ETC path). beacon co-signs at build.
+
+  private def blobTx(maxFeePerBlobGas: BigInt, blobs: Int): Transaction.Blob =
+    Transaction.Blob(
+      chainId = chainId,
+      nonce = UInt256.Zero,
+      maxPriorityFeePerGas = Wei(UInt256(1)),
+      maxFeePerGas = Wei(UInt256(1)),
+      gasLimit = UInt256(21000),
+      to = recipient,
+      value = Wei.Zero,
+      payload = ByteString.empty,
+      accessList = Nil,
+      maxFeePerBlobGas = Wei(UInt256(maxFeePerBlobGas)),
+      blobVersionedHashes = List.fill(blobs)(Hash.Zero),
+      signature = dummySig
+    )
+
+  test("EIP-4844 — a blob tx covering gas+value but NOT blobGas*blobGasFeeCap is rejected (InsufficientBalance)"):
+    // 1 blob, maxFeePerBlobGas=1000: blobGas = 131072, blob fee = 131072000; upfront = 21000*1 + 0 + 131072000 =
+    // 131093000. Fund one wei short → InsufficientBalance pinpoints the boundary includes the blob component.
+    val tx = blobTx(maxFeePerBlobGas = 1000, blobs = 1)
+    val result = processor.processTransaction(
+      tx,
+      sender,
+      header(),
+      spec(EvmConfig.EthCancun),
+      world(sender -> funded(131_092_999)),
+      0,
+      chainId
+    )
+    assert(result == Left(TransactionError.InsufficientBalance(BigInt(131_093_000), BigInt(131_092_999))))
+
+  test("EIP-4844 — funding the full upfront (gas + blobGas*blobGasFeeCap) clears the balance check"):
+    val tx = blobTx(maxFeePerBlobGas = 1000, blobs = 1)
+    val result = processor.processTransaction(
+      tx,
+      sender,
+      header(),
+      spec(EvmConfig.EthCancun),
+      world(sender -> funded(131_093_000)),
+      0,
+      chainId
+    )
+    assert(result.isRight)

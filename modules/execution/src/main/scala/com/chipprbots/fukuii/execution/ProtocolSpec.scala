@@ -1,7 +1,11 @@
 package com.chipprbots.fukuii.execution
 
 import com.chipprbots.fukuii.bytes.Address
+import com.chipprbots.fukuii.bytes.UInt256
+import com.chipprbots.fukuii.domain.Wei
+import com.chipprbots.fukuii.evm.AccountStorage
 import com.chipprbots.fukuii.evm.EvmConfig
+import com.chipprbots.fukuii.evm.WorldState
 
 /** Applies EIP-4895 validator withdrawals after the tx loop, **outside** the [[RewardScheme]] seam (withdrawals credit
   * validator addresses, disjoint from the coinbase — never double-credited with issuance; L4 plan §9, RX-L4-13). **P1
@@ -10,10 +14,16 @@ import com.chipprbots.fukuii.evm.EvmConfig
   */
 trait WithdrawalsProcessor
 
-/** How a block's EIP-1559 base fee is disposed — a **family-specific field of the bundle**, no math in P1 (the
-  * burn-accounting / treasury-credit amounts are P4). The base-fee *computation* is shared; only the disposition
-  * diverges by family (L4 plan §3/§7/§9, RX-L4-09/10). A fukuii seam coinage (there is no single besu type for this;
-  * besu bakes the burn into `LondonFeeMarket`).
+/** How a block's EIP-1559 base fee is disposed — a **family-specific field of the bundle**. The base-fee *computation*
+  * is shared ([[CalcBaseFee]]); only the disposition of `block.gasUsed * block.baseFee` diverges by family (L4 plan
+  * §3/§7/§9, RX-L4-09/10). A fukuii seam coinage (there is no single besu type for this; besu bakes the burn into
+  * `LondonFeeMarket`).
+  *
+  * **P4b fills the math** ([[dispose]]): the disposition is applied at finalize, alongside the reward, on the
+  * *lump-sum* base-fee amount computed **once** per block (`gasUsed * baseFee` — equal to the per-tx base-fee sum only
+  * because `baseFee` is block-constant; RX-L4-10 SHARPENS (ii); never per-tx, never double-counted with a per-tx
+  * base-fee charge — the base fee is left uncredited by [[TransactionProcessor]], so it is disposed here and nowhere
+  * else).
   */
 enum FeeDisposition:
 
@@ -21,14 +31,34 @@ enum FeeDisposition:
   case Absent
 
   /** ETH — the base fee is **burned** (removed from supply, credited nowhere; go-ethereum `consensus/misc/eip1559`).
+    * The burn requires **no state mutation**: [[TransactionProcessor]] already leaves `gasUsed * baseFee` uncredited
+    * (the sender paid it, the coinbase received only the tip), so "burned" is the correct realization of that
+    * uncredited value — a second debit here would double-charge (go-ethereum `core/state_transition.go` credits only
+    * `effectiveTip * gasUsed` to the coinbase; the base-fee portion is added nowhere → burned).
     */
   case Burn
 
-  /** ETC Olympia — the base fee is **redirected to the treasury** (ECIP-1111 `block.gasUsed * block.baseFee →
-    * treasuryAddress`), not burned. forge owns the amount math (P4), banksy is a required consult (security-budget
-    * economics, L4 plan §9).
+  /** ETC Olympia — the base fee is **redirected to the treasury** (ECIP-1111 draft `:49-55`
+    * `state.addBalance(treasuryAddress, block.gasUsed * block.baseFee)`), **not** burned. Value-conserving: what leaves
+    * senders as base fee is exactly what enters the treasury. forge owns the amount math, banksy is a required consult
+    * (the ECIP-1111 security-budget economics ECIP-1122's `MIN_MINER_TIP` is sized against, L4 plan §9).
     */
   case RedirectToTreasury(treasury: Address)
+
+  /** Apply this disposition to `world` given the block-level lump-sum `baseFeeAmount = gasUsed * baseFee`, returning
+    * the mutated world (called at finalize by [[BlockProcessor]], alongside the reward). `Absent`/`Burn` mutate
+    * **nothing** (the base fee was left uncredited upstream); `RedirectToTreasury` credits the treasury additively.
+    *
+    * The treasury credit and the miner-reward credit are disjoint additive `addBalance`s on distinct addresses, so
+    * their relative order is **state-root-commutative** — the consensus axes are the *amount* (`gasUsed * baseFee`) and
+    * the [[CalcBaseFee]] *floor*, not the sequence (ECIP-1111 draft `:57`, RX-L4-10 SHARPENS (i)).
+    */
+  def dispose[WS <: WorldState[WS, S], S <: AccountStorage[S]](world: WS, baseFeeAmount: BigInt): WS =
+    this match
+      case Absent | Burn => world
+      case RedirectToTreasury(treasury) =>
+        val account = world.getAccount(treasury).getOrElse(world.getEmptyAccount)
+        world.saveAccount(treasury, account.copy(balance = Wei(account.balance.toUInt256 + UInt256(baseFeeAmount))))
 
 /** The immutable per-fork **bundle** — fukuii's besu-`ProtocolSpec` analog (`mainnet/ProtocolSpec.java`), built once
   * per fork and looked up by header, so the fork is resolved **once** and the loop is *handed* a resolved value it

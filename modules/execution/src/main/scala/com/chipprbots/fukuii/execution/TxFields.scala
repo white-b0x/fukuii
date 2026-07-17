@@ -93,3 +93,21 @@ private[execution] object TxFields:
 
   private def dynamicEffective(maxFee: BigInt, maxPriority: BigInt, baseFee: BigInt): BigInt =
     (maxPriority + baseFee).min(maxFee)
+
+  /** EIP-4844 `GAS_PER_BLOB = 2^17 = 131072` — go-ethereum `params.BlobTxBlobGasPerBlob` (`1 << 17`). */
+  val GasPerBlob: BigInt = BigInt(1) << 17
+
+  /** The blob gas a tx consumes for the **upfront balance check** — `GAS_PER_BLOB × numberOfBlobs` (the versioned-hash
+    * count), `0` for non-blob txs (go-ethereum `blobGasUsed = params.BlobTxBlobGasPerBlob * len(BlobHashes)`).
+    */
+  def blobGas(tx: Transaction): BigInt = tx match
+    case t: Transaction.Blob => GasPerBlob * t.blobVersionedHashes.size
+    case _                   => BigInt(0)
+
+  /** The blob-gas fee **cap** (`maxFeePerBlobGas` / `BlobGasFeeCap`) — the per-blob-gas cap the upfront balance check
+    * uses, `0` for non-blob txs (go-ethereum `buyGas` checks against `blobGas * tx.BlobGasFeeCap`,
+    * `core/state_transition.go:458-459`).
+    */
+  def blobGasFeeCap(tx: Transaction): BigInt = tx match
+    case t: Transaction.Blob => t.maxFeePerBlobGas.toUInt256.toBigInt
+    case _                   => BigInt(0)

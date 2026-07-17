@@ -69,9 +69,11 @@ object RewardScheme:
     * defaults to `5_000_000` (core-geth `config_classic.go` `ecip1017EraRounds`; besu-etc `DEFAULT_ERA_LENGTH`).
     *
     * **A `case class`, not a `case object`,** so the monetary-policy parameters ([[eraLength]], [[blockReward]]) are
-    * per-network config — ETC mainnet and Mordor both take the ECIP-1017 canonical defaults; a future custom network
-    * may vary them (see the [[Ecip1017RewardScheme.canonicalDivisibility]] divisibility rationale). Treasury routing
-    * (ECIP-1111) is the separate [[FeeDisposition]] seam (P4b), not this scheme.
+    * per-network config. **ETC mainnet takes the canonical `5_000_000` era length; Mordor does NOT** — core-geth
+    * `config_mordor.go:118` sets `ECIP1017EraRounds: 2_000_000` for Mordor (chainId 63), so **L5's Mordor wiring MUST
+    * construct this scheme with `eraLength = 2_000_000`**, not the [[Ecip1017RewardScheme.DefaultEraLength]]. A future
+    * custom network may vary both (see the [[Ecip1017RewardScheme.canonicalDivisibility]] divisibility rationale).
+    * Treasury routing (ECIP-1111) is the separate [[FeeDisposition]] seam (P4b), not this scheme.
     *
     * @param eraLength
     *   blocks per emission era (default `5_000_000`).

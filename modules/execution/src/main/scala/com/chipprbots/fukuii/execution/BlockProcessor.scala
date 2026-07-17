@@ -78,12 +78,13 @@ final case class ExecutedBlock(
   * *which* [[RewardScheme]] the bundle carries — **no `if(isPoW)` / `if(isETC)` anywhere in the loop**. ECIP-1017
   * emission goes in exactly the slot PoS's zero-reward goes.
   *
-  * **P4a scope.** The tx loop, ECIP-1017 rewards ([[RewardScheme.Ecip1017RewardScheme]]) and the PoS zero-reward path
-  * ([[RewardScheme.PosNoRewardScheme]]), persistence, and the four post-execution commitment checks. **Deferred:**
-  * pre-execution system calls (4788/2935) are a `noOp` hook filled at P5; withdrawals (EIP-4895) and EIP-7685 requests
-  * are absent (P5, beacon); ECIP-1111 base-fee/treasury routing is the [[FeeDisposition]] seam (P4b); full ommer
-  * *validation* (count ≤ 2, ancestry) is a validator/L5 concern (only reward-relevant ommer handling is here); the
-  * atomic block+weight write and the per-block `BlockExecutionOutcome` + serializable state-diff (R7) are later phases.
+  * **P4a/P4b scope.** The tx loop, ECIP-1017 rewards ([[RewardScheme.Ecip1017RewardScheme]]) and the PoS zero-reward
+  * path ([[RewardScheme.PosNoRewardScheme]]), the EIP-1559 base-fee disposition ([[FeeDisposition]] — ETH burn /
+  * ECIP-1111 treasury, applied at finalize alongside the reward, P4b), persistence, and the four post-execution
+  * commitment checks. **Deferred:** pre-execution system calls (4788/2935) are a `noOp` hook filled at P5; withdrawals
+  * (EIP-4895) and EIP-7685 requests are absent (P5, beacon); full ommer *validation* (count ≤ 2, ancestry) is a
+  * validator/L5 concern (only reward-relevant ommer handling is here); the atomic block+weight write and the per-block
+  * `BlockExecutionOutcome` + serializable state-diff (R7) are later phases.
   *
   * **R2:** stateless and immutable; the world is threaded per instance, no `object … { var … }` / `@volatile`.
   */
@@ -120,9 +121,17 @@ final class BlockProcessor(txProcessor: TransactionProcessor):
       case TxLoopState(worldAfterTxs, receipts, gasUsed, logs) =>
         // [withdrawals — EIP-4895 — absent on P4a / the PoW path; P5, beacon-gated.]
         // [post-execution requests — EIP-7002/7251/6110 — absent on P4a / the PoW path; P5, beacon-gated.]
+        // EIP-1559 base-fee disposition (ETH burn / ECIP-1111 treasury) — the lump-sum amount `gasUsed * baseFee`
+        // computed ONCE (baseFee is block-constant, so this equals Σ per-tx base-fee charges; RX-L4-10 SHARPENS (ii)).
+        // `Absent`/`Burn` mutate nothing (the base fee was left uncredited by the tx engine); `RedirectToTreasury`
+        // credits the treasury additively. Uses the *computed* gasUsed (correct on the produce path where header.gasUsed
+        // is unfilled). The treasury credit and the miner reward are disjoint additive addBalance's → commutative
+        // (RX-L4-10 SHARPENS (i)); the deterministic order (disposition then reward) matches the ECIP-1111 draft :49-55.
+        val baseFeeAmount = gasUsed * block.header.baseFeePerGas.getOrElse(BigInt(0))
+        val disposed = spec.feeDisposition.dispose(worldAfterTxs, baseFeeAmount)
         // Reward is the LAST state mutation before commitment (besu :485 → persist :532). The family split is which
         // RewardScheme the bundle carries — no if(isPoW) here.
-        val rewarded = spec.rewardScheme.rewardBlock(worldAfterTxs, block.header, block.body.uncleNodesList)
+        val rewarded = spec.rewardScheme.rewardBlock(disposed, block.header, block.body.uncleNodesList)
         val committed = rewarded.persist
         ExecutedBlock(
           world = committed,

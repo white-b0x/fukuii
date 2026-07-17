@@ -231,7 +231,12 @@ final class TransactionProcessor(interpreter: EvmInterpreter[InMemoryWorldState,
     val account = world.getAccount(sender).getOrElse(world.getEmptyAccount)
     val senderNonce = account.nonce.toBigInt
     val senderBalance = account.balance.toUInt256.toBigInt
-    val maxUpfrontCost = gasLimit * TxFields.feeCap(tx) + value
+    // EIP-4844 (F-L4-3): under Cancun+ a blob tx's upfront balance must also cover `blobGas * blobGasFeeCap`
+    // (go-ethereum `buyGas` adds `blobGasUsed * tx.BlobGasFeeCap` to the balance check, `state_transition.go:456-465`).
+    // ETH-only — ETC never activates EIP-4844, so this is always 0 on the ETC path; beacon co-signs at build.
+    val blobFeeCost =
+      if evmConfig.isActive(Eip(4844)) then TxFields.blobGas(tx) * TxFields.blobGasFeeCap(tx) else BigInt(0)
+    val maxUpfrontCost = gasLimit * TxFields.feeCap(tx) + value + blobFeeCost
 
     if evmConfig.isActive(Eip(7825)) && gasLimit > MaxTxGas then
       Some(TransactionError.GasLimitAboveCap(gasLimit, MaxTxGas))
