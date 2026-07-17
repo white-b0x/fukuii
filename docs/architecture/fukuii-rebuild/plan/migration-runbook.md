@@ -126,4 +126,31 @@ each logic phase; `testEssential` (background, `sbt-run.sh`) as the pre-push gat
 
 `fukuii-rebuild` builds L0→L10 clean, every layer gated on its READY plan and its consensus sign-offs,
 the CI ratchets green, and the as-built records (`../NN-*.md`) written — a from-scratch, byte-verified,
-plan-first client with no pre-plan residue. Then the branch is the new trunk.
+plan-first client with no pre-plan residue. Then the branch is the new trunk, and the §7 closeout runs.
+
+## 7. Rebuild-completion closeout (runs once, after L10 lands)
+
+The per-layer loop (§3) ends at L10; the whole rebuild then gets one global closeout. These are
+deliberately **deferred to completion** — they distill or retire the scaffolding that was correct to
+carry *during* the build but is dead weight once it lands. Durable pointers, not a status tracker:
+
+1. **Timeless post-mortem series.** The implementation reports (`../implementation-reports/NN-*.md`) are
+   the *active-modernization* record — planning + what-was-done, anchored to `fukuii/july-fourth`
+   (v0.8.1-series, `42959353b`). At completion they are distilled into a **timeless** post-mortem
+   series that describes the client as it *is*, not the journey that built it — landing in
+   `docs/design/` (client-design docs) per the repo file-tree organization guide (`docs/repo/README.md`;
+   memory `repo-file-tree-organization`). The old-vs-new comparisons collapse into "why the design is
+   what it is"; the `july-fourth` anchor is dropped once the branch is no longer the live reference.
+2. **Graduate the rebuild docs.** `docs/architecture/fukuii-rebuild/` (plan + rx + reports) graduates to
+   `docs/design/` when complete — the rebuild stops being "in-progress architecture" and becomes the
+   client's standing design docs. Same guide.
+3. **Retire the dev-narrative scaffolding.** Once `july-fourth` is no longer the live reference, the
+   `reference-client-authority.md` "AS-IS is a banned term" section trims to just the forward rule (cite
+   external reference clients), shedding the incident narrative that justified it mid-build. The
+   comment/doc hygiene rule (`comments.md`) stays; only the historical justification retires.
+4. **Branch → trunk.** `fukuii-rebuild` becomes the trunk; `july-fourth` and `july-mod-sprint` are
+   preserved as historical refs (§5) but are no longer consulted.
+
+Related, separately scheduled: the "docs website modernization" sprint (MkDocs `docs/site/` aggregation,
+memory `repo-file-tree-organization`) and the `fukuii-tests` build-out (`test-corpus-hosting.md` §7) —
+both independent of this closeout, neither gating it.
