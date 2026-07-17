@@ -86,16 +86,26 @@ object BlockchainTestFixture:
       parseCase(entry.getKey().nn, entry.getValue().nn)
     }
 
+  /** ETC mainnet chain id (core-geth `params/config_classic.go` `ClassicChainConfig.ChainID = big.NewInt(61)`). */
+  private val EtcMainnetChainId: BigInt = BigInt(61)
+
+  /** The fixture's chain id: prefer `config.chainid` when present; otherwise derive from the `network` label. `ETC_*`
+    * labels are ETC mainnet (→ 61); everything else keeps the `ethereum/tests` default (1).
+    */
+  private def chainIdFor(network: String, node: JsonNode): BigInt =
+    Option(node.get("config"))
+      .flatMap(c => Option(c.get("chainid")))
+      .map(n => quantity(n.asText().nn))
+      .getOrElse(if network.startsWith("ETC_") then EtcMainnetChainId else BigInt(1))
+
   private def parseCase(name: String, node: JsonNode): BlockchainTestCase =
     val genesis = node.get("genesisBlockHeader").nn
+    val network = node.get("network").nn.asText().nn
     BlockchainTestCase(
       name = name,
-      network = node.get("network").nn.asText().nn,
+      network = network,
       sealEngine = Option(node.get("sealEngine")).map(_.asText().nn),
-      chainId = Option(node.get("config"))
-        .flatMap(c => Option(c.get("chainid")))
-        .map(n => quantity(n.asText().nn))
-        .getOrElse(BigInt(1)),
+      chainId = chainIdFor(network, node),
       pre = parseAccounts(node.get("pre").nn),
       genesisStateRoot = bytes(genesis.get("stateRoot").nn.asText().nn),
       genesisHash = Hash(bytes(genesis.get("hash").nn.asText().nn)),
