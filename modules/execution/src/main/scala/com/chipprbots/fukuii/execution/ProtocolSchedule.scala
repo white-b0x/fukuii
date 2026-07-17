@@ -15,15 +15,16 @@ import com.chipprbots.fukuii.evm.ForkSchedule
   * L3 proposal) — the loop never rots.
   *
   * **P1 collaborator scoping.** The economics collaborators ([[RewardScheme]], [[FeeDisposition]],
-  * [[RequestProcessors]], the [[WithdrawalsProcessor]]) are supplied at construction as **network-level values** and
-  * bundled with the per-header [[EvmConfig]]. Making them *fork-varying within a network* (e.g.
-  * `RequestProcessors.noOp` pre-Prague → an active map post-Prague; [[FeeDisposition.Absent]] pre-1559 →
+  * [[RequestProcessors]], the [[WithdrawalsProcessor]]) and the [[PreExecutionProcessor]] are supplied at construction
+  * as **network-level values** and bundled with the per-header [[EvmConfig]]. Making them *fork-varying within a
+  * network* (e.g. `RequestProcessors.noOp` pre-Prague → an active map post-Prague; [[FeeDisposition.Absent]] pre-1559 →
   * `Burn`/`RedirectToTreasury` after) requires the request impls (P5) and the base-fee/era math (P4) to exist before
   * the variation is meaningful, so P1 wires them constant and P4/P5 make them header-derived. This keeps the "resolve
   * once" spine honest without inventing economics before its gated phase.
   */
 final class ProtocolSchedule private (
     forkSchedule: ForkSchedule,
+    preExecution: PreExecutionProcessor,
     rewardScheme: RewardScheme,
     requests: RequestProcessors,
     withdrawals: Option[WithdrawalsProcessor],
@@ -45,7 +46,7 @@ final class ProtocolSchedule private (
     bundle(EvmConfig.deriveEvmConfigAt(forkSchedule.activeAt(number, timestamp)))
 
   private def bundle(evmConfig: EvmConfig): ProtocolSpec =
-    ProtocolSpec(evmConfig, rewardScheme, requests, withdrawals, feeDisposition)
+    ProtocolSpec(evmConfig, preExecution, rewardScheme, requests, withdrawals, feeDisposition)
 
 object ProtocolSchedule:
 
@@ -55,9 +56,10 @@ object ProtocolSchedule:
     */
   def apply(
       forkSchedule: ForkSchedule,
+      preExecution: PreExecutionProcessor,
       rewardScheme: RewardScheme,
       requests: RequestProcessors,
       withdrawals: Option[WithdrawalsProcessor],
       feeDisposition: FeeDisposition
   ): ProtocolSchedule =
-    new ProtocolSchedule(forkSchedule, rewardScheme, requests, withdrawals, feeDisposition)
+    new ProtocolSchedule(forkSchedule, preExecution, rewardScheme, requests, withdrawals, feeDisposition)

@@ -75,6 +75,11 @@ final case class TransactionResult(
   * collaborator owns its disposition — burn (ETH) vs treasury (ECIP-1111/ETC). P2 neither burns nor routes it (L4 plan
   * §1/§7/§9, RX-L4-09/10).
   *
+  * **The EIP-4844 blob fee IS debited here and burned (F-L4-5, P5).** Under Cancun+ a blob tx additionally pays
+  * `blobGas × blobBaseFee` — the *actual* blob base fee derived from the header's `excessBlobGas` ([[CalcBlobFee]]),
+  * distinct from the F-L4-3 upfront *check* (which uses the fee cap). It is deducted upfront and credited nowhere (like
+  * the base fee) → burned (go-ethereum `buyGas`, `state_transition.go:471-483`). `0` on ETC.
+  *
   * **R2:** stateless and immutable; the only per-call variation rides on the immutable [[SimulationOptions]] argument
   * (no `@volatile`, no `object … { var … }`). Concrete over [[InMemoryWorldState]] — L4's single concrete world —
   * rather than generic (L3 is generic because it cannot import L4's world; L4 may be concrete about its own).
@@ -108,6 +113,16 @@ final class TransactionProcessor(interpreter: EvmInterpreter[InMemoryWorldState,
     val baseFee = header.baseFeePerGas.getOrElse(BigInt(0))
     val effectiveGasPrice = TxFields.effectiveGasPrice(tx, baseFee)
     val value = TxFields.value(tx)
+    // EIP-4844 blob base fee (F-L4-5) — the *actual* blob gas price from the header's excessBlobGas, fork-resolved
+    // (Cancun 3338477 → Prague+ 5007716 update fraction, EIP-7691). Computed once here: the debit below burns
+    // `blobGas × blobBaseFee`, and the same value is threaded into the CallContext for the BLOBBASEFEE opcode. `0` on
+    // ETC (EIP-4844 never active) and on any non-Cancun ETH block (go-ethereum eip4844.go `blobBaseFee`).
+    val blobBaseFee: BigInt =
+      if evmConfig.isActive(Eip(4844)) then
+        val updateFraction =
+          if evmConfig.isActive(Eip(7691)) then CalcBlobFee.PragueUpdateFraction else CalcBlobFee.CancunUpdateFraction
+        CalcBlobFee.blobBaseFee(BigInt(header.excessBlobGas.getOrElse(0L)), updateFraction)
+      else BigInt(0)
     val intrinsic = IntrinsicGas.intrinsicGas(tx, evmConfig)
     val floor = IntrinsicGas.floorDataGas(tx, evmConfig)
     val floorActive = IntrinsicGas.isActiveFloor(evmConfig)
@@ -115,8 +130,13 @@ final class TransactionProcessor(interpreter: EvmInterpreter[InMemoryWorldState,
     validate(tx, sender, world, evmConfig, gasLimit, intrinsic, floor, floorActive, value) match
       case Some(error) => Left(error)
       case None        =>
-        // (b) upfront: debit gasLimit * effectiveGasPrice, bump nonce (value is transferred by the VM, not here).
-        val worldAfterUpfront = debitGasAndBumpNonce(world, sender, gasLimit * effectiveGasPrice)
+        // (b) upfront: debit gasLimit * effectiveGasPrice + blobGas * blobBaseFee (F-L4-5, the hard-gate debit), bump
+        // nonce (value is transferred by the VM, not here). The blob fee uses the *actual* blobBaseFee (from
+        // excessBlobGas), distinct from the F-L4-3 upfront *check* which uses the fee cap; go-ethereum `buyGas` adds
+        // `blobGas × blobBaseFee` to `mgval` under Cancun (`state_transition.go:471-483`). The blob fee is **burned** —
+        // deducted here and credited nowhere (creditFees settles only execution gas + tip), like the EIP-1559 base fee.
+        val blobFee = TxFields.blobGas(tx) * blobBaseFee
+        val worldAfterUpfront = debitGasAndBumpNonce(world, sender, gasLimit * effectiveGasPrice + blobFee)
 
         // (c) EIP-7702 authorizations (SetCode tx only) — installs delegations, returns the tx-level refund and the
         // warmed authority set. Runs before the VM (geth `applyAuthorizations`); persists across a VM revert.
@@ -153,7 +173,8 @@ final class TransactionProcessor(interpreter: EvmInterpreter[InMemoryWorldState,
           warmAddresses = warmAddresses,
           warmStorage = warmStorage,
           precompileRelocations = simulation.precompileRelocations,
-          blobVersionedHashes = blobVersionedHashes(tx)
+          blobVersionedHashes = blobVersionedHashes(tx),
+          blobBaseFee = UInt256(blobBaseFee) // EIP-7516 BLOBBASEFEE reads the actual blob base fee (F-L4-5)
         )
 
         val (execResult, createdAddress) =

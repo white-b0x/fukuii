@@ -64,6 +64,7 @@ class ProtocolSpecSpec extends AnyFunSuite:
   private val powSchedule: ProtocolSchedule =
     ProtocolSchedule(
       forkSchedule = schedule,
+      preExecution = PreExecutionProcessor.NoPreExecution,
       rewardScheme = RewardScheme.Ecip1017RewardScheme(),
       requests = RequestProcessors.noOp,
       withdrawals = None,

@@ -7,13 +7,6 @@ import com.chipprbots.fukuii.evm.AccountStorage
 import com.chipprbots.fukuii.evm.EvmConfig
 import com.chipprbots.fukuii.evm.WorldState
 
-/** Applies EIP-4895 validator withdrawals after the tx loop, **outside** the [[RewardScheme]] seam (withdrawals credit
-  * validator addresses, disjoint from the coinbase — never double-credited with issuance; L4 plan §9, RX-L4-13). **P1
-  * declares the marker only**; the impl is **P5** (beacon-gated). Absent (`Option.None` in [[ProtocolSpec]]) on the
-  * PoW/ETC path (besu `AbstractBlockProcessor.getWithdrawalsProcessor()` empty on PoW).
-  */
-trait WithdrawalsProcessor
-
 /** How a block's EIP-1559 base fee is disposed — a **family-specific field of the bundle**. The base-fee *computation*
   * is shared ([[CalcBaseFee]]); only the disposition of `block.gasUsed * block.baseFee` diverges by family (L4 plan
   * §3/§7/§9, RX-L4-09/10). A fukuii seam coinage (there is no single besu type for this; besu bakes the burn into
@@ -69,6 +62,8 @@ enum FeeDisposition:
   * bundle carries only:
   *   - [[evmConfig]] — the L3 opcode/gas config, **held** from L3's single `EvmConfig.forBlock(header, schedule)`
   *     resolution ([[ProtocolSchedule]]), never re-resolved (§2.1);
+  *   - [[preExecution]] — the pre-tx-loop system calls (EIP-4788/2935 on ETH Cancun+/Prague+; `NoPreExecution` on PoW /
+  *     pre-Cancun);
   *   - [[rewardScheme]] — the DAG-inverted economics seam (ECIP-1017 for PoW, zero for PoS);
   *   - [[requests]] — the EIP-7685 `RequestType → processor` coordinator (`noOp` on PoW / pre-Prague);
   *   - [[withdrawals]] — the EIP-4895 processor, present by fork (absent on PoW);
@@ -83,6 +78,7 @@ enum FeeDisposition:
   */
 final case class ProtocolSpec(
     evmConfig: EvmConfig,
+    preExecution: PreExecutionProcessor,
     rewardScheme: RewardScheme,
     requests: RequestProcessors,
     withdrawals: Option[WithdrawalsProcessor],

@@ -62,7 +62,14 @@ class TransactionProcessorSpec extends AnyFunSuite:
     )
 
   private def spec(config: EvmConfig): ProtocolSpec =
-    ProtocolSpec(config, RewardScheme.PosNoRewardScheme, RequestProcessors.noOp, None, FeeDisposition.Absent)
+    ProtocolSpec(
+      config,
+      PreExecutionProcessor.NoPreExecution,
+      RewardScheme.PosNoRewardScheme,
+      RequestProcessors.noOp,
+      None,
+      FeeDisposition.Absent
+    )
 
   private def world(accounts: (Address, Account)*): InMemoryWorldState =
     val base = InMemoryWorldState(
@@ -385,3 +392,35 @@ class TransactionProcessorSpec extends AnyFunSuite:
       chainId
     )
     assert(result.isRight)
+
+  // -- F-L4-5 (HARD GATE): the EIP-4844 blob-fee DEBIT — blobGas * actual blobBaseFee, burned --------------------------
+  // The debit uses the ACTUAL blob base fee f(excessBlobGas), distinct from the F-L4-3 upfront CHECK (which uses the
+  // fee cap). go-ethereum `buyGas` deducts `blobGas × blobBaseFee` from the sender and credits it nowhere → burned
+  // (`state_transition.go:471-483`). beacon co-signs. excess=10_000_000 (Cancun fraction 3338477) → blobBaseFee=19.
+
+  test("F-L4-5 — a Cancun blob tx debits blobGas * actual blobBaseFee; the blob fee is burned (coinbase unaffected)"):
+    val start = BigInt(100_000_000)
+    val tx = blobTx(maxFeePerBlobGas = 100, blobs = 2) // blobGas = 2*131072 = 262144
+    val h = header().copy(excessBlobGas = Some(10_000_000L)) // Cancun blobBaseFee = 19
+    val res = processor
+      .processTransaction(tx, sender, h, spec(EvmConfig.EthCancun), world(sender -> funded(start)), 0, chainId)
+      .toOption
+      .get
+    val blobBaseFee = BigInt(19)
+    val blobFee = BigInt(262144) * blobBaseFee // = 4_980_736, burned
+    val execGas = BigInt(21000) * 1 // gasUsed 21000 * effectiveGasPrice 1 (no baseFee → tip = price)
+    assert(
+      res.gasUsed == BigInt(21000) &&
+        res.world.getBalance(sender).toBigInt == start - execGas - blobFee && // gas + real blob fee out
+        res.world.getBalance(coinbase).toBigInt == BigInt(21000) // tip only — the blob fee is NOT credited here
+    )
+
+  test("F-L4-5 — the blob-fee debit is 0 on ETC (EIP-4844 never active): sender pays only execution gas"):
+    val start = BigInt(100_000_000)
+    val tx = blobTx(maxFeePerBlobGas = 100, blobs = 2)
+    val h = header().copy(excessBlobGas = Some(10_000_000L))
+    val res = processor
+      .processTransaction(tx, sender, h, spec(EvmConfig.EtcOlympia), world(sender -> funded(start)), 0, chainId)
+      .toOption
+      .get
+    assert(res.world.getBalance(sender).toBigInt == start - BigInt(21000)) // no blob fee component on ETC

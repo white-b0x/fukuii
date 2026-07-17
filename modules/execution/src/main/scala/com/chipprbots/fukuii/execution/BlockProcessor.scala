@@ -42,6 +42,17 @@ enum BlockExecutionError:
   /** The bloom over all executed logs disagrees with `header.logsBloom`. */
   case LogsBloomMismatch(computed: Bloom, expected: Bloom)
 
+  /** A pre/post-execution system call (`phase`, e.g. EIP-4788 beacon-root, EIP-2935 block-hash) did not run to
+    * completion — a codeless target or a VM halt. Fail LOUD (go-ethereum `panic`s / besu throws): the block depends on
+    * the system call's state mutation.
+    */
+  case SystemCallFailed(phase: String, error: SystemCallError)
+
+  /** The block body carries EIP-4895 withdrawals on a path with **no** withdrawals processor (the ETC/PoW path) — a
+    * consensus violation, hard-rejected (core-geth accepts no withdrawals; L4 plan §9, RX-L4-13). Never a silent skip.
+    */
+  case WithdrawalsNotAllowed(count: Int)
+
   /** The receipts-trie root disagrees with `header.receiptsRoot`. */
   case ReceiptsRootMismatch(computed: ByteString, expected: ByteString)
 
@@ -116,32 +127,54 @@ final class BlockProcessor(txProcessor: TransactionProcessor):
       initialWorld: InMemoryWorldState,
       chainId: ChainId
   ): Either[BlockExecutionError, ExecutedBlock] =
-    // [pre-execution system calls — EIP-4788/2935 — a noOp hook for P4a; P5 fills it, beacon-gated.]
-    applyTransactions(spec, block.header, block.body.transactionList, initialWorld, chainId).map {
-      case TxLoopState(worldAfterTxs, receipts, gasUsed, logs) =>
-        // [withdrawals — EIP-4895 — absent on P4a / the PoW path; P5, beacon-gated.]
-        // [post-execution requests — EIP-7002/7251/6110 — absent on P4a / the PoW path; P5, beacon-gated.]
-        // EIP-1559 base-fee disposition (ETH burn / ECIP-1111 treasury) — the lump-sum amount `gasUsed * baseFee`
-        // computed ONCE (baseFee is block-constant, so this equals Σ per-tx base-fee charges; RX-L4-10 SHARPENS (ii)).
-        // `Absent`/`Burn` mutate nothing (the base fee was left uncredited by the tx engine); `RedirectToTreasury`
-        // credits the treasury additively. Uses the *computed* gasUsed (correct on the produce path where header.gasUsed
-        // is unfilled). The treasury credit and the miner reward are disjoint additive addBalance's → commutative
-        // (RX-L4-10 SHARPENS (i)); the deterministic order (disposition then reward) matches the ECIP-1111 draft :49-55.
-        val baseFeeAmount = gasUsed * block.header.baseFeePerGas.getOrElse(BigInt(0))
-        val disposed = spec.feeDisposition.dispose(worldAfterTxs, baseFeeAmount)
-        // Reward is the LAST state mutation before commitment (besu :485 → persist :532). The family split is which
-        // RewardScheme the bundle carries — no if(isPoW) here.
-        val rewarded = spec.rewardScheme.rewardBlock(disposed, block.header, block.body.uncleNodesList)
-        val committed = rewarded.persist
-        ExecutedBlock(
-          world = committed,
-          receipts = receipts,
-          gasUsed = gasUsed,
-          logsBloom = Bloom.of(logs),
-          receiptsRoot = receiptsRootOf(receipts),
-          stateRoot = committed.stateRootHash
-        )
-    }
+    for
+      // Pre-execution system calls — EIP-4788 beacon-root + EIP-2935 block-hash population — as SystemAddress/30M
+      // pseudo-txs BEFORE the tx loop (`NoPreExecution` on the PoW / pre-Cancun path). L3's BLOCKHASH later reads the
+      // slots EIP-2935 populates here (go-ethereum PreExecution :144-167; besu :265).
+      worldAfterPreExec <- spec.preExecution.process(block.header, spec.evmConfig, initialWorld, chainId)
+      loopState <- applyTransactions(spec, block.header, block.body.transactionList, worldAfterPreExec, chainId)
+      TxLoopState(worldAfterTxs, receipts, gasUsed, logs) = loopState
+      // Withdrawals (EIP-4895) — post-loop, BEFORE requests+reward (besu order, RX-L4-11), OUTSIDE the reward seam
+      // (validator addresses ≠ coinbase → never double-credited with issuance, RX-L4-13). ETC hard-rejects.
+      worldAfterWithdrawals <- applyWithdrawals(spec, block, worldAfterTxs)
+    yield
+      // [post-execution requests — EIP-7002/7251/6110 — `noOp` here; the EIP-7685 request phase is P5b, beacon-gated.]
+      // EIP-1559 base-fee disposition (ETH burn / ECIP-1111 treasury) — the lump-sum amount `gasUsed * baseFee`
+      // computed ONCE (baseFee is block-constant, so this equals Σ per-tx base-fee charges; RX-L4-10 SHARPENS (ii)).
+      // `Absent`/`Burn` mutate nothing (the base fee was left uncredited by the tx engine); `RedirectToTreasury`
+      // credits the treasury additively. Uses the *computed* gasUsed (correct on the produce path where header.gasUsed
+      // is unfilled). The treasury credit and the miner reward are disjoint additive addBalance's → commutative
+      // (RX-L4-10 SHARPENS (i)); the deterministic order (disposition then reward) matches the ECIP-1111 draft :49-55.
+      val baseFeeAmount = gasUsed * block.header.baseFeePerGas.getOrElse(BigInt(0))
+      val disposed = spec.feeDisposition.dispose(worldAfterWithdrawals, baseFeeAmount)
+      // Reward is the LAST state mutation before commitment (besu :485 → persist :532). The family split is which
+      // RewardScheme the bundle carries — no if(isPoW) here.
+      val rewarded = spec.rewardScheme.rewardBlock(disposed, block.header, block.body.uncleNodesList)
+      val committed = rewarded.persist
+      ExecutedBlock(
+        world = committed,
+        receipts = receipts,
+        gasUsed = gasUsed,
+        logsBloom = Bloom.of(logs),
+        receiptsRoot = receiptsRootOf(receipts),
+        stateRoot = committed.stateRootHash
+      )
+
+  /** Apply the block body's EIP-4895 withdrawals through the bundle's [[WithdrawalsProcessor]] — or **hard-reject** if
+    * withdrawals are present with no processor (the ETC/PoW path). besu `AbstractBlockProcessor:419` gates on
+    * `processor.isPresent && withdrawals.isPresent`; fukuii adds the fail-LOUD reject for the illegal combination
+    * (withdrawals on a family that forbids them, RX-L4-13).
+    */
+  private def applyWithdrawals(
+      spec: ProtocolSpec,
+      block: Block,
+      world: InMemoryWorldState
+  ): Either[BlockExecutionError, InMemoryWorldState] =
+    (spec.withdrawals, block.body.withdrawals) match
+      case (Some(processor), Some(withdrawals)) => Right(processor.processWithdrawals(withdrawals, world))
+      case (Some(_), None)                      => Right(world)
+      case (None, None)                         => Right(world)
+      case (None, Some(withdrawals))            => Left(BlockExecutionError.WithdrawalsNotAllowed(withdrawals.size))
 
   /** The tx-apply loop: fold [[TransactionProcessor.processTransaction]] over the block's transactions, threading the
     * world and accumulating cumulative gas used, the per-tx receipts (in order), and every log. Sender recovery runs

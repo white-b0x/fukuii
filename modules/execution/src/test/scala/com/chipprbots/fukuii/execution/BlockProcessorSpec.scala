@@ -20,6 +20,7 @@ import com.chipprbots.fukuii.domain.ChainId
 import com.chipprbots.fukuii.domain.SenderRecovery
 import com.chipprbots.fukuii.domain.Transaction
 import com.chipprbots.fukuii.domain.Wei
+import com.chipprbots.fukuii.domain.Withdrawal
 import com.chipprbots.fukuii.evm.EvmConfig
 import com.chipprbots.fukuii.evm.EvmInterpreter
 import com.chipprbots.fukuii.storage.EphemDataSource
@@ -47,6 +48,7 @@ class BlockProcessorSpec extends AnyFunSuite:
   private def powSpec: ProtocolSpec =
     ProtocolSpec(
       EvmConfig.EtcOlympia,
+      PreExecutionProcessor.NoPreExecution,
       RewardScheme.Ecip1017RewardScheme(),
       RequestProcessors.noOp,
       None,
@@ -56,6 +58,7 @@ class BlockProcessorSpec extends AnyFunSuite:
   private def posSpec: ProtocolSpec =
     ProtocolSpec(
       EvmConfig.EtcOlympia,
+      PreExecutionProcessor.NoPreExecution,
       RewardScheme.PosNoRewardScheme,
       RequestProcessors.noOp,
       None,
@@ -226,13 +229,21 @@ class BlockProcessorSpec extends AnyFunSuite:
   private def treasurySpec(scheme: RewardScheme): ProtocolSpec =
     ProtocolSpec(
       EvmConfig.EtcOlympia,
+      PreExecutionProcessor.NoPreExecution,
       scheme,
       RequestProcessors.noOp,
       None,
       FeeDisposition.RedirectToTreasury(treasury)
     )
   private def burnSpec(scheme: RewardScheme): ProtocolSpec =
-    ProtocolSpec(EvmConfig.EtcOlympia, scheme, RequestProcessors.noOp, None, FeeDisposition.Burn)
+    ProtocolSpec(
+      EvmConfig.EtcOlympia,
+      PreExecutionProcessor.NoPreExecution,
+      scheme,
+      RequestProcessors.noOp,
+      None,
+      FeeDisposition.Burn
+    )
 
   test("ECIP-1111 — the treasury is credited exactly gasUsed * baseFee (lump sum) on an ETC Olympia block"):
     val w = world(sender -> funded(BigInt(10).pow(19)))
@@ -285,3 +296,55 @@ class BlockProcessorSpec extends AnyFunSuite:
     val dispositionThenReward = scheme.rewardBlock(disp.dispose(w, amount), hdr, Nil).persist
     val rewardThenDisposition = disp.dispose(scheme.rewardBlock(w, hdr, Nil), amount).persist
     assert(dispositionThenReward.stateRootHash == rewardThenDisposition.stateRootHash)
+
+  // -- P5a: EIP-4895 withdrawals (post-loop, outside the reward seam; ETC hard-rejects) --------------------------------
+
+  private val validator1: Address = addr(0x55)
+  private val validator2: Address = addr(0x56)
+
+  /** An ETH Cancun bundle carrying the EIP-4895 withdrawals processor + the PoS zero-reward scheme (the realistic ETH
+    * pairing — withdrawals with no issuance).
+    */
+  private def ethWithdrawalsSpec: ProtocolSpec =
+    ProtocolSpec(
+      EvmConfig.EthCancun,
+      PreExecutionProcessor.NoPreExecution,
+      RewardScheme.PosNoRewardScheme,
+      RequestProcessors.noOp,
+      Some(WithdrawalsProcessor.Eip4895WithdrawalsProcessor),
+      FeeDisposition.Burn
+    )
+
+  private def blockWithWithdrawals(txs: List[Transaction], withdrawals: List[Withdrawal]): Block =
+    Block(header(1), BlockBody(txs, Nil, Some(withdrawals)))
+
+  test("EIP-4895 — N withdrawals credit N validator balances (Gwei→Wei), disjoint from the coinbase reward seam"):
+    val w = world(sender -> funded(BigInt(10).pow(19)))
+    val withdrawals = List(Withdrawal(0, 0, validator1, amount = 3), Withdrawal(1, 1, validator2, amount = 7))
+    val e = processor
+      .execute(ethWithdrawalsSpec, blockWithWithdrawals(List(signedTransfer(0)), withdrawals), w, chainId)
+      .toOption
+      .get
+    val gwei = BigInt(10).pow(9)
+    // outside the reward seam: the coinbase got only the tx tip (21000), never a withdrawal credit.
+    assert(
+      e.world.getBalance(validator1).toBigInt == BigInt(3) * gwei &&
+        e.world.getBalance(validator2).toBigInt == BigInt(7) * gwei &&
+        e.world.getBalance(coinbase).toBigInt == BigInt(21000)
+    )
+
+  test("EIP-4895 — the committed state root reflects the withdrawals (differs from the same block without them)"):
+    val w = world(sender -> funded(BigInt(10).pow(19)))
+    val withdrawals = List(Withdrawal(0, 0, validator1, amount = 3))
+    val withW = processor
+      .execute(ethWithdrawalsSpec, blockWithWithdrawals(List(signedTransfer(0)), withdrawals), w, chainId)
+      .toOption
+      .get
+    val withoutW =
+      processor.execute(ethWithdrawalsSpec, blockWithWithdrawals(List(signedTransfer(0)), Nil), w, chainId).toOption.get
+    assert(withW.stateRoot != withoutW.stateRoot)
+
+  test("EIP-4895 — a withdrawal on the ETC/PoW path (no processor) is hard-rejected (WithdrawalsNotAllowed)"):
+    val w = world(sender -> funded(BigInt(10).pow(19)))
+    val b = blockWithWithdrawals(List(signedTransfer(0)), List(Withdrawal(0, 0, validator1, amount = 3)))
+    assert(processor.execute(powSpec, b, w, chainId) == Left(BlockExecutionError.WithdrawalsNotAllowed(1)))
