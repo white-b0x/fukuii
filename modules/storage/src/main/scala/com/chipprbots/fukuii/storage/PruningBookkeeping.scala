@@ -34,8 +34,8 @@ final case class BlockSnapshot(
 /** The bookkeeping [[RefCountedNodeStore]] runs its refcount graph, death-row filing, retained-root ring, and rollback
   * snapshots against. [[PersistedBookkeeping]] (`PruningMode.Basic`, RocksDB-backed via dedicated column families) and
   * [[InMemoryBookkeeping]] (`PruningMode.InMemory`, process-resident) are the two composed realizations — the graph
-  * algebra in [[RefCountedNodeStore]] is identical over either, which is precisely what kills the AS-IS gap of two
-  * independently-maintained refcount implementations (RX-L2-15/16).
+  * algebra in [[RefCountedNodeStore]] is identical over either, which avoids maintaining two independent refcount
+  * implementations (RX-L2-15/16).
   */
 trait PruningBookkeeping:
   def getEntry(nodeHash: IndexedSeq[Byte]): Option[RefEntry]
@@ -145,7 +145,7 @@ private[storage] object PruningCodec:
 
 /** [[PruningBookkeeping]] realized over dedicated column families (`Namespace.RefCount` / `Namespace.DeathRow` /
   * `Namespace.RetainedRoot` / `Namespace.PruneSnapshot`) — dedicated CFs rather than prefixing keys within the hot
-  * `Namespace.Node`/path-scheme CFs, the AS-IS anti-pattern this replaces (L2 improvement #15).
+  * `Namespace.Node`/path-scheme CFs (L2 improvement #15).
   */
 final class PersistedBookkeeping(dataSource: DataSource) extends PruningBookkeeping:
   import PruningCodec.*

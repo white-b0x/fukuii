@@ -14,7 +14,7 @@ import com.chipprbots.fukuii.rlp.encode as encodeRlp
   * `LeafChange(Some(v), None)` a delete, `LeafChange(Some(a), Some(b))` an update. A leaf's value is captured, never a
   * node — this is the load-bearing property (RX-L2-19): a `{prior, updated}` **leaf** diff is a stable, serializable
   * cross-process identity an out-of-process R7 consumer can `rollForward`/`rollBack` without sharing the trie, whereas
-  * a node-hash-keyed diff (the AS-IS `ReferenceCountNodeStorage` death-row snapshots) is coupled to the local trie
+  * a node-hash-keyed diff (naming trie-internal node hashes rather than leaf keys) is coupled to the local trie
   * structure and cannot be handed to a remote consumer.
   */
 final case class LeafChange(prior: Option[ByteString], updated: Option[ByteString]) derives RLPCodec:

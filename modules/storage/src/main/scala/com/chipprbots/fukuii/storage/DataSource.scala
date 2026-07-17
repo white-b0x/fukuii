@@ -31,11 +31,11 @@ import fs2.Stream
   *
   * ==Iterator lifetime (R5)==
   * The unbounded scans ([[iterate]]) return `fs2.Stream[IO, ...]`, not a raw `Iterator` — the fs2/cats-effect shape
-  * ports the AS-IS intent (a native RocksDB iterator's lifetime is bounded: opened, drained in bounded batches, and
-  * closed before any suspension point / cancellation can observe it, so no native handle survives a concurrent
-  * `close()`) rather than any specific reference client's API (geth uses `Release()`, besu `.onClose`). Point access
-  * ([[get]]) and bounded scans ([[scanRange]]) stay synchronous — `RocksDbDataSource` still opens/drains/closes their
-  * native iterator within a single call, so there is no suspension point across which they could leak.
+  * enforces that a native RocksDB iterator's lifetime stays bounded: opened, drained in bounded batches, and closed
+  * before any suspension point / cancellation can observe it, so no native handle survives a concurrent `close()`. This
+  * differs from any specific reference client's API (geth uses `Release()`, besu `.onClose`). Point access ([[get]])
+  * and bounded scans ([[scanRange]]) stay synchronous — `RocksDbDataSource` still opens/drains/closes their native
+  * iterator within a single call, so there is no suspension point across which they could leak.
   */
 trait DataSource:
   import DataSource.*

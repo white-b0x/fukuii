@@ -24,9 +24,9 @@ final class MptNodeDecodeException(message: String, cause: Option[Throwable] = N
 
 /** A Merkle Patricia Trie node — the five consensus node shapes.
   *
-  * A total `match` over this enum replaces the reference-tree `sealed abstract class MptNode` + subclass hierarchy and
-  * its `@unchecked` exhaustivity suppressions. `key`/`sharedKey` hold **nibbles** (one nibble per byte, `0..15`);
-  * hex-prefix packing to bytes happens only at RLP-encode time.
+  * A closed `enum` with a total `match` over its cases needs no `@unchecked` exhaustivity suppression.
+  * `key`/`sharedKey` hold **nibbles** (one nibble per byte, `0..15`); hex-prefix packing to bytes happens only at
+  * RLP-encode time.
   *
   *   - [[Leaf]] — a terminal `(key, value)` (2-item node, leaf flag set).
   *   - [[Extension]] — a `(sharedKey, next)` path-compression node (2-item node, leaf flag clear).

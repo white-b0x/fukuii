@@ -34,7 +34,7 @@ object EvictionStrategy:
 
   /** Always files and always prunes — the permissive default [[RefCountedNodeStore]] composes with unless a caller
     * supplies a different policy; under this policy the mechanism's own refcount/horizon bookkeeping is the sole gate
-    * (the historically-monolithic behavior the composed split must reproduce, RX-L2-15).
+    * (RX-L2-15).
     */
   val always: EvictionStrategy = new EvictionStrategy:
     def shouldPruneDirtyNode(state: TrieStoreState): Boolean = true

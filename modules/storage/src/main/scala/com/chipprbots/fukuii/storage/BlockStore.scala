@@ -8,13 +8,12 @@ import com.chipprbots.fukuii.domain.TotalDifficulty
 import com.chipprbots.fukuii.rlp.decode
 import com.chipprbots.fukuii.rlp.encode
 
-/** The atomic block+weight write primitive — **the L2 placement every reference client uses** (F-L4-6 relocation):
-  * besu-etc `BlockchainStorage.Updater` (`putBlockHeader`/`putBlockBody`/`putTotalDifficulty` + one `commit()`,
-  * `ethereum/core/.../chain/BlockchainStorage.java:56-102`), core-geth/go-ethereum `rawdb.WriteBlock` + `rawdb.WriteTd`
-  * under one DB batch (`core/rawdb/accessors_chain.go`), erigon `rawdb.WriteTd`, nethermind `BlockStore`, reth's db
-  * crate — every one of them lives in the storage/db layer, never one layer up in the execution/import driver. This
-  * corrects the earlier L4 `execution.AtomicBlockWriter` placement (RX-L4-22 / L4 plan §6/§9): it was the right
-  * BATCHING LOGIC in the wrong LAYER — [[putBlock]] ports that logic here.
+/** The atomic block+weight write primitive — **the L2 placement every reference client uses** (F-L4-6, RX-L4-22 / L4
+  * plan §6/§9): besu-etc `BlockchainStorage.Updater` (`putBlockHeader`/`putBlockBody`/`putTotalDifficulty` + one
+  * `commit()`, `ethereum/core/.../chain/BlockchainStorage.java:56-102`), core-geth/go-ethereum `rawdb.WriteBlock` +
+  * `rawdb.WriteTd` under one DB batch (`core/rawdb/accessors_chain.go`), erigon `rawdb.WriteTd`, nethermind
+  * `BlockStore`, reth's db crate — every one of them keeps this batching logic in the storage/db layer, never one layer
+  * up in the execution/import driver, and [[putBlock]] follows the same placement.
   *
   * ==BUG-W7 — the durability invariant this exists for==
   * A block's [[BlockHeader]]/[[BlockBody]] and its [[TotalDifficulty]] MUST land in the SAME [[DataSource.update]]
@@ -32,13 +31,12 @@ import com.chipprbots.fukuii.rlp.encode
   * applies NONE of it.
   *
   * ==Scope (BUG-W7 core only)==
-  * Header + Body + TotalDifficulty, matching the ported `AtomicBlockWriter` shape exactly. Receipts are the plan's
-  * stated eventual occupant of the same batch (`03-L2-storage-trie.md` §"Deferrals" — "Typed `putBlock` writes
-  * Header/Body/Receipts + `ChainWeight` in one BUG-W7 `WriteBatch`") but are deliberately NOT added here: no L1
-  * `Seq[Receipt]` RLP list codec or `Namespace` keying convention has been established yet, and the ported shape is the
-  * load-bearing durability fix, not an occasion to expand scope. Adding a receipts upsert to the same `Array` this
-  * class already builds is a small, additive follow-up once that codec exists — it does not change this class's
-  * atomicity contract.
+  * Header + Body + TotalDifficulty only. Receipts are the plan's stated eventual occupant of the same batch
+  * (`03-L2-storage-trie.md` §"Deferrals" — "Typed `putBlock` writes Header/Body/Receipts + `ChainWeight` in one BUG-W7
+  * `WriteBatch`") but are deliberately NOT added here: no L1 `Seq[Receipt]` RLP list codec or `Namespace` keying
+  * convention has been established yet, and this class's current scope is the load-bearing durability fix, not an
+  * occasion to expand scope. Adding a receipts upsert to the same `Array` this class already builds is a small,
+  * additive follow-up once that codec exists — it does not change this class's atomicity contract.
   *
   * @param dataSource
   *   the L2 backend (`RocksDbDataSource` in production, `EphemDataSource` in tests) — both honour the single-batch

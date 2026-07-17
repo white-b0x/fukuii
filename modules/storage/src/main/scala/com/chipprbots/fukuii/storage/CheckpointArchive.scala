@@ -5,11 +5,11 @@ package com.chipprbots.fukuii.storage
   */
 final case class CheckpointEntry(blockHash: IndexedSeq[Byte], totalDifficulty: BigInt)
 
-/** An accumulator-committed set of [[CheckpointEntry]] values — the content commitment the AS-IS `CheckpointArchive`
-  * (pre-rebuild `src/` tree) lacked: it carried only a CRC32 trailer, which catches transport corruption but says
-  * nothing about whether the content is the content a peer/operator actually trusts.
-  * [[CheckpointAccumulator.build]]/[[CheckpointAccumulator.verify]] fold `entries` into a single binary-Merkle [[root]]
-  * a caller can check against a known-good value BEFORE importing anything.
+/** An accumulator-committed set of [[CheckpointEntry]] values, giving a content commitment stronger than a mere
+  * transport-integrity check: a CRC32 trailer catches bit-flips in transit but says nothing about whether the content
+  * is the content a peer/operator actually trusts. [[CheckpointAccumulator.build]]/[[CheckpointAccumulator.verify]]
+  * fold `entries` into a single binary-Merkle [[root]] a caller can check against a known-good value BEFORE importing
+  * anything.
   *
   * ==`storage` stays crypto-free (DAG Iron Rule)==
   * `storage` depends on `domain, common` only — no `crypto`. The fold needs a hash function; rather than adding a

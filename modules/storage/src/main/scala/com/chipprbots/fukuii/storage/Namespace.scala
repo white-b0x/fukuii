@@ -19,8 +19,8 @@ package com.chipprbots.fukuii.storage
   *
   * ==Profile-membership reservation (L2-F1)==
   * [[profiles]] declares which storage profile(s) a namespace's column family belongs to. S1 does not gate CF open on
-  * this field — `RocksDbDataSource` opens the full [[Namespace.values]] set unconditionally, matching the AS-IS
-  * behaviour (`Namespaces.nsSeq` was always the complete fixed list). This field exists so S2's
+  * this field — `RocksDbDataSource` opens the full [[Namespace.values]] set unconditionally: every declared namespace
+  * is always present on disk, regardless of profile membership. This field exists so S2's
   * `StorageProfile`/`SchemaMarker` (checked-at-open CF-set-vs-profile validation, besu's
   * `includeInDatabaseFormat(DataStorageFormat)` gate) has every profile-scoped CF already declared — S1's job is
   * reserving the schema slot, not building the gating machinery. [[Namespace.Profile.Snap]] marks the SNAP crash-resume
@@ -79,8 +79,7 @@ enum Namespace(
   /** Per-block chain weight / total difficulty — the first-class, PoW-load-bearing hot-path backing store for the L6 §5
     * TD-sourcing invariant: total difficulty is COMPUTED from PoW-validated headers and compared against THIS
     * locally-stored canonical chain-weight record, never against a value read off the wire (a peer's claimed TD is an
-    * unverified hint, never a source of truth for the heaviest-chain decision). O(1)-keyed by canonical block — the
-    * AS-IS `ChainWeightStorage` shape, preserved here.
+    * unverified hint, never a source of truth for the heaviest-chain decision). O(1)-keyed by canonical block hash.
     *
     * ==Written atomically with its block (BUG-W7)==
     * A block's [[Header]] (and [[Body]]) write and its `ChainWeight` write MUST land in the SAME [[DataSource.update]]
@@ -151,7 +150,7 @@ enum Namespace(
 
   /** Per-node refcount-GC bookkeeping (S3): `nodeHash -> RefEntry(refCount, location, childHashes, lastUsedByBlock)`.
     * As hot as [[Node]] itself — every trie-node commit touches it. Dedicated CF rather than a prefix within [[Node]]
-    * (the AS-IS anti-pattern this replaces, L2 improvement #15).
+    * (L2 improvement #15).
     */
   case RefCount extends Namespace('e'.toByte, isEligibleToHighSpecFlag = true, isCacheIndexAndFilterBlocks = true)
 

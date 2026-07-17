@@ -53,9 +53,9 @@ object ArchivePruningStore extends PruningStore:
   override def rollback(blockNumber: BigInt): Unit = ()
   override def prune(safeHeight: BigInt): IO[PruneReport] = IO.pure(PruneReport(0, 0))
 
-/** `PruningMode.Basic` and `PruningMode.InMemory` share this one refcount-GC mechanism — the composable split kills the
-  * AS-IS gap of two independently-maintained refcount implementations (RX-L2-15/16); only [[bookkeeping]]'s backing
-  * (persisted CFs vs process-resident maps) differs between the two modes, selected by [[PruningStore.forMode]].
+/** `PruningMode.Basic` and `PruningMode.InMemory` share this one refcount-GC mechanism — the composable split avoids
+  * maintaining two independent refcount implementations (RX-L2-15/16); only [[bookkeeping]]'s backing (persisted CFs vs
+  * process-resident maps) differs between the two modes, selected by [[PruningStore.forMode]].
   *
   * ==The refcount graph==
   * Every node starts at `refCount = 0`. [[commitBlock]] increments each new node's children by one (a parent now
@@ -164,9 +164,9 @@ final class RefCountedNodeStore(
 object PruningStore:
 
   /** Composes a named [[PruningMode]] preset with an [[EvictionStrategy]] × [[PersistenceStrategy]] pair (default: the
-    * permissive always/always policy, reproducing the historically-monolithic behavior). `historyBlocks` is the local
-    * reorg-retention window `Basic`/`InMemory` hold before a root's anchor is released — separate from the mode
-    * selector itself, so [[StorageProfile]]'s existing `PruningMode` cases need no change.
+    * permissive always/always policy). `historyBlocks` is the local reorg-retention window `Basic`/`InMemory` hold
+    * before a root's anchor is released — separate from the mode selector itself, so [[StorageProfile]]'s existing
+    * `PruningMode` cases need no change.
     */
   def forMode(
       mode: PruningMode,

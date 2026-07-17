@@ -7,10 +7,10 @@ import com.chipprbots.fukuii.crypto.kec256
 /** How a trie key or value is turned into (and read back from) its raw trie bytes.
   *
   * This is the trie's own key/value-encoding contract — the `MerklePatriciaTrie[K, V]` is generic over it. Homed in the
-  * `trie` layer (matching the reference-tree `com.chipprbots.ethereum.mpt` location, and every reference client: geth
-  * `StateTrie`, core-geth, nethermind `StateTree` all keep key-hashing in the trie layer; reth/erigon feed the trie
-  * pre-hashed keys from the state layer *above*). The concrete `Address`→hashed-key world-state instance composes at L4
-  * `execution` (`WorldStateProxy`), which depends on `trie` + `domain` — never the reverse.
+  * `trie` layer, matching every reference client: geth `StateTrie`, core-geth, nethermind `StateTree` all keep
+  * key-hashing in the trie layer; reth/erigon feed the trie pre-hashed keys from the state layer *above*. The concrete
+  * `Address`→hashed-key world-state instance composes at L4 `execution` (`WorldStateProxy`), which depends on `trie` +
+  * `domain` — never the reverse.
   */
 trait ByteArrayEncoder[T]:
   def toBytes(input: T): Array[Byte]
