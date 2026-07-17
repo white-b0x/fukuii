@@ -255,12 +255,14 @@ final class TransactionProcessor(interpreter: EvmInterpreter[InMemoryWorldState,
 
   /** Apply the EIP-7702 authorization list, byte-cited to go-ethereum `applyAuthorization`
     * (`state_transition.go:1038-1113`), **pre-Amsterdam path** (the Amsterdam EIP-2780 runtime state-gas charging is
-    * ETH-future, out of scope). For each tuple: recover the authority (a **second, independent** signature surface from
-    * the outer tx signature; [[SenderRecovery.recoverAuthority]]); if the chain-id, authority-code (empty or already a
-    * delegation), and authority-nonce checks pass, refund `CallNewAccountGas - TxAuthTupleGas` (25000 − 12500 = 12500)
-    * for an existing authority, bump its nonce, and install (or clear, on the zero address) the `0xef0100 ‖ address`
-    * delegation designator. An invalid tuple is **skipped**, but a recovered authority is warmed regardless (geth adds
-    * it to the access list even when invalid).
+    * ETH-future, out of scope). For each tuple, in EIP-7702's mandated order: (1-2) verify chain-id (0 or current) and
+    * the EIP-2681 nonce bound, (3) recover the authority (a **second, independent** signature surface from the outer tx
+    * signature; [[SenderRecovery.recoverAuthority]]), (4) warm the authority, (5-6) verify the authority-code (empty or
+    * already a delegation) and authority-nonce; if all pass, refund `CallNewAccountGas - TxAuthTupleGas` (25000 − 12500
+    * \= 12500) for an existing authority, bump its nonce, and install (or clear, on the zero address) the `0xef0100 ‖
+    * address` delegation designator. A tuple failing steps 1-3 is skipped **before** warming (a wrong chain-id must not
+    * warm the address); a tuple failing steps 5-6 is skipped but the authority **stays warmed** (geth/besu add it to
+    * the access list at step 4, before those checks).
     *
     * ⚠️ **beacon co-sign gate:** the 12500 refund value and the recover/validate ordering are ETH consensus. Cited to
     * go-ethereum; flagged for beacon at build.
@@ -275,22 +277,32 @@ final class TransactionProcessor(interpreter: EvmInterpreter[InMemoryWorldState,
       SenderRecovery.recoverAuthority(auth) match
         case Left(_) => (w, refund, warm) // bad signature — the authority cannot be warmed (no recovered address)
         case Right(authority) =>
-          val warmed = warm + authority // geth warms the authority even if the checks below reject the tuple
-          val code = w.getCode(authority)
+          // EIP-7702 steps 1-2 gate warming (step 4): a wrong chain-id or an EIP-2681-overflowing nonce skips the
+          // tuple *before* the authority is added to `accessed_addresses`. go-ethereum `validateAuthorization`
+          // returns on the chain-id (`state_transition.go:1002`) and `Nonce+1<Nonce` (`:1006`) checks *before*
+          // `AddAddressToAccessList` (`:1019`); besu `CodeDelegationProcessor.processCodeDelegation` returns from
+          // `isCodeDelegationValid` (`:95`) before `addAccessedDelegatorAddress` (`:114`). Warming a wrong-chain-id
+          // authority would over-warm the address and fork the state on any later EIP-2929 access. The code-emptiness
+          // and nonce-match checks (EIP steps 5-6) stay *after* warming — a tuple failing those is still warmed.
           val chainOk = auth.chainId.toBigInt == BigInt(0) || auth.chainId.toBigInt == chainId.toBigInt
-          val codeOk = code.isEmpty || Eip7702.parseDelegation(code).isDefined
-          val nonceOk = w.getAccount(authority).map(_.nonce.toBigInt).getOrElse(BigInt(0)) == auth.nonce.toBigInt
-          if !(chainOk && codeOk && nonceOk) then (w, refund, warmed)
+          val nonceOverflowOk = auth.nonce.toBigInt < MaxNonce
+          if !(chainOk && nonceOverflowOk) then (w, refund, warm) // steps 1-2 fail — authority NOT warmed
           else
-            val accountRefund = if w.accountExists(authority) then gc.G_newaccount - TxAuthTupleGas else BigInt(0)
-            val account = w.getAccount(authority).getOrElse(w.getEmptyAccount)
-            val withNonce = w.saveAccount(authority, account.copy(nonce = UInt256(auth.nonce.toBigInt + 1)))
-            val withCode =
-              if auth.address == Address.Zero then
-                if Eip7702.parseDelegation(code).isDefined then withNonce.saveCode(authority, ByteString.empty)
-                else withNonce
-              else withNonce.saveCode(authority, ByteString(Eip7702.DelegationPrefix) ++ auth.address.bytes)
-            (withCode, refund + accountRefund, warmed)
+            val warmed = warm + authority // step 4 — warmed even if the code/nonce checks below reject the tuple
+            val code = w.getCode(authority)
+            val codeOk = code.isEmpty || Eip7702.parseDelegation(code).isDefined
+            val nonceOk = w.getAccount(authority).map(_.nonce.toBigInt).getOrElse(BigInt(0)) == auth.nonce.toBigInt
+            if !(codeOk && nonceOk) then (w, refund, warmed)
+            else
+              val accountRefund = if w.accountExists(authority) then gc.G_newaccount - TxAuthTupleGas else BigInt(0)
+              val account = w.getAccount(authority).getOrElse(w.getEmptyAccount)
+              val withNonce = w.saveAccount(authority, account.copy(nonce = UInt256(auth.nonce.toBigInt + 1)))
+              val withCode =
+                if auth.address == Address.Zero then
+                  if Eip7702.parseDelegation(code).isDefined then withNonce.saveCode(authority, ByteString.empty)
+                  else withNonce
+                else withNonce.saveCode(authority, ByteString(Eip7702.DelegationPrefix) ++ auth.address.bytes)
+              (withCode, refund + accountRefund, warmed)
     }
 
   // -- gas settlement (f) + fee credit (g) -----------------------------------------------------------------------------
@@ -332,6 +344,13 @@ object TransactionProcessor:
     * (`state_transition.go:1047`).
     */
   val TxAuthTupleGas: BigInt = 12500
+
+  /** EIP-2681 nonce cap `2^64 - 1` — an EIP-7702 authorization whose nonce equals this is invalid and its tuple is
+    * skipped **before** the authority is warmed (go-ethereum `validateAuthorization` rejects on `auth.Nonce+1 <
+    * auth.Nonce`, `state_transition.go:1006`; besu `isCodeDelegationValid` rejects on `nonce() == MAX_NONCE`,
+    * `CodeDelegationProcessor.java:161`).
+    */
+  val MaxNonce: BigInt = (BigInt(1) << 64) - 1
 
   /** The gas settled for a transaction — `gasUsed` folds into the block commitment; `gasLeft` is refunded to the sender
     * at the effective gas price. `private[execution]` so the settle formula (the EIP-3529 cap + EIP-7623 floor) is
