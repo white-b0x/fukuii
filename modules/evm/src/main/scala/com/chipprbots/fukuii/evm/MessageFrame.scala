@@ -7,15 +7,13 @@ import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.domain.Log
 
 /** Intermediate state updated with execution of each opcode in the program — the **immutable** per-step EVM state
-  * (`copy`-per-opcode, a fresh [[Stack]]/[[Memory]] on mutation). This is the AS-IS pure-functional shape, transcribed
-  * faithfully: whether the interpreter loop keeps this immutable frame or moves to a mutable frame with an explicit
-  * revert journal is a **benchmark-gated OPEN for P4/P7** (L3 plan §6) — it is byte-identical either way
-  * (correctness-neutral), so P1 does not decide it.
+  * (`copy`-per-opcode, a fresh [[Stack]]/[[Memory]] on mutation). Whether the interpreter loop keeps this immutable
+  * frame or moves to a mutable frame with an explicit revert journal is a **benchmark-gated OPEN for P4/P7** (L3 plan
+  * §6) — it is byte-identical either way (correctness-neutral), so P1 does not decide it.
   *
-  * Retyped to the built L0/L1 APIs: gas counters are `BigInt` (the AS-IS `GasAmount` value type was not carried into
-  * the rebuild; the plan's gas model is `BigInt`, §3/§9 — and a wrapping `UInt256` would break out-of-gas detection);
-  * logs are L1 [[Log]] (AS-IS `TxLogEntry`); storage-slot keys are the EVM word [[UInt256]] (AS-IS
-  * `domain.StorageKey`).
+  * Retyped to the built L0/L1 APIs: gas counters are `BigInt` (the plan's gas model, §3/§9 — L1 does not define a
+  * `GasAmount` value type, and a wrapping `UInt256` would break out-of-gas detection); logs are L1 [[Log]];
+  * storage-slot keys are the EVM word [[UInt256]].
   *
   * **P1 deferrals.** The smart companion `apply(vm, context, env)` factory — which seeds the EIP-2929 warm sets from
   * `PrecompiledContracts.getContracts` and the EIP-3651 warm-COINBASE via `EvmConfig.eip3651Enabled` — is deferred to

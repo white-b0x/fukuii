@@ -26,10 +26,12 @@ import com.chipprbots.fukuii.domain.BlockHeader
   *
   * **Tracer — one slot, branch-free.** The interpreter carries a single [[tracer]] field (default [[NoTracing]]); the
   * loop and the sub-call boundaries call its hooks unconditionally. When the slot holds [[NoTracing]] the JVM elides
-  * the empty bodies (RX-L3-15). This retires the AS-IS two-slot `Option.foreach` (VM ctor *and* `env.tracer`).
+  * the empty bodies (RX-L3-15), never a two-slot `Option.foreach` split across a VM ctor field *and* an `env.tracer`
+  * field.
   *
-  * **Precompiles are P5.** The AS-IS `call` branched to `PrecompiledContracts` before the code path; that registry is
-  * not built yet, so this loop always runs the resolved account code. P5 re-adds the precompile short-circuit here.
+  * **Precompiles (P5).** `call` checks the fork-resolved `evmConfig.precompiles` registry for the recipient address
+  * before resolving account code — a precompile address carries no code of its own, so a match short-circuits straight
+  * to the precompile wrapper (see below).
   *
   * @param tracer
   *   the single execution-observation slot; [[NoTracing]] (the default) is the branch-free disabled path.
@@ -235,8 +237,8 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
       Set.empty
     )
 
-  /** Build the execution environment for a sub-execution (AS-IS `ExecutionEnv.apply(context, code, ownerAddr)`). The
-    * built `ExecutionEnv` carries no tracer field — the tracer lives on the interpreter's single slot.
+  /** Build the execution environment for a sub-execution. The built `ExecutionEnv` carries no tracer field — the tracer
+    * lives on the interpreter's single slot.
     */
   private def execEnvOf(context: PC, code: ByteString, ownerAddr: Address): ExecutionEnv =
     ExecutionEnv(
@@ -259,10 +261,10 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
       traceTransfers = context.traceTransfers
     )
 
-  /** Seed the initial [[MessageFrame]] for a sub-execution (AS-IS `MessageFrame.apply`). The EIP-2929 accessed-address
-    * set starts with origin, the executing account, the propagated `warmAddresses`, and — under EIP-3651 — the block
-    * COINBASE. **The precompile addresses are NOT seeded here** (that registry is P5); at the re-entrant call level the
-    * warm sets already arrive through `context.warmAddresses`.
+  /** Seed the initial [[MessageFrame]] for a sub-execution. The EIP-2929 accessed-address set starts with origin, the
+    * executing account, the propagated `warmAddresses`, and — under EIP-3651 — the block COINBASE. **The precompile
+    * addresses are NOT seeded here** (that registry is P5); at the re-entrant call level the warm sets already arrive
+    * through `context.warmAddresses`.
     */
   private def initialProgramState(context: PC, env: ExecutionEnv): PS =
     val coinbase: Set[Address] =
@@ -294,7 +296,7 @@ final class EvmInterpreter[W <: WorldState[W, S], S <: AccountStorage[S]](
     header.difficulty.signum == 0 && header.baseFeePerGas.isDefined
 
   /** Deposit the returned init-code result as the new contract's runtime code, applying the deposit-gas and the
-    * EIP-3541 / EIP-170 / out-of-gas guards (AS-IS `saveNewContract`).
+    * EIP-3541 / EIP-170 / out-of-gas guards.
     *
     *   - error already set ⇒ keep a revert's remaining gas, else consume all gas;
     *   - EIP-3541: runtime code starting with `0xEF` is an exceptional abort;

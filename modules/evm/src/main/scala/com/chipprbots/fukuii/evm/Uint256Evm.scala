@@ -8,8 +8,7 @@ import com.chipprbots.fukuii.bytes.UInt256
   * unsigned compare) — its own scaladoc is explicit that "the gas-metered EVM opcode semantics (EXP gas, SIGNEXTEND,
   * signed SDIV/SMOD/SAR) are deliberately NOT here — those belong to the `evm` layer that meters them." This is that
   * layer: the signed-interpretation opcodes (`SDIV`/`SMOD`/`SLT`/`SGT`/`SAR`), `SIGNEXTEND`, `BYTE`, the modular
-  * `ADDMOD`/`MULMOD`, and the EXP-gas `byteSize` — transcribed byte-for-byte from the AS-IS `domain.UInt256` EVM
-  * extensions, retyped over the built opaque [[UInt256]].
+  * `ADDMOD`/`MULMOD`, and the EXP-gas `byteSize`, retyped over the built opaque [[UInt256]].
   *
   * Network-neutral (go-ethereum + besu must agree); no fork gating here.
   */
@@ -35,7 +34,7 @@ object Uint256Evm:
 
   extension (x: UInt256)
 
-    /** An `Int` with MSB cleared, thus in `[0, Int.MaxValue]` (AS-IS `UInt256.toInt`). */
+    /** An `Int` with MSB cleared, thus in `[0, Int.MaxValue]`. */
     def toInt: Int = x.toBigInt.intValue & Int.MaxValue
 
     def min(y: UInt256): UInt256 = if x < y then x else y
@@ -89,15 +88,14 @@ object Uint256Evm:
     /** Size in bytes excluding leading zeroes — the EXP gas multiplier (YP Appendix H.1). */
     def byteSize: Int = if x.isZero then 0 else (x.toBigInt.bitLength - 1) / 8 + 1
 
-    /** Saturating add clamped at `2^256 - 1` — the RETURNDATACOPY out-of-bounds guard (AS-IS `fillingAdd`). */
+    /** Saturating add clamped at `2^256 - 1` — the RETURNDATACOPY out-of-bounds guard. */
     def fillingAdd(y: UInt256): UInt256 =
       val r = x.toBigInt + y.toBigInt
       if r > MaxValueBig then UInt256.MaxValue else UInt256(r)
 
 /** EIP-7702 delegation-designator (`0xef0100 ‖ address`) parsing — the code-resolution hook `CALL`/`CALLCODE`/
   * `DELEGATECALL`/`STATICCALL` use to warm and charge for the delegation target. Network-neutral EVM behavior; the L1
-  * `SetCodeAuthorization` models the *authorization tuple*, this models the *deployed designator* (AS-IS
-  * `SetCodeTransaction.parseDelegation`).
+  * `SetCodeAuthorization` models the *authorization tuple*, this models the *deployed designator*.
   */
 object Eip7702:
   import org.apache.pekko.util.ByteString

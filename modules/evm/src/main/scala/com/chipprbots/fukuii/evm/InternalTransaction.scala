@@ -9,13 +9,12 @@ import com.chipprbots.fukuii.domain.Wei
   * Trace-only (used by the Ethereum Test Suite / debug tracing) — **not** consensus state (it does not affect the state
   * root), so it is correctness-neutral.
   *
-  * **P1 retype:** the AS-IS `opcode: OpCode` field is carried here as the **raw opcode byte** because the `OpCode` ADT
-  * is P2's deliverable. P2 widens `opcode: Byte` back to the `OpCode` type when the opcode set lands. `gasLimit` is a
-  * plain `BigInt` gas counter (the AS-IS `GasAmount` value type was not carried into the rebuild; the plan's gas model
-  * is `BigInt`, §3/§9).
+  * `opcode` is carried as the **raw opcode byte** rather than the `OpCode` ADT: this is a trace record consumed by the
+  * test suite / debug tracer, so it stores exactly the byte the interpreter dispatched on with no need to round-trip
+  * through the ADT. `gasLimit` is a plain `BigInt` gas counter, per the plan's gas model (§3/§9).
   *
   * @param opcode
-  *   the raw byte of the opcode that caused the internal tx (P2 widens to `OpCode`)
+  *   the raw byte of the opcode that caused the internal tx
   * @param from
   *   the account that executes the opcode
   * @param to

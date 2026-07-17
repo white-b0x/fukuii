@@ -27,7 +27,7 @@ import com.chipprbots.fukuii.evm.Uint256Evm.uintOf
 object OpCode:
 
   /** A slice of `bytes` of length `size` starting at `offset`, zero-padded on the right when the source runs out (YP
-    * `μ_s`); an out-of-range offset yields all zeroes. Transcribed from the AS-IS `OpCode.sliceBytes`.
+    * `μ_s`); an out-of-range offset yields all zeroes.
     */
   def sliceBytes(bytes: ByteString, offset: UInt256, size: UInt256): ByteString =
     val srcLen = UInt256(bytes.size)
@@ -47,14 +47,14 @@ object OpCode:
 
 /** Base class for all EVM opcodes — a **behavior-bearing** object carrying its `execute`, stack effect
   * (`delta`/`alpha`) and gas computation (RX-L3-04; besu `AbstractOperation`/`AddOperation`). A flat `enum` cannot
-  * carry `execute`, so the idiom is a sealed hierarchy of `case object`s (kept from the AS-IS), with the
-  * `ConstGas`/`AddrAccessGas`/`StorageAccessGas` mixins as `trait`s.
+  * carry `execute`, so the idiom is a sealed hierarchy of `case object`s, with the `ConstGas`/`AddrAccessGas`/
+  * `StorageAccessGas` mixins as `trait`s.
   *
-  * Retyped to the built machine: gas is `BigInt` (AS-IS `GasAmount`); the fee *values* + warm/cold access cost are read
-  * from the injected per-fork [[GasCalculator]] on `state.config.gasCalculator` (AS-IS split of `FeeSchedule` values vs
-  * the enum-fork read-path is retired — T3/RX-L3-05/09). **No fork name appears in any `exec` body**; where an opcode
-  * needs to know a fork rule it reads an intent-named getter on [[EvmConfig]] (`eip3860Enabled`, `eip6780Enabled`, …),
-  * never a fork identity (RX-L3-12).
+  * Retyped to the built machine: gas is `BigInt`; the fee *values* + warm/cold access cost are read from the injected
+  * per-fork [[GasCalculator]] on `state.config.gasCalculator` — a previous split between `FeeSchedule` values and an
+  * enum-fork read-path is retired (T3/RX-L3-05/09). **No fork name appears in any `exec` body**; where an opcode needs
+  * to know a fork rule it reads an intent-named getter on [[EvmConfig]] (`eip3860Enabled`, `eip6780Enabled`, …), never
+  * a fork identity (RX-L3-12).
   *
   * @param code
   *   opcode byte
@@ -711,8 +711,8 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 abstract class CreateOp(opcode: Int, delta: Int) extends OpCode(opcode, delta, 1, _.G_create):
-  // Precompute the gas cost once and hand it to exec via state.opcodeGasCost (avoids the duplicate calc CreateOp.exec
-  // would otherwise do — AS-IS EC-243).
+  // Precompute the gas cost once and hand it to exec via state.opcodeGasCost (avoids a duplicate gas calculation in
+  // CreateOp.exec).
   override def execute[W <: WorldState[W, S], S <: AccountStorage[S]](state: MessageFrame[W, S]): MessageFrame[W, S] =
     if !availableInContext(state) then state.withError(OpCodeNotAvailableInStaticContext(code))
     else if state.stack.size < delta then state.withError(StackUnderflow)

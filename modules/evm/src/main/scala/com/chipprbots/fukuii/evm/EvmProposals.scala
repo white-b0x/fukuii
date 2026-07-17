@@ -300,7 +300,7 @@ object EvmProposals:
 
   /** ECIP-1121 — ETC's Olympia EVM bundle. It contributes **no direct opcode delta of its own** — its effect is (a)
     * selecting the [[GasCalculator.EtcOlympia]] gas leaf and (b) its `requires` closure, the shared EIP implementations
-    * it composes. The reconciled set (L3 forge impact §2/§2g, forge co-signed): the four AS-IS opcodes
+    * it composes. The reconciled set (L3 forge impact §2/§2g, forge co-signed): the four opcodes originally modeled
     * (7939/3198/1153/5656) **plus** the six under-counted EIPs — EIP-6780 semantics, EIP-2537/7951 precompiles,
     * EIP-7883/7823/7623 gas, EIP-7702 set-code, and the EIP-1559 base-fee read. **Excludes EIP-4844/7516** (no blobs on
     * ETC). Precompile wrappers land in P5.

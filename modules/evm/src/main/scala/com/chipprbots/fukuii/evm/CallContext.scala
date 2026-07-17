@@ -15,7 +15,7 @@ import com.chipprbots.fukuii.domain.ChainId
   * matches the `enum Transaction` variants for the access list / blob hashes / authorization list — is **deferred to
   * P2**, where those `EvmConfig` methods and the tx accessors are wired. The `tracer: Option[ExecutionTracer]` field is
   * likewise deferred with the P2 tracer plumbing. Gas counters are `BigInt`; storage-slot keys are the EVM word
-  * [[UInt256]] (AS-IS `domain.StorageKey`).
+  * [[UInt256]].
   *
   * @param recipientAddr
   *   recipient of the call, empty if contract creation

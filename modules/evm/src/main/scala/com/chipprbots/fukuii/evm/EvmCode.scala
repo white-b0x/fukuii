@@ -6,9 +6,8 @@ import com.chipprbots.fukuii.crypto.kec256
 
 /** Holds a program's code and provides utilities for accessing it (defaulting to zeroes when out of scope).
   *
-  * P1 builds the code-access surface (`getByte`/`getBytes`/`length`/`codeHash`). The AS-IS `validJumpDestinations`
-  * jump-dest analysis is **deferred to P2**: it classifies each byte via the fork opcode table (`PushOp`/`JUMPDEST`),
-  * which P2's opcode set supplies.
+  * P1 builds the code-access surface (`getByte`/`getBytes`/`length`/`codeHash`) plus [[validJumpDestinations]] — a pure
+  * byte scan that needs no opcode ADT, so it has no P2 dependency.
   *
   * @param code
   *   the EVM bytecode as bytes

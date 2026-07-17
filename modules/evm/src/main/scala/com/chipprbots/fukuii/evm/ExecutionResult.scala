@@ -8,9 +8,8 @@ import com.chipprbots.fukuii.domain.Log
 
 /** Representation of the result of execution of a contract.
   *
-  * Retyped to the built L0/L1 APIs: gas counters are `BigInt` (the AS-IS `GasAmount` value type was not carried into
-  * the rebuild — the plan's gas model is `BigInt`); the log entry is L1 [[Log]] (AS-IS `TxLogEntry`); storage-slot keys
-  * are the EVM word [[UInt256]] (AS-IS `domain.StorageKey`).
+  * Retyped to the built L0/L1 APIs: gas counters are `BigInt` (the plan's gas model, §3/§9 — L1 does not define a
+  * `GasAmount` value type); the log entry is L1 [[Log]]; storage-slot keys are the EVM word [[UInt256]].
   *
   * @param returnData
   *   bytes returned by the executed contract (set by the `RETURN` opcode)

@@ -13,8 +13,8 @@ package com.chipprbots.fukuii.evm
   * actually means): never a flat geth-style `Rules` bool-struct, never a separate `forTimestamp` method.
   *
   * The coordinate types match the built L1 [[com.chipprbots.fukuii.domain.BlockHeader]] fields — `number: BigInt`,
-  * `unixTimestamp: Long` — rather than the AS-IS opaque `BlockNumber`/`Timestamp`/`TotalDifficulty` value types, which
-  * the L1 rebuild did not carry.
+  * `unixTimestamp: Long` — plain primitives rather than opaque `BlockNumber`/`Timestamp`/`TotalDifficulty` wrapper
+  * types, since L1 does not define those types.
   */
 enum ForkActivation:
   case ByBlock(number: BigInt)

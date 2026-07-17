@@ -8,11 +8,11 @@ package com.chipprbots.fukuii.evm
   * TIMESTAMP}`, expressed as an axis-tagged enum. *Which* schedule a network is handed is an L5 `NetworkFamily`
   * decision; the seam is L3's.
   *
-  * P0 scope: the schedule maps `ProposalId → ForkActivation` directly. The AS-IS `ScheduledProposal`/`ProposalParams`
-  * per-chain parameter carrier (ECIP-1017 monetary policy, ECIP-1111 treasury/base-fee-floor, ECIP-1122 tip/gas-target,
-  * EIP-7892 blob target/max) is intentionally **not** transcribed here: those are L4/L5 economics params, not consumed
-  * by the L3 EVM opcode/gas fold, and their carrier depends on `MonetaryPolicyConfig`, which is outside the `evm`
-  * module DAG (`domain`, `crypto`, `rlp` only).
+  * P0 scope: the schedule maps `ProposalId → ForkActivation` directly. A per-chain parameter carrier for economics
+  * values (ECIP-1017 monetary policy, ECIP-1111 treasury/base-fee-floor, ECIP-1122 tip/gas-target, EIP-7892 blob
+  * target/max) is intentionally **not** modeled here: those are L4/L5 economics params, not consumed by the L3 EVM
+  * opcode/gas fold, and their carrier depends on `MonetaryPolicyConfig`, which is outside the `evm` module DAG
+  * (`domain`, `crypto`, `rlp` only).
   */
 final case class ForkSchedule(entries: Map[ProposalId, ForkActivation]):
 

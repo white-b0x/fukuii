@@ -40,8 +40,8 @@ final case class EvmConfig(
     activeProposals.contains(id)
 
   /** Dense branch-free O(1) opcode dispatch — the [[opCodes]] `IArray` indexed by the opcode byte, every undefined slot
-    * pre-filled with the loud-failing [[InvalidOp]] sentinel (no `Option`, no null). Replaces the AS-IS `Map[Byte,
-    * OpCode]` hash probe (RX-L3-02).
+    * pre-filled with the loud-failing [[InvalidOp]] sentinel (no `Option`, no null), rather than a `Map[Byte, OpCode]`
+    * hash probe (RX-L3-02).
     */
   def byteToOpCode(byte: Byte): OpCode =
     opCodes(byte & 0xff)
@@ -50,7 +50,7 @@ object EvmConfig:
 
   /** The single fork-dispatch entry point — resolve the EVM config active at `header` under `schedule`.
     *
-    * **One** `forBlock(header, schedule)` — never the two AS-IS overloads, never a `forTimestamp`: the header supplies
+    * **One** `forBlock(header, schedule)` — never two separate overloads, never a `forTimestamp`: the header supplies
     * both number and timestamp, and each proposal's [[ForkActivation]] case decides its own boundary (besu's single
     * `getByBlockHeader` over `MilestoneType.{BLOCK_NUMBER,TIMESTAMP}`, the axes staying type-distinct as enum cases).
     * `schedule.activeAt` resolves the active `Set[ProposalId]`; [[deriveEvmConfigAt]] folds it into the resolved

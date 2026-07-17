@@ -6,13 +6,13 @@ import com.chipprbots.fukuii.bytes.UInt256
 
 /** The per-fork gas strategy — **one injected object holding both the fee *values* and the gas *computation***.
   *
-  * This is the layer's headline structural target (L3 plan §2 v2 / §5 / §6, RX-L3-05): it retires the AS-IS split where
-  * fee *values* lived in the `FeeSchedule` inheritance chain while the gas *computation* (`baseGas`/`varGas`,
-  * `calcMemCost`, `gasCap`, the EIP-2929 warm/cold access cost) lived on the opcode / `EvmConfig`. besu's
-  * `GasCalculator` is the JVM model (`gascalculator/GasCalculator.java`): the whole schedule is one interface — the
-  * constant tier costs **and** the dynamic computation methods — and a fork diff is literally the overridden methods.
-  * `EtcOlympiaGasCalculator` / `EthOsakaGasCalculator` are **siblings** off a shared base overriding only what changed;
-  * no shared mega-switch, no fork name in an opcode body.
+  * This is the layer's headline structural target (L3 plan §2 v2 / §5 / §6, RX-L3-05): fee *values* and gas
+  * *computation* (`baseGas`/`varGas`, `calcMemCost`, `gasCap`, the EIP-2929 warm/cold access cost) live on one object,
+  * rather than splitting the values into a `FeeSchedule` inheritance chain with the computation living separately on
+  * the opcode / `EvmConfig`. besu's `GasCalculator` is the JVM model (`gascalculator/GasCalculator.java`): the whole
+  * schedule is one interface — the constant tier costs **and** the dynamic computation methods — and a fork diff is
+  * literally the overridden methods. `EtcOlympiaGasCalculator` / `EthOsakaGasCalculator` are **siblings** off a shared
+  * base overriding only what changed; no shared mega-switch, no fork name in an opcode body.
   *
   * **EIP-2929 warm/cold access cost lands here (T3 / RX-L3-09), not on the retired enum-fork read-path.** The base
   * calculator's [[accountAccessCost]]/[[storageAccessCost]] are the pre-2929 pass-through (the opcode's own base tier);
@@ -28,13 +28,12 @@ import com.chipprbots.fukuii.bytes.UInt256
   * **R2:** every calculator is a stateless, immutable singleton, freely shareable across `ChainInstance`s. The fields
   * are `def`s (not `var`s); no process-global mutable EVM state.
   *
-  * The fee `def`s are abstract on the trait ([[FrontierGasCalculator]] concretizes them, matching the AS-IS `trait
-  * FeeSchedule` + `FrontierFeeSchedule`); the computation methods are concrete and reference the fee `def`s, so they
-  * resolve against whichever fork instance is injected.
+  * The fee `def`s are abstract on the trait ([[FrontierGasCalculator]] concretizes them); the computation methods are
+  * concrete and reference the fee `def`s, so they resolve against whichever fork instance is injected.
   */
 trait GasCalculator:
 
-  // -- Tier / operation fee VALUES (the AS-IS FeeSchedule fields, transcribed byte-for-byte) --
+  // -- Tier / operation fee VALUES --
   def G_zero: BigInt
   def G_base: BigInt
   def G_verylow: BigInt
@@ -105,7 +104,7 @@ trait GasCalculator:
   // -- Memory expansion cost (YP H.1) --
 
   /** Gas cost of expanding memory to hold `dataSize` bytes at `offset`, given the current `memSize`. Incurs a blocking
-    * (unpayable) cost past [[GasCalculator.MaxMemory]]. Transcribed from the AS-IS `EvmConfig.calcMemCost`.
+    * (unpayable) cost past [[GasCalculator.MaxMemory]].
     */
   def calcMemCost(memSize: BigInt, offset: BigInt, dataSize: BigInt): BigInt =
     def c(m: BigInt): BigInt =
@@ -125,13 +124,13 @@ trait GasCalculator:
 
 object GasCalculator:
 
-  /** Artificial memory ceiling (AS-IS `EvmConfig.MaxMemory = UInt256(Int.MaxValue)`) past which expansion is priced
-    * unpayable, capping memory use via gas.
+  /** Artificial memory ceiling (`UInt256(Int.MaxValue)`) past which expansion is priced unpayable, capping memory use
+    * via gas.
     */
   val MaxMemory: BigInt = BigInt(Int.MaxValue)
 
-  /** The blocking (effectively unpayable) memory cost returned past [[MaxMemory]] — byte-identical to the AS-IS
-    * `UInt256.MaxValue / 2` (= 2^255 - 1).
+  /** The blocking (effectively unpayable) memory cost returned past [[MaxMemory]] — `UInt256.MaxValue / 2` (= 2^255 -
+    * 1).
     */
   private[evm] val MemoryCostBlocker: BigInt = UInt256.MaxValue.toBigInt / 2
 
@@ -168,7 +167,7 @@ object GasCalculator:
 // implement a parent trait's abstract members, so a fork diff must `override` inherited concrete `def`s.
 // ---------------------------------------------------------------------------------------------------------------------
 
-/** Frontier — the concrete base carrying every fee value (AS-IS `FrontierFeeSchedule`). */
+/** Frontier — the concrete base carrying every fee value. */
 class FrontierGasCalculator extends GasCalculator:
   def G_zero: BigInt = 0
   def G_base: BigInt = 2

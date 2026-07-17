@@ -24,18 +24,18 @@ import com.chipprbots.fukuii.crypto.zksnark.Fp
 import com.chipprbots.fukuii.crypto.zksnark.PairingCheck
 import com.chipprbots.fukuii.crypto.zksnark.PairingCheck.G1G2Pair
 
-/** The fork-gated EVM precompiled-contract registry (P5, the AS-IS `vm/PrecompiledContracts.scala` analog).
+/** The fork-gated EVM precompiled-contract registry (P5).
   *
   * Every precompile here is a thin **gas + input-decode + dispatch shell** that calls **down into the L0 `crypto`
   * primitive** — `Secp256k1`/`Hashes`/`Blake2b`/`zksnark.BN128`/`kzg.Kzg`/`bls.Bls12381`/`Secp256r1`. It never
-  * re-inlines a native call at the precompile site: that mislayering (AS-IS inlined the besu `LibEthPairings` and
-  * `CKZG4844JNI` calls under `vm/`) is the B-BLS-1/B-KZG-1 fix L0 already made, and this layer honours it.
+  * re-inlines a native call at the precompile site: inlining a besu `LibEthPairings`/`CKZG4844JNI`-style call directly
+  * under `vm/` was a past mislayering bug — the B-BLS-1/B-KZG-1 fix L0 already made — and this layer honours it.
   *
   * ==Fork gating comes from the resolved config, never an enum-fork param==
-  * The AS-IS trait carried `gas(input, etcFork, ethFork)` and each fork-selection re-read the enum-fork ladders. The
-  * rebuild gates gas through the P3 proposal fold: a precompile that reprices per fork reads the neutral [[EvmConfig]]
-  * intent getters (`eip1108Enabled`, `eip2565Enabled`, `eip7883Enabled`, `eip7823Enabled`) — the one fork-resolution
-  * mechanism (P2/P3), no fork name in a wrapper body.
+  * Rather than a `gas(input, etcFork, ethFork)` signature with each fork-selection re-reading the enum-fork ladders,
+  * the rebuild gates gas through the P3 proposal fold: a precompile that reprices per fork reads the neutral
+  * [[EvmConfig]] intent getters (`eip1108Enabled`, `eip2565Enabled`, `eip7883Enabled`, `eip7823Enabled`) — the one
+  * fork-resolution mechanism (P2/P3), no fork name in a wrapper body.
   *
   * ==Which precompiles are active is the fold's job, not this object's==
   * The per-fork *set* lives on [[EvmConfig.precompiles]], resolved by [[EvmConfig.deriveEvmConfigAt]] from the active
@@ -452,8 +452,7 @@ object PrecompiledContracts:
       else BigInt(80000) * k + BigInt(100000)
 
     /** Fold the 6-word chunks into pairs; a single invalid coordinate/off-subgroup point collapses the whole set to
-      * `None` (fail-loud), matching the AS-IS short-circuit — the product is commutative, so accumulation order is
-      * irrelevant.
+      * `None` (fail-loud) — the product is commutative, so accumulation order is irrelevant.
       */
     private def getPairs(chunks: Iterator[ByteString]): Option[Seq[G1G2Pair]] =
       chunks.foldLeft(Option(List.empty[G1G2Pair])) { (acc, chunk) =>

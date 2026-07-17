@@ -10,10 +10,10 @@ import com.chipprbots.fukuii.bytes.UInt256
   * disabled path costs nothing.
   *
   * **Branch-free disabled path (RX-L3-15, L3 plan §5).** The interpreter resolves its tracer from **one** slot (the
-  * concrete [[EvmInterpreter.tracer]] field) — never the AS-IS two-slot `Option.foreach` (VM ctor *and* `env.tracer`).
-  * The loop calls `tracer.onStep(...)` **unconditionally**; when that slot holds the monomorphic [[NoTracing]]
-  * singleton, the JVM inlines the empty body and the call disappears (besu `NO_TRACING`, geth's nil-`Hooks`
-  * short-circuit). No `Option` alloc, no per-opcode branch on the common (untraced) path.
+  * concrete [[EvmInterpreter.tracer]] field), never a two-slot `Option.foreach` split across a VM ctor field *and* an
+  * `env.tracer` field. The loop calls `tracer.onStep(...)` **unconditionally**; when that slot holds the monomorphic
+  * [[NoTracing]] singleton, the JVM inlines the empty body and the call disappears (besu `NO_TRACING`, geth's
+  * nil-`Hooks` short-circuit). No `Option` alloc, no per-opcode branch on the common (untraced) path.
   *
   * **P4/P6 scope.** P4 built this all-default trait + the [[NoTracing]] singleton (the branch-free disabled path). P6
   * (RX-L3-16) added the two tx-boundary hooks ([[onTxStart]]/[[onTxEnd]], besu `traceStartTransaction`/
