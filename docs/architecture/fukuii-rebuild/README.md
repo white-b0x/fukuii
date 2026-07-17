@@ -116,11 +116,16 @@ the rebuild's development history must not ship in the codebase (it goes stale t
 lands). A single mechanical+judgment **sweep, run once near rebuild completion** (so the reference
 code is no longer needed live), retires them **repo-wide and local**:
 
-- **Source comments** (`modules/**`) — delete pure "how we got here" / "the old code did X" narration;
-  a comment must describe *this* code only. Where a citation of the reference impl is genuinely load-
-  bearing, replace `AS-IS`/`july-fourth` with the **version** (`v0.8.1-series` / tip `42959353b`).
-  (Prevention is already in `.agents/protocols/code-style/comments.md` — this sweep clears the backlog
-  that predates it; ~58 `AS-IS` hits across `modules/` at L4 close, plus `july-fourth` mentions.)
+- **Source comments** (`modules/**`) — a **comment-quality pass in both directions.** (1) *Remove* the
+  dev-narrative: delete "how we got here" / "the old code did X" clutter; a comment describes *this* code
+  only. Where a citation of the reference impl is genuinely load-bearing, replace `AS-IS`/`july-fourth`
+  with the **version** (`v0.8.1-series` / tip `42959353b`). (2) *Add* the comments genuinely missing — the
+  non-obvious *why*, high-level orientation on a complex type/function, and the consensus-critical
+  citations (a gas value = EIP-X, cite the reference client). **Guardrail:** default-to-no-comment for
+  self-evident code — add only where a maintainer needs the *why* or would be lost without the
+  orientation; never restate code or pad; concise + accurate (a wrong comment on `evm`/`execution`/
+  `consensus` is worse than none). Governed by `.agents/protocols/code-style/comments.md`; this sweep
+  clears the backlog predating it (~58 `AS-IS` hits across `modules/` at L4 close, plus `july-fourth`).
 - **Plan + record docs** (`docs/architecture/fukuii-rebuild/**`) — the record docs' "improvements over
   old fukuii" framing and stray `AS-IS`/`july-fourth` references reduce to durable design rationale
   (the *why* of this code), not a before/after comparison with the reference branch.
@@ -128,4 +133,11 @@ code is no longer needed live), retires them **repo-wide and local**:
   (`~/.claude/projects/*/memory/**`) — same: keep the invariant, drop the dev-narrative; cite the
   reference impl by version where needed.
 
-Not done incrementally per-layer (a partial pass just spawns another) — one sweep, tracked here.
+**Process (two parts):**
+1. **A now-sweep** clears the L0–L4 backlog that accumulated before the `comments.md` rule existed.
+2. **A standing per-layer-close sweep** — every layer's close-out (the record step) includes a
+   narration/nomenclature sweep of *that layer's* new comments + docs. Because it runs while the
+   comments are fresh and citations are version-cited as-written, nothing accumulates — and each
+   sweep feeds the **agent-improvement loop**: what the sweep keeps catching tightens
+   `.agents/protocols/code-style/comments.md` and the charters, so later layers write fewer bad
+   comments. Continuous hygiene, not a big-bang end cleanup.
