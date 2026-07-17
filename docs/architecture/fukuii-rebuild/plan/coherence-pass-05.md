@@ -20,7 +20,7 @@ scheduled**, plus one contradiction the pass caught that **this session had intr
 
 - **~20 broken research-grounding links** across the layer/record docs: the "grounded in `observations/…`"
   links used `../../research/` (resolves to `docs/architecture/research/`, nonexistent) instead of
-  `../../../research/`, and the old-fukuii AS-IS links pointed at `docs/research/clients/fukuii/` when that
+  `../../../research/`, and the old-fukuii `july-fourth` links pointed at `docs/research/clients/fukuii/` when that
   research lives in `.local/docs/research/clients/fukuii/`. **All recomputed with `realpath` and fixed;**
   the sweep now reports **zero broken links**.
 - **1 dangling finding-ref `RX-L2-30`** (referenced, never defined — L2's RX tops at RX-L2-28): reworded to

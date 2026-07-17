@@ -31,7 +31,7 @@ that converges on it (observability per-instance registry, per-instance auth). D
   multi-`ChainInstance` runtime: N isolated Typed guardian subtrees, hard isolation, each family wired
   via the R1 typeclass. R1+R2 converge here — the differentiator." Propagated invariant: **no global
   singletons / mutable statics anywhere L0–L9.**
-- **fukuii AS-IS:** Classic-rooted single-node process; global statics (`ShutdownHookBuilder`,
+- **fukuii `july-fourth`:** Classic-rooted single-node process; global statics (`ShutdownHookBuilder`,
   `ioRuntime` diamond, direct `Config.` reads) — the R2 leaks the plan enumerates. One network per run.
 - **Reference source (byte-cited):**
   - besu `acceptance-tests/dsl/.../node/ThreadBesuNodeRunner.java:119` — `Map<String, Runner> besuRunners`
@@ -106,7 +106,7 @@ that converges on it (observability per-instance registry, per-instance auth). D
   the ADT (down-dep), transports cross-process, owns the manager (buffer, per-consumer cap-1,
   wake-after-drain, `FinishedHeight`, WAL, `ExExHead`); L2 exposes `prune(safeHeight)` gated on
   `min(consumer heights)`.
-- **fukuii AS-IS:** no first-class exec-extension framework — no reorg-aware `Committed/Reorged/Reverted`,
+- **fukuii `july-fourth`:** no first-class exec-extension framework — no reorg-aware `Committed/Reorged/Reverted`,
   no `FinishedHeight` gate, no WAL, no gRPC seam.
 - **Reference source (byte-cited):**
   - reth `crates/exex/types/src/notification.rs:10` — `enum ExExNotification { ChainCommitted{new},
@@ -266,7 +266,7 @@ that converges on it (observability per-instance registry, per-instance auth). D
   features (MCP-2026 OAuth 2.1 + write-ops, Engine-API JWT, external-signer custody) **converge on one
   auth/identity/capability seam** at the serving boundary, per-instance under R2; L0 exposes
   `constantTimeEquals` the JWT/MAC/ECIES paths call.
-- **fukuii AS-IS:** keystore MAC uses plain `==` (timing finding, RX-L0-15-adjacent); Engine-API JWT exists
+- **fukuii `july-fourth`:** keystore MAC uses plain `==` (timing finding, RX-L0-15-adjacent); Engine-API JWT exists
   but no unified per-request `Principal`/`Capability` gate; MCP at 7.2% coverage, no write-ops/auth.
 - **Reference source (byte-cited):**
   - besu `ethereum/api/.../jsonrpc/authentication/AuthenticationService.java:34` — `boolean isPermitted(…)`;
@@ -318,7 +318,7 @@ that converges on it (observability per-instance registry, per-instance auth). D
   stack (Kamon+kanela dropped); **per-instance metric registry** (not a global static) so the
   multi-`ChainInstance` runtime reports per-network; "**besu `metrics/` is the structural mirror**"; 15
   shipped Grafana dashboards versioned to per-instance metric names; Kamon → OBSOLETE.
-- **fukuii AS-IS:** shared static registry → byte-identical `/metrics` across instances (Bug-29).
+- **fukuii `july-fourth`:** shared static registry → byte-identical `/metrics` across instances (Bug-29).
 - **Reference source (byte-cited):**
   - besu `metrics/core/.../MetricsSystemFactory.java:52` — `create(MetricsConfiguration)` returns a
     per-call `ObservableMetricsSystem` (the *interface* shape — the correct structural mirror for the

@@ -102,7 +102,7 @@ G-NL1 retirement homes (`ioRuntime`→L6, GraphQL `Config.config`→L9, logback 
 confirm the prose holds); (2) **custody shutdown** — `fixDatabase` repair path kept with zero adversarial
 comparison to geth/erigon boot recovery (WB-L10a), plus the **missing disk-space watchdog → self-SIGTERM**
 the SR marks a custody DEFAULT (go-ethereum `cmd/utils/cmd.go:134,144`; WB-L10b); (3) the **N-whole-nodes
-differentiator architecture** inherited from AS-IS `FukuiiRuntime`, never argued vs shared-partitioned
+differentiator architecture** inherited from `july-fourth` `FukuiiRuntime`, never argued vs shared-partitioned
 multi-tenancy (WB-L10c).
 
 ## Full findings register (by layer)
@@ -141,7 +141,7 @@ prose fix at build), **COVERED** (already resolved by coherence-pass-01, confirm
 | L10-F1 (WB-L10a) | MED | 1 | `fixDatabase` custody repair path kept with zero adversarial comparison | **REVIEW → WB-R4** |
 | L10-F2 (WB-L10b) | MED | 3 | disk-space watchdog → self-SIGTERM (SR custody DEFAULT) missing | REVIEW → WB-R4 (+ EDIT §2) |
 | L10-F3 | MED | 3 | Hoodi + testnet-curation policy (SR DEFAULT) not in the L10 profile set | EDIT (name Hoodi; carry curation policy or L1 cross-ref) |
-| L10-F4 (WB-L10c) | MED | 1 | N-whole-nodes differentiator inherited from AS-IS, not argued vs shared-partitioned | REVIEW → WB-R4 (justify in §7/§9) |
+| L10-F4 (WB-L10c) | MED | 1 | N-whole-nodes differentiator inherited from `july-fourth`, not argued vs shared-partitioned | REVIEW → WB-R4 (justify in §7/§9) |
 | L10-F5 | LOW-MED | 1 | periodic-consistency-check folded into guardian but its only action (auto-shutdown) removed — unreconciled | EDIT (reconcile §5↔§6) |
 | L10-F6 | LOW-MED | 2 | R11 per-instance-auth DoD over L9 gate | **COVERED** (CP01 R11-1) — confirm at build |
 

@@ -38,9 +38,9 @@ The six external reference clients are vendored under
 | **erigon** | staged/flat-state, StateChanges/remote-KV, MCP, Bor packaging | perf + product-family shapes |
 | **reth** | modularity/SDK, ExEx, ForkCondition, NodeTypes, nibble-path | Rust; port the *idea*, not the crate model |
 
-The **7th** is **fukuii's own AS-IS** — the `clients/fukuii/*.md` SR snapshots + the reference tree on
+The **7th** is **fukuii's own `july-fourth`** — the `clients/fukuii/*.md` SR snapshots + the reference tree on
 branch `july-fourth`. Every RX item states what fukuii *currently* does so the plan's "improvement over
-AS-IS" claim is itself verified.
+`july-fourth`" claim is itself verified.
 
 **Two distinct besu things — do not confuse them.** (1) `clients/besu` on `upstream` = **vanilla besu**
 (the JVM implementation guide for *shared* behavior). (2) `clients/besu-etc` = **besu-the-project's own
@@ -82,7 +82,7 @@ Every item the plan commits to implement. The registry is **already written** �
 1. **`optimizations.md`** — every ~90 disposition rows (DEFAULT / STRUCTURAL / OPTIONAL / OBSOLETE),
    per layer + cross-cutting.
 2. **Per-layer seams & decisions** — each `L{n}.md` §2 (SR verdicts), §4 (besu structural mirror), §5
-   (Scala-3 idiom targets), §6 (improvements over AS-IS), §7 (deferrals landing here).
+   (Scala-3 idiom targets), §6 (improvements over `july-fourth`), §7 (deferrals landing here).
 3. **`feature-ledger.md`** — F1–F13.
 4. **The R1–R11 downward constraints** each layer claims to satisfy (`requirements.md` matrix cells).
 
@@ -169,7 +169,7 @@ Each item's RX entry ends in exactly one verdict, derived from the four question
 ```
 ### RX-NN · <item> · Tier <A|B|C> · owner-layer L<n>
 - **Plan claim / disposition:** <what the plan says + DEFAULT/STRUCTURAL/OPTIONAL/OBSOLETE>
-- **fukuii AS-IS:** <what fukuii does today (clients/fukuii snapshot / july-fourth)>
+- **fukuii `july-fourth`:** <what fukuii does today (clients/fukuii snapshot / july-fourth)>
 - **Reference source (byte-cited):**
   - go-ethereum `path:line` — <quote / operative behavior>
   - besu `path:line` — <quote> (JVM-implementation lens)

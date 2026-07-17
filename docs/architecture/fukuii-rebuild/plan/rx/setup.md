@@ -50,8 +50,8 @@ present in **exactly one** client, reth (RX-setup-08).
 ## Group A — build floor / single-version-source
 
 ### RX-setup-01 · Single version source (`Dependencies.scala`, besu-BOM shape), sentinel-gated · Tier A (structural spine) · owner-layer setup
-- **Plan claim / disposition:** §2/§4/§5 DEFAULT+STRUCTURAL (R6). `project/Dependencies.scala` **is** the sbt equivalent of besu's published `:platform` BOM; discipline = *never inline a version in a submodule `build.sbt`*; fix the AS-IS duplicates. Dependency changes **sentinel-gated** (memory `dependency-changes-need-gated-agent`).
-- **fukuii AS-IS:** `Dependencies.scala` centralizes versions but is **not** a published BOM / versionless-enforced; per `build-deps.md`, 1 literal outside it (`build.sbt:3` kanela-agent), 2 duplicate literals inside (json4s `4.0.7` ×2, bouncycastle `1.84` ×2). (§6 adds `solc` unpinned — not cited in the obs doc; a foundation-dossier claim.)
+- **Plan claim / disposition:** §2/§4/§5 DEFAULT+STRUCTURAL (R6). `project/Dependencies.scala` **is** the sbt equivalent of besu's published `:platform` BOM; discipline = *never inline a version in a submodule `build.sbt`*; fix the `july-fourth` duplicates. Dependency changes **sentinel-gated** (memory `dependency-changes-need-gated-agent`).
+- **fukuii `july-fourth`:** `Dependencies.scala` centralizes versions but is **not** a published BOM / versionless-enforced; per `build-deps.md`, 1 literal outside it (`build.sbt:3` kanela-agent), 2 duplicate literals inside (json4s `4.0.7` ×2, bouncycastle `1.84` ×2). (§6 adds `solc` unpinned — not cited in the obs doc; a foundation-dossier claim.)
 - **Reference source (byte-cited):**
   - besu `gradle/platform/build.gradle` — `java-platform` BOM, *published*; submodules declare deps versionless. (JVM-impl lens — the direct sbt analog.)
   - nethermind `Directory.Packages.props` — CPM, versionless `<PackageReference>`, transitive pinning on (cross-check).
@@ -65,7 +65,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-02 · sbt-2 cutover (MOD-19 Wave S) · Tier B · owner-layer setup
 - **Plan claim / disposition:** §5 R6 — stay on sbt-1.10.7/Scala-3.3.8/Pekko-1.6 **now**, cut to sbt-2 at GA; two known plugin blockers tracked (`sbt-kanela-runner` moot once Kamon dropped, R10).
-- **fukuii AS-IS:** sbt 1.10.7 (`project/build.properties:1`, per `build-deps.md`), single build tool.
+- **fukuii `july-fourth`:** sbt 1.10.7 (`project/build.properties:1`, per `build-deps.md`), single build tool.
 - **Reference source (byte-cited):** no reference-client analog (all six use Gradle/Cargo/Makefile/MSBuild, not sbt) — this is a fukuii-internal build-modernization item, correctly grounded in MOD-19, not a client.
 - **Q1 appropriate?** Yes — the SR↔dev directive (`build-deps.md` §SR↔dev) is explicit: build-floor modernization is a *prereq floor* staged ahead of the structural work, and the current stack carries zero throwaway risk (memory `mod19-modernization-waves`).
 - **Q2 what to implement?** Yes — deferring the GA cut (stage, don't rush) is right; the `<module>/test` sbt-2 false-green quirk (warden BUILD-1) is a live gotcha the plan flags (§9).
@@ -74,7 +74,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-03 · Born-modern deps + GitHub SHA pins + `resolution-age` · Tier B · owner-layer setup
 - **Plan claim / disposition:** §5 R6 — circe (not json4s), Caliban 3.1.2 (not Sangria), Streams-Tcp (not Classic-Tcp), Micrometer/Prometheus (not Kamon), never re-introduce the old lib; GitHub deps pinned to commit SHAs (reth `revmc` branch-pin = the counter-example); `resolution-age` 7-day gate; exact pins for crypto/build.
-- **fukuii AS-IS:** mixed — the successor deps are the rebuild target; the old libs live on `july-fourth`.
+- **fukuii `july-fourth`:** mixed — the successor deps are the rebuild target; the old libs live on `july-fourth`.
 - **Reference source (byte-cited):**
   - reth `Cargo.lock` + `dependabot.yml` — but **ships a branch-pinned git dep** (`revmc` branch, not SHA) — `build-deps.md` names it "a smell"; the plan correctly cites it as the anti-pattern to avoid.
   - go-ethereum `build/checksums.txt` — checksummed toolchain download (SHA-pinned tools).
@@ -86,7 +86,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-04 · Module DAG (besu layered `settings.gradle` → `build.sbt` DAG) · Tier A (structural spine) · owner-layer setup
 - **Plan claim / disposition:** §3/§4 — the layered `build.sbt` module DAG mirrors besu's `settings.gradle` layered subprojects (leaf modules zero-internal-deps); boundaries echo besu's `util`/`crypto:algorithms`/`ethereum:rlp`/`evm` ~1:1. An upward edge = compile error (§8).
-- **fukuii AS-IS:** `build-deps.md` — fukuii's sbt modules already echo besu's leaf modules ~1:1; "the boundaries are largely right."
+- **fukuii `july-fourth`:** `build-deps.md` — fukuii's sbt modules already echo besu's leaf modules ~1:1; "the boundaries are largely right."
 - **Reference source (byte-cited):**
   - besu `settings.gradle` — layered subprojects, clean layered DAG, leaf modules have zero internal deps (`build-deps.md` comparison-table row 2).
   - reth 108 crates, `*-api`/`*-types` split from impl (finest decomposition, cross-check).
@@ -100,7 +100,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-05 · Checksummed supply-chain gate (besu `verification-metadata.xml` + geth `checksums.txt`) · Tier A (structural, sentinel) · owner-layer setup
 - **Plan claim / disposition:** §2/§3/§4/§6 DEFAULT+STRUCTURAL (R6/R11). besu `verification-metadata` equivalent for sbt; §3 + §9 honesty: **"sbt has no native equivalent → needs design"** (a custom sbt task snapshotting+verifying resolved-artifact SHA-256, or a vetted Coursier plugin); sentinel-owned. Closes the *published-bytes-changed-under-a-fixed-version* attack Coursier's default checksums miss (§6).
-- **fukuii AS-IS:** `build-deps.md` — **none**; "no checksum/lockfile artifact checked in; resolution relies on Maven Central + declared `resolvers` each build."
+- **fukuii `july-fourth`:** `build-deps.md` — **none**; "no checksum/lockfile artifact checked in; resolution relies on Maven Central + declared `resolvers` each build."
 - **Reference source (byte-cited):**
   - besu `gradle/verification-metadata.xml` — **10,070 lines**; `<verify-metadata>true</verify-metadata>` / `<verify-signatures>false</verify-signatures>`; per-artifact `<sha256 value="…" origin="Generated by Gradle"/>` for jar+pom+sources. Gradle-native lockfile+checksum, fail-on-mismatch.
   - go-ethereum `build/checksums.txt` — `# version:golang 1.25.10`, `# version:golangci …`, `# version:protoc …`; sha256 of every build artifact incl. bootstrap Go. Checksummed *toolchain*, not deps.
@@ -115,7 +115,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-06 · CI SAST — Semgrep (CodeQL has no Scala extractor) · Tier B · owner-layer setup/CI
 - **Plan claim / disposition:** §2/§3/§6 + F12 + R11 — **"nethermind (pre-merge Trivy) + Semgrep (CodeQL has no Scala extractor)"**; fukuii ships **zero** SAST today (a real security hole). besu daily CodeQL (Java) cited as the JVM cross-reference.
-- **fukuii AS-IS:** `build-deps.md` / dossier A8 — **zero** CI SAST across 29 workflows; no codeql/trivy/semgrep.
+- **fukuii `july-fourth`:** `build-deps.md` / dossier A8 — **zero** CI SAST across 29 workflows; no codeql/trivy/semgrep.
 - **Reference source (byte-cited):**
   - nethermind `.github/workflows/codeql.yml:21` — `language: ['csharp', 'actions']`, `packs: githubsecuritylab/codeql-csharp-queries`. **Not** Scala.
   - besu `.github/workflows/codeql.yml` — `schedule: cron '0 0 * * *'` (daily), `language: ['java']`.
@@ -130,7 +130,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-07 · Pre-merge Trivy container scan (nethermind) · Tier B · owner-layer setup/CI
 - **Plan claim / disposition:** §2/§3/§6 — pre-merge Trivy, nethermind the authority; besu daily CodeQL is the JVM cross-reference; part of the F12/R11 automation fukuii ships none of.
-- **fukuii AS-IS:** none (dossier A8).
+- **fukuii `july-fourth`:** none (dossier A8).
 - **Reference source (byte-cited):**
   - nethermind `.github/workflows/trivy.yml` — `on: pull_request: [master]` (**pre-merge**) + push + `schedule: cron '29 19 * * 4'`; builds `docker build -t nethermind:$sha .`, scans with `aquasecurity/trivy-action@…v0.35.0`, `severity: CRITICAL,HIGH`, uploads SARIF via `codeql-action/upload-sarif`.
   - besu `.github/workflows/container-security-scan.yml` — same `trivy-action@…v0.35.0` on `hyperledger/besu` image, but **`schedule: cron '17 8 * * *'` (daily), not pull_request** — scheduled, not pre-merge.
@@ -142,7 +142,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-08 · Dependabot cooldown (deps + security, 7-day) · Tier B · owner-layer setup/CI
 - **Plan claim / disposition:** §2 + §8 + F12 — `dependabot.yml` (deps + security, 7-day cooldown); auto-CVE-patch PRs; sentinel-owned, evidence-gated (no unilateral bumps).
-- **fukuii AS-IS:** none.
+- **fukuii `july-fourth`:** none.
 - **Reference source (byte-cited):**
   - reth `.github/dependabot.yml` — `github-actions` + `cargo` ecosystems, both with `cooldown: default-days: 7`; cargo group has `open-pull-requests-limit: 1`, `commit-message.prefix: "chore(deps)"`, `labels: ["A-dependencies"]`. **The only vendored client with a cooldown.**
   - erigon `.github/dependabot.yml` — `github-actions` + `npm` ×2, **no cooldown**.
@@ -155,7 +155,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-09 · `SECURITY.md` + Docker `@sha256` base-image pins · Tier B · owner-layer setup
 - **Plan claim / disposition:** §2/§6/§8 (R11) — `SECURITY.md` present; Docker `@sha256` digest-pinning; besu `SECURITY.md` + nethermind Trivy + Docker `@sha256` pin cited (§3 repo-hygiene row).
-- **fukuii AS-IS:** no `SECURITY.md` (§6); Docker pinning unverified here.
+- **fukuii `july-fourth`:** no `SECURITY.md` (§6); Docker pinning unverified here.
 - **Reference source (byte-cited):**
   - `SECURITY.md` present in **besu, core-geth, go-ethereum, nethermind, reth** (5/6; **absent only in erigon**) — near-universal.
   - nethermind `Dockerfile:4,29` — `FROM …dotnet/sdk:10.0.301-resolute@sha256:196f61c6…`, `FROM …dotnet/aspnet:10.0.9-resolute@sha256:0aa8645b…`; same digest-pinning in `Dockerfile.chiseled`, `Dockerfile.pgo`. Every base image pinned by `@sha256`.
@@ -168,7 +168,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-10 · `check_baddeps`-style DAG / `Eth*`/`Etc*` ratchet · Tier A (structural spine) · owner-layer setup/CI
 - **Plan claim / disposition:** §2/§3/§6 DEFAULT-as-CI-ratchet (R1/R3/R10). geth `check_baddeps` = "the build-layer analog of fukuii's `Eth*`/`Etc*` no-cross-reference rule" **and** "the mechanical enforcer of the module DAG"; §6 — "enforcing the `Eth*`/`Etc*` rule **and** the module DAG (R1/R3)."
-- **fukuii AS-IS:** `build-deps.md` — **none** at the build-tool layer; the `Eth*`/`Etc*` rule is convention/review only (`scala3-style.md`), not an sbt/CI fitness function.
+- **fukuii `july-fourth`:** `build-deps.md` — **none** at the build-tool layer; the `Eth*`/`Etc*` rule is convention/review only (`scala3-style.md`), not an sbt/CI fitness function.
 - **Reference source (byte-cited):**
   - go-ethereum `build/ci.go:524-549` (`doCheckBadDeps`) — `baddeps := [][2]string{ {rawdb, ethdb/leveldb}, {rawdb, ethdb/pebbledb} }` — **exactly 2 hand-listed forbidden edges**; per rule runs `go list -deps <A>` and fails if `<B>` appears. Comment L521-523: *"This is not an exhaustive list, rather something we build up over time at sensitive places."* Invoked via `.github/workflows/go.yml`.
   - besu `plugin-api/build.gradle:71` `FileStateChecker` — a *different* mechanism (source-hash freeze, RX-setup-12), not a DAG topology check.
@@ -182,7 +182,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-11 · R2 isolation-regression grep (`object … { var … }` + direct `Config.`-read) · Tier A (structural spine) · owner-layer setup/CI
 - **Plan claim / disposition:** §6 (row 4) + §8 — the CI grep for `object … { var … }` + direct `Config.`-read in per-instance code is "the repo-wide enforced home for the gate L2/L8/L9/L10 each assert, so it can't drift per-layer" (R2-F3).
-- **fukuii AS-IS:** the R2 litmus exists as a *convention* (`requirements.md` R2 line: "Litmus: grep for `object … { var … }` / global singletons") — no CI job runs it.
+- **fukuii `july-fourth`:** the R2 litmus exists as a *convention* (`requirements.md` R2 line: "Litmus: grep for `object … { var … }` / global singletons") — no CI job runs it.
 - **Reference source (byte-cited):** **fukuii-invented** — no reference client uses actors, so "no global mutable singleton (would break per-instance isolation)" has no direct client analog. The nearest precedent is nethermind's *no-global-static* discipline (each family references inward to `Nethermind.Api`; the runner loads plugins per-instance) and besu's per-instance Lifecycle FSM — architectural, not a grep. The grep mechanism itself is fukuii's own R2 enforcement.
 - **Q1 appropriate?** Yes — R2 (concurrent multi-instance single-binary) is *the* enterprise differentiator (memory `sr-phase3`); a per-instance isolation break is silent until two instances collide, so a mechanical repo-wide grep is the right guard.
 - **Q2 what to implement?** Yes — centralizing the grep at setup CI (vs re-asserting it in each of L2/L8/L9/L10's §8) is the correct anti-drift placement; the plan's rationale ("so it can't drift per-layer") is sound.
@@ -191,7 +191,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-12 · besu `plugin-api` source-hash freeze (`FileStateChecker`) · Tier C (OPTIONAL/deferred) · owner-layer setup
 - **Plan claim / disposition:** §3/§4 — besu `plugin-api` `FileStateChecker` source-hash freeze → "the extension-seam lock **if/when** the R7/R9 plugin-api lands." OPTIONAL, seam-later.
-- **fukuii AS-IS:** no plugin-api yet; nothing to freeze.
+- **fukuii `july-fourth`:** no plugin-api yet; nothing to freeze.
 - **Reference source (byte-cited):**
   - besu `plugin-api/build.gradle:71-76` — `tasks.register('checkAPIChanges', FileStateChecker) { files = sourceSets.main.allJava.files; knownHash = 'nKgL6IVQtUfwVXjf8zg8XtEVZm+ImSiM3BAz9owTLUc=' }`; `check.dependsOn('checkAPIChanges')`. The task (L55-68) SHA-hashes every `.java` file sorted by canonical path, base64-encodes, compares to `knownHash`, throws `GradleException` on mismatch (message: *"the checksum of the project did not match … update knownHash … if this is a deliberate change where you have thought through backwards compatibility"*).
 - **Q1 appropriate?** Yes — a source-hash freeze forcing *deliberate* API changes on a published extension surface is the correct posture; but the seam it locks (R7/R9 plugin-api) doesn't exist yet.
@@ -202,8 +202,8 @@ present in **exactly one** client, reth (RX-setup-08).
 ## Group E — auto-doc regenerate-and-verify
 
 ### RX-setup-13 · Auto-doc update (reth `update-book-cli` + `git diff --exit-code`; geth `check_generate`) · Tier B · owner-layer setup/CI
-- **Plan claim / disposition:** §2/§3/§6 + F4 + R10 DEFAULT — reth `update-book-cli` + `git diff --exit-code` (generated CLI reference); go-ethereum `check_generate` (freshness); metric↔dashboard drift check. fukuii AS-IS has no auto-doc/drift gate (§6).
-- **fukuii AS-IS:** `build-deps.md` — `BuildInfoPlugin` only; "no freshness/hash-diff gate."
+- **Plan claim / disposition:** §2/§3/§6 + F4 + R10 DEFAULT — reth `update-book-cli` + `git diff --exit-code` (generated CLI reference); go-ethereum `check_generate` (freshness); metric↔dashboard drift check. fukuii `july-fourth` has no auto-doc/drift gate (§6).
+- **fukuii `july-fourth`:** `build-deps.md` — `BuildInfoPlugin` only; "no freshness/hash-diff gate."
 - **Reference source (byte-cited):**
   - reth `Makefile:223-226` — `update-book-cli: build-debug … ./docs/cli/update.sh $(CARGO_TARGET_DIR)/debug/reth` (regenerates CLI pages from the binary `--help`). CI: `.github/workflows/lint.yml:252-257` — `cargo build --bin reth` → `./docs/cli/update.sh target/debug/reth` → step "Check docs changes" `run: git diff --exit-code`. (reth `CLAUDE.md` confirms: the `book` CI job "regenerat[es] the docs and running `git diff --exit-code`. If the committed docs don't match the generated output, CI fails.")
   - go-ethereum `build/ci.go:474-518` (`doCheckGenerate`) — `HashFolder` → `go generate ./...` → re-`HashFolder` → `DiffHashes`; `log.Fatal("One or more generated files were updated …")` on any change; then `go mod tidy -diff`. Invoked `.github/workflows/go.yml:39`.
@@ -216,8 +216,8 @@ present in **exactly one** client, reth (RX-setup-08).
 ## Group F — clean base / migration / hygiene
 
 ### RX-setup-14 · Clean `upstream/staging` base + akka-cruft cleanup · Tier B · owner-layer setup
-- **Plan claim / disposition:** §1 + §6 + §Layer-boundaries — setup is the *target config* on the clean `upstream/staging` base; the *move* is `plan/migration-runbook.md`. §6: the AS-IS `assembly/assemblyMergeStrategy` still special-cases `"akka"` (post-migration cruft) → cleaned; CODEOWNERS + license + Docker digest-pinning.
-- **fukuii AS-IS:** `assemblyMergeStrategy` special-cases `"akka"` (Pekko migration residue).
+- **Plan claim / disposition:** §1 + §6 + §Layer-boundaries — setup is the *target config* on the clean `upstream/staging` base; the *move* is `plan/migration-runbook.md`. §6: the `july-fourth` `assembly/assemblyMergeStrategy` still special-cases `"akka"` (post-migration cruft) → cleaned; CODEOWNERS + license + Docker digest-pinning.
+- **fukuii `july-fourth`:** `assemblyMergeStrategy` special-cases `"akka"` (Pekko migration residue).
 - **Reference source (byte-cited):** no reference-client analog for the akka→pekko cleanup (fukuii-specific); Docker `@sha256` pinning grounded in nethermind (RX-setup-09); CODEOWNERS grounded in `github-workflows.md` protocol (root catch-all, per CLAUDE.md protocol table).
 - **Q1 appropriate?** Yes — born-modern (§6) means no Akka-era residue; the clean-base decision is the trunk decision (memory `research-into-cohesive-plan-before-building` → clean rebuild).
 - **Q2 what to implement?** Yes — the target-config-vs-move split (setup = config, runbook = migration) is the correct separation of concerns; setup owns the DAG + version source + CI gates, not the git mechanics.
@@ -226,7 +226,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-15 · Multi-binary / meta-module SDK seams (OPTIONAL) · Tier C (OPTIONAL, seam-designed) · owner-layer setup
 - **Plan claim / disposition:** §2/§7 OPTIONAL(product-family / SDK) — multi-binary component split (erigon process seams) + meta-module SDK front door (reth `reth-ethereum` / nethermind plugin-project); "seam-now, occupancy-later," none dropped.
-- **fukuii AS-IS:** `build-deps.md` — single assembled artifact; "no service-binary or compile-time family-gated split."
+- **fukuii `july-fourth`:** `build-deps.md` — single assembled artifact; "no service-binary or compile-time family-gated split."
 - **Reference source (byte-cited):**
   - erigon — fleet of separable service binaries (`sentry`/`txpool`/`rpcdaemon`/`downloader`/`caplin`) over a gRPC `node/interfaces` module; boundary at the process/gRPC hop (runtime split).
   - reth — feature-flag composition (`consensus`/`evm`/`node`/`full`) + `reth-node-builder`; meta-crate `reth-ethereum` re-export front door (compile-time).
@@ -238,7 +238,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-16 · Dev-rich environment (F5/R9 — `fukuii-custom-networks`, `ops/` dashboards, network origination) · Tier B · owner-layer setup
 - **Plan claim / disposition:** §1/§8 + F5 + R9 — dev-rich env as first-class: `fukuii-custom-networks`, `ops/` dashboards, network origination (besu `generate-blockchain-config`); per-network content (genesis/testnet) → L5/F5 (Layer-boundaries).
-- **fukuii AS-IS:** `fukuii-custom-networks` skill exists (skill listing); shipped Grafana dashboards exist (R10 — "the only client besides erigon that ships them").
+- **fukuii `july-fourth`:** `fukuii-custom-networks` skill exists (skill listing); shipped Grafana dashboards exist (R10 — "the only client besides erigon that ships them").
 - **Reference source (byte-cited):**
   - besu `generate-blockchain-config` — custom-network origination (cited in F5/R9; grounded `multi-network.md`).
   - erigon — the other client shipping Grafana dashboards (R10 note).
@@ -251,7 +251,7 @@ present in **exactly one** client, reth (RX-setup-08).
 
 ### RX-setup-17 · F13 full agent-charter reconciliation (§10) · Tier C (build-process, no client analog) · owner-layer setup
 - **Plan claim / disposition:** §6/§8/§10 + F13 — the one-time full reconciliation: every `.claude/agents/*.md` charter gets the standing rebuild context (code in `modules/`, plan location, R1–R11 authority model, Rule 0, besu-JVM lens, multi-pass gate) + dead `src/…` paths repointed at `modules/<layer>/`; `REFERENCES.md` extended; AGENTS.md/CLAUDE.md reconciled; **warden owns**, `TOOLING-AUDIT-01` parallel (not gating).
-- **fukuii AS-IS:** §6 — root docs + agent charters point at the dead `src/…` tree (the documented miss, memory `phase4-relocation-strategy` / F13 "the dead-`src/`-charter miss").
+- **fukuii `july-fourth`:** §6 — root docs + agent charters point at the dead `src/…` tree (the documented miss, memory `phase4-relocation-strategy` / F13 "the dead-`src/`-charter miss").
 - **Reference source (byte-cited):** **no reference-client analog** — this is build-process tooling (how Claude is used to build fukuii), correctly flagged in the ledger as "not a client feature." warden's remit (CLAUDE.md subagent table).
 - **Q1 appropriate?** Yes — an agent loading a phantom `src/` tree is actively harmful (wrong file map); the operator's documented failure mode (memory `research-into-cohesive-plan-before-building`, the plugin-api miss) is partly a stale-context failure. Reconciling charters onto `modules/` + the plan is the direct guard.
 - **Q2 what to implement?** Yes — the one-time full reconciliation at setup + per-layer step-5 maintenance (plan/README lifecycle) is the right cadence: bring everything current once, then keep each slice current as its layer lands. No better alternative (a per-layer-only approach would leave the majority of charters stale through the whole build).

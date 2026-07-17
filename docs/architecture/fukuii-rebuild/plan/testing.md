@@ -2,7 +2,7 @@
 
 _The shared home the three service-layer drafts (L8/L9/L10) and every consensus layer defer their §8 DoD
 to. Grounded in [`observations/testing.md`](../../../research/clients/observations/testing.md) (the SR-12
-synthesis), the AS-IS snapshot `.local/docs/research/clients/fukuii/testing.md`, the five per-client
+synthesis), the `july-fourth` snapshot `.local/docs/research/clients/fukuii/testing.md`, the five per-client
 `{client}/testing.md` docs, `optimizations.md` §Cross-cutting, `requirements.md` R10/R4/R2, and
 [`reference-client-crosscheck.md`](../../../research/best-practices/evm-clients/reference-client-crosscheck.md).
 This is prospective intent, not an as-built record — where a layer plan's §8 names "reference vectors" or
@@ -75,7 +75,7 @@ for JVM-idiom questions") — read its Java harness alongside geth's Go when sha
 
 ## 3. The R10 testing ratchets
 
-Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizations.md`
+Each ratchet = **what / why / `july-fourth` gap / vehicle**. Dispositions per `optimizations.md`
 §Cross-cutting. Every ratchet is a **floor** (`planned-work-is-scope-floor`) — scheduled, not optional.
 
 ### Ratchet 1 — Assert-fails-WITH-REASON (replace the `BrokenEthTest` tag-hide) · DEFAULT · the single highest-value gap
@@ -86,9 +86,9 @@ Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizat
 - **Why:** the skip list doubles as a living compatibility ledger (`observations/testing.md`
   approach-catalog: "Superior to a bare `ignore`/`-- SKIP`"). erigon panics on an empty reason; geth's
   `fails` taxonomy panics on empty; reth verifies the failure lands on the *right* block number.
-- **AS-IS gap:** fukuii's `BrokenEthTest`/`DisabledTest`/`FlakyTest` (`Tags.scala:238,273`) are **tag
+- **`july-fourth` gap:** fukuii's `BrokenEthTest`/`DisabledTest`/`FlakyTest` (`Tags.scala:238,273`) are **tag
   exclusions** — `-l BrokenEthTest` (`build.sbt:642`) hides the fixture from the gate but does **not
-  assert it still fails**; a re-passing fixture does not flip loudly (AS-IS `testing.md`: "hides
+  assert it still fails**; a re-passing fixture does not flip loudly (`july-fourth` `testing.md`: "hides
   known-broken, does NOT assert-it-still-fails"). This is the highest-value testing gap.
 - **Vehicle:** a `ExpectedFailure(pattern, reason)` policy in the `Case`/`Suite` scaffold (Ratchet 8):
   the runner matches the failing block/vector against the expectation; a match with the reason recorded is
@@ -103,7 +103,7 @@ Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizat
   count fails loudly instead of printing a green "Suites: completed."
 - **Why:** geth's silent `t.Skip`-the-whole-suite is the named anti-pattern (`observations/testing.md`);
   a missing/uninitialized submodule must zero *nothing* silently.
-- **AS-IS gap (the concrete incident):** `REPO-06` — the `Integration = config("it").extend(Test)` axis
+- **`july-fourth` gap (the concrete incident):** `REPO-06` — the `Integration = config("it").extend(Test)` axis
   delegation meant `commonSettings`' `-l IntegrationTest` also excluded every `IntegrationTest`-tagged
   spec from `IntegrationTest/test` itself, so **8 of the 9 `ethtest` spec classes ran zero tests every
   night** while green. Separately, ethtest specs resolve `new File(user.dir, "ets/tests")` and
@@ -123,9 +123,9 @@ Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizat
   (`ExecutionSpec*_prague_eip7702_*`).
 - **Why:** directly serves fukuii's PoW-vs-PoS dual-family conformance — CI and devs run a
   family-scoped slice (`testOnly *_olympia_*` vs `*_osaka_*`) without a bespoke harness.
-- **AS-IS gap:** fukuii resolves the fork at **runtime** via `TestConverter.networkToConfig(test.network,
+- **`july-fourth` gap:** fukuii resolves the fork at **runtime** via `TestConverter.networkToConfig(test.network,
   baseConfig)` + a `supportedNetworks` filter (`EthereumTestExecutor.scala:47`) — flexible, but "the two
-  families are **not** independently `--tests`-selectable by name the way besu's are" (AS-IS `testing.md`,
+  families are **not** independently `--tests`-selectable by name the way besu's are" (`july-fourth` `testing.md`,
   a gap the SR flags). Fork-in-the-config, not fork-in-the-class-name.
 - **Vehicle:** the `Case`/`Suite` scaffold (Ratchet 8) names each discovered case with its resolved fork
   family + fork — fukuii's rendering: the `AnyFlatSpec` behavior text / case name carries
@@ -139,11 +139,11 @@ Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizat
   across the cluster over live JSON-RPC.
 - **Why (two payloads):**
   1. **The R2 multi-instance isolation vehicle (§4)** — the enterprise differentiator (L10's concurrent
-     multi-`ChainInstance` runtime) has **no test vehicle** in the AS-IS estate; this is it.
+     multi-`ChainInstance` runtime) has **no test vehicle** in the `july-fourth` estate; this is it.
   2. **Batch-7 private-network GTM** — boot a consortium (BFT/QBFT/Clique), elect a bootnode, await
      discovery, `verify` across all nodes — fukuii's private-network go-to-market
      (`observations/testing.md`: "the ready-made shape").
-- **AS-IS gap:** no acceptance/cluster layer exists; fukuii's E2E specs (`E2EHandshakeSpec`,
+- **`july-fourth` gap:** no acceptance/cluster layer exists; fukuii's E2E specs (`E2EHandshakeSpec`,
   `E2ESyncSpec`, …) are single-node actor-choreography, and six of them "silently never ran in CI"
   (`REPO-06-ITSUITE`, root cause a ServerActor Classic→Typed `Bind`-sender drop). The clean write builds
   the cluster DSL from besu's structural mirror rather than retrofitting the ad-hoc E2E specs.
@@ -160,8 +160,8 @@ Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizat
   (`tests/*_mgen_test.go`, `state_mgen.go`) rendered in Scala.
 - **Why:** the frozen 2025 `etclabscore/tests` snapshot **stops at Mystique**; ETH's `t8n` `Forks` table
   has no ETC/Olympia entries. fukuii's Olympia ECIP work (forge-owned) has *no* reference corpus without
-  generation (`core-geth/testing.md`, AS-IS `testing.md` authority note, both explicit).
-- **AS-IS gap:** none exists — the entire ETC-Olympia conformance corpus is missing.
+  generation (`core-geth/testing.md`, `july-fourth` `testing.md` authority note, both explicit).
+- **`july-fourth` gap:** none exists — the entire ETC-Olympia conformance corpus is missing.
 - **Vehicle:** a `forge`-owned generator (consensus-critical — the state-root litmus applies), producing
   fixtures in the `ethereum/tests` JSON schema so the *same* `Case`/`Suite` engine (Ratchet 8) consumes
   them; the generated corpus is content-hash pinned (Ratchet 7) and named `*_olympia_*` (Ratchet 3).
@@ -187,7 +187,7 @@ Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizat
   (`reth/testing.md:114`: "the single most transferable idea"). The **adversarial-decode direction is
   entirely absent** from fukuii today — a network-partition / DoS surface (F-RLP-1 non-canonical-RLP was
   exactly this class at L0).
-- **AS-IS gap:** ScalaCheck is *present* (~83 `forAll` specs, `scalacheck 1.19.0`) but used for
+- **`july-fourth` gap:** ScalaCheck is *present* (~83 `forAll` specs, `scalacheck 1.19.0`) but used for
   happy-path generators; the **adversarial-bytes → decoder** direction and the trie-root-equivalence
   property are not written. Determinism: neither erigon's sha256 pin nor reth's seeded-RNG replay exists.
 - **Vehicle:** seedable ScalaCheck (`Test.Parameters` with a fixed / `SEED`-env seed for
@@ -202,7 +202,7 @@ Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizat
   `0`; bumping requires a comment + tracking issue — a governed ratchet, not a silent skip).
 - **Why:** makes fixture provenance **and** the "how many known-failing is acceptable" line explicit,
   reviewable, and supply-chain-integral (the test corpus itself is a dependency).
-- **AS-IS gap:** fukuii pins fixtures by **submodule SHA only** (`ets/tests` `5490db3ff5`) — no sha256
+- **`july-fourth` gap:** fukuii pins fixtures by **submodule SHA only** (`ets/tests` `5490db3ff5`) — no sha256
   content-hash manifest, no per-corpus failure budget, no EEST-tarball provenance record (fukuii pulls
   GeneralStateTests from the same `ethereum/tests` submodule, not a distinct pinned archive).
 - **Vehicle:** a `test/fixtures.json`-analog (corpus name → URL/submodule + sha256 + size) validated at
@@ -216,11 +216,11 @@ Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizat
 - **What:** the `Case` (load+run one fixture) ⊥ `Suite` (discover+aggregate+parallelize+report a tree)
   two-trait split, so **every** fixture format — `ethereum/tests` blockchain/state/tx, EEST, the generated
   Olympia corpus, hive result JSON — reuses **one** walk/parallelize/report engine.
-- **Why:** fukuii's AS-IS consumer is "per-spec `AnyFlatSpec` bodies + circe decode + runtime File-walk,
-  one engine class (`EthereumTestExecutor`) shared by hand" (AS-IS `testing.md`) — neither besu's codegen
+- **Why:** fukuii's `july-fourth` consumer is "per-spec `AnyFlatSpec` bodies + circe decode + runtime File-walk,
+  one engine class (`EthereumTestExecutor`) shared by hand" (`july-fourth` `testing.md`) — neither besu's codegen
   nor reth's trait-split. The trait-split is the **carrier for Ratchets 1/2/3/5** (expected-fail policy,
   nonzero-count barrier, fork-in-name, new corpus formats all hang off the shared `Suite`).
-- **AS-IS gap:** the nine `ethtest` spec classes duplicate discovery/decode/execute scaffolding; adding
+- **`july-fourth` gap:** the nine `ethtest` spec classes duplicate discovery/decode/execute scaffolding; adding
   the EEST or generated-Olympia format today means another hand-wired spec.
 - **Vehicle:** `trait Case { def load(path): Case; def run(): Either[Failure, Unit]; def description }`
   and `trait Suite { type C <: Case; def run(): Report }` over the existing circe decoders and the real
@@ -243,7 +243,7 @@ Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizat
   seams keep the isolation tests (§4) deterministic and intention-revealing. Stream tests use sync-probe
   barriers (`take(N)` + `Sink.seq`), Typed actors use `ActorTestKit`/`BehaviorTestKit` (`cross-cutting.md`
   §2) — never timing.
-- **AS-IS gap:** ~11 `Thread.sleep` files remain (AS-IS count); scalamock adoption across the new seams is
+- **`july-fourth` gap:** ~11 `Thread.sleep` files remain (`july-fourth` count); scalamock adoption across the new seams is
   unconfirmed (the clean write introduces the seams, so it sets the convention from line one).
 - **Vehicle:** a grep-verifiable ratchet (`Thread.sleep` count → 0 in `modules/*/src/{test,it}`), enforced
   as an eye-run DoD line; the seam mocks land with each seam's owning layer (L1 signer, L8 registry/txpool,
@@ -252,14 +252,14 @@ Each ratchet = **what / why / AS-IS gap / vehicle**. Dispositions per `optimizat
 ## 4. The multi-instance-isolation test vehicle (R2 — the enterprise differentiator)
 
 The concurrent multi-`ChainInstance` single-binary runtime (L10, R1+R2 convergence) is fukuii's enterprise
-differentiator — and the AS-IS estate has **no vehicle to prove isolation**. Ratchet 4's cluster DSL is
+differentiator — and the `july-fourth` estate has **no vehicle to prove isolation**. Ratchet 4's cluster DSL is
 that vehicle. The isolation assertions it must carry (from `requirements.md` R2 + `L10.md` §8):
 
 - **Boot a heterogeneous pair in one process:** a PoW-ETC instance + a PoS-ETH instance (the two current
   family instances), each via the `NetworkFamily` typeclass.
 - **`verify` distinct, non-shared:**
   - **metric registries** — two instances produce **distinct** `/metrics` content (the Bug-29 gate: the
-    AS-IS shared static registry made `/metrics` byte-identical across instances — `optimizations.md` L8).
+    `july-fourth` shared static registry made `/metrics` byte-identical across instances — `optimizations.md` L8).
   - **datadirs / RocksDB handles** — no shared DB handle, no process-global DB state (R2, L2).
   - **RPC ports / Engine-API endpoints** — per-instance routing; one Engine-API endpoint per PoS
     instance; ETC exposes none.
@@ -275,7 +275,7 @@ Batch-7 private-network end-to-end harness (boot a consortium, `verify` BFT fina
 ## 5. Test tiers — which tier each layer's DoD uses
 
 fukuii's two-axis tiering (sbt config × ScalaTest tag) is kept; the ratchets slot into it. The
-canonical tier→corpus mapping (per `build.sbt` aliases, AS-IS `testing.md`):
+canonical tier→corpus mapping (per `build.sbt` aliases, `july-fourth` `testing.md`):
 
 | Tier | Mechanism | Corpus / scope | Ratchets active | Layer DoD use |
 |---|---|---|---|---|
@@ -283,7 +283,7 @@ canonical tier→corpus mapping (per `build.sbt` aliases, AS-IS `testing.md`):
 | **Integration / conformance** | `IntegrationTest` config, per-IT-spec sub-JVM; `testComprehensive` (`build.sbt:590`) is the only alias that runs `IntegrationTest/testOnly` | the `ethereum/tests` + generated-Olympia fixture consumer via the `Case`/`Suite` engine; the **cluster DSL (R4)** | 1, 2, 3, 4, 5, 7, 8, 10 | consensus layers (L0/L1/L3/L4/L5) byte-exact DoD; L10 isolation |
 | **Hive / cross-client** | in-tree `hive/fukuii/` + 12 `hive-*.yml` over `_hive-sim.yml`, per-sim `gate_pattern`/`pass_threshold` | 10 sims (consensus/engine/rpc-compat/graphql/sync/devp2p/consume-*/osaka/prague/smoke) | 7 (pin the hive refs), 9 | L5/L6/L7/L9 integration gate; L10 boot smoke |
 
-**Tier caveats to honor (AS-IS footguns, not to reintroduce):** `testStandard` is a **misnomer** — it
+**Tier caveats to honor (`july-fourth` footguns, not to reintroduce):** `testStandard` is a **misnomer** — it
 never runs the IT config (`build.sbt:575`); the `ethereum/tests` compliance suite runs **only** under
 `testComprehensive`/`pp`. `FlakyTest` is excluded from *every* tier ("never a gate; fix, don't opt back
 in"). The `CryptoTest` alias finds 0 in the main module (the 10 crypto tests live in `crypto/` — use

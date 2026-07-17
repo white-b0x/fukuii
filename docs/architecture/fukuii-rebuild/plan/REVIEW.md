@@ -79,7 +79,7 @@ Two standing reinforcements the review must not lose:
 | **SR observations** (20) | per-subsystem cross-client comparison + DEFAULT/OPTIONAL(role)/OBSOLETE verdicts + named authority | `docs/research/clients/observations/{slot}.md` |
 | **SR topics** (8) | deep-dives: consensus-methods-catalog, mining-protocol-{evm,nonevm}, consensus-{poa-and-etc-testnets, pow-cpu-dev, l2-rollup-sidechain}, pos-networks-and-testnets, wire-protocol-evolution | `docs/research/clients/topics/` |
 | **SR per-client** (6×20) | each client's design per subsystem — the raw authority evidence | `docs/research/clients/{go-ethereum,core-geth,besu,erigon,nethermind,reth}/{slot}.md` |
-| **fukuii AS-IS** (Phase 3) | what old fukuii does per subsystem — the "improve over old" source | `.local/docs/research/clients/fukuii/{slot}.md` |
+| **fukuii `july-fourth`** (Phase 3) | what old fukuii does per subsystem — the "improve over old" source | `.local/docs/research/clients/fukuii/{slot}.md` |
 | **cross-cutting-themes** | CSP/JVM→Pekko-Typed target; gRPC-seam = product-family+dRPC | `docs/research/clients/observations/cross-cutting-themes.md` |
 | **best-practices — coding design** | `scala/type-safety`, `pekko/typed-patterns`+`concurrency`, `typelevel/patterns` | `docs/research/best-practices/{scala,pekko,typelevel}/` |
 | **best-practices — evm-clients** | anti-patterns, fail-loud-invariants, mutable-state-parity, error-recovery, constant-time-comparison, p2p, peer-disconnect-blacklist, snap-sync, reference-client-crosscheck | `docs/research/best-practices/evm-clients/` |
@@ -134,7 +134,7 @@ A layer plan is complete only when it can answer, from evidence:
 4. **Coding design grounded in the reference material** — the Scala-3 idiom and Pekko-Typed shapes cite
    `best-practices/{scala,pekko,typelevel}` and the actual `scala3`/`pekko`/`typelevel` reference repos —
    concrete patterns, not "use opaque types" as an assertion.
-5. **fukuii AS-IS gap closed** — the `clients/fukuii/{slot}.md` gaps this layer fixes, each a floor.
+5. **fukuii `july-fourth` gap closed** — the `clients/fukuii/{slot}.md` gaps this layer fixes, each a floor.
 6. **Deferrals scheduled with tests** — `planned-work-is-scope-floor`; nothing "optional/later" without a
    named layer + proving test.
 7. **Design goals served** — where the layer advances the mission (mining-pool ergonomics, enterprise

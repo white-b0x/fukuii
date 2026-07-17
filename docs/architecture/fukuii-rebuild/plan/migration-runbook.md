@@ -21,7 +21,7 @@ READY (it is) and the operator gives go._
 | `upstream/staging` (`chippr-robotics/fukuii`, `b902e5e5…`) | the clean base the rebuild is cut from |
 | `origin` (`white-b0x/fukuii`) | the operator's fork (push target) |
 | `july-mod-sprint` (current) | the **planning** branch — carries `plan/` + `rx/` + `.claude/` tooling **and** a scaffolded `modules/` where only **L0 is built (sloppily)** |
-| `july-fourth` | reference-only: the old IOHK-Mantis-lineage tree (`com.chipprbots.ethereum.*`) |
+| `july-fourth` (v0.8.1-series, `42959353b`) | reference-only: the old IOHK-Mantis-lineage tree (`com.chipprbots.ethereum.*`) — the canonical anchor for every `july-fourth` reference across the rebuild docs |
 
 **Why not just continue on `july-mod-sprint`.** The sprint branch accreted a sloppy L0 build + scaffold
 noise before the plan existed. The rebuild's whole thesis is *plan-first, byte-verified*; carrying the

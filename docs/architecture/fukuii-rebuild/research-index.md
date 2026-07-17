@@ -16,7 +16,7 @@ its row before the layer is marked GREEN.**_
   observation for the layer (many RX docs currently omit it — see the coverage note). The RX method
   itself is grounded in [`best-practices/evm-clients/reference-client-crosscheck.md`](../../research/best-practices/evm-clients/reference-client-crosscheck.md).
 - **Paths** are repo-relative from this file (`docs/architecture/fukuii-rebuild/`): SR research lives under
-  [`../../research/`](../../research/); AS-IS snapshots are LOCAL under `.local/docs/research/clients/fukuii/`.
+  [`../../research/`](../../research/); `july-fourth` snapshots are LOCAL under `.local/docs/research/clients/fukuii/`.
 
 ## Per-layer research map
 
@@ -39,7 +39,7 @@ its row before the layer is marked GREEN.**_
 
 **Cross-cutting (all layers + all RX):** SR `cross-cutting-themes`; `best-practices/evm-clients/anti-patterns`,
 `.../fail-loud-invariants`, `.../reference-client-crosscheck` (the RX methodology), `scala/type-safety`,
-`codebase-audit`, `scala-security-tooling-2026` (security, sentinel-gated). Each layer also has an AS-IS
+`codebase-audit`, `scala-security-tooling-2026` (security, sentinel-gated). Each layer also has an `july-fourth`
 snapshot at `.local/docs/research/clients/fukuii/<slot>.md` and per-client SR docs under
 `../../research/clients/{go-ethereum,besu,core-geth,nethermind,erigon,reth}/`.
 
@@ -71,5 +71,5 @@ snapshot at `.local/docs/research/clients/fukuii/<slot>.md` and per-client SR do
   error-recovery, fail-loud-invariants, mutable-state-parity, p2p, peer-disconnect-blacklist-policy,
   reference-client-crosscheck, snap-sync}` · `pekko/{concurrency, typed-patterns}` · `scala/type-safety` ·
   `typelevel/patterns` · `codebase-audit` · `scala-security-tooling-2026`.
-- **fukuii AS-IS** (LOCAL, `.local/docs/research/clients/fukuii/`): one `<slot>.md` per subsystem +
+- **fukuii `july-fourth`** (LOCAL, `.local/docs/research/clients/fukuii/`): one `<slot>.md` per subsystem +
   `history-pow-etc` + `_phase3-findings-rollup`.

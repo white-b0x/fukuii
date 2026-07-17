@@ -107,7 +107,7 @@ whole plan:
 
 - **SR synthesis** (public, the binding input): `docs/research/clients/observations/{slot}.md`, per-client
   `docs/research/clients/{client}/{slot}.md`.
-- **fukuii AS-IS snapshots** (what old fukuii does, per subsystem): **`.local/docs/research/clients/fukuii/{slot}.md`**
+- **fukuii `july-fourth` snapshots** (what old fukuii does, per subsystem): **`.local/docs/research/clients/fukuii/{slot}.md`**
   — note the `.local/` prefix; these are the "improvements over old fukuii" source.
 - **Vendored reference-client source**: `.claude/repo-references/clients/{besu,go-ethereum,core-geth,nethermind,erigon,reth}/`
   — **all six live under `clients/`** (go-ethereum is `clients/go-ethereum`, *not* `reference-clients-evm/…`).
@@ -220,7 +220,7 @@ layer is **not cleared** (DETAILED-AUDIT lens f) until every finding is resolved
    JVM-implementation reference (path), the structural mirror, the extensibility authority. With paths.
 4. **besu structural mirror** — the concrete besu module/class shapes to follow (read alongside geth).
 5. **Scala 3 idiom targets** — the specific opaque-type/given/enum/derives (and Typed, L6+) shapes.
-6. **Improvements over old fukuii** — the AS-IS gaps (`clients/fukuii/{slot}.md`) this layer closes.
+6. **Improvements over old fukuii** — the `july-fourth` gaps (`clients/fukuii/{slot}.md`) this layer closes.
 7. **Deferrals landing here** — items scheduled to this layer (planned-work-is-scope-floor), with the
    tests that prove them. A floor, not "optional."
 8. **Exit DoD (GREEN bar)** — what "done" means; which gate lenses; which test tiers; the reference

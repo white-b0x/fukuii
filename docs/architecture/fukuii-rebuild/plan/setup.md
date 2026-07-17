@@ -81,15 +81,15 @@ map most directly onto sbt).
 - **sbt-2 cutover** (MOD-19 Wave S) — on the current sbt-1.10.7/Scala-3.3.8/Pekko-1.6 stack now, cut to sbt-2
   at GA; the two known plugin blockers (`sbt-kanela-runner` — moot once Kamon is dropped, R10) tracked.
 - **`Dependencies.scala` single-version-source discipline** — *never inline a version in a submodule*; one
-  `val` per version (fix the AS-IS duplicates + the outside-catalog `kanela` literal + the unpinned `solc`).
+  `val` per version (fix the `july-fourth` duplicates + the outside-catalog `kanela` literal + the unpinned `solc`).
 - **Born-modern deps from line one** — circe (not json4s), Caliban 3.1.2 (not Sangria), Streams-Tcp (not
   Classic-Tcp), Micrometer/Prometheus (not Kamon). Never re-introduce the old library.
 - **GitHub deps pinned to commit SHAs** (never a branch — reth's `revmc` branch-pin is the counter-example);
   exact pins for crypto/build packages; `resolution-age` 7-day gate.
 
-## 6. Improvements over old fukuii (AS-IS gaps this layer closes)
+## 6. Improvements over old fukuii (`july-fourth` gaps this layer closes)
 
-| Old fukuii (AS-IS) | Rebuild setup | Why it matters |
+| Old fukuii (`july-fourth`) | Rebuild setup | Why it matters |
 |---|---|---|
 | `Dependencies.scala` single catalog but **1 literal outside it** (`kanela` `build.sbt:3`), **2 duplicates inside** (json4s ×2, bouncycastle ×2), **`solc` unpinned** (shells to `$PATH`) | One `val` per version, zero inline/duplicate/unpinned | The single-version-source discipline actually enforced |
 | **No checksum/lockfile artifact** — resolution trusts Maven Central each build | Checksummed supply-chain gate (besu `verification-metadata` equivalent), sentinel-owned | Closes the *published-bytes-changed-under-a-fixed-version* attack Coursier's default checksums miss |
