@@ -112,9 +112,10 @@ final case class ExecutedBlock(
   * ECIP-1111 treasury, applied at finalize alongside the reward, P4b), persistence, and the four post-execution
   * commitment checks. Withdrawals (EIP-4895, P5a) and the EIP-7685 request phase (EIP-6110/7002/7251 `requestsHash`,
   * P5b) run post-tx-loop on the ETH path (`noOp`/absent on ETC). The per-block `BlockExecutionOutcome` + serializable
-  * state-diff (R7, [[processBlockWithOutcome]]) and the atomic block+weight write ([[AtomicBlockWriter]]) are P6.
-  * **Deferred:** full ommer *validation* (count ≤ 2, ancestry) is a validator/L5 concern (only reward-relevant ommer
-  * handling is here).
+  * state-diff (R7, [[processBlockWithOutcome]]) are P6. Block persistence is NOT here: the atomic block+weight write
+  * primitive lives at L2 (`storage.BlockStore.putBlock`, using L1 `domain.TotalDifficulty`), driven by L5's import
+  * orchestration — execution emits outcomes, it does not persist (F-L4-6 relocation). **Deferred:** full ommer
+  * *validation* (count ≤ 2, ancestry) is a validator/L5 concern (only reward-relevant ommer handling is here).
   *
   * **R2:** stateless and immutable; the world is threaded per instance, no `object … { var … }` / `@volatile`.
   */
