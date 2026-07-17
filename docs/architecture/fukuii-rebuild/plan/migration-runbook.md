@@ -130,27 +130,77 @@ plan-first client with no pre-plan residue. Then the branch is the new trunk, an
 
 ## 7. Rebuild-completion closeout (runs once, after L10 lands)
 
-The per-layer loop (§3) ends at L10; the whole rebuild then gets one global closeout. These are
-deliberately **deferred to completion** — they distill or retire the scaffolding that was correct to
-carry *during* the build but is dead weight once it lands. Durable pointers, not a status tracker:
+The per-layer loop (§3) closes **every** layer — RECORD → ALIGN AGENTS → COMMENT HYGIENE, gated on §4.
+The rebuild as a whole gets the **same discipline scaled to the project**: the plan does not trail off at
+L10, it *closes*. These tasks are deliberately **deferred to completion** — they prove the whole is done,
+then distill or retire the scaffolding that was correct to carry *during* the build but is dead weight
+once it lands. Run it as a final, tracked sprint. Durable pointers below, not a status tracker; the phases
+are ordered — §7.1 gates the rest.
 
-1. **Timeless post-mortem series.** The implementation reports (`../implementation-reports/NN-*.md`) are
-   the *active-modernization* record — planning + what-was-done, anchored to `fukuii/july-fourth`
-   (v0.8.1-series, `42959353b`). At completion they are distilled into a **timeless** post-mortem
-   series that describes the client as it *is*, not the journey that built it — landing in
-   `docs/design/` (client-design docs) per the repo file-tree organization guide (`docs/repo/README.md`;
-   memory `repo-file-tree-organization`). The old-vs-new comparisons collapse into "why the design is
-   what it is"; the `july-fourth` anchor is dropped once the branch is no longer the live reference.
-2. **Graduate the rebuild docs.** `docs/architecture/fukuii-rebuild/` (plan + rx + reports) graduates to
-   `docs/design/` when complete — the rebuild stops being "in-progress architecture" and becomes the
-   client's standing design docs. Same guide.
-3. **Retire the dev-narrative scaffolding.** Once `july-fourth` is no longer the live reference, the
-   `reference-client-authority.md` "AS-IS is a banned term" section trims to just the forward rule (cite
-   external reference clients), shedding the incident narrative that justified it mid-build. The
-   comment/doc hygiene rule (`comments.md`) stays; only the historical justification retires.
-4. **Branch → trunk.** `fukuii-rebuild` becomes the trunk; `july-fourth` and `july-mod-sprint` are
-   preserved as historical refs (§5) but are no longer consulted.
+### 7.1 Proof of done (the project-scale gate — nothing below starts until these are green)
 
-Related, separately scheduled: the "docs website modernization" sprint (MkDocs `docs/site/` aggregation,
-memory `repo-file-tree-organization`) and the `fukuii-tests` build-out (`test-corpus-hosting.md` §7) —
-both independent of this closeout, neither gating it.
+- Every layer's findings register (`rx/L{n}.md`) is empty — each `RX-L*`/`F-L*` resolved-in-layer or
+  scheduled with a real home (per `finding-resolution.md`); no bare flagged-but-unscheduled note survives.
+- The full compliance suite is green at the release tier (`testComprehensive`) on **both** consensus
+  families — ETC/Mordor (PoW) *and* ETH/Sepolia (PoS) — over **both** `ethereum/tests` fork schedules,
+  with hive at the release gate.
+- The consensus sign-off ledger is complete: every byte-consensus path carries its `forge`/`beacon`
+  (+ `banksy` where required) co-sign, cited to an **external** reference client or spec/vector — never a
+  `fukuii/*` self-reference (`reference-client-authority.md`).
+- CI ratchets all green: `formatCheck`, `check_baddeps` enumerated-edge, the R2 isolation grep,
+  Semgrep/Trivy/Gitleaks, and the auto-doc-drift check.
+- `sentinel` final supply-chain + LTS-currency audit clean; every dependency pinned/gated, cooldown honored.
+
+### 7.2 Records & documentation
+
+- **Timeless post-mortem series.** The implementation reports (`../implementation-reports/NN-*.md`) are the
+  *active-modernization* record — planning + what-was-done, anchored to `fukuii/july-fourth` (v0.8.1-series,
+  `42959353b`). At completion they are distilled into a **timeless** post-mortem series describing the
+  client as it *is*, not the journey that built it — landing in `docs/design/` (client-design docs) per the
+  repo file-tree organization guide (`docs/repo/README.md`; memory `repo-file-tree-organization`). The
+  old-vs-new comparisons collapse into "why the design is what it is"; the `july-fourth` anchor drops once
+  the branch is no longer the live reference.
+- **Graduate the rebuild docs.** `docs/architecture/fukuii-rebuild/` (plan + rx + reports) graduates to
+  `docs/design/` — it stops being "in-progress architecture" and becomes the client's standing design docs.
+- **Top-level repo docs rewritten timeless.** README / ARCHITECTURE / overview / subsystem `AGENTS.md`
+  breadcrumbs describe the client present-tense as the designed end-state (memory
+  `rewrite-docs-as-if-complete-timeless`) — no "in progress" / "L0–Ln built" / planned-vs-shipped snapshots
+  survive; completion status lives only in the implementation-reports index.
+- **Retire the in-progress status surfaces.** `AGENTS.md`'s "Status: clean-write rebuild in progress"
+  section and the "Key Directories" per-module *(when built)* / *(added when built)* table flip to the
+  built steady state; `CLAUDE.md`'s Spec-Kit "current plan" block and rebuild framing likewise.
+- **Retire the dev-narrative scaffolding.** Once `july-fourth` is no longer the live reference, the
+  `reference-client-authority.md` "AS-IS is a banned term" section trims to just the forward rule (cite
+  external reference clients), shedding the incident narrative that justified it mid-build. The
+  comment/doc hygiene rule (`comments.md`) stays; only the historical justification retires.
+
+### 7.3 Memory & agent alignment
+
+- **Update memory.** The rebuild-process memories (`l3-evm-built`, `l1-complete-consensus-builder-lesson`,
+  `rx-pass-and-plan-ready`, `workstream-b-crosslayer-audit`, per-layer state, wave-audit notes) are
+  *historical* once the client ships — mark them complete or archive, write the completion state, and prune
+  `MEMORY.md` to the steady-state index. "The rebuild is in progress" must not outlive the rebuild in
+  memory (the same anti-snapshot rule as the docs).
+- **Reorient agents to maintenance.** Charters/protocols/skills that frame "the rebuild" as ongoing (the
+  per-layer lifecycle, the OODA-for-migration section, "read the plan before working in `modules/`")
+  reorient to steady-state client maintenance — the specialists and gates stay; the migration framing goes.
+- **Retire build-time planning scaffolding.** The `rx/` per-item specs, `coherence-pass-0N`, the Wave
+  audits, and closed Spec Kit `specs/<NNN>/` + `.claude/sprints/` rebuild batches are build artifacts —
+  archive per *git-history-is-the-archive* (`repo-cleanup-fukuii-rebuild`), don't carry them as live plan.
+
+### 7.4 Release & trunk
+
+- **Version & release.** The rebuild lands on top of the `0.8.1` line, so its completion is a **milestone
+  bump to `0.9`** (`version.sbt`'s "increment 0.1.0 at each milestone" rule) — not `1.0.0`, which stays
+  reserved for true project completion (Olympia GA and beyond). Bump, tag, and write the changelog at
+  closeout.
+- **Branch → trunk.** `fukuii-rebuild` becomes the trunk; `july-fourth` and `july-mod-sprint` are preserved
+  as historical refs (§5) but are no longer consulted.
+- **Reconcile the two work tracks.** Close/archive the rebuild's `specs/` + `QUEUE.md` entries; the
+  post-rebuild backlog (MOD-19 modernization waves, the private-network stack, the Olympia release) becomes
+  the live queue.
+
+### Related, separately scheduled (independent — neither gates this closeout)
+
+The "docs website modernization" sprint (MkDocs `docs/site/` aggregation, memory
+`repo-file-tree-organization`) and the `fukuii-tests` build-out (`test-corpus-hosting.md` §7).
