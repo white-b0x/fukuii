@@ -2,6 +2,8 @@ package com.chipprbots.fukuii.execution
 
 import org.apache.pekko.util.ByteString
 
+import com.chipprbots.fukuii.bytes.Address
+import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.domain.Block
 import com.chipprbots.fukuii.domain.BlockHeader
 import com.chipprbots.fukuii.domain.Bloom
@@ -17,6 +19,7 @@ import com.chipprbots.fukuii.rlp.encode
 import com.chipprbots.fukuii.trie.ByteArrayEncoder
 import com.chipprbots.fukuii.trie.ByteArraySerializable
 import com.chipprbots.fukuii.trie.InMemoryMptStorage
+import com.chipprbots.fukuii.trie.LeafChange
 import com.chipprbots.fukuii.trie.MerklePatriciaTrie
 
 /** Why a block cannot be executed or committed — a **fail-LOUD** result (never a silent skip). A tx-inclusion or
@@ -108,9 +111,10 @@ final case class ExecutedBlock(
   * path ([[RewardScheme.PosNoRewardScheme]]), the EIP-1559 base-fee disposition ([[FeeDisposition]] — ETH burn /
   * ECIP-1111 treasury, applied at finalize alongside the reward, P4b), persistence, and the four post-execution
   * commitment checks. Withdrawals (EIP-4895, P5a) and the EIP-7685 request phase (EIP-6110/7002/7251 `requestsHash`,
-  * P5b) run post-tx-loop on the ETH path (`noOp`/absent on ETC). **Deferred:** full ommer *validation* (count ≤ 2,
-  * ancestry) is a validator/L5 concern (only reward-relevant ommer handling is here); the atomic block+weight write and
-  * the per-block `BlockExecutionOutcome` + serializable state-diff (R7) are later phases.
+  * P5b) run post-tx-loop on the ETH path (`noOp`/absent on ETC). The per-block `BlockExecutionOutcome` + serializable
+  * state-diff (R7, [[processBlockWithOutcome]]) and the atomic block+weight write ([[AtomicBlockWriter]]) are P6.
+  * **Deferred:** full ommer *validation* (count ≤ 2, ancestry) is a validator/L5 concern (only reward-relevant ommer
+  * handling is here).
   *
   * **R2:** stateless and immutable; the world is threaded per instance, no `object … { var … }` / `@volatile`.
   */
@@ -131,6 +135,90 @@ final class BlockProcessor(txProcessor: TransactionProcessor):
     execute(spec, block, initialWorld, chainId).flatMap(executed =>
       validateCommitments(executed, block.header).map(_ => executed)
     )
+
+  /** **Import a block and emit its per-block [[BlockExecutionOutcome]]** — the R7 seam L4 hands *up* to L5's
+    * branch-import driver (L4 plan §1/§5, RX-L4-15). [[processBlock]] runs; on success this wraps the block + a
+    * byte-reproducible [[BlockStateDiff]] as `Executed`, on any execution/commitment failure it emits `RolledBack` (the
+    * world/accumulator is discarded, besu `reset()`). **L5** aggregates a stream of these outcomes into the reorg-aware
+    * `ChainNotification` segment stream — L4 does not decide reorgs or define that wire ADT.
+    *
+    * **Zero-cost baseline preserved.** The diff-collecting [[MutationSink.Recording]] is installed **only** here (the
+    * R7 path); [[processBlock]]/[[execute]] callers with no consumer never install it and pay nothing (the world's
+    * `mutations` stays [[MutationSink.NoTracking]], a branch-free no-op — RX-L4-16, geth `state_processor.go:77`).
+    */
+  def processBlockWithOutcome(
+      spec: ProtocolSpec,
+      block: Block,
+      initialWorld: InMemoryWorldState,
+      chainId: ChainId
+  ): BlockExecutionOutcome =
+    val sink = new MutationSink.Recording
+    val trackedWorld = initialWorld.withMutationSink(sink)
+    processBlock(spec, block, trackedWorld, chainId) match
+      case Left(_) => BlockExecutionOutcome.RolledBack(block)
+      case Right(executed) =>
+        BlockExecutionOutcome.Executed(block, buildStateDiff(initialWorld, executed.world, sink, block, spec))
+
+  /** Compose the per-block world-state envelope diff (besu `BonsaiTrieLog {prior,updated}` shape) from the accumulated
+    * touched-key set — reading each touched account/slot/code's leaf on the `baseline` (pre-block) and `committed`
+    * (post-persist) sides. Computed from the same committed state that produced the state root (besu ties the two at
+    * `persist`), so the diff and the root cannot disagree. Net-unchanged entries are dropped; the result is canonically
+    * ordered (byte-reproducible, §7 DoD).
+    *
+    * The [[MutationReason]] is attributed **by address role** (a coarse per-block-phase attribution, PROVISIONAL): the
+    * ECIP-1111 treasury → `FeeBurn`, an EIP-4895 withdrawal address → `Withdrawal`, the coinbase / an ommer beneficiary
+    * → `Reward`, everything else (tx-loop transfers) → `Transfer`. See [[MutationReason]] for why this net-diff
+    * attribution folds the coinbase tip into `Reward`.
+    */
+  private def buildStateDiff(
+      baseline: InMemoryWorldState,
+      committed: InMemoryWorldState,
+      sink: MutationSink.Recording,
+      block: Block,
+      spec: ProtocolSpec
+  ): BlockStateDiff =
+    val treasury: Option[Address] = spec.feeDisposition match
+      case FeeDisposition.RedirectToTreasury(t) => Some(t)
+      case _                                    => None
+    val withdrawalAddrs: Set[Address] = block.body.withdrawals.getOrElse(Nil).map(_.address).toSet
+    val coinbase: Address = block.header.beneficiary
+    val ommerBeneficiaries: Set[Address] = block.body.uncleNodesList.map(_.beneficiary).toSet
+
+    def reasonFor(a: Address): MutationReason =
+      if treasury.contains(a) then MutationReason.FeeBurn
+      else if withdrawalAddrs.contains(a) then MutationReason.Withdrawal
+      else if a == coinbase || ommerBeneficiaries.contains(a) then MutationReason.Reward
+      else MutationReason.Transfer
+
+    def accountLeaf(w: InMemoryWorldState, a: Address): Option[ByteString] =
+      w.getAccount(a).map(acc => ByteString(StateMpt.accountSerializer.toBytes(acc)))
+    def slotLeaf(w: InMemoryWorldState, a: Address, slot: UInt256): Option[ByteString] =
+      val v = w.getStorage(a).load(slot)
+      if v == BigInt(0) then None else Some(ByteString(StateMpt.storageValueSerializer.toBytes(v)))
+    def codeLeaf(w: InMemoryWorldState, a: Address): Option[ByteString] =
+      val c = w.getCode(a)
+      if c.isEmpty then None else Some(c)
+
+    val entries = sink.touchedAddresses.iterator.flatMap { a =>
+      val accountChange = LeafChange(accountLeaf(baseline, a), accountLeaf(committed, a))
+      val storageChanges = sink
+        .touchedSlots(a)
+        .iterator
+        .flatMap { slot =>
+          val change = LeafChange(slotLeaf(baseline, a, slot), slotLeaf(committed, a, slot))
+          if change.isUnchanged then None else Some(slot -> change)
+        }
+        .toVector
+        .sortBy(_._1)(using ByteOrder.slot)
+      val codeChange =
+        if sink.touchedCode(a) then
+          val change = LeafChange(codeLeaf(baseline, a), codeLeaf(committed, a))
+          if change.isUnchanged then None else Some(change)
+        else None
+      val entry = AccountStateDiff(a, accountChange, storageChanges, codeChange, reasonFor(a))
+      if entry.isUnchanged then None else Some(entry)
+    }
+    BlockStateDiff.of(entries.toVector)
 
   /** **Execute** a block's body without comparing to the header — the compute path shared by verify and produce. Runs
     * the besu-canonical apply order and returns the computed [[ExecutedBlock]] (committed world + the four

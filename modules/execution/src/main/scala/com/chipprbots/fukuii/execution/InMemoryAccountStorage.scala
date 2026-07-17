@@ -1,5 +1,6 @@
 package com.chipprbots.fukuii.execution
 
+import com.chipprbots.fukuii.bytes.Address
 import com.chipprbots.fukuii.bytes.Hash
 import com.chipprbots.fukuii.bytes.UInt256
 import com.chipprbots.fukuii.evm.AccountStorage
@@ -15,18 +16,33 @@ import com.chipprbots.fukuii.trie.MerklePatriciaTrie
   * **Zero is a deletion.** Storing `0` removes the slot (an absent slot, not a slot holding zero) — go-ethereum
   * `core/state/state_object.go` `updateTrie` (`DeleteStorage` on a zero value); the [[StateMpt.storageValueSerializer]]
   * never has to encode zero.
+  *
+  * **P6 state-diff hook (branch-free).** [[store]] reports the touched `owner`/`offset` to the [[MutationSink]] so
+  * [[BlockProcessor]] can compute a per-block [[BlockStateDiff]] over exactly the touched slots. The default
+  * [[MutationSink.NoTracking]] is an empty no-op (zero-cost baseline, RX-L4-16); a [[MutationSink.Recording]] is
+  * threaded in from [[InMemoryWorldState.getStorage]] only when a diff is requested. `owner` is the contract address
+  * whose sub-trie this is (needed to key slot writes; defaults to [[Address.Zero]] for non-diff constructions).
+  *
+  * @param owner
+  *   the contract address this storage belongs to (for slot-write attribution).
+  * @param sink
+  *   the touched-key accumulator ([[MutationSink.NoTracking]] on the baseline path).
   */
-final class InMemoryAccountStorage(val wrapped: MerklePatriciaTrie[UInt256, BigInt])
-    extends AccountStorage[InMemoryAccountStorage]:
+final class InMemoryAccountStorage(
+    val wrapped: MerklePatriciaTrie[UInt256, BigInt],
+    owner: Address = Address.Zero,
+    sink: MutationSink = MutationSink.NoTracking
+) extends AccountStorage[InMemoryAccountStorage]:
 
   override def store(offset: UInt256, value: BigInt): InMemoryAccountStorage =
+    sink.recordSlot(owner, offset)
     val newWrapped = if value == BigInt(0) then wrapped.remove(offset) else wrapped.put(offset, value)
-    new InMemoryAccountStorage(newWrapped)
+    new InMemoryAccountStorage(newWrapped, owner, sink)
 
   override def load(offset: UInt256): BigInt = wrapped.get(offset).getOrElse(BigInt(0))
 
   /** Commit the resident storage nodes to the shared node store, returning a store-backed storage. */
-  def persist: InMemoryAccountStorage = new InMemoryAccountStorage(wrapped.commit())
+  def persist: InMemoryAccountStorage = new InMemoryAccountStorage(wrapped.commit(), owner, sink)
 
   /** The 32-byte storage-trie root — the value written into `Account.storageRoot`. `EmptyStorageRootHash` for an empty
     * storage trie.

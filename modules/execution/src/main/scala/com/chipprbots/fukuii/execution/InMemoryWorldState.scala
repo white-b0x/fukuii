@@ -40,7 +40,8 @@ final class InMemoryWorldState private (
     val getBlockHashByNumber: BigInt => Option[Hash],
     override val accountStartNonce: UInt256,
     val touchedAccounts: Set[Address],
-    val noEmptyAccountsCond: Boolean
+    val noEmptyAccountsCond: Boolean,
+    val mutations: MutationSink
 ) extends WorldState[InMemoryWorldState, InMemoryAccountStorage]:
 
   override def getAccount(address: Address): Option[Account] = accountsStateTrie.get(address)
@@ -48,9 +49,11 @@ final class InMemoryWorldState private (
   override def getEmptyAccount: Account = Account.empty(accountStartNonce)
 
   override def saveAccount(address: Address, account: Account): InMemoryWorldState =
+    mutations.recordAccount(address)
     copyWith(accountsStateTrie = accountsStateTrie.put(address, account))
 
   override protected def deleteAccount(address: Address): InMemoryWorldState =
+    mutations.recordAccount(address)
     copyWith(
       accountsStateTrie = accountsStateTrie.remove(address),
       contractStorages = contractStorages - address,
@@ -67,6 +70,7 @@ final class InMemoryWorldState private (
     contractStorages.getOrElse(address, buildStorage(address))
 
   override def saveCode(address: Address, code: ByteString): InMemoryWorldState =
+    mutations.recordCode(address)
     copyWith(accountCodes = accountCodes + (address -> code))
 
   override def saveStorage(address: Address, storage: InMemoryAccountStorage): InMemoryWorldState =
@@ -147,7 +151,8 @@ final class InMemoryWorldState private (
     world.copyWith(accountsStateTrie = world.accountsStateTrie.commit())
 
   /** Build a fresh storage sub-trie for `address`, rooted at the account's `storageRoot` (or the empty-storage root for
-    * a non-existent account), over the shared node store.
+    * a non-existent account), over the shared node store. Threads the world's [[mutations]] sink (and `address` as the
+    * owner) so slot writes are recorded for the P6 [[BlockStateDiff]] — a branch-free no-op on the baseline path.
     */
   private def buildStorage(address: Address): InMemoryAccountStorage =
     val storageRoot = getAccount(address).map(_.storageRoot).getOrElse(Account.EmptyStorageRootHash)
@@ -155,14 +160,23 @@ final class InMemoryWorldState private (
       StateMpt.storageKeyEncoder,
       StateMpt.storageValueSerializer
     )
-    new InMemoryAccountStorage(trie)
+    new InMemoryAccountStorage(trie, address, mutations)
+
+  /** Install a [[MutationSink]] for per-block [[BlockStateDiff]] collection — used by
+    * [[BlockProcessor.processBlockWithOutcome]] to attach a [[MutationSink.Recording]] before executing a block. The
+    * baseline path never calls this, so `mutations` stays [[MutationSink.NoTracking]] (the structural zero-cost
+    * invariant, RX-L4-16). Storages already resident in [[contractStorages]] keep their prior sink; in practice the
+    * sink is installed on a fresh world with no resident storages, so every sub-trie is built with it.
+    */
+  def withMutationSink(sink: MutationSink): InMemoryWorldState = copyWith(mutations = sink)
 
   private def copyWith(
       codeStorage: CodeStorage = codeStorage,
       accountsStateTrie: MerklePatriciaTrie[Address, Account] = accountsStateTrie,
       contractStorages: Map[Address, InMemoryAccountStorage] = contractStorages,
       accountCodes: Map[Address, ByteString] = accountCodes,
-      touchedAccounts: Set[Address] = touchedAccounts
+      touchedAccounts: Set[Address] = touchedAccounts,
+      mutations: MutationSink = mutations
   ): InMemoryWorldState =
     new InMemoryWorldState(
       mptStorage,
@@ -173,7 +187,8 @@ final class InMemoryWorldState private (
       getBlockHashByNumber,
       accountStartNonce,
       touchedAccounts,
-      noEmptyAccountsCond
+      noEmptyAccountsCond,
+      mutations
     )
 
 object InMemoryWorldState:
@@ -205,5 +220,6 @@ object InMemoryWorldState:
       getBlockHashByNumber = getBlockHashByNumber,
       accountStartNonce = accountStartNonce,
       touchedAccounts = Set.empty,
-      noEmptyAccountsCond = noEmptyAccounts
+      noEmptyAccountsCond = noEmptyAccounts,
+      mutations = MutationSink.NoTracking
     )
