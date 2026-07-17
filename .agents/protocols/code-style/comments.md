@@ -129,6 +129,14 @@ Erigon's categories, largely portable as-is:
   "NOTE: this only…". PR-description material, not source.
 - **Incident/reproduction narration** — dates, devnet/branch names, "deployed via X, called N
   blocks later at M", post-mortem storytelling.
+- **Rebuild-provenance / "the old code" narration** — the rebuild's own development history is
+  NOT code documentation and goes stale the moment the rebuild lands. Never write **"AS-IS"**,
+  **"fukuii/july-fourth"**, "the pre-rebuild code", "we pivoted from Mantis", "eliminating tech
+  debt", "modernization sprint", or any "how we got here" comparison. A comment must stand on its
+  own describing *this* code, never "what the old code did / this replaces X". If — and only if — a
+  comment genuinely needs to cite the pre-rebuild reference implementation as a source, name its
+  **version** (`v0.8.1-series`, the reference tip `42959353b`), not a branch name or the "AS-IS"
+  shorthand. (These are internal dev vocabulary; they must not ship in fukuii.)
 - **Restating the code** — `// increment counter`, narrating what the next line obviously
   does.
 - **The same rationale repeated at multiple sites** — state the *why* once at the canonical

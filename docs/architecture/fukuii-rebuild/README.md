@@ -105,3 +105,27 @@ section — durable placement decisions (what lives at a *different* layer and w
 never carry "what's built / not-yet-built / deferred" status — that goes stale within a commit (a
 sibling module lands and the note is instantly wrong). Design and layer-boundaries are durable;
 build-status is single-sourced. (See the `docs-future-proof` rule.)
+
+---
+
+## Pre-completion cleanup: retire the dev-vocabulary (scheduled, repo + local)
+
+`AS-IS` and `fukuii/july-fourth` are **internal dev shorthand** for the pre-rebuild reference code
+(fukuii `v0.8.1-series`, tip `42959353b`) — they are not a distinction fukuii's readers need, and
+the rebuild's development history must not ship in the codebase (it goes stale the moment the rebuild
+lands). A single mechanical+judgment **sweep, run once near rebuild completion** (so the reference
+code is no longer needed live), retires them **repo-wide and local**:
+
+- **Source comments** (`modules/**`) — delete pure "how we got here" / "the old code did X" narration;
+  a comment must describe *this* code only. Where a citation of the reference impl is genuinely load-
+  bearing, replace `AS-IS`/`july-fourth` with the **version** (`v0.8.1-series` / tip `42959353b`).
+  (Prevention is already in `.agents/protocols/code-style/comments.md` — this sweep clears the backlog
+  that predates it; ~58 `AS-IS` hits across `modules/` at L4 close, plus `july-fourth` mentions.)
+- **Plan + record docs** (`docs/architecture/fukuii-rebuild/**`) — the record docs' "improvements over
+  old fukuii" framing and stray `AS-IS`/`july-fourth` references reduce to durable design rationale
+  (the *why* of this code), not a before/after comparison with the reference branch.
+- **Agent charters + protocols** (`.claude/agents/**`, `.agents/protocols/**`) and **memory**
+  (`~/.claude/projects/*/memory/**`) — same: keep the invariant, drop the dev-narrative; cite the
+  reference impl by version where needed.
+
+Not done incrementally per-layer (a partial pass just spawns another) — one sweep, tracked here.
