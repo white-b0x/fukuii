@@ -2,3 +2,9 @@
 	path = ets/tests
 	url = https://github.com/ethereum/tests
 
+[submodule "vendor/reference-tests/ethereum-tests"]
+	path = vendor/reference-tests/ethereum-tests
+	url = https://github.com/ethereum/tests.git
+[submodule "vendor/reference-tests/etc-tests"]
+	path = vendor/reference-tests/etc-tests
+	url = https://github.com/etclabscore/tests.git
