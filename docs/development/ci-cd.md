@@ -15,14 +15,14 @@ This directory contains the GitHub Actions workflows for continuous integration,
 **Steps:**
 1. Checks out code
 2. Configures GitHub Pages
-3. Builds documentation with Jekyll
+3. Builds documentation with MkDocs
 4. Deploys to GitHub Pages (on push only, not PRs)
 
 **Notes:**
 - Documentation is kept in the same branch as code for AI agents to consume
 - Pull requests only build documentation (for validation) but do not deploy
 - Uses the GitHub Pages deployment API for modern, artifact-based deployment
-- Jekyll configuration is in `docs/_config.yml`
+- MkDocs configuration is in `mkdocs.yml`
 
 ---
 
