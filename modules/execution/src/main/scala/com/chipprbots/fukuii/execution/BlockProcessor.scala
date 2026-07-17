@@ -53,6 +53,17 @@ enum BlockExecutionError:
     */
   case WithdrawalsNotAllowed(count: Int)
 
+  /** The EIP-7685 request phase (EIP-6110 deposit-scrape, EIP-7002/7251 queue calls) failed — a codeless queue target,
+    * a VM halt, or a malformed deposit log. Fail LOUD (go-ethereum `PostExecution` returns the error; besu throws): the
+    * block depends on the request phase's state mutation and commitment (RX-L4-12/14).
+    */
+  case RequestPhaseFailed(error: RequestError)
+
+  /** The computed EIP-7685 `requestsHash` disagrees with `header.requestsHash` (besu `AbstractBlockProcessor:466-483`
+    * fail-loud). `expected` is `None` when a Prague+ header omits the mandatory `requestsHash` field entirely.
+    */
+  case RequestsHashMismatch(computed: ByteString, expected: Option[ByteString])
+
   /** The receipts-trie root disagrees with `header.receiptsRoot`. */
   case ReceiptsRootMismatch(computed: ByteString, expected: ByteString)
 
@@ -70,6 +81,9 @@ enum BlockExecutionError:
   *   the per-tx receipts, in block order.
   * @param gasUsed
   *   Σ per-tx settled gas used (== the last receipt's `cumulativeGasUsed`).
+  * @param requestsHash
+  *   the EIP-7685 `requestsHash` on the Prague+ ETH path (`Some`, even `RequestsHash.Empty` when no requests) — `None`
+  *   on the `noOp` (PoW / pre-Prague) path, where the header carries no `requestsHash` field at all.
   */
 final case class ExecutedBlock(
     world: InMemoryWorldState,
@@ -77,7 +91,8 @@ final case class ExecutedBlock(
     gasUsed: BigInt,
     logsBloom: Bloom,
     receiptsRoot: ByteString,
-    stateRoot: ByteString
+    stateRoot: ByteString,
+    requestsHash: Option[ByteString]
 )
 
 /** The single-block execution pipeline — besu `AbstractBlockProcessor.processBlock` (a fork-agnostic loop that reads
@@ -92,10 +107,10 @@ final case class ExecutedBlock(
   * **P4a/P4b scope.** The tx loop, ECIP-1017 rewards ([[RewardScheme.Ecip1017RewardScheme]]) and the PoS zero-reward
   * path ([[RewardScheme.PosNoRewardScheme]]), the EIP-1559 base-fee disposition ([[FeeDisposition]] — ETH burn /
   * ECIP-1111 treasury, applied at finalize alongside the reward, P4b), persistence, and the four post-execution
-  * commitment checks. **Deferred:** pre-execution system calls (4788/2935) are a `noOp` hook filled at P5; withdrawals
-  * (EIP-4895) and EIP-7685 requests are absent (P5, beacon); full ommer *validation* (count ≤ 2, ancestry) is a
-  * validator/L5 concern (only reward-relevant ommer handling is here); the atomic block+weight write and the per-block
-  * `BlockExecutionOutcome` + serializable state-diff (R7) are later phases.
+  * commitment checks. Withdrawals (EIP-4895, P5a) and the EIP-7685 request phase (EIP-6110/7002/7251 `requestsHash`,
+  * P5b) run post-tx-loop on the ETH path (`noOp`/absent on ETC). **Deferred:** full ommer *validation* (count ≤ 2,
+  * ancestry) is a validator/L5 concern (only reward-relevant ommer handling is here); the atomic block+weight write and
+  * the per-block `BlockExecutionOutcome` + serializable state-diff (R7) are later phases.
   *
   * **R2:** stateless and immutable; the world is threaded per instance, no `object … { var … }` / `@volatile`.
   */
@@ -137,8 +152,16 @@ final class BlockProcessor(txProcessor: TransactionProcessor):
       // Withdrawals (EIP-4895) — post-loop, BEFORE requests+reward (besu order, RX-L4-11), OUTSIDE the reward seam
       // (validator addresses ≠ coinbase → never double-credited with issuance, RX-L4-13). ETC hard-rejects.
       worldAfterWithdrawals <- applyWithdrawals(spec, block, worldAfterTxs)
+      // EIP-7685 requests (EIP-6110 deposit-scrape, EIP-7002/7251 queue calls) — post-withdrawals, BEFORE reward (besu
+      // order). `noOp` on the PoW / pre-Prague path (no requests, no requestsHash). The deposit-scrape reads `logs`; the
+      // 7002/7251 calls mutate the queue contracts, so the world is threaded on (RX-L4-12/14).
+      requestPhase <- applyRequests(spec, block.header, worldAfterWithdrawals, logs, chainId)
     yield
-      // [post-execution requests — EIP-7002/7251/6110 — `noOp` here; the EIP-7685 request phase is P5b, beacon-gated.]
+      val (worldAfterRequests, requests) = requestPhase
+      // requestsHash = sha256(sha256(req_0)‖…) over non-empty requests, `Some` even when empty (RequestsHash.Empty) on
+      // the Prague+ path; `None` on the noOp path (ETC header carries no requestsHash field). Computed here, validated
+      // against header.requestsHash in validateCommitments (besu AbstractBlockProcessor:466-483).
+      val computedRequestsHash = if spec.requests.isNoOp then None else Some(RequestsHash.compute(requests))
       // EIP-1559 base-fee disposition (ETH burn / ECIP-1111 treasury) — the lump-sum amount `gasUsed * baseFee`
       // computed ONCE (baseFee is block-constant, so this equals Σ per-tx base-fee charges; RX-L4-10 SHARPENS (ii)).
       // `Absent`/`Burn` mutate nothing (the base fee was left uncredited by the tx engine); `RedirectToTreasury`
@@ -146,7 +169,7 @@ final class BlockProcessor(txProcessor: TransactionProcessor):
       // is unfilled). The treasury credit and the miner reward are disjoint additive addBalance's → commutative
       // (RX-L4-10 SHARPENS (i)); the deterministic order (disposition then reward) matches the ECIP-1111 draft :49-55.
       val baseFeeAmount = gasUsed * block.header.baseFeePerGas.getOrElse(BigInt(0))
-      val disposed = spec.feeDisposition.dispose(worldAfterWithdrawals, baseFeeAmount)
+      val disposed = spec.feeDisposition.dispose(worldAfterRequests, baseFeeAmount)
       // Reward is the LAST state mutation before commitment (besu :485 → persist :532). The family split is which
       // RewardScheme the bundle carries — no if(isPoW) here.
       val rewarded = spec.rewardScheme.rewardBlock(disposed, block.header, block.body.uncleNodesList)
@@ -157,7 +180,8 @@ final class BlockProcessor(txProcessor: TransactionProcessor):
         gasUsed = gasUsed,
         logsBloom = Bloom.of(logs),
         receiptsRoot = receiptsRootOf(receipts),
-        stateRoot = committed.stateRootHash
+        stateRoot = committed.stateRootHash,
+        requestsHash = computedRequestsHash
       )
 
   /** Apply the block body's EIP-4895 withdrawals through the bundle's [[WithdrawalsProcessor]] — or **hard-reject** if
@@ -175,6 +199,22 @@ final class BlockProcessor(txProcessor: TransactionProcessor):
       case (Some(_), None)                      => Right(world)
       case (None, None)                         => Right(world)
       case (None, Some(withdrawals))            => Left(BlockExecutionError.WithdrawalsNotAllowed(withdrawals.size))
+
+  /** Run the bundle's EIP-7685 [[RequestProcessors]] coordinator (`noOp` on PoW / pre-Prague → `(world, Nil)`),
+    * threading the world through the EIP-7002/7251 queue calls and collecting the requests in `RequestType` order. A
+    * request-phase failure is mapped to a fail-LOUD [[BlockExecutionError.RequestPhaseFailed]] (RX-L4-12/14).
+    */
+  private def applyRequests(
+      spec: ProtocolSpec,
+      header: BlockHeader,
+      world: InMemoryWorldState,
+      logs: List[Log],
+      chainId: ChainId
+  ): Either[BlockExecutionError, (InMemoryWorldState, List[Request])] =
+    spec.requests
+      .process(RequestContext(header, spec.evmConfig, world, chainId, logs))
+      .left
+      .map(BlockExecutionError.RequestPhaseFailed(_))
 
   /** The tx-apply loop: fold [[TransactionProcessor.processTransaction]] over the block's transactions, threading the
     * world and accumulating cumulative gas used, the per-tx receipts (in order), and every log. Sender recovery runs
@@ -212,9 +252,27 @@ final class BlockProcessor(txProcessor: TransactionProcessor):
       Left(BlockExecutionError.LogsBloomMismatch(executed.logsBloom, header.logsBloom))
     else if executed.receiptsRoot != header.receiptsRoot.bytes then
       Left(BlockExecutionError.ReceiptsRootMismatch(executed.receiptsRoot, header.receiptsRoot.bytes))
-    else if executed.stateRoot != header.stateRoot.bytes then
-      Left(BlockExecutionError.StateRootMismatch(executed.stateRoot, header.stateRoot.bytes))
-    else Right(())
+    else
+      requestsHashError(executed, header) match
+        case Some(error) => Left(error)
+        case None =>
+          if executed.stateRoot != header.stateRoot.bytes then
+            Left(BlockExecutionError.StateRootMismatch(executed.stateRoot, header.stateRoot.bytes))
+          else Right(())
+
+  /** The EIP-7685 `requestsHash` commitment check — validated before the state root (state root stays LAST). On the
+    * `noOp` path ([[ExecutedBlock.requestsHash]] `None`) there is no `requestsHash` to validate (an ETC header carries
+    * none; the header-field-legality check is L1/L5's, not this phase's). On the Prague+ path the computed hash must
+    * equal `header.requestsHash` — a `None` header field there (a Prague header missing the mandatory commitment) is a
+    * mismatch against the computed value (besu `AbstractBlockProcessor:466-483` fail-loud).
+    */
+  private def requestsHashError(executed: ExecutedBlock, header: BlockHeader): Option[BlockExecutionError] =
+    executed.requestsHash match
+      case None => None
+      case Some(computed) =>
+        val expected = header.requestsHash.map(_.bytes)
+        if expected.contains(computed) then None
+        else Some(BlockExecutionError.RequestsHashMismatch(computed, expected))
 
 object BlockProcessor:
 

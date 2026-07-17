@@ -105,6 +105,8 @@ class ProtocolSpecSpec extends AnyFunSuite:
   test("RequestProcessors.build accepts a non-empty map"):
     val deposit: RequestProcessor = new RequestProcessor:
       def requestType: RequestType = RequestType.Deposit
+      def process(context: RequestContext): Either[RequestError, RequestOutcome] =
+        Right(RequestOutcome(context.world, Request(RequestType.Deposit, org.apache.pekko.util.ByteString.empty)))
     val built = RequestProcessors.build(Map(RequestType.Deposit -> deposit))
     assert(!built.isNoOp && built.processorFor(RequestType.Deposit).contains(deposit))
 
