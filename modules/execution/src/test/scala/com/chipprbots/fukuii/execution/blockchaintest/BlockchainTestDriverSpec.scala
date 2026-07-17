@@ -43,11 +43,16 @@ import com.chipprbots.fukuii.execution.BlockExecutionError
   *     `IllegalArgumentException` (out-of-range `UInt256`) instead of returning a clean `Left[TransactionError]`
   *     (`bcEIP1559/feeCap`, `bc4895-withdrawals/withdrawalsAmountBounds`, `bcStateTests/callcodeOutput2`). The block is
   *     still rejected (all three are `InvalidBlocks`), but ungracefully.
-  *   - **`UnsupportedNetwork` (forward-scheduled, not a bug)** — [[BlockchainTestHarness.specFor]] only maps
-  *     `Cancun`/`Prague`/`Osaka` today. The vendored `etc-tests` corpus (`ETC_*` network names — Atlantis through
-  *     Mystique/Olympia) has no mapping yet; every case in that corpus defers here until forge adds the `ETC_*`
-  *     `specFor` entries. A per-network deferral (not a blanket skip) so a genuinely NEW unmapped network — on either
-  *     corpus — is still visible in the `info` breakdown rather than silently absorbed.
+  *   - **`UnsupportedNetwork` (forward-scheduled, not a bug)** — an `ETC_*` fork label
+  *     [[BlockchainTestHarness.specFor]] does not yet map. `specFor` covers `Cancun`/`Prague`/`Osaka` (ETH) and
+  *     `ETC_Atlantis`…`ETC_Mystique` (the ETC PoW schedule); a still-unmapped `ETC_*` (e.g. a future
+  *     `ETC_*Transition`/`ETC_Spiral`/`ETC_Olympia` variant) surfaces here as "add me". A per-network deferral (not a
+  *     blanket skip) so a genuinely NEW unmapped ETC fork is visible in the `info` breakdown rather than silently
+  *     absorbed.
+  *   - **`OutOfScopeNetwork` (ETH-history carryover, not a bug)** — a non-`ETC_` fork label (Frontier…London/Merge and
+  *     their transition variants) present in the `etc-tests` corpus because etclabscore/tests forks ethereum/tests. The
+  *     ETC run targets `ETC_*`; the ETH schedule is exercised by `referenceTestEth`, so these are an explicit,
+  *     accounted deferral rather than `UnsupportedNetwork` noise.
   */
 class BlockchainTestDriverSpec extends AnyFunSuite:
 
@@ -110,7 +115,11 @@ class BlockchainTestDriverSpec extends AnyFunSuite:
       case _: RunResult.PipelineThrew =>
         Some("FINDING F-L4-P7-2: invalid EIP-1559 tip / withdrawal underflow throws instead of a clean Left")
       case RunResult.UnsupportedNetwork(network) =>
-        Some(s"forward-scheduled: network '$network' not yet mapped in BlockchainTestHarness.specFor")
+        Some(s"forward-scheduled: ETC network '$network' not yet mapped in BlockchainTestHarness.specFor")
+      case RunResult.OutOfScopeNetwork(network) =>
+        Some(
+          s"out-of-scope: ETH-history fork label '$network' — the ETC run targets ETC_* (ETH exercised by referenceTestEth)"
+        )
       case _ => None
 
   /** The opt-in corpus directory: the `-Dfukuii.bt.survey` property or the `FUKUII_BT_SURVEY` env var, iff it names an
