@@ -208,6 +208,17 @@ class BlockProcessorSpec extends AnyFunSuite:
     // both receive the 21000-wei tip; only the PoW path adds the 5 ETH block reward.
     assert(posCoinbase == BigInt(21000) && powCoinbase - posCoinbase == BigInt(5) * BigInt(10).pow(18))
 
+  test("ECIP-1017 through the full BlockProcessor path — an era-1 block (5,000,001) credits the coinbase 4 ETH + tip"):
+    // The ethereum/tests corpus is ETH-fork-labeled and cannot exercise the ETC emission schedule; this is the
+    // through-pipeline ETC-schedule reward vector (core-geth `rewards_test.go` shape). Block 5,000,001 is era 1
+    // ((5000001-1)/5000000 = 1), so the winner reward is 5e18*4/5 = 4 ETH (core-geth `winnerRewardByEra(1)`), on top of
+    // the 21000-wei tip. The seam (header.number → era → reward) is proven end-to-end, not just on the scheme.
+    val executed = processor
+      .execute(powSpec, block(5_000_001, List(signedTransfer(0))), world(sender -> funded(BigInt(10).pow(19))), chainId)
+      .toOption
+      .get
+    assert(executed.world.getBalance(coinbase).toBigInt == BigInt(4) * BigInt(10).pow(18) + BigInt(21000))
+
   test("sender recovery failure aborts the block (malformed signature)"):
     val w = world(sender -> funded(BigInt(10).pow(19)))
     val badTx = signedTransfer(0).copy(signature = ECDSASignature(BigInt(0), BigInt(0), BigInt(27))) // r=s=0 invalid
