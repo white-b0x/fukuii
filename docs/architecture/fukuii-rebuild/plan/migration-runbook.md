@@ -194,6 +194,11 @@ are ordered — §7.1 gates the rest.
   bump to `0.9`** (`version.sbt`'s "increment 0.1.0 at each milestone" rule) — not `1.0.0`, which stays
   reserved for true project completion (Olympia GA and beyond). Bump, tag, and write the changelog at
   closeout.
+- **Maturity: alpha → beta.** The `0.9` milestone is the **alpha → beta** maturity line. Every surface that
+  states a maturity label reads **BETA** (the README already does — "🧪 BETA … Not yet for production
+  use"); confirm no current-status "ALPHA" claim survives anywhere. Historical past-tense references (e.g.
+  `OPS-003`'s "validated during alpha development") are accurate and stay — they name the *past* period, not
+  current status. `1.0.0` is the later beta → stable/production line.
 - **Branch → trunk.** `fukuii-rebuild` becomes the trunk; `july-fourth` and `july-mod-sprint` are preserved
   as historical refs (§5) but are no longer consulted.
 - **Reconcile the two work tracks.** Close/archive the rebuild's `specs/` + `QUEUE.md` entries; the

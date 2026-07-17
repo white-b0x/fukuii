@@ -134,7 +134,6 @@ correctly now; migrate keep-files as touched.
 | `specifications/` (EVM-compat) | Migrate → `design/client/`; retire the RLP stub |
 | published dirs (`getting-started/`, `runbooks/`, `operations/`, `deployment/`, `api/`, `guides/`, `tools/`, `for-*/`, assets) | Aggregate → `docs/site/` (docs website modernization sprint) |
 | `releases/` | Optional — GitHub Releases is the changelog |
-| **`_config.yml`** | **Delete** — dead Jekyll config; MkDocs (`mkdocs.yml`) is the live generator (verified: `gh-pages.yml` runs `mkdocs build`) |
 
 ---
 
