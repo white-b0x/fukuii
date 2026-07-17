@@ -10,9 +10,8 @@ import org.hyperledger.besu.nativelib.bls12_381.LibEthPairings
   * ==Layering==
   * These are the byte-exact *primitives* — the group/field operations the EVM BLS12-381 precompiles call. The
   * precompile wrappers (gas schedule, MSM discount table, input-length dispatch, and the precompile-address mapping,
-  * which differs across EIP-2537 revisions) are a separate `evm` (L3) concern and do NOT live here. Old fukuii inlined
-  * these native calls directly at the precompile site (`vm/PrecompiledContracts.scala`); this module fixes that
-  * mislayering by making BLS12-381 a first-class `crypto` L0 primitive, a peer of the alt-bn128 (`zksnark`) tower and
+  * which differs across EIP-2537 revisions) are a separate `evm` (L3) concern and do NOT live here. BLS12-381 is a
+  * first-class `crypto` L0 primitive, a peer of the alt-bn128 (`zksnark`) tower and
   * [[com.chipprbots.fukuii.crypto.kzg.Kzg]].
   *
   * ==Encoding==

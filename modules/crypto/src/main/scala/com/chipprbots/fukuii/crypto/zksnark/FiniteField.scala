@@ -3,10 +3,9 @@ package com.chipprbots.fukuii.crypto.zksnark
 /** Typeclass for arithmetic over a finite field `A` — the abstraction the BN128 pairing tower (`Fp` ⊂ `Fp2` ⊂ `Fp6` ⊂
   * `Fp12`) is written against.
   *
-  * Scala 3 idiom: field instances are `given`s (was `implicit object`), and the fluent operators live in
-  * [[FiniteField]]'s `extension` block (was the `implicit class Ops`, a flagged Scala-2 anti-pattern in old fukuii).
-  * `import FiniteField.*` brings the operators into scope; the `given`s resolve from the field companion objects with
-  * no import.
+  * Field instances are `given`s, and the fluent operators live in [[FiniteField]]'s `extension` block. `import
+  * FiniteField.*` brings the operators into scope; the `given`s resolve from the field companion objects with no
+  * import.
   */
 trait FiniteField[A]:
   def zero: A

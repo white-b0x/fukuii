@@ -10,8 +10,7 @@ import com.chipprbots.fukuii.rlp.RLP.*
 
 /** The base-type and `bytes` value-type RLP codecs.
   *
-  * One `given RLPCodec[T]` per type — a single combined encoder&decoder, not old fukuii's noisy triple (`given
-  * RLPEncoder`, `given RLPDecoder`, `given RLPEncoder & RLPDecoder`) per type. Bring them into scope with `import
+  * One `given RLPCodec[T]` per type — a single combined encoder&decoder. Bring them into scope with `import
   * com.chipprbots.fukuii.rlp.RLPCodecs.given` (or `.*`); the `derives RLPCodec` machinery summons them per field at the
   * derivation site.
   *

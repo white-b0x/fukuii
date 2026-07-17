@@ -133,6 +133,9 @@ object Blake2b:
       h(offset) ^= v(offset) ^ v(offset + 8)
       offset += 1
 
+  /** The BLAKE2b `G` mixing function (RFC 7693 §3.1), applied twice per round over each of the four columns then the
+    * four diagonals of the 4x4 state.
+    */
   private def mix(v: Array[Long], a: Long, b: Long, i: Int, j: Int, k: Int, l: Int): Unit =
     v(i) += a + v(j)
     v(l) = java.lang.Long.rotateLeft(v(l) ^ v(i), -32)

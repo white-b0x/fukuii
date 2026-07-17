@@ -28,14 +28,13 @@ object RLPDecoder:
   * This is the DEFAULT the observations doc names for fukuii's RLP layer (reth's alloy `#[derive(RlpEncodable)]`,
   * nethermind's per-type decoder registry): a single compile-time-resolved `given RLPCodec[T]` per type, no runtime
   * reflection walk. The [[RLPCodec.derived]] method below is what makes `case class X(...) derives RLPCodec` actually
-  * compile and work — the piece old fukuii's `RLPDerivation` had the machinery for but never wired to the `RLPCodec`
-  * companion.
+  * compile and work.
   *
-  * A `trait ... extends RLPEncoder[T], RLPDecoder[T]` rather than old fukuii's `type RLPCodec[T] = RLPEncoder[T] &
-  * RLPDecoder[T]`: Scala 3's `derives` clause requires a *class type*, and a type alias to an intersection is rejected
-  * as "not a class type" — so the alias form could never have been a `derives` target however its companion was
-  * written. The trait is semantically identical (an `RLPCodec[T]` still *is* both an `RLPEncoder[T]` and an
-  * `RLPDecoder[T]`) and is the derivable equivalent.
+  * A `trait ... extends RLPEncoder[T], RLPDecoder[T]`, not a type alias to an intersection (`type RLPCodec[T] =
+  * RLPEncoder[T] & RLPDecoder[T]`): Scala 3's `derives` clause requires a *class type*, and a type alias to an
+  * intersection is rejected as "not a class type" — so the alias form could never be a `derives` target. The trait is
+  * semantically identical (an `RLPCodec[T]` still *is* both an `RLPEncoder[T]` and an `RLPDecoder[T]`) and is the
+  * derivable equivalent.
   */
 trait RLPCodec[T] extends RLPEncoder[T], RLPDecoder[T]
 
@@ -76,9 +75,7 @@ object RLPCodec:
     *
     * Recurses on the tuple's `H *: T` cons structure so every field keeps its precise static type through the fold
     * (`head: RLPCodec[H]` is summoned per element, `tail` handles the rest) — no field is ever erased to an existential
-    * `RLPCodec[?]`/`Any`, which is exactly what lets [[productCodec]] run with zero `asInstanceOf`. Field resolution is
-    * identical to the old per-element `summonInline[RLPCodec[head]]`: the same `given RLPCodec[H]` for each field type,
-    * in the same declaration order.
+    * `RLPCodec[?]`/`Any`, which is exactly what lets [[productCodec]] run with zero `asInstanceOf`.
     *
     * Public because it is part of the derivation surface: `derived` is `inline`, so its
     * `summonInline[TupleRLPCodec[…]]` resolves against the *call site's* implicit scope in whichever module writes

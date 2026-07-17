@@ -22,7 +22,9 @@ private[rlp] object RLP:
     */
   private val SizeThreshold: Int = 56
 
-  /** Upper bound on a single item's length (`256^8`). */
+  /** Upper bound on a single item's length (`256^8` = `2^64`). Kept as a `Double` rather than a `Long`: `2^64`
+    * overflows `Long` (max `2^63 - 1`), but as a power of two it is representable exactly in double-precision.
+    */
   private val MaxItemLength: Double = math.pow(256, 8)
 
   /** Widest length-of-length the JVM can address: a payload length wider than 4 bytes overflows an `Int` array index,

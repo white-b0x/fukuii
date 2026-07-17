@@ -4,8 +4,7 @@ package com.chipprbots.fukuii.bytes
   *
   * Decoding mirrors go-ethereum `hexutil` behaviour (`common/hexutil/hex.go`): an optional `0x`/`0X` prefix is
   * accepted, an odd number of nibbles is rejected (go-ethereum returns `ErrOddLength`), and a non-hex character is
-  * rejected. The old fukuii `Hex.decode` silently mishandled both edge cases (`hex.sliding(2, 2)` dropped a trailing
-  * odd nibble and `Integer.parseInt` masked bad characters).
+  * rejected.
   */
 object Hex:
 

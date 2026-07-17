@@ -4,9 +4,8 @@ import org.apache.pekko.util.ByteString
 
 /** Scala 3 `extension`-based helpers over Pekko `ByteString`, plus its canonical unsigned ordering.
   *
-  * Replaces the old fukuii `implicit class` forms (`ByteStringOps`/`Padding`) with `extension` methods and a named
-  * `given`. `import ByteStringOps.given` brings the ordering into scope; `import ByteStringOps.*` brings the extension
-  * methods in.
+  * `import ByteStringOps.given` brings the ordering into scope; `import ByteStringOps.*` brings the extension methods
+  * in.
   */
 object ByteStringOps:
 
