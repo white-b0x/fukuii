@@ -192,12 +192,14 @@ object EvmConfig:
       precompiles = PrecompiledContracts.EthPraguePrecompiles
     )
 
-  /** ETH Osaka — Prague + CLZ (EIP-7939) + P256VERIFY (EIP-7951) + MODEXP EIP-7823/7883 + EIP-7918/7892. Adds the
-    * P256VERIFY (`0x0100`) precompile.
+  /** ETH Osaka — Prague + CLZ (EIP-7939) + P256VERIFY (EIP-7951) + MODEXP EIP-7823/7883 + EIP-7918/7892 + the EIP-7825
+    * per-tx gas cap (`2^24`; tx-validation membership only, no opcode/gas/precompile delta — it arms the L4
+    * [[TransactionProcessor]] cap via `isActive(Eip(7825))`). Adds the P256VERIFY (`0x0100`) precompile. **Excludes any
+    * ETC set** — EIP-7825 is not an ETC EIP (go-ethereum `state_transition.go:564` gates on `rules.IsOsaka`).
     */
   val EthOsaka: EvmConfig =
     EthPrague.copy(
-      activeProposals = EthPrague.activeProposals ++ Set(7939, 7951, 7883, 7823, 7918, 7892).map(Eip.apply),
+      activeProposals = EthPrague.activeProposals ++ Set(7939, 7951, 7883, 7823, 7825, 7918, 7892).map(Eip.apply),
       gasCalculator = GasCalculator.EthOsaka,
       opCodes = OpCodes.denseTable(OpCodes.EthOsakaOpCodes),
       precompiles = PrecompiledContracts.EthOsakaPrecompiles

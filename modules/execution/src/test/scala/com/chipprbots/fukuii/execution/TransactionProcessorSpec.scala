@@ -273,6 +273,34 @@ class TransactionProcessorSpec extends AnyFunSuite:
     )
     assert(result == Left(TransactionError.IntrinsicGasTooHigh(BigInt(21000), BigInt(20000))))
 
+  // -- EIP-7825 per-tx gas cap (2^24) — ETH-only, active at Osaka -----------------------------------------------------
+  // Reference: go-ethereum `core/state_transition.go:564` (`!rules.IsAmsterdam && rules.IsOsaka && msg.GasLimit >
+  // params.MaxTxGas`) + `params/protocol_params.go:31` (`MaxTxGas = 1<<24`); besu co-authority
+  // `EIP_7825_TRANSACTION_GAS_LIMIT_CAP = 16_777_216L`. fukuii has no Amsterdam fork, so Osaka membership is the gate.
+
+  test("EIP-7825 — a tx with gasLimit > 2^24 on an ETH Osaka header is an inclusion reject (GasLimitAboveCap)"):
+    val overCap = TransactionProcessor.MaxTxGas + 1 // 16,777,217 = 2^24 + 1
+    val tx = legacy(Some(recipient), gasLimit = overCap, gasPrice = 1)
+    val result = processor.processTransaction(
+      tx,
+      sender,
+      header(),
+      spec(EvmConfig.EthOsaka),
+      world(sender -> funded(20_000_000)),
+      0,
+      chainId
+    )
+    assert(result == Left(TransactionError.GasLimitAboveCap(overCap, TransactionProcessor.MaxTxGas)))
+
+  test("EIP-7825 — the cap is dormant pre-Osaka (ETH Prague) and on ETC (Olympia): gasLimit > 2^24 is accepted"):
+    // Neither `EthPrague` (pre-Osaka ETH) nor `EtcOlympia` (ETC — 7825 is not an ETC EIP) carries Eip(7825), so the cap
+    // never fires: the same over-cap tx clears validation and executes.
+    val overCap = TransactionProcessor.MaxTxGas + 1
+    val tx = legacy(Some(recipient), gasLimit = overCap, gasPrice = 1)
+    def run(cfg: EvmConfig) =
+      processor.processTransaction(tx, sender, header(), spec(cfg), world(sender -> funded(20_000_000)), 0, chainId)
+    assert(run(EvmConfig.EthPrague).isRight && run(EvmConfig.EtcOlympia).isRight)
+
   // -- gas settlement formula (EIP-3529 refund cap + EIP-7623 floor), cited to geth settleGas -------------------------
 
   test("EIP-3529 refund cap — quotient 5 caps the refund at gasUsedBeforeRefund/5"):

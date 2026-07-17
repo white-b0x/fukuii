@@ -332,10 +332,12 @@ final class TransactionProcessor(interpreter: EvmInterpreter[InMemoryWorldState,
 
 object TransactionProcessor:
 
-  /** EIP-7825 per-transaction gas cap `2^24` (16,777,216) — go-ethereum `params.MaxTxGas`, forge-confirmed value (the
-    * stale besu-`main` "30M" comment is superseded). **Currently dormant:** no proposal set carries `Eip(7825)` yet, so
-    * the cap check is inactive until L3 adds `Eip(7825)` to `EthOsaka`/`EtcOlympia` — flagged for beacon (ETH) + forge
-    * (ETC) at build.
+  /** EIP-7825 per-transaction gas cap `2^24` (16,777,216) — go-ethereum `params.MaxTxGas`
+    * (`params/protocol_params.go:31`), co-authority besu `EIP_7825_TRANSACTION_GAS_LIMIT_CAP = 16_777_216L` (the stale
+    * besu-`main` "30M" comment is superseded). **Active on ETH Osaka:** L3 carries `Eip(7825)` in
+    * `EthOsaka`/`ethOsakaSet` (ETH-only — NOT `EtcOlympia`), so `evmConfig.isActive(Eip(7825))` arms the cap check on
+    * an ETH Osaka header. go-ethereum gates it `!rules.IsAmsterdam && rules.IsOsaka` (`core/state_transition.go:564`);
+    * fukuii has no Amsterdam fork, so Osaka membership is the correct dispatch.
     */
   val MaxTxGas: BigInt = BigInt(1) << 24
 

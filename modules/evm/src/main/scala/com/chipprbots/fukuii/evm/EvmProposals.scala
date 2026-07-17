@@ -287,6 +287,17 @@ object EvmProposals:
   val Eip7892Bpo: EvmProposal =
     EvmProposal(Eip(7892))
 
+  /** EIP-7825 — per-transaction gas cap `2^24` (**ETH-only** Osaka; **NOT an ETC EIP**, forge co-signed the exclusion).
+    * A pure L4 tx-validation reject (`gasLimit > 2^24` ⇒ `GasLimitAboveCap`), so it carries **no opcode/gas/config
+    * delta** at L3 — a membership marker exactly like [[Eip7623CalldataFloor]]. go-ethereum gates it at Osaka until the
+    * future Amsterdam relaxes it (`core/state_transition.go:564`, `!rules.IsAmsterdam && rules.IsOsaka && msg.GasLimit
+    * > params.MaxTxGas`); the cap value is `params.MaxTxGas = 1<<24` (`params/protocol_params.go:31`), byte-confirmed
+    * against besu `EIP_7825_TRANSACTION_GAS_LIMIT_CAP = 16_777_216L`. fukuii has no Amsterdam fork, so `isActive(Eip(
+    * 7825))` at Osaka is the correct dispatch for the L4 [[TransactionProcessor]] cap.
+    */
+  val Eip7825TxGasCap: EvmProposal =
+    EvmProposal(Eip(7825))
+
   /** ECIP-1121 — ETC's Olympia EVM bundle. It contributes **no direct opcode delta of its own** — its effect is (a)
     * selecting the [[GasCalculator.EtcOlympia]] gas leaf and (b) its `requires` closure, the shared EIP implementations
     * it composes. The reconciled set (L3 forge impact §2/§2g, forge co-signed): the four AS-IS opcodes
@@ -353,6 +364,7 @@ object EvmProposals:
     Eip(7951),
     Eip(7883),
     Eip(7823),
+    Eip(7825),
     Eip(7918),
     Eip(7892),
     Ecip(1121)
@@ -407,6 +419,7 @@ object EvmProposals:
     Eip7951P256,
     Eip7883Modexp,
     Eip7823ModexpBounds,
+    Eip7825TxGasCap,
     Eip7918BlobReserve,
     Eip7892Bpo,
     Ecip1121Olympia
@@ -438,7 +451,10 @@ object EvmProposals:
   val ethShanghaiSet: Set[ProposalId] = ethLondonSet ++ eips(3855, 3651, 3860)
   val ethCancunSet: Set[ProposalId] = ethShanghaiSet ++ eips(4844, 7516, 1153, 5656, 6780)
   val ethPragueSet: Set[ProposalId] = ethCancunSet ++ eips(2537, 7702, 7623, 7691)
-  val ethOsakaSet: Set[ProposalId] = ethPragueSet ++ eips(7939, 7951, 7883, 7823, 7918, 7892)
+  // EIP-7825 (per-tx gas cap 2^24) is an Osaka tx-validation membership marker — no opcode/gas/config delta, so it is
+  // byte-neutral to the fold; its only effect is `isActive(Eip(7825)) == true`, which arms the L4 TransactionProcessor
+  // cap. ETH-only — never added to any ETC set (go-ethereum `state_transition.go:564` gates it on `rules.IsOsaka`).
+  val ethOsakaSet: Set[ProposalId] = ethPragueSet ++ eips(7939, 7951, 7883, 7823, 7825, 7918, 7892)
 
   // ETC branch: Mystique adds reduced-refund gas + EIP-3541 WITHOUT EIP-1559 and WITHOUT EIP-3860 (core-geth
   // config_classic.go: EIP3529FBlock/EIP3541FBlock = 14_525_000 Mystique, but EIP3860FBlock = 19_250_000 Spiral,
