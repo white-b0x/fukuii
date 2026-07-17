@@ -141,9 +141,10 @@ the SR flagged for removal — the single `finalize` seam serves both import and
   omitted `blobGas × blobGasFeeCap`) and F-L4-5 (P4b→P5a: the blob-gas **debit**, not just the
   balance check, was missing) are both **resolved** — `CalcBlobFee.blobBaseFee(excessBlobGas)` plus
   the `TransactionProcessor` debit landed in `202fb24bc`.
-- **F-L4-P7-5 — a banned `AS-IS` label survives at `EvmInterpreter.scala:288`** (L3 code, forge
-  co-sign finding). Non-blocking, correctness-neutral; **scheduled as a mechanical comment fix**, not
-  an L4 deliverable (the file is in `modules/evm`).
+- **F-L4-P7-5 — a banned `AS-IS` label at `EvmInterpreter.scala:288`** (L3 code, forge co-sign
+  finding). Non-blocking, correctness-neutral. **✅ Resolved** in the L3 comment-hygiene sweep — the
+  label became a go-ethereum-cited PoS-signal comment (`core/evm.go` `NewEVMBlockContext`: `Random`
+  set iff `header.Difficulty.Sign() == 0`); no `AS-IS` remains in `modules/evm`.
 - **F-L4-P7-2 — invalid-tip/withdrawal-underflow throws instead of a typed `Left[TransactionError]`.**
   Blocks are correctly rejected as `InvalidBlocks`, just via a crash-shaped
   `IllegalArgumentException` rather than a clean error value. **Scheduled** — forge/beacon to decide
