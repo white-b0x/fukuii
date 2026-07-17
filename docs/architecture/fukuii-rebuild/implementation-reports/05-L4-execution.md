@@ -112,7 +112,7 @@ fukuii's own derived sets, per `reference-client-authority.md`. Full detail in
   `stChainId` cases surfaced it directly. **Fixed** `f5ea3354a` — a `chainIdFor(network)` derivation
   (`ETC_*`→61 per core-geth `config_classic.go:39`; ETH→`config.chainid`/1) added to the harness.
 
-## 4. Improvements over old fukuii (from `fukuii/july-fourth`)
+## 4. Improvements over old fukuii (`fukuii/july-fourth`, v0.8.1-series, `42959353b`)
 
 The `ledger ↔ consensus` import cycle is broken (an upward `import consensus.*` from `execution` is
 now a compile error — the structural fix for the 13-package SCC) · the reward-reduction-rate is

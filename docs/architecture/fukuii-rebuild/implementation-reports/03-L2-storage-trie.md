@@ -191,7 +191,7 @@ plan ports the *intent* (bounded native-iterator lifetime), not any client's API
   state corruption, not a replay-safe no-op (nethermind's `WriteFlags.DisableWAL` is safe there only because it
   re-runs the whole phase). Any future bulk-tuning seam MUST qualify every WAL-off variant.
 - **Per-instance isolation (R2).** `dbLock` (a `ReentrantReadWriteLock`) is a **per-instance field**, not a
-  process-global — the S1 fix from the AS-IS shared shape. The `DataSource`, RocksDB handle, block cache, and
+  process-global — the S1 fix from `july-fourth`'s shared shape. The `DataSource`, RocksDB handle, block cache, and
   `liveIterator` gauge are all per-`ChainInstance`; two instances in one process open distinct datadirs with no
   shared mutable static (a DoD grep gate). `iterate()` had two **prism-found bugs fixed at S1** — the no-arg
   form returned the internal `(namespace.id ++ key)` form instead of the bare key, and leaked the internal
@@ -223,11 +223,11 @@ the hot (`ChainWeight`) and cold (`ColdChainWeight`) tiers.
 
 ### 7. `enum Namespace` — the self-describing CF registry (besu `SegmentIdentifier` shape)
 
-`Namespace` replaces the AS-IS `type Namespace = IndexedSeq[Byte]` + runtime `Seq[Namespace]` param with a
+`Namespace` replaces `july-fourth`'s `type Namespace = IndexedSeq[Byte]` + runtime `Seq[Namespace]` param with a
 closed compile-time `enum` whose cases carry six besu-`SegmentIdentifier`-shaped self-describing flags
 (`containsStaticData`, `isEligibleToHighSpecFlag`, `isStaticDataGarbageCollectionEnabled`,
 `isCacheIndexAndFilterBlocks`, plus `profiles` and the `includeInDatabaseFormat` predicate). This replaces the
-AS-IS one-shared-`ColumnFamilyOptions`-for-all-CFs: static CFs (`Receipts`/`Header`/`Body`/`Cold*`) declare
+`july-fourth` one-shared-`ColumnFamilyOptions`-for-all-CFs: static CFs (`Receipts`/`Header`/`Body`/`Cold*`) declare
 BlobDB/GC eligibility a hot CF (`Node`) does not; the hot `Node`/`FlatAccount`/`FlatSlot`/`RefCount` CFs declare
 cache priority (besu `KeyValueSegmentIdentifier` `WORLD_STATE`/`ACCOUNT_INFO_STATE`/`TRIE_LOG_STORAGE`).
 
@@ -235,11 +235,11 @@ cache priority (besu `KeyValueSegmentIdentifier` `WORLD_STATE`/`ACCOUNT_INFO_STA
   column-family name byte. A construction-time uniqueness `require` catches an accidental collision before it
   reaches production; only ever ADD a case with an unused `id`.
 - **Dedicated bookkeeping CFs.** Refcount `RefCount`, `DeathRow`, `RetainedRoot`, `PruneSnapshot`, and `TrieLog`
-  are their own CFs, not prefixes within the hot `Node` CF (the AS-IS anti-pattern, L2 improvement #15).
+  are their own CFs, not prefixes within the hot `Node` CF (the `july-fourth` anti-pattern, L2 improvement #15).
 - **Profile-membership reservation (L2-F1).** `profiles` declares CF membership for the SNAP crash-resume
   journal (`HealingFrontier`/`BfsQueue`/`SnapSyncProgress`, `Profile.Snap`), the path-keyed trie CFs
   (`StateTriePath`/`StorageTriePath`, `Profile.PathScheme`), and the freezer CFs (`Cold*`, `Profile.Freezer`).
-  S1 opens the full CF set unconditionally (AS-IS behavior); the field exists so S2's `SchemaMarker` has every
+  S1 opens the full CF set unconditionally (`july-fourth` behavior); the field exists so S2's `SchemaMarker` has every
   profile-scoped CF declared. L2 **owns the CF registry**, so it declares the SNAP-progress/frontier CFs that
   L7's heal writes into — reciprocating L7 §6.8.1.
 
@@ -279,7 +279,7 @@ the module. (The `trie`-side `TrieLog`/`LeafChange` *do* use `derives RLPCodec` 
 
 `PruningMode` stays the user-facing named selector (`Archive`/`Basic`/`InMemory`), but each mode is **composed**
 of an `EvictionStrategy` ("when to evict RAM") × `PersistenceStrategy` ("where/when to flush disk") —
-nethermind's `IPruningStrategy`/`IPersistenceStrategy` split. This kills the AS-IS gap of two
+nethermind's `IPruningStrategy`/`IPersistenceStrategy` split. This kills the `july-fourth` gap of two
 independently-maintained refcount impls: `Basic` and `InMemory` share one `RefCountedNodeStore` mechanism,
 differing only in bookkeeping backing (`PersistedBookkeeping` over dedicated CFs vs `InMemoryBookkeeping`).
 
@@ -304,7 +304,7 @@ differing only in bookkeeping backing (`PersistedBookkeeping` over dedicated CFs
 
 `TrieLog` (besu Bonsai `plugin-api/…/trielogs/TrieLog.java`) is a per-block journal of **leaf-value** diffs
 (`LeafChange(prior, updated)` = besu `LogTuple`), the clean serializable R7 reorg-event source the pruned/flat
-(`Path`) profile builds *beside* a trie transition. The AS-IS reorg substrate was `ReferenceCountNodeStorage`'s
+(`Path`) profile builds *beside* a trie transition. `july-fourth`'s reorg substrate was `ReferenceCountNodeStorage`'s
 **node-level** death-row snapshots — coupled to the hash-keyed store and un-serializable across a process
 boundary; the hash-keyed archival profile keeps those (S3a), the pruned profile gets the TrieLog.
 
@@ -351,7 +351,7 @@ block number — besu's BlobDB-per-static-segment shape, not a second on-disk st
   a claimed-vs-expected epoch mismatch **before any freeze**, and derives the freeze keys from the caller's
   expected epoch, never the shard's self-declared numbering (defense in depth). It then checks self-consistency
   (recomputed accumulator == embedded root) and an optional `trustedRoot`.
-- **`CheckpointArchive` — accumulator-committed state pivot** (upgrading the AS-IS CRC32-only trailer). A pivot
+- **`CheckpointArchive` — accumulator-committed state pivot** (upgrading `july-fourth`'s CRC32-only trailer). A pivot
   block, a `CheckpointAccumulator` over the `(blockHash, TD)` chain of trust (go-ethereum `internal/era/
   accumulator.go` shape), and opaque state records; `importInto` verifies against a trusted root **first** and
   only then applies every record as **one atomic `updateSync` batch** — a crash mid-import leaves the datadir
@@ -369,9 +369,9 @@ whole-list-equality (recompute the full fold, compare roots), never a Merkle *in
 `// MIGRATION`-style scope note records that domain separation (RFC-6962 / CVE-2012-2459 hardening) MUST be
 added before any inclusion-proof consumer.
 
-## Improvements over old fukuii
+## Improvements over old fukuii (`fukuii/july-fourth`, v0.8.1-series, `42959353b`)
 
-| Old fukuii (AS-IS) | Rebuild L2 | Why it matters |
+| Old fukuii (`july-fourth`) | Rebuild L2 | Why it matters |
 |---|---|---|
 | `db ↔ mpt` 2-cycle (seam split across two mutually-cyclic packages) | `storage` byte-pure; `trie` owns the node contract; `trie → storage` down-only | The cycle cannot re-form — an upward edge is a compile error |
 | One general node store, **hash-keyed only**; `PruningMode` a 3-value enum over one CF | `StorageProfile` selector + `INodeStorage` hash **and** path behind the scheme-indirection seam | Multi-approach from line one; retrofitting a 2nd backend later is a rewrite |

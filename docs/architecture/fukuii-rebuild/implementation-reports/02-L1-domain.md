@@ -134,9 +134,9 @@ cumulativeGasUsed, bloom, logs]` **includes** Bloom (the bloom-less `storedRecei
 Typed receipts use `typeByte ‖ RLP`. Which fork switches (ETC Atlantis `EIP658FBlock`=8,772,000 / ETH
 Byzantium) is an L4/L5 selection; L1 models both forms.
 
-## Improvements over old fukuii
+## Improvements over old fukuii (`fukuii/july-fourth`, v0.8.1-series, `42959353b`)
 
-| Old fukuii (AS-IS) | Rebuild L1 `domain` | Why it matters |
+| Old fukuii (`july-fourth`) | Rebuild L1 `domain` | Why it matters |
 |---|---|---|
 | `domain` imported **up** into db/mpt/vm/ledger/jsonrpc/network — the 13-package SCC; `Blockchain*` facades lived here | pure value-type leaf; facades relocate to L7 `chain` | Structurally dissolves the largest cycle — enforced by the module boundary |
 | One `Transaction` shape with conditional fields | `enum Transaction` — illegal field combos unrepresentable | Exhaustiveness; no "1559 fields on a legacy tx" |

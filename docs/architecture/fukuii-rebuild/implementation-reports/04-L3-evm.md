@@ -88,7 +88,7 @@ EIP delta at real heights against **hardcoded core-geth `config_classic.go` / go
 fukuii's own sets (which is what let EIP-3860 through). Fold-identity is re-framed as a *refactor-safety*
 check (the fold reproduces the named bundles), not a correctness gate.
 
-## 4. Improvements over old fukuii (from `fukuii/july-fourth`)
+## 4. Improvements over old fukuii (`fukuii/july-fourth`, v0.8.1-series, `42959353b`)
 
 One fork-resolution mechanism (the proposal fold owns EIP-2929 gas + precompile selection; the enum-fork
 read-path is retired) · one `forBlock(header, schedule)` (two overloads collapsed) · unified

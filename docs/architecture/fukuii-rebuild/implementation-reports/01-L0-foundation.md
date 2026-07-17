@@ -6,7 +6,7 @@ big-endian byte plumbing) and on nothing above. Forward-looking plan:
 [`plan/L0.md`](../plan/L0.md); per-item byte-cited RX evidence: [`plan/rx/L0.md`](../plan/rx/L0.md).
 Every slot is measured against
 [`observations/primitives.md`](../../../research/clients/observations/primitives.md) (the reference-field
-DEFAULT/OPTIONAL verdicts) with old-fukuii AS-IS in
+DEFAULT/OPTIONAL verdicts) with old-fukuii (`july-fourth`) in
 [`clients/fukuii/primitives.md`](../../../../.local/docs/research/clients/fukuii/primitives.md). Byte layout is
 matched against go-ethereum (`rlp/`, `crypto/`) as the shared byte-authority, core-geth for the
 ETC-frozen values (a pure geth passthrough at the primitive level — no ECIP divergence in crypto), with
@@ -51,7 +51,7 @@ live in L3 `evm`; keystore KDFs and RLPx handshake framing live at L8/L6.
 *fixed-width value types at the primitives level* — go-ethereum's `Hash [32]byte` / `Address [20]byte`,
 besu's Tuweni `BytesHolder`. Old fukuii **diverged from this DEFAULT**: its `bytes` module exposed only
 raw `ByteString`/`Array[Byte]` helpers and pushed `UInt256`/`Address` up into `domain` — recorded as a
-gap in the AS-IS snapshot. The rebuild puts them where the reference field puts them, so the primitives
+gap in the `july-fourth` snapshot. The rebuild puts them where the reference field puts them, so the primitives
 layer is self-contained.
 
 #### 2. Opaque types, not wrapper classes
@@ -104,7 +104,7 @@ encode opcode/gas rules and live in `evm` (L3), not on the number type.
 top-level definitions and braceless syntax throughout.
 
 **Empirical logic:** old fukuii's `ByteStringUtils`/`Padding` `implicit class`es and `implicit def`
-conversions were called out as the Scala-2-era anti-pattern in the AS-IS snapshot. Litmus for the
+conversions were called out as the Scala-2-era anti-pattern in the `july-fourth` snapshot. Litmus for the
 rebuild: *if it isn't Scala 3 idiom, don't write it that way.* Two consensus-relevant corrections landed
 in the same pass: the byte ordering became **unsigned** lexicographic (old fukuii's
 `Ordering.by(_.toSeq)` was a signed compare that sorts `0xff` before `0x01` — a latent trie/access-list
@@ -413,9 +413,9 @@ primitives-at-L0-wrappers-at-L3 discipline as §18/§19: every classic-set preco
 
 - **`Secp256r1`** — `verify(hash, r, s, x, y): Boolean`, the EIP-7951 P256VERIFY (`0x0100`) primitive.
   secp256r1 was already documented L0 scope (`plan/L0.md` KZG/BLS row lists the `0x0100` P256VERIFY
-  primitive); L0 simply missed porting the AS-IS `crypto/Secp256r1.scala`.
+  primitive); L0 simply missed porting `july-fourth`'s `crypto/Secp256r1.scala`.
   **Consensus-critical implementation-path decision (forge co-signed, CHANGES-REQUIRED → applied):** the
-  AS-IS delegated the on-curve check + verify to the **platform JDK EC provider** (`KeyFactory` +
+  `july-fourth` delegated the on-curve check + verify to the **platform JDK EC provider** (`KeyFactory` +
   `NONEwithECDSA`). That was **rejected** and re-implemented on the **pure-BouncyCastle** path
   (`r1Params.getCurve.createPoint` + `point.isValid` + `ECDSASigner().verifySignature(hash, r, s)`) —
   matching besu `SECP256R1`/`AbstractSECP256` and the §13 CryptoBackend discipline. **Why:** ECDSA
@@ -429,7 +429,7 @@ primitives-at-L0-wrappers-at-L3 discipline as §18/§19: every classic-set preco
   (`toDerSignature`/`toUnsignedByteArray`) were removed with the JDK path (118→80 lines). Tests: 7 EIP-7951
   KATs (Wycheproof valid, tampered r/s, all-zero, r==N/s==N, coord==P, point-at-infinity, off-curve).
 - **`Blake2b`** — `compress(input): Option[Array[Byte]]` + `isValidInput` + `parseNumberOfRounds`, the
-  EIP-152 BLAKE2F (`0x09`) compression primitive. The AS-IS mis-filed this under `vm/`
+  EIP-152 BLAKE2F (`0x09`) compression primitive. `july-fourth` mis-filed this under `vm/`
   (`Blake2bCompression.scala`) — the lone classic-set primitive not at L0; it belongs beside `Hashes`/
   `Keccak`. Pure BouncyCastle (`Pack`), hand-rolled F — no provider indirection, deterministic by
   construction; constants match core-geth (frozen ETC authority) `crypto/blake2b` and besu
@@ -440,13 +440,13 @@ Only the *wrappers* remain L3 (§ layer boundaries): the P256 160-byte `hash‖r
 framing, and the BLAKE2F gas (`rounds * GFROUND`) + `0x09` address. This gap was **caught at L3, not
 hidden** — the right place to catch a missing lower-layer requirement.
 
-## Improvements over old fukuii
+## Improvements over old fukuii (`fukuii/july-fourth`, v0.8.1-series, `42959353b`)
 
 _Grouped by module; each row is a durable design fact, not a build-status snapshot._
 
 **`bytes` / `common`**
 
-| Old fukuii (AS-IS) | Rebuild L0 | Why it matters |
+| Old fukuii (`july-fourth`) | Rebuild L0 | Why it matters |
 |---|---|---|
 | Value types (`UInt256`/`Address`) deferred to `domain` | Fixed-width types in `bytes` (the DEFAULT slot) | Matches the reference field; primitives are self-contained |
 | `byteStringOrdering = Ordering.by(_.toSeq)` — **signed** byte compare | **Unsigned** lexicographic ordering | Signed compare sorts `0xff` before `0x01` — a latent consensus footgun in trie/access-list ordering |
@@ -458,7 +458,7 @@ _Grouped by module; each row is a durable design fact, not a build-status snapsh
 
 **`rlp`**
 
-| Old fukuii (AS-IS) | Rebuild L0 `rlp` | Why it matters |
+| Old fukuii (`july-fourth`) | Rebuild L0 `rlp` | Why it matters |
 |---|---|---|
 | `derives RLPCodec` **did not compile**; `RLPDerivation` unwired (0 call sites) | `derives RLPCodec` compiles, works, and is the wired path (round-trip tested) | The DEFAULT codec-authoring model is actually available |
 | `type RLPCodec = RLPEncoder & RLPDecoder` — an intersection alias `derives` can never target | `trait RLPCodec[T] extends RLPEncoder[T], RLPDecoder[T]` — a derivable class type | Removes the root reason the old `derives` could not compile |
@@ -471,7 +471,7 @@ _Grouped by module; each row is a durable design fact, not a build-status snapsh
 
 **`crypto`**
 
-| Old fukuii (AS-IS) | Rebuild L0 `crypto` | Why it matters |
+| Old fukuii (`july-fourth`) | Rebuild L0 `crypto` | Why it matters |
 |---|---|---|
 | `FiniteField.Ops` — `implicit class FiniteFieldOps` (Scala-2 idiom) | `extension` block in `object FiniteField` + `given` field instances | Modern Scala 3 idiom; operators resolve through the `given`, not a wrapper class |
 | `implicit object FpImpl extends FiniteField[Fp]` (×4 fields) | `given fpField: FiniteField[Fp] with …` (×4) | The Scala 3 typeclass-instance form; lazy, unambiguous |
