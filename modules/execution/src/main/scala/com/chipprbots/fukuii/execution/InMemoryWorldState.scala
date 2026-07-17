@@ -94,6 +94,26 @@ final class InMemoryWorldState private (
     */
   def stateRootHash: ByteString = accountsStateTrie.getRootHash
 
+  /** Delete the given accounts — the SELFDESTRUCT end-of-transaction sweep
+    * ([[com.chipprbots.fukuii.evm.ExecutionResult.addressesToDelete]]). Public seam over the trait's `protected
+    * deleteAccount`, used by the [[TransactionProcessor]]'s account-cleanup phase; applied only after a **successful**
+    * transaction (a reverted tx destroys no accounts).
+    */
+  def deleteAccounts(addresses: Iterable[com.chipprbots.fukuii.bytes.Address]): InMemoryWorldState =
+    addresses.foldLeft(this)((world, address) => world.deleteAccount(address))
+
+  /** EIP-161 `Finalise(deleteEmptyObjects=true)` — remove every **touched** account that is now empty (zero nonce, zero
+    * balance, no code), then clear the touched set. Under `noEmptyAccounts=false` the touched set is never populated
+    * ([[touchAccounts]] is a no-op), so this is inert pre-EIP-161 (mirrors geth's `deleteEmptyObjects` flag = the
+    * EIP-161 activation). A no-op empty-account touch (e.g. `addBalance(coinbase, 0)`) followed by this sweep nets to
+    * nothing, exactly as geth: the account is touched then deleted, leaving the state root unchanged.
+    */
+  def deleteEmptyTouchedAccounts: InMemoryWorldState =
+    val swept = touchedAccounts.foldLeft(this)((world, address) =>
+      if world.isAccountDead(address) then world.deleteAccount(address) else world
+    )
+    swept.clearTouchedAccounts
+
   /** Flush all pending changes to the backing stores and return the committed world (its [[stateRootHash]] is the new
     * state root). Mirrors the reference-tree `persistState` order: **code → contract storage → accounts trie**, so each
     * account's `codeHash` and `storageRoot` are finalized before the accounts trie is committed.
