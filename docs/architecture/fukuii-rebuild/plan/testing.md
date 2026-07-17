@@ -25,7 +25,10 @@ harness for the enterprise differentiator, no Olympia fixture generation for the
 
 **What this doc is NOT:** it is not a layer plan (it owns no module) and it does not restate the cadence
 in `cross-cutting.md` §2 or the gate lenses in `cross-cutting.md` §3. It is the **R10 testing-ratchet
-register** + the **multi-instance isolation vehicle** + the **DoD engine** every layer's §8 cites.
+register** + the **multi-instance isolation vehicle** + the **DoD engine** every layer's §8 cites. It
+also does not own *where* a fixture corpus's bytes live or how they sync — that provenance/hosting/
+lifecycle concern is the sibling [`test-corpus-hosting.md`](test-corpus-hosting.md); the two are a pair
+(engine vs. corpus).
 
 ## 1. SR verdicts honored (quoted, cited)
 
