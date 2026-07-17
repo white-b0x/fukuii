@@ -1,0 +1,158 @@
+name: L4 Reference Tests (BlockchainTest)
+
+# The CI-runnable counterpart to modules/execution's opt-in local survey
+# (BlockchainTestDriverSpec). Runs the same harness against the SHA-pinned
+# `vendor/reference-tests/{ethereum-tests,etc-tests}` submodules (vendored `d2c258cf1`)
+# instead of an operator-local `.claude/repo-references` checkout, so the gate is
+# reproducible for anyone who runs `git submodule update --init`.
+#
+# NOT folded into ci.yml / ethereum-tests-nightly.yml: both of those still target the
+# pre-clean-write-rebuild tree (`src/it/scala/com/chipprbots/ethereum/ethtest/...`,
+# `sbt assembly`/`sbt dist` against a not-yet-built `node` composition root) and are
+# stale pending a separate CI-modernization pass — see the fukuii-rebuild QUEUE. This
+# workflow is self-contained against the current `modules/execution` build instead.
+#
+# Two independent jobs (not one job running both aliases back to back) so the ETH gate
+# — currently green (1012 passed / 130 documented deferrals / 0 unaccounted) — is not
+# blocked or slowed by the much larger ETC corpus (934M, currently 0 passed / ~48k
+# forward-scheduled `UnsupportedNetwork` deferrals until forge adds the `ETC_*`
+# specFor mappings in BlockchainTestHarness — see that spec's scaladoc). Both corpora
+# are opt-in/skip-safe locally (BlockchainTestDriverSpec cancels, never fails, if the
+# submodule directory doesn't exist) — this workflow is what makes the run
+# unconditional and reproducible instead of a local, opt-in survey.
+
+on:
+  schedule:
+    # Run nightly at 03:00 UTC — after ethereum-tests-nightly.yml's 02:00 slot.
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: read
+
+jobs:
+  reference-test-eth:
+    name: BlockchainTest — ethereum/tests (ETH)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'sbt'
+
+      - name: Cache Coursier
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/.ivy2/cache
+            ~/.sbt
+          key: ${{ runner.os }}-sbt-25-${{ hashFiles('**/build.sbt', '**/build.properties', '**/Dependencies.scala', '**/plugins.sbt') }}
+          restore-keys: |
+            ${{ runner.os }}-sbt-25-
+            ${{ runner.os }}-sbt-
+
+      - name: Set up SBT
+        run: |
+          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo gpg --dearmor -o /usr/share/keyrings/scalasbt-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/scalasbt-archive-keyring.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+          sudo apt-get update
+          sudo apt-get install sbt
+
+      - name: Run the ethereum/tests BlockchainTest tier
+        run: sbt referenceTestEth
+        env:
+          FUKUII_DEV: true
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: blockchain-tests-eth-reports-${{ github.run_number }}
+          path: |
+            target/out/jvm/scala-*/fukuii-execution/test-reports/**
+          retention-days: 30
+          if-no-files-found: warn
+
+  reference-test-etc:
+    name: BlockchainTest — etc-tests (ETC)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Report-only until forge adds the `ETC_*` specFor mappings (BlockchainTestHarness):
+    # every case in this corpus currently defers as UnsupportedNetwork (0 passed by
+    # design, not a regression) — see BlockchainTestDriverSpec's scaladoc. The job still
+    # runs so the deferral breakdown (which networks are still unmapped) is visible in
+    # every CI run; continue-on-error keeps a green-by-construction deferred run from
+    # ever gating merges, while still failing loud on a genuine unaccounted case (an
+    # actual regression) so that failure isn't silently swallowed by continue-on-error —
+    # only the exit status is, so check this job's log on red, don't assume a fluke.
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'sbt'
+
+      - name: Cache Coursier
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/.ivy2/cache
+            ~/.sbt
+          key: ${{ runner.os }}-sbt-25-${{ hashFiles('**/build.sbt', '**/build.properties', '**/Dependencies.scala', '**/plugins.sbt') }}
+          restore-keys: |
+            ${{ runner.os }}-sbt-25-
+            ${{ runner.os }}-sbt-
+
+      - name: Set up SBT
+        run: |
+          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo gpg --dearmor -o /usr/share/keyrings/scalasbt-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/scalasbt-archive-keyring.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+          sudo apt-get update
+          sudo apt-get install sbt
+
+      - name: Run the etc-tests BlockchainTest tier
+        run: sbt referenceTestEtc
+        env:
+          FUKUII_DEV: true
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: blockchain-tests-etc-reports-${{ github.run_number }}
+          path: |
+            target/out/jvm/scala-*/fukuii-execution/test-reports/**
+          retention-days: 30
+          if-no-files-found: warn
+
+  blockchain-tests-reference-passed:
+    name: blockchain-tests-reference-passed
+    runs-on: ubuntu-latest
+    needs: [reference-test-eth, reference-test-etc]
+    if: always()
+    steps:
+      # Only the ETH job gates — the ETC job is report-only (continue-on-error above)
+      # until forge's ETC_* specFor mappings land, per the same pattern as
+      # ethereum-tests-nightly.yml's gascalc shard.
+      - name: Fail on ETH reference-test failure
+        run: exit 1
+        if: needs.reference-test-eth.result != 'success'

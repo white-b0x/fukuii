@@ -111,8 +111,15 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[?]] = Seq(
     val optimizations = if (fukuiiDev) Seq.empty else scala3OptimizationsForProd
     base ++ scala3Options ++ optimizations
   },
+  // Test is NOT re-appended here: sbt's config delegation chain (Test extends Runtime
+  // extends Compile) means Test/scalacOptions, when not itself explicitly set, already
+  // resolves to Compile/scalacOptions above — so a second `Test / scalacOptions ++=` here
+  // read-then-appended the SAME two flags again, doubling them in every module's effective
+  // Test scalacOptions (`sbt show <module>/Test/scalacOptions` — each of -Wvalue-discard/
+  // -Wnonunit-statement listed twice) and firing `Flag ... set repeatedly` on every
+  // Test/compile. Deleting this line does not drop the flags from Test — delegation still
+  // carries Compile's (already-augmented) list down to Test/Integration/etc.
   (Compile / scalacOptions) ++= scala3ValueDiscardOptions,
-  (Test / scalacOptions) ++= scala3ValueDiscardOptions,
   (Compile / console / scalacOptions) ~= (_.filterNot(
     Set(
       "-Xfatal-warnings"
@@ -722,6 +729,56 @@ addCommandAlias(
   """; compile-all
     |; testAll
     |; It / testOnly
+    |""".stripMargin
+)
+
+// ===========================================================================
+// L4 reference-test tier — the CI-runnable counterpart to the opt-in local survey
+// (BlockchainTestDriverSpec's own doc comment). Points the harness at the SHA-pinned
+// `vendor/reference-tests/{ethereum-tests,etc-tests}` submodules (vendored `d2c258cf1`)
+// instead of a Claude-tooling-local `.claude/repo-references` checkout, so the gate is
+// reproducible for any contributor / CI runner that ran `git submodule update --init`.
+//
+// Skip-safe by construction: BlockchainTestDriverSpec's own `corpusDir()` cancels
+// (never fails) unless `-Dfukuii.bt.survey=<dir>` names an EXISTING directory — a fresh
+// clone that hasn't initialized the submodules gets a clean skip, not a red build.
+//
+// Each alias is a `session clear ; set … += ; testOnly ; session clear` bracket, matching
+// the exact `set`/`testOnly` incantation documented in BlockchainTestDriverSpec's
+// scaladoc. The `session clear` bracket matters because sbt 2 keeps a persistent
+// background server per project directory — a bare `sbt <alias>` on a machine with an
+// already-running server is a THIN CLIENT to it, so a `set` from a prior invocation
+// would otherwise silently outlive that invocation and leak `-Dfukuii.bt.survey=...`
+// into the next unrelated `sbt` command (verified empirically: it turned a subsequent
+// plain `execution/testOnly *` unit-suite run into an accidental ETC-corpus run). The
+// leading `session clear` makes each alias idempotent against a prior failed run that
+// didn't reach its own trailing cleanup (chained `;` commands stop at the first failure,
+// so the trailing `session clear` is best-effort, not guaranteed, on a FAILING run).
+addCommandAlias(
+  "referenceTestEth",
+  """; session clear
+    |; set execution / Test / javaOptions += "-Dfukuii.bt.survey=" + ((ThisBuild / baseDirectory).value / "vendor" / "reference-tests" / "ethereum-tests" / "BlockchainTests").getAbsolutePath
+    |; execution / testOnly *BlockchainTestDriverSpec
+    |; session clear
+    |""".stripMargin
+)
+
+addCommandAlias(
+  "referenceTestEtc",
+  """; session clear
+    |; set execution / Test / javaOptions += "-Dfukuii.bt.survey=" + ((ThisBuild / baseDirectory).value / "vendor" / "reference-tests" / "etc-tests" / "BlockchainTests").getAbsolutePath
+    |; execution / testOnly *BlockchainTestDriverSpec
+    |; session clear
+    |""".stripMargin
+)
+
+// Local convenience only — runs both corpora in one sbt session. CI drives each corpus as
+// its own `sbt referenceTestEth` / `sbt referenceTestEtc` process (see
+// .github/workflows/blockchain-tests-reference.yml) rather than this alias.
+addCommandAlias(
+  "referenceTest",
+  """; referenceTestEth
+    |; referenceTestEtc
     |""".stripMargin
 )
 
