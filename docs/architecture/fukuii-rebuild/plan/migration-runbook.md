@@ -84,6 +84,15 @@ the **per-layer lifecycle** (`README.md`):
 4. **RECORD** — the as-built `../NN-L{n}-*.md`; build-status → `../README.md` index only.
 5. **ALIGN AGENTS** — reorient the layer's charters/protocols/skills to the built state so the next
    layer isn't built blind.
+6. **COMMENT HYGIENE** — a code-comment-quality pass over the layer's new comments (a **standing**
+   close-out step). Both directions: *remove* dev-narrative / internal dev-vocabulary (`AS-IS`,
+   `fukuii/july-fourth`, "the old code did X", migration storytelling) **and** *add* the genuinely-missing
+   why / high-level orientation / consensus-spec citations. Concise, default-to-no-comment for
+   self-evident code, comment-only + gated (compile + scalafmt/scalafix), per
+   [`.agents/protocols/code-style/comments.md`](../../../../.agents/protocols/code-style/comments.md).
+   It feeds the **agent-improvement loop**: what the sweep keeps catching tightens `comments.md` + the
+   charters, so later layers write fewer bad comments. (The L0–L4 backlog that predates this step is
+   cleared as a one-time now-sweep — see [`../README.md`](../README.md).)
 
 **Verification cadence** (`AGENTS.md`): `sbt compile-all` after every file; targeted `testOnly` after
 each logic phase; `testEssential` (background, `sbt-run.sh`) as the pre-push gate; the CI ratchets
@@ -97,6 +106,9 @@ each logic phase; `testEssential` (background, `sbt-run.sh`) as the pre-push gat
 - Consensus-critical sign-off recorded (forge/beacon/banksy per the protocol).
 - The `rx/L{n}.md` findings register is empty; the ledger + requirements cells the layer owns are
   satisfied.
+- **Comment hygiene done** (step 6): no `AS-IS`/`july-fourth`/dev-narrative in the layer's source
+  comments; genuinely-missing why/orientation/citations added — concise, code-specific
+  (`.agents/protocols/code-style/comments.md`).
 - CI: `formatCheck` + `check_baddeps` + R2 isolation grep + Semgrep/Trivy + auto-doc drift — all green.
 
 ## 5. Safety & rollback
