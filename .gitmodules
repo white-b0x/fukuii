@@ -7,4 +7,4 @@
 	url = https://github.com/ethereum/tests.git
 [submodule "vendor/reference-tests/etc-tests"]
 	path = vendor/reference-tests/etc-tests
-	url = https://github.com/etclabscore/tests.git
+	url = https://github.com/white-b0x/fukuii-etc-tests.git
