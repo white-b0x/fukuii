@@ -26,10 +26,9 @@ enum RequestType(val typeByte: Byte):
   * request's data is the queue contract's system-call return.
   *
   * **[[encoded]] is the byte form fed to the `requestsHash` fold** — `typeByte ‖ data` (besu
-  * `Request.getEncodedRequest`
-  * \= `Bytes.concatenate(type, data)`; go-ethereum builds the same `requestType` -prefixed byte slice in
-  * `processRequestsSystemCall:420` / `ParseDepositLogs`). An [[isEmpty]] request (empty data) is **excluded** from the
-  * hash (besu `BodyValidation:82`; go-ethereum `CalcRequestsHash` skips `len(item) > 1`).
+  * `Request.getEncodedRequest` \= `Bytes.concatenate(type, data)`; go-ethereum builds the same `requestType` -prefixed
+  * byte slice in `processRequestsSystemCall:420` / `ParseDepositLogs`). An [[isEmpty]] request (empty data) is
+  * **excluded** from the hash (besu `BodyValidation:82`; go-ethereum `CalcRequestsHash` skips `len(item) > 1`).
   */
 final case class Request(requestType: RequestType, data: ByteString):
 
