@@ -174,7 +174,8 @@ final class TransactionProcessor(interpreter: EvmInterpreter[InMemoryWorldState,
           warmStorage = warmStorage,
           precompileRelocations = simulation.precompileRelocations,
           blobVersionedHashes = blobVersionedHashes(tx),
-          blobBaseFee = UInt256(blobBaseFee) // EIP-7516 BLOBBASEFEE reads the actual blob base fee (F-L4-5)
+          blobBaseFee = UInt256(blobBaseFee), // EIP-7516 BLOBBASEFEE reads the actual blob base fee (F-L4-5)
+          prevRandao = prevRandao(header) // EIP-4399: 0x44 returns mixHash post-Merge, else difficulty (F-L4-P7-1)
         )
 
         val (execResult, createdAddress) =
@@ -366,6 +367,27 @@ object TransactionProcessor:
     * fukuii has no Amsterdam fork, so Osaka membership is the correct dispatch.
     */
   val MaxTxGas: BigInt = BigInt(1) << 24
+
+  /** The block's EIP-4399 `prevRandao` for the tx/system-call `CallContext` — `Some(mixHash)` post-Merge, `None`
+    * pre-Merge/PoW. The `DIFFICULTY`/`PREVRANDAO` opcode (0x44) reads this: `env.prevRandao.getOrElse(difficulty)`
+    * (`OpCode.scala:376-381`), so a `None` here makes 0x44 fall back to `header.difficulty` — correct for PoW, but a
+    * consensus bug post-Merge where `difficulty == 0` and the RANDAO lives in `mixHash` (F-L4-P7-1).
+    *
+    * Gate: the canonical post-merge predicate — the same expression as `EvmInterpreter.isPoS`
+    * (`EvmInterpreter.scala:291-292`): `difficulty == 0 && baseFeePerGas.isDefined`. go-ethereum's block context sets
+    * `Random = &header.MixDigest` iff `header.Difficulty.Sign() == 0` (`core/evm.go:63-65`); besu selects
+    * `PrevRanDaoOperation` (which pushes `getMixHashOrPrevRandao()`, `PrevRanDaoOperation.java:34`) at the Paris/Merge
+    * fork (`MainnetEVMs.java:782`). go-ethereum gates on `difficulty == 0` alone; the extra `&&
+    * baseFeePerGas.isDefined` conjunct is a no-op for every supported network and every `ethereum/tests` fork — a
+    * post-Merge header always carries a base fee (London precedes the Merge), and no supported header has `difficulty
+    * \== 0` without one — so the two predicates coincide and reusing `isPoS` stays byte-consistent with go-ethereum.
+    * EIP-4399: post-Merge 0x44 returns `mixHash`. ETC/PoW keeps `difficulty > 0`, so this is always `None` there — 0x44
+    * returns the difficulty unchanged (forge's PoW-unaffected co-sign).
+    */
+  def prevRandao(header: BlockHeader): Option[UInt256] =
+    if header.difficulty.signum == 0 && header.baseFeePerGas.isDefined then
+      Some(UInt256.fromBytes(header.mixHash.bytes))
+    else None
 
   /** EIP-7702 `TxAuthTupleGas` (go-ethereum `params.TxAuthTupleGas = 12500`) — the per-authority base cost; the
     * intrinsic phase charged `CallNewAccountGas` (25000), so an existing authority is refunded `25000 − 12500 = 12500`

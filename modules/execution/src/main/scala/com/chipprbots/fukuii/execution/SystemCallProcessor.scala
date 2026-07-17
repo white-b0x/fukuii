@@ -86,7 +86,11 @@ final class SystemCallProcessor(interpreter: EvmInterpreter[InMemoryWorldState, 
         staticCtx = false,
         originalWorld = world,
         warmAddresses = Set(contractAddress), // go-ethereum AddAddressToAccessList(target); state-inert, gas-only
-        warmStorage = Set.empty
+        warmStorage = Set.empty,
+        // EIP-4399 prevRandao carried consistently with the block context go-ethereum shares across system calls (the
+        // same `Random`-bearing `NewEVMBlockContext`). The 4788/2935/7002/7251 system contracts never execute 0x44, so
+        // this is consensus-inert here — set for correctness/consistency, not to change any system-call result.
+        prevRandao = TransactionProcessor.prevRandao(header)
       )
       val result = interpreter.run(context)
       result.error match
