@@ -119,8 +119,8 @@ final class InMemoryWorldState private (
     swept.clearTouchedAccounts
 
   /** Flush all pending changes to the backing stores and return the committed world (its [[stateRootHash]] is the new
-    * state root). Mirrors the reference-tree `persistState` order: **code → contract storage → accounts trie**, so each
-    * account's `codeHash` and `storageRoot` are finalized before the accounts trie is committed.
+    * state root). Persists in **code → contract storage → accounts trie** order, so each account's `codeHash` and
+    * `storageRoot` are finalized before the accounts trie is committed.
     */
   def persist: InMemoryWorldState =
     persistAccountsStateTrie(persistContractStorage(persistCode(this)))
@@ -195,9 +195,9 @@ object InMemoryWorldState:
 
   /** Build a world rooted at `stateRootHash` (use `MptNode.EmptyRootHash` for a fresh chain).
     *
-    * Mirrors the reference-tree `InMemoryWorldStateProxy.apply` constructor params, trimmed to P0: the
-    * `ethCompatibleStorage` flag (a Mantis private-network artifact — geth-compatible storage is the only consensus
-    * form) and the `flatSlotStorage` O(1)-read cache (a later-L4 / optional perf seam) are out of P0 scope.
+    * Constructor params are trimmed to P0: an `ethCompatibleStorage` toggle is unnecessary since geth-compatible
+    * storage is the only consensus form fukuii supports, and a `flatSlotStorage` O(1)-read cache (a later-L4 / optional
+    * perf seam) is out of P0 scope.
     */
   def apply(
       codeStorage: CodeStorage,

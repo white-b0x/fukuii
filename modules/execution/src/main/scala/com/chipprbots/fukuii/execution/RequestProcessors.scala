@@ -88,8 +88,8 @@ trait RequestProcessor:
   def process(context: RequestContext): Either[RequestError, RequestOutcome]
 
 /** A per-fork wrapper over besu's data-driven `RequestType → RequestProcessor` map
-  * (`requests/RequestProcessorCoordinator.java`) — replaces the AS-IS hard-coded `processPragueSystemCalls` loop (L4
-  * plan §6 row 5).
+  * (`requests/RequestProcessorCoordinator.java`) — a data-driven map rather than a hard-coded
+  * `processPragueSystemCalls` loop (L4 plan §6 row 5).
   *
   * **Fail-loud construction (besu `RequestProcessorCoordinator.build():66-73` throws on an accidental empty map).** An
   * empty processor map is reachable **only** via the explicit [[RequestProcessors.noOp]] factory — the named degraded

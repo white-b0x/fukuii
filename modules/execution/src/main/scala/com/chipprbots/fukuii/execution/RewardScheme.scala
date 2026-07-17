@@ -11,7 +11,8 @@ import com.chipprbots.fukuii.evm.WorldState
 /** The **sole economics seam** between family-agnostic execution and family-specific consensus issuance — declared **in
   * `execution`**, implementation carried by the per-fork [[ProtocolSpec]] bundle. This placement is the `ledger ↔
   * consensus` **DAG inversion** (L4 plan §6 row 1 / §9): the reward trait lives here and consensus (L5) calls *down*
-  * into it; an upward `import ...consensus...` would re-form the old 13-package cycle and is a compile error.
+  * into it; an upward `import ...consensus...` would re-form a `ledger ↔ consensus` package cycle and is a compile
+  * error.
   *
   * The single method mirrors besu's one abstract `rewardCoinbase` — the only economics delegation in an otherwise
   * concrete block loop (besu `AbstractBlockProcessor.java:652` `abstract boolean rewardCoinbase(...)`, called once at
@@ -124,8 +125,8 @@ object RewardScheme:
       * `rewards.go:117-128`: `q.Exp(4, era); d.Exp(5, era); r.Mul(reward, q); r.Div(r, d)` — `DisinflationRateQuotient
       * \= 4`, `DisinflationRateDivisor = 5`, `config_classic.go:144-145`; besu-etc `getBlockWinnerRewardByEra:116-139`:
       * `BigInteger.valueOf(4).pow(era)` / `.divide` — identical). `BigInt` division truncates toward zero, matching Go
-      * `big.Int.Div` and Java `BigInteger.divide`. **NOT** a `BigDecimal.precision` reconstruction of the 4/5 ratio
-      * (the AS-IS byte-hazard this replaces).
+      * `big.Int.Div` and Java `BigInteger.divide`. **NOT** a `BigDecimal.precision` reconstruction of the 4/5 ratio —
+      * such a reconstruction is a floating-point-precision byte-hazard.
       */
     private[execution] def winnerRewardByEra(era: BigInt): BigInt =
       if era == 0 then blockReward

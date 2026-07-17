@@ -2,14 +2,13 @@ package com.chipprbots.fukuii.execution
 
 import com.chipprbots.fukuii.bytes.Address
 
-/** The immutable per-call simulation bundle threaded through the [[TransactionProcessor]] — the rebuild's replacement
-  * for the AS-IS `@volatile` mutable simulation flags on `BlockPreparator` (`_simulatePrecompileRelocations` et al.,
-  * set-then-`finally`-cleared) (L4 plan §5/§6, RX-L4-23).
+/** The immutable per-call simulation bundle threaded through the [[TransactionProcessor]], avoiding any process-global
+  * mutable simulation flags (L4 plan §5/§6, RX-L4-23).
   *
-  * **R2 — no process-global execution state.** The AS-IS flags were exactly the shared mutable state R2 bans: two
-  * `ChainInstance`s in one binary threading a simulation into `runVM` would race on them. Here every simulation toggle
-  * rides on this per-call value, so nothing is instance- or process-level mutable. Both go-ethereum (`vm.Config`
-  * threaded as a *parameter* into `Process`/`NewEVM`, `core/state_processor.go:66-90`) and besu
+  * **R2 — no process-global execution state.** Process-global `@volatile` flags would be exactly the shared mutable
+  * state R2 bans: two `ChainInstance`s in one binary threading a simulation into `runVM` would race on them. Here every
+  * simulation toggle rides on this per-call value, so nothing is instance- or process-level mutable. Both go-ethereum
+  * (`vm.Config` threaded as a *parameter* into `Process`/`NewEVM`, `core/state_processor.go:66-90`) and besu
   * (`MainnetTransactionProcessor` receives `TransactionValidationParams.processingBlock()` **per call**, not a mutable
   * processor field) confirm the per-call, never-per-instance shape.
   *
